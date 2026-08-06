@@ -1,0 +1,652 @@
+/*
+  Gestaltung des Marktplaners.
+
+  Alle Farben und Abstände stehen als Variablen ganz oben. Wenn du das Aussehen
+  ändern möchtest, reicht es fast immer, hier einen Wert anzupassen.
+*/
+
+:root {
+  /* Hausfarben, dezent an EDEKA angelehnt */
+  --blau: #005ca9;
+  --blau-dunkel: #00457f;
+  --blau-hell: #e6f0f9;
+  --gelb: #ffd400;
+
+  /* Grautöne für die Oberfläche */
+  --flaeche: #ffffff;
+  --flaeche-2: #f6f7f9;
+  --flaeche-3: #eef0f3;
+  --rand: #dde1e6;
+  --rand-stark: #c3c9d0;
+  --text: #1c2530;
+  --text-schwach: #5d6874;
+
+  /* Zeichenfläche */
+  --canvas-hintergrund: #e9ecef;
+  --boden: #fbfbfa;
+  --wand: #3c4650;
+  --raster: #d6dbe0;
+  --raster-stark: #bcc4cc;
+  --auswahl: #0a84ff;
+  --hilfslinie: #e5484d;
+
+  /* Abstände und Rundungen – einheitlich in der ganzen Anwendung */
+  --abstand-1: 4px;
+  --abstand-2: 8px;
+  --abstand-3: 12px;
+  --abstand-4: 16px;
+  --rundung: 6px;
+  --schatten: 0 1px 2px rgba(20, 30, 45, 0.08), 0 4px 12px rgba(20, 30, 45, 0.06);
+
+  --kopf-hoehe: 92px;
+  --fuss-hoehe: 28px;
+  --spalte-links: 264px;
+  --spalte-rechts: 304px;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--flaeche-2);
+  overflow: hidden;
+}
+
+/* ============================================================ Grundgerüst */
+
+.app {
+  display: grid;
+  grid-template-rows: var(--kopf-hoehe) 1fr var(--fuss-hoehe);
+  grid-template-columns: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.arbeitsbereich {
+  display: grid;
+  grid-template-columns: var(--spalte-links) 1fr var(--spalte-rechts);
+  /* Ohne diese beiden Zeilen kann die Zeichenfläche das Fenster aufblähen. */
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.spalte {
+  background: var(--flaeche);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.spalte-links {
+  border-right: 1px solid var(--rand);
+}
+
+.spalte-rechts {
+  border-left: 1px solid var(--rand);
+}
+
+.spalte-kopf {
+  padding: var(--abstand-3) var(--abstand-3) var(--abstand-2);
+  border-bottom: 1px solid var(--rand);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-schwach);
+  flex: none;
+}
+
+.spalte-inhalt {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ========================================================= Werkzeugleiste */
+
+.werkzeugleiste {
+  background: var(--flaeche);
+  border-bottom: 1px solid var(--rand);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 var(--abstand-3);
+  gap: var(--abstand-1);
+  /* Die Leiste darf das Fenster nie breiter machen als es ist. */
+  min-width: 0;
+  overflow: hidden;
+}
+
+.werkzeugleiste-zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-1);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.marke {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-2);
+  padding-right: var(--abstand-3);
+  margin-right: var(--abstand-1);
+  border-right: 1px solid var(--rand);
+  flex: none;
+}
+
+.marke-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  background: var(--blau);
+  color: var(--gelb);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.marke-name {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.projektname {
+  border: 1px solid transparent;
+  border-radius: var(--rundung);
+  padding: 3px 6px;
+  font: inherit;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text);
+  width: 210px;
+  flex: none;
+}
+
+.projektname:hover {
+  border-color: var(--rand);
+}
+
+.projektname:focus {
+  outline: none;
+  border-color: var(--blau);
+  background: var(--flaeche);
+}
+
+.trenner {
+  width: 1px;
+  align-self: stretch;
+  background: var(--rand);
+  margin: 4px var(--abstand-2);
+  flex: none;
+}
+
+/* ============================================================= Schaltflächen */
+
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: var(--rundung);
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex: none;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.knopf:hover:not(:disabled) {
+  background: var(--flaeche-3);
+}
+
+.knopf:active:not(:disabled) {
+  background: var(--rand);
+}
+
+.knopf:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.knopf.aktiv {
+  background: var(--blau-hell);
+  border-color: #bcd9f0;
+  color: var(--blau-dunkel);
+}
+
+.knopf-haupt {
+  background: var(--blau);
+  color: #fff;
+}
+
+.knopf-haupt:hover:not(:disabled) {
+  background: var(--blau-dunkel);
+}
+
+.knopf-gefahr:hover:not(:disabled) {
+  background: #fdecec;
+  color: #c02626;
+}
+
+.knopf svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.knopf-nur-symbol {
+  padding: 6px;
+}
+
+/* =========================================================== Bibliothek */
+
+.suchfeld {
+  margin: var(--abstand-2) var(--abstand-3);
+  position: relative;
+  flex: none;
+}
+
+.suchfeld input {
+  width: 100%;
+  padding: 6px 8px 6px 26px;
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  font: inherit;
+  background: var(--flaeche-2);
+}
+
+.suchfeld input:focus {
+  outline: none;
+  border-color: var(--blau);
+  background: var(--flaeche);
+}
+
+.suchfeld svg {
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 13px;
+  height: 13px;
+  color: var(--text-schwach);
+}
+
+.kategorie-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-2);
+  width: 100%;
+  border: none;
+  background: var(--flaeche-2);
+  padding: 7px var(--abstand-3);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border-top: 1px solid var(--rand);
+  text-align: left;
+  color: var(--text);
+}
+
+.kategorie-kopf:hover {
+  background: var(--flaeche-3);
+}
+
+.kategorie-punkt {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex: none;
+}
+
+.kategorie-anzahl {
+  margin-left: auto;
+  color: var(--text-schwach);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.vorlagen-liste {
+  padding: var(--abstand-1) var(--abstand-2) var(--abstand-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vorlage {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-2);
+  padding: 5px 6px;
+  border-radius: var(--rundung);
+  cursor: grab;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  width: 100%;
+}
+
+.vorlage:hover {
+  background: var(--blau-hell);
+  border-color: #cfe2f2;
+}
+
+.vorlage:active {
+  cursor: grabbing;
+}
+
+.vorlage-bild {
+  width: 30px;
+  height: 22px;
+  flex: none;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+}
+
+.vorlage-bild.rund {
+  border-radius: 50%;
+  width: 22px;
+  margin: 0 4px;
+}
+
+.vorlage-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.vorlage-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vorlage-mass {
+  font-size: 11px;
+  color: var(--text-schwach);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ======================================================== Zeichenfläche */
+
+.zeichenflaeche {
+  position: relative;
+  background: var(--canvas-hintergrund);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.zeichenflaeche.ablageziel::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 2px dashed var(--blau);
+  border-radius: var(--rundung);
+  pointer-events: none;
+}
+
+.zoom-leiste {
+  position: absolute;
+  right: var(--abstand-3);
+  bottom: var(--abstand-3);
+  display: flex;
+  gap: 2px;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  box-shadow: var(--schatten);
+  padding: 2px;
+}
+
+.leer-hinweis {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--text-schwach);
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.85);
+  padding: var(--abstand-4) var(--abstand-4);
+  border-radius: var(--rundung);
+  max-width: 340px;
+  line-height: 1.6;
+}
+
+/* ==================================================== Eigenschaftenfenster */
+
+.gruppe {
+  border-bottom: 1px solid var(--rand);
+  padding: var(--abstand-3);
+}
+
+.gruppe-titel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-schwach);
+  margin-bottom: var(--abstand-2);
+}
+
+.feld-zeile {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--abstand-2);
+  margin-bottom: var(--abstand-2);
+}
+
+.feld-zeile.einspaltig {
+  grid-template-columns: 1fr;
+}
+
+.feld {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.feld label {
+  font-size: 11px;
+  color: var(--text-schwach);
+}
+
+.feld input[type='text'],
+.feld input[type='number'],
+.feld select,
+.feld textarea {
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  padding: 5px 7px;
+  font: inherit;
+  background: var(--flaeche);
+  color: var(--text);
+  width: 100%;
+}
+
+.feld input:focus,
+.feld select:focus,
+.feld textarea:focus {
+  outline: none;
+  border-color: var(--blau);
+  box-shadow: 0 0 0 2px var(--blau-hell);
+}
+
+.feld textarea {
+  resize: vertical;
+  min-height: 54px;
+}
+
+.feld input[type='color'] {
+  width: 100%;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  background: var(--flaeche);
+  cursor: pointer;
+}
+
+.schalter {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-2);
+  cursor: pointer;
+  padding: 3px 0;
+}
+
+.schalter input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--blau);
+  cursor: pointer;
+}
+
+.knopfreihe {
+  display: flex;
+  gap: var(--abstand-1);
+  flex-wrap: wrap;
+}
+
+.knopfreihe .knopf {
+  border-color: var(--rand);
+  background: var(--flaeche);
+}
+
+.hinweis {
+  color: var(--text-schwach);
+  line-height: 1.6;
+}
+
+.kennzahl {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--rand);
+}
+
+.kennzahl:last-child {
+  border-bottom: none;
+}
+
+.kennzahl-wert {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ============================================================ Statusleiste */
+
+.statusleiste {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-4);
+  padding: 0 var(--abstand-3);
+  background: var(--flaeche);
+  border-top: 1px solid var(--rand);
+  font-size: 11px;
+  color: var(--text-schwach);
+  font-variant-numeric: tabular-nums;
+}
+
+.statusleiste .rechts {
+  margin-left: auto;
+  display: flex;
+  gap: var(--abstand-4);
+}
+
+/* ================================================================= Dialog */
+
+.dialog-hintergrund {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 45, 0.35);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+
+.dialog {
+  background: var(--flaeche);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(20, 30, 45, 0.25);
+  width: 460px;
+  max-width: calc(100vw - 40px);
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dialog-kopf {
+  padding: var(--abstand-4);
+  border-bottom: 1px solid var(--rand);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.dialog-inhalt {
+  padding: var(--abstand-4);
+  overflow-y: auto;
+}
+
+.dialog-fuss {
+  padding: var(--abstand-3) var(--abstand-4);
+  border-top: 1px solid var(--rand);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--abstand-2);
+  background: var(--flaeche-2);
+}
+
+.projektzeile {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-2);
+  padding: var(--abstand-2);
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  margin-bottom: var(--abstand-2);
+}
+
+.projektzeile-name {
+  font-weight: 600;
+}
+
+.projektzeile-info {
+  font-size: 11px;
+  color: var(--text-schwach);
+}
+
+.projektzeile .knopfreihe {
+  margin-left: auto;
+  flex-wrap: nowrap;
+}
