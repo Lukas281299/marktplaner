@@ -4,7 +4,17 @@ import { WARENGRUPPEN } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { aussenmasse, istRechteck, rahmen, rechteck } from '../logik/polygon';
-import type { Grundform, KategorieId, PlanElement, Raum, Raumart } from '../typen/modell';
+import { wandlaenge, wandwinkel } from '../logik/waende';
+import type {
+  Grundform,
+  KategorieId,
+  Oeffnung,
+  Oeffnungsart,
+  PlanElement,
+  Raum,
+  Raumart,
+  Wand,
+} from '../typen/modell';
 import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
 import {
   Auswahlfeld,
@@ -44,19 +54,28 @@ const FORMEN: { wert: Grundform; text: string }[] = [
  */
 export function Eigenschaftenfenster() {
   const auswahl = usePlanStore((s) => s.auswahl);
-  const raumAuswahl = usePlanStore((s) => s.raumAuswahl);
-  const elemente = usePlanStore((s) => s.projekt.elemente);
-  const raeume = usePlanStore((s) => s.projekt.raeume);
-  const ausgewaehlte = elemente.filter((el) => auswahl.includes(el.id));
-  const raum = raeume.find((r) => r.id === raumAuswahl);
+  const sonderauswahl = usePlanStore((s) => s.sonderauswahl);
+  const projekt = usePlanStore((s) => s.projekt);
+  const ausgewaehlte = projekt.elemente.filter((el) => auswahl.includes(el.id));
+
+  const raum = sonderauswahl?.art === 'raum' ? projekt.raeume.find((r) => r.id === sonderauswahl.id) : undefined;
+  const wand = sonderauswahl?.art === 'wand' ? projekt.waende.find((w) => w.id === sonderauswahl.id) : undefined;
+  const oeffnung =
+    sonderauswahl?.art === 'oeffnung'
+      ? projekt.oeffnungen.find((o) => o.id === sonderauswahl.id)
+      : undefined;
 
   const titel = raum
     ? 'Raum'
-    : ausgewaehlte.length === 0
-      ? 'Projekt'
-      : ausgewaehlte.length === 1
-        ? 'Element'
-        : `${ausgewaehlte.length} Elemente`;
+    : wand
+      ? 'Innenwand'
+      : oeffnung
+        ? 'Öffnung'
+        : ausgewaehlte.length === 0
+          ? 'Projekt'
+          : ausgewaehlte.length === 1
+            ? 'Element'
+            : `${ausgewaehlte.length} Elemente`;
 
   return (
     <aside className="spalte spalte-rechts">
@@ -64,6 +83,10 @@ export function Eigenschaftenfenster() {
       <div className="spalte-inhalt">
         {raum ? (
           <RaumEigenschaften raum={raum} />
+        ) : wand ? (
+          <WandEigenschaften wand={wand} />
+        ) : oeffnung ? (
+          <OeffnungEigenschaften oeffnung={oeffnung} />
         ) : ausgewaehlte.length === 0 ? (
           <ProjektEigenschaften />
         ) : (
@@ -71,6 +94,234 @@ export function Eigenschaftenfenster() {
         )}
       </div>
     </aside>
+  );
+}
+
+/** Knöpfe „Auswahl aufheben" und „Löschen" – für Raum, Wand und Öffnung gleich. */
+function SonderFuss({ gesperrt, was }: { gesperrt: boolean; was: string }) {
+  return (
+    <div className="gruppe">
+      <div className="knopfreihe">
+        <button className="knopf" onClick={() => usePlanStore.getState().waehleSonder(null)}>
+          Auswahl aufheben
+        </button>
+        <button
+          className="knopf knopf-gefahr"
+          disabled={gesperrt}
+          onClick={() => usePlanStore.getState().loescheSonderauswahl()}
+          title={gesperrt ? 'Erst die Sperre aufheben' : `${was} löschen`}
+        >
+          {was} löschen
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===========================================================================
+//  Eigenschaften einer Innenwand
+// ===========================================================================
+
+function WandEigenschaften({ wand }: { wand: Wand }) {
+  const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
+  const beiStart = () => usePlanStore.getState().schnappschuss();
+  const setze = (werte: Partial<Wand>) => usePlanStore.getState().aendereWand(wand.id, werte);
+
+  const laenge = wandlaenge(wand);
+  const winkel = wandwinkel(wand.von, wand.bis);
+
+  /** Verlängert oder kürzt die Wand vom Anfangspunkt aus. */
+  const setzeLaenge = (neu: number) => {
+    if (laenge <= 0 || neu <= 0) return;
+    const faktor = neu / laenge;
+    setze({
+      bis: {
+        x: wand.von.x + (wand.bis.x - wand.von.x) * faktor,
+        y: wand.von.y + (wand.bis.y - wand.von.y) * faktor,
+      },
+    });
+  };
+
+  return (
+    <>
+      <div className="gruppe">
+        <div className="feld-zeile">
+          <Massfeld
+            label="Länge"
+            cm={laenge}
+            einheit={einheit}
+            min={10}
+            beiStart={beiStart}
+            aendern={setzeLaenge}
+          />
+          <Massfeld
+            label="Wandstärke"
+            cm={wand.staerke}
+            einheit={einheit}
+            min={2}
+            beiStart={beiStart}
+            aendern={(staerke) => setze({ staerke })}
+          />
+        </div>
+        <div className="feld-zeile einspaltig">
+          <Auswahlfeld<Wand['art']>
+            label="Art"
+            wert={wand.art}
+            moeglichkeiten={[
+              { wert: 'tragend', text: 'Tragende Wand' },
+              { wert: 'trennwand', text: 'Trennwand' },
+              { wert: 'leicht', text: 'Leichte Wand / Stellwand' },
+            ]}
+            aendern={(art) => setze({ art })}
+          />
+        </div>
+        <Schalter
+          label="Gegen Verschieben sperren"
+          wert={wand.gesperrt}
+          aendern={(gesperrt) => setze({ gesperrt })}
+        />
+      </div>
+
+      <div className="gruppe">
+        <div className="gruppe-titel">Lage</div>
+        <div className="kennzahl">
+          <span>Anfang</span>
+          <span className="kennzahl-wert">
+            {formatiereLaenge(wand.von.x, einheit)} / {formatiereLaenge(wand.von.y, einheit)}
+          </span>
+        </div>
+        <div className="kennzahl">
+          <span>Ende</span>
+          <span className="kennzahl-wert">
+            {formatiereLaenge(wand.bis.x, einheit)} / {formatiereLaenge(wand.bis.y, einheit)}
+          </span>
+        </div>
+        <div className="kennzahl">
+          <span>Richtung</span>
+          <span className="kennzahl-wert">
+            {winkel === 0 ? 'waagerecht' : winkel === 90 ? 'senkrecht' : `${winkel.toFixed(1)}°`}
+          </span>
+        </div>
+      </div>
+
+      <SonderFuss gesperrt={wand.gesperrt} was="Wand" />
+
+      <div className="gruppe">
+        <p className="hinweis">
+          Die Länge wird vom Anfangspunkt aus geändert – das Ende wandert mit. Zum Verschieben die
+          ganze Wand auf dem Plan ziehen.
+        </p>
+      </div>
+    </>
+  );
+}
+
+// ===========================================================================
+//  Eigenschaften einer Öffnung
+// ===========================================================================
+
+const OEFFNUNGSARTEN: { wert: Oeffnungsart; text: string }[] = [
+  { wert: 'tuer', text: 'Tür' },
+  { wert: 'doppeltuer', text: 'Doppeltür' },
+  { wert: 'schiebetuer', text: 'Schiebetür' },
+  { wert: 'durchgang', text: 'Durchgang (ohne Tür)' },
+  { wert: 'rolltor', text: 'Rolltor' },
+  { wert: 'fenster', text: 'Fenster' },
+];
+
+function OeffnungEigenschaften({ oeffnung }: { oeffnung: Oeffnung }) {
+  const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
+  const beiStart = () => usePlanStore.getState().schnappschuss();
+  const setze = (werte: Partial<Oeffnung>) =>
+    usePlanStore.getState().aendereOeffnung(oeffnung.id, werte);
+
+  const schlaegtAuf = oeffnung.art === 'tuer' || oeffnung.art === 'doppeltuer';
+
+  return (
+    <>
+      <div className="gruppe">
+        <div className="feld-zeile einspaltig">
+          <Auswahlfeld<Oeffnungsart>
+            label="Art"
+            wert={oeffnung.art}
+            moeglichkeiten={OEFFNUNGSARTEN}
+            aendern={(art) => setze({ art })}
+          />
+        </div>
+        <div className="feld-zeile">
+          <Massfeld
+            label="Lichte Breite"
+            cm={oeffnung.breite}
+            einheit={einheit}
+            min={20}
+            beiStart={beiStart}
+            aendern={(breite) => setze({ breite })}
+          />
+          <Massfeld
+            label="Wandstärke"
+            cm={oeffnung.tiefe}
+            einheit={einheit}
+            min={2}
+            beiStart={beiStart}
+            aendern={(tiefe) => setze({ tiefe })}
+          />
+        </div>
+        <div className="feld-zeile">
+          <Zahlfeld
+            label="Drehung"
+            einheit="°"
+            wert={oeffnung.drehung}
+            min={-180}
+            max={180}
+            schritt={1}
+            nachkommastellen={1}
+            beiStart={beiStart}
+            aendern={(drehung) => setze({ drehung })}
+          />
+          <div className="feld">
+            <label>&nbsp;</label>
+            <button
+              className="knopf"
+              disabled={!schlaegtAuf}
+              onClick={() => setze({ gespiegelt: !oeffnung.gespiegelt })}
+              title={
+                schlaegtAuf
+                  ? 'Auf welche Seite die Tür aufschlägt'
+                  : 'Nur bei Türen und Doppeltüren'
+              }
+            >
+              Anschlag wechseln
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="gruppe">
+        <div className="feld-zeile einspaltig">
+          <Textfeld
+            label="Beschriftung"
+            wert={oeffnung.beschriftung}
+            beiStart={beiStart}
+            aendern={(beschriftung) => setze({ beschriftung })}
+          />
+        </div>
+        <Schalter
+          label="Gegen Verschieben sperren"
+          wert={oeffnung.gesperrt}
+          aendern={(gesperrt) => setze({ gesperrt })}
+        />
+      </div>
+
+      <SonderFuss gesperrt={oeffnung.gesperrt} was="Öffnung" />
+
+      <div className="gruppe">
+        <p className="hinweis">
+          Zieh die Öffnung auf dem Plan an eine andere Stelle – sie rastet von selbst in der Wand
+          ein, über der sie landet, und übernimmt deren Richtung und Stärke. Die Drehung musst du
+          nur dann von Hand setzen, wenn dort gar keine Wand ist.
+        </p>
+      </div>
+    </>
   );
 }
 
@@ -153,19 +404,9 @@ function RaumEigenschaften({ raum }: { raum: Raum }) {
         </div>
       </div>
 
+      <SonderFuss gesperrt={raum.gesperrt} was="Raum" />
+
       <div className="gruppe">
-        <div className="knopfreihe">
-          <button className="knopf" onClick={() => usePlanStore.getState().waehleRaum(null)}>
-            Auswahl aufheben
-          </button>
-          <button
-            className="knopf knopf-gefahr"
-            disabled={raum.gesperrt}
-            onClick={() => usePlanStore.getState().loescheRaum(raum.id)}
-          >
-            Raum löschen
-          </button>
-        </div>
         <p className="hinweis">
           Zum Verschieben den Raum auf dem Plan ziehen. Die Regale darin bleiben stehen – sie
           gehören nicht zum Raum, sondern liegen nur darauf.
@@ -718,7 +959,7 @@ function ProjektEigenschaften() {
               <div className="kennzahl" key={raum.id}>
                 <span
                   style={{ cursor: 'pointer' }}
-                  onClick={() => usePlanStore.getState().waehleRaum(raum.id)}
+                  onClick={() => usePlanStore.getState().waehleSonder({ art: 'raum', id: raum.id })}
                   title="Diesen Raum auswählen"
                 >
                   {raum.name}

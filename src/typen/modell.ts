@@ -130,6 +130,65 @@ export interface Raum {
   gesperrt: boolean;
 }
 
+/** Wozu eine Innenwand dient – bestimmt nur die Darstellung. */
+export type Wandart = 'tragend' | 'trennwand' | 'leicht';
+
+/**
+ * Eine einzelne Innenwand.
+ *
+ * Anders als bei Raum und Gebäude ist `von`/`bis` hier die **Achse** der Wand,
+ * nicht ihre Außenkante: Eine freistehende Wand hat keine Innen- und
+ * Außenseite, sie steht in der Mitte auf ihrer Linie. Beim Bemaßen ist das
+ * auch die Linie, die man im Ladenbau angibt.
+ */
+export interface Wand {
+  id: string;
+  von: Punkt;
+  bis: Punkt;
+  staerke: number;
+  art: Wandart;
+  gesperrt: boolean;
+}
+
+/** Welche Art von Durchbruch in einer Wand sitzt. */
+export type Oeffnungsart =
+  | 'tuer'
+  | 'doppeltuer'
+  | 'schiebetuer'
+  | 'durchgang'
+  | 'rolltor'
+  | 'fenster';
+
+/**
+ * Eine Öffnung in einer Wand: Tür, Durchgang, Rolltor.
+ *
+ * Sie hängt bewusst **nicht** an einer bestimmten Wand, sondern liegt frei auf
+ * dem Plan und unterbricht optisch, was unter ihr liegt. Der Grund ist
+ * praktisch: Eine Tür sitzt oft genau dort, wo eine Raumwand auf die Außenwand
+ * trifft. Müsste sie sich für eine der beiden entscheiden, ginge sie beim
+ * Verschieben der anderen kaputt.
+ *
+ * Beim Setzen wird sie trotzdem automatisch an der Wand darunter ausgerichtet –
+ * siehe `logik/waende.ts`.
+ */
+export interface Oeffnung {
+  id: string;
+  art: Oeffnungsart;
+  /** Mittelpunkt der Öffnung in cm. */
+  x: number;
+  y: number;
+  /** Lichte Breite in cm. */
+  breite: number;
+  /** Stärke der Wand, die durchbrochen wird. */
+  tiefe: number;
+  /** Drehung in Grad. 0 = die Wand verläuft waagerecht. */
+  drehung: number;
+  /** Anschlagseite: Auf welche Seite schlägt die Tür auf? */
+  gespiegelt: boolean;
+  beschriftung: string;
+  gesperrt: boolean;
+}
+
 /**
  * Die Grundfläche des Gebäudes.
  *
@@ -174,6 +233,10 @@ export interface Projekt {
   einstellungen: Einstellungen;
   ebenen: Ebene[];
   raeume: Raum[];
+  /** Freistehende Innenwände, die keinen ganzen Raum abtrennen. */
+  waende: Wand[];
+  /** Türen, Durchgänge und Tore. */
+  oeffnungen: Oeffnung[];
   elemente: PlanElement[];
 }
 
@@ -184,5 +247,6 @@ export interface Projekt {
  *
  *   1 – erste Fassung, Grundfläche als Rechteck (Breite × Länge)
  *   2 – Grundfläche und Räume als Polygon, Räume mit Art
+ *   3 – einzelne Innenwände und Öffnungen (Türen, Durchgänge)
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;

@@ -51,9 +51,11 @@ Der Grundriss ist kein Rechteck mehr, sondern ein Polygon.
 - [x] Raumname, Art, Wandstärke, Farbe, Flächenberechnung je Raum
 - [x] Auswertung getrennt nach Verkaufsfläche und Nebenflächen
 - [x] Bestehende Planungen werden beim Öffnen umgewandelt (Schemaversion 2)
-- [ ] Einzelne Innenwände zeichnen und verschieben (ohne kompletten Raum)
-- [ ] Türen und Durchgänge in Wände setzen
+- [x] Einzelne Innenwände zeichnen und verschieben (ohne kompletten Raum)
+- [x] Türen, Doppeltüren, Schiebetüren, Durchgänge, Rolltore und Fenster in
+      Wände setzen – mit automatischer Ausrichtung an der Wand darunter
 - [ ] Wandmaße direkt über Zahleneingabe ändern, auch bei zusammengesetzten Formen
+- [ ] Innenwände am Raster und aneinander einrasten lassen
 
 ## Phase 4 – Regale und Marktausstattung (Wanzl)
 

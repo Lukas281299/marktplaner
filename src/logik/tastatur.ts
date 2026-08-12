@@ -65,10 +65,16 @@ export function useTastatur(): void {
         case 'Delete':
         case 'Backspace':
           e.preventDefault();
-          store.loescheAuswahl();
+          // Räume, Wände und Öffnungen liegen in einer eigenen Auswahl –
+          // sonst löschte Entf hier nichts, obwohl sichtbar etwas markiert ist.
+          if (store.sonderauswahl) store.loescheSonderauswahl();
+          else store.loescheAuswahl();
           return;
         case 'Escape':
-          store.hebeAuswahlAuf();
+          // Escape ist der Weg zurück ins normale Arbeiten: erst das
+          // Zeichenwerkzeug weglegen, dann die Auswahl aufheben.
+          if (store.werkzeug !== 'auswahl') store.setzeWerkzeug('auswahl');
+          else store.hebeAuswahlAuf();
           return;
         case 'r':
         case 'R':

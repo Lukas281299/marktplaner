@@ -71,6 +71,19 @@ Die Werkzeuge dafür stehen in der dritten Zeile der Werkzeugleiste:
 | **Fläche anfügen** | Rechteck aufziehen – es wird zur Grundfläche hinzugerechnet. So entstehen zusammengesetzte Formen und Anbauten. |
 | **Fläche abziehen** | Rechteck aufziehen – dieser Bereich wird herausgeschnitten. Für ausgesparte Ecken und Kerben. |
 | **Raum abtrennen** | Rechteck aufziehen – daraus wird ein Raum. Art, Name, Wandstärke und Farbe danach rechts einstellen. |
+| **Innenwand** | Von einem Punkt zum anderen ziehen. Fast waagerechte und fast senkrechte Wände werden automatisch gerade gezogen. |
+| **Tür / Durchgang** | Auf eine Wand klicken. Die Öffnung übernimmt Richtung und Wandstärke von selbst – egal ob Außenwand, Raumwand oder Innenwand. |
+
+Eine **Öffnung** hängt bewusst nicht an einer bestimmten Wand, sondern liegt
+frei auf dem Plan und unterbricht optisch, was unter ihr liegt. Der Grund ist
+praktisch: Türen sitzen oft genau dort, wo eine Raumwand auf die Außenwand
+trifft. Müsste sich die Tür für eine der beiden entscheiden, ginge sie beim
+Verschieben der anderen kaputt. Zieht man sie an eine andere Wand, rastet sie
+dort von selbst wieder ein.
+
+Zur Auswahl: Türen gibt es als Tür, Doppeltür, Schiebetür, Durchgang ohne Tür,
+Rolltor und Fenster. Bei Türen lässt sich der Anschlag wechseln – der
+Aufschlagbogen zeigt dann, ob die Tür genug Platz hat.
 
 Solange der Grundriss ein Rechteck ist, lassen sich Breite und Länge weiterhin
 rechts als Zahlen eintippen. Sobald die Form zusammengesetzt ist, steht dort
@@ -144,6 +157,7 @@ src/
 │   ├── geometrie.ts       Umgrenzungen, Drehung, Flächen einzelner Elemente
 │   ├── polygon.ts         Umrisse: Fläche, Kanten, Anfügen und Abziehen
 │   ├── umrissBearbeiten.ts  Ecken verschieben, einfügen, entfernen
+│   ├── waende.ts          Wandachsen finden – wo sitzt eine Tür?
 │   ├── einrasten.ts       Einrasten am Raster/an Nachbarn, Hilfslinien, Abstände
 │   ├── flaechen.ts        Flächenübersicht, Verkaufs- und Nebenflächen
 │   ├── tastatur.ts        alle Tastenkombinationen
@@ -176,6 +190,8 @@ src/
         ├── Zeichenflaeche.tsx  Maus, Zoom, Auswahl, Ziehen, Grundriss-Werkzeuge
         ├── Gebaeude.tsx        Boden, Außenwand, Wandmaße
         ├── Raeume.tsx          abgetrennte Räume
+        ├── Waende.tsx          freistehende Innenwände
+        ├── Oeffnungen.tsx      Türen, Durchgänge, Tore
         ├── UmrissBearbeitung.tsx  Anfasser zum Umformen des Grundrisses
         ├── Raster.tsx          Hilfsraster
         └── ElementSymbol.tsx   Zeichnung eines einzelnen Elements

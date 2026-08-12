@@ -49,6 +49,10 @@ export function wandleProjekt(roh: unknown): Projekt {
     version: SCHEMA_VERSION,
     grundflaeche: wandleGrundflaeche(projekt?.grundflaeche),
     raeume: (projekt?.raeume ?? []).map(wandleRaum),
+    // Fassung 3: Beides gab es vorher nicht, es kann also nur leer sein.
+    // Trotzdem über `??`, damit ein späterer Schritt hier nichts überschreibt.
+    waende: projekt?.waende ?? [],
+    oeffnungen: projekt?.oeffnungen ?? [],
   };
 }
 

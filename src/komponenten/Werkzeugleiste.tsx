@@ -17,7 +17,9 @@ import {
   SymbolFlaecheMinus,
   SymbolFlaechePlus,
   SymbolRaum,
+  SymbolTuer,
   SymbolUmriss,
+  SymbolWand,
   SymbolZeiger,
   SymbolDrehenLinks,
   SymbolDrehenRechts,
@@ -318,6 +320,20 @@ export function Werkzeugleiste() {
             title="Einen Raum abtrennen: Lager, Kühlraum, Sozialraum …"
           >
             <SymbolRaum /> Raum abtrennen
+          </button>
+          <button
+            className={`knopf${werkzeug === 'wand' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'wand' ? 'auswahl' : 'wand')}
+            title="Eine einzelne Innenwand ziehen, ohne gleich einen ganzen Raum abzutrennen"
+          >
+            <SymbolWand /> Innenwand
+          </button>
+          <button
+            className={`knopf${werkzeug === 'oeffnung' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'oeffnung' ? 'auswahl' : 'oeffnung')}
+            title="Tür, Durchgang oder Tor in eine Wand setzen – auf die Wand klicken"
+          >
+            <SymbolTuer /> Tür / Durchgang
           </button>
 
           {werkzeug !== 'auswahl' && (

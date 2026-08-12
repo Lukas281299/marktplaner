@@ -15,14 +15,17 @@ import { runde, ueberschneiden, umgrenzung } from '../../logik/geometrie';
 import { formatiereLaenge } from '../../logik/masse';
 import { rahmen as umrissRahmen, rechteckAusEcken, vereinige, ziehAb } from '../../logik/polygon';
 import { punktEinfuegen, punktEntfernen, punktVerschieben } from '../../logik/umrissBearbeiten';
+import { alleWandachsen, fangbereich, findeWand, richteWandAus } from '../../logik/waende';
 import type { Punkt } from '../../typen/modell';
 import { usePlanStore } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Gebaeude } from './Gebaeude';
+import { Oeffnungen } from './Oeffnungen';
 import { Raeume } from './Raeume';
 import { Raster } from './Raster';
 import { UmrissBearbeitung } from './UmrissBearbeitung';
+import { Waende } from './Waende';
 
 /** Grenzen für den Zoom: 1 Bildpunkt pro 50 cm bis 4 Bildpunkte pro cm. */
 const ZOOM_MIN = 0.02;
@@ -39,7 +42,7 @@ const ZOOM_MAX = 4;
 export function Zeichenflaeche() {
   const projekt = usePlanStore((s) => s.projekt);
   const auswahl = usePlanStore((s) => s.auswahl);
-  const raumAuswahl = usePlanStore((s) => s.raumAuswahl);
+  const sonderauswahl = usePlanStore((s) => s.sonderauswahl);
   const werkzeug = usePlanStore((s) => s.werkzeug);
   const ansicht = usePlanStore((s) => s.ansicht);
   const seitenverhaeltnisHalten = usePlanStore((s) => s.seitenverhaeltnisHalten);
@@ -75,6 +78,8 @@ export function Zeichenflaeche() {
   const [istAblageziel, setIstAblageziel] = useState(false);
   /** Kurze Rückmeldung beim Umformen des Grundrisses. */
   const [meldung, setMeldung] = useState('');
+  /** Vorschau beim Ziehen einer Innenwand – ein Rechteck passt hier nicht. */
+  const [wandZug, setWandZug] = useState<{ von: Punkt; bis: Punkt } | null>(null);
 
   // ------------------------------------------------------ Größe des Bereichs
   useLayoutEffect(() => {
@@ -242,9 +247,9 @@ export function Zeichenflaeche() {
 
     const store = usePlanStore.getState();
 
-    // Beim Zeichnen am Grundriss wird immer ein Rechteck aufgezogen – auch
-    // wenn die Maus dabei über einem Regal startet.
-    if (store.werkzeug === 'flaecheAnfuegen' || store.werkzeug === 'flaecheAbziehen' || store.werkzeug === 'raum') {
+    // Beim Zeichnen am Grundriss wird immer aufgezogen – auch wenn die Maus
+    // dabei über einem Regal startet.
+    if (store.werkzeug !== 'auswahl' && store.werkzeug !== 'umriss') {
       const p = aufRaster(planPunkt(e.evt.clientX, e.evt.clientY));
       rahmenRef.current = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, shift: false };
       setAuswahlrahmen({ x: p.x, y: p.y, breite: 0, hoehe: 0 });
@@ -280,12 +285,17 @@ export function Zeichenflaeche() {
         const p = usePlanStore.getState().werkzeug === 'auswahl' ? roh : aufRaster(roh);
         rahmen.x2 = p.x;
         rahmen.y2 = p.y;
-        setAuswahlrahmen({
-          x: Math.min(rahmen.x1, rahmen.x2),
-          y: Math.min(rahmen.y1, rahmen.y2),
-          breite: Math.abs(rahmen.x2 - rahmen.x1),
-          hoehe: Math.abs(rahmen.y2 - rahmen.y1),
-        });
+        if (usePlanStore.getState().werkzeug === 'wand') {
+          const von = { x: rahmen.x1, y: rahmen.y1 };
+          setWandZug({ von, bis: richteWandAus(von, p) });
+        } else {
+          setAuswahlrahmen({
+            x: Math.min(rahmen.x1, rahmen.x2),
+            y: Math.min(rahmen.y1, rahmen.y2),
+            breite: Math.abs(rahmen.x2 - rahmen.x1),
+            hoehe: Math.abs(rahmen.y2 - rahmen.y1),
+          });
+        }
       }
     };
 
@@ -298,18 +308,56 @@ export function Zeichenflaeche() {
       if (rahmen) {
         rahmenRef.current = null;
         setAuswahlrahmen(null);
+        setWandZug(null);
         const breite = Math.abs(rahmen.x2 - rahmen.x1);
         const hoehe = Math.abs(rahmen.y2 - rahmen.y1);
 
         // ------------------------------------------- Werkzeuge am Grundriss
         const store0 = usePlanStore.getState();
         if (store0.werkzeug !== 'auswahl' && store0.werkzeug !== 'umriss') {
-          // Unter einem halben Meter Kantenlänge war es ein verrutschter Klick.
+          const anfang = { x: rahmen.x1, y: rahmen.y1 };
+          const ende = { x: rahmen.x2, y: rahmen.y2 };
+
+          // ------------------------------------------------------ Öffnung
+          // Ein Klick, kein Aufziehen: Die Öffnung setzt sich selbst in die
+          // Wand, die darunter liegt – mit deren Richtung und Stärke.
+          if (store0.werkzeug === 'oeffnung') {
+            const zoomJetzt = store0.ansicht.zoom;
+            const achsen = alleWandachsen(
+              store0.projekt.grundflaeche,
+              store0.projekt.raeume,
+              store0.projekt.waende,
+            );
+            const treffer = findeWand(anfang, achsen, fangbereich(zoomJetzt));
+            if (!treffer) {
+              melde('Dort ist keine Wand. Eine Öffnung wird auf eine Wand gesetzt – auf die Außenwand, eine Raumwand oder eine Innenwand.');
+              return;
+            }
+            store0.fuegeOeffnungHinzu({
+              art: 'tuer',
+              x: treffer.punkt.x,
+              y: treffer.punkt.y,
+              breite: 100,
+              tiefe: treffer.staerke,
+              drehung: treffer.winkel,
+              gespiegelt: false,
+            });
+            return;
+          }
+
+          // --------------------------------------------------- Innenwand
+          if (store0.werkzeug === 'wand') {
+            const ausgerichtet = richteWandAus(anfang, ende);
+            const laenge = Math.hypot(ausgerichtet.x - anfang.x, ausgerichtet.y - anfang.y);
+            // Unter einem halben Meter war es ein verrutschter Klick.
+            if (laenge < 50) return;
+            store0.fuegeWandHinzu(anfang, ausgerichtet);
+            return;
+          }
+
+          // ------------------------------------ Flächen und Räume
           if (breite < 50 || hoehe < 50) return;
-          const gezogen = rechteckAusEcken(
-            { x: rahmen.x1, y: rahmen.y1 },
-            { x: rahmen.x2, y: rahmen.y2 },
-          );
+          const gezogen = rechteckAusEcken(anfang, ende);
 
           if (store0.werkzeug === 'raum') {
             store0.fuegeRaumHinzu(gezogen);
@@ -410,6 +458,66 @@ export function Zeichenflaeche() {
     const ecke = raum.umriss[0];
     const ziel = aufRaster(ecke);
     store.verschiebeRaum(zug.id, ziel.x - ecke.x, ziel.y - ecke.y);
+  };
+
+  // -------------------------------------------------------- Wand verschieben
+  const wandZugRef = useRef<{ id: string; letztesX: number; letztesY: number } | null>(null);
+
+  const wandZiehStart = (id: string) => {
+    usePlanStore.getState().schnappschuss();
+    wandZugRef.current = { id, letztesX: 0, letztesY: 0 };
+  };
+
+  const wandZiehen = (id: string, x: number, y: number) => {
+    const zug = wandZugRef.current;
+    if (!zug || zug.id !== id) return;
+    usePlanStore.getState().verschiebeWand(id, x - zug.letztesX, y - zug.letztesY);
+    zug.letztesX = x;
+    zug.letztesY = y;
+  };
+
+  const wandZiehEnde = () => {
+    const zug = wandZugRef.current;
+    wandZugRef.current = null;
+    if (!zug) return;
+    const store = usePlanStore.getState();
+    const wand = store.projekt.waende.find((w) => w.id === zug.id);
+    if (!wand) return;
+    const ziel = aufRaster(wand.von);
+    store.verschiebeWand(zug.id, ziel.x - wand.von.x, ziel.y - wand.von.y);
+  };
+
+  // ----------------------------------------------------- Öffnung verschieben
+  const oeffnungZiehStart = () => usePlanStore.getState().schnappschuss();
+
+  const oeffnungZiehen = (id: string, x: number, y: number) => {
+    usePlanStore.getState().aendereOeffnung(id, { x, y }, false);
+  };
+
+  /**
+   * Nach dem Verschieben rastet die Öffnung wieder in einer Wand ein.
+   *
+   * Das ist der Grund, warum sich eine Tür problemlos an eine andere Wand
+   * ziehen lässt: Sie übernimmt dort Richtung und Wandstärke von selbst.
+   * Findet sich keine Wand, bleibt sie einfach liegen, wo sie ist.
+   */
+  const oeffnungZiehEnde = (id: string) => {
+    const store = usePlanStore.getState();
+    const oeffnung = store.projekt.oeffnungen.find((o) => o.id === id);
+    if (!oeffnung) return;
+    const achsen = alleWandachsen(
+      store.projekt.grundflaeche,
+      store.projekt.raeume,
+      store.projekt.waende,
+    );
+    const treffer = findeWand({ x: oeffnung.x, y: oeffnung.y }, achsen, fangbereich(store.ansicht.zoom));
+    if (!treffer) return;
+    store.aendereOeffnung(id, {
+      x: treffer.punkt.x,
+      y: treffer.punkt.y,
+      drehung: treffer.winkel,
+      tiefe: treffer.staerke,
+    });
   };
 
   // ------------------------------------------------------ Element ausgewählt
@@ -573,6 +681,9 @@ export function Zeichenflaeche() {
   // und sperren wie alles andere auch.
   const raeumeSichtbar = sichtbareEbenen.has('raeume');
   const raeumeGesperrt = gesperrteEbenen.has('raeume');
+  // Innenwände und Öffnungen gehören zum Gebäude.
+  const gebaeudeSichtbar = sichtbareEbenen.has('gebaeude');
+  const gebaeudeGesperrt = gesperrteEbenen.has('gebaeude');
 
   const einheit = projekt.einstellungen.anzeigeEinheit;
   const zoom = ansicht.zoom;
@@ -626,14 +737,45 @@ export function Zeichenflaeche() {
           {raeumeSichtbar && (
             <Raeume
               raeume={projekt.raeume}
-              ausgewaehlt={raumAuswahl}
+              ausgewaehlt={sonderauswahl?.art === 'raum' ? sonderauswahl.id : null}
               zoom={zoom}
               anklickbar={werkzeug === 'auswahl' && !raeumeGesperrt}
-              beiKlick={(id) => usePlanStore.getState().waehleRaum(id)}
+              beiKlick={(id) => usePlanStore.getState().waehleSonder({ art: 'raum', id })}
               beiZiehStart={raumZiehStart}
               beiZiehen={raumZiehen}
               beiZiehEnde={raumZiehEnde}
             />
+          )}
+        </Layer>
+
+        {/* ------------------------------------------- Wände und Öffnungen */}
+        {/* Die Öffnungen liegen über allem, was Wand ist – nur so können sie
+            Außenwand, Raumwand und Innenwand gleichermaßen unterbrechen. */}
+        <Layer listening={gebaeudeSichtbar && werkzeug === 'auswahl'}>
+          {gebaeudeSichtbar && (
+            <>
+              <Waende
+                waende={projekt.waende}
+                ausgewaehlt={sonderauswahl?.art === 'wand' ? sonderauswahl.id : null}
+                zoom={zoom}
+                anklickbar={werkzeug === 'auswahl' && !gebaeudeGesperrt}
+                beiKlick={(id) => usePlanStore.getState().waehleSonder({ art: 'wand', id })}
+                beiZiehStart={wandZiehStart}
+                beiZiehen={wandZiehen}
+                beiZiehEnde={wandZiehEnde}
+              />
+              <Oeffnungen
+                oeffnungen={projekt.oeffnungen}
+                ausgewaehlt={sonderauswahl?.art === 'oeffnung' ? sonderauswahl.id : null}
+                zoom={zoom}
+                anklickbar={werkzeug === 'auswahl' && !gebaeudeGesperrt}
+                bodenfarbe="#fbfbfa"
+                beiKlick={(id) => usePlanStore.getState().waehleSonder({ art: 'oeffnung', id })}
+                beiZiehStart={oeffnungZiehStart}
+                beiZiehen={oeffnungZiehen}
+                beiZiehEnde={oeffnungZiehEnde}
+              />
+            </>
           )}
         </Layer>
 
@@ -727,6 +869,33 @@ export function Zeichenflaeche() {
             />
           )}
 
+          {/* Vorschau der Innenwand, die gerade gezogen wird */}
+          {wandZug && (
+            <>
+              <Line
+                listening={false}
+                points={[wandZug.von.x, wandZug.von.y, wandZug.bis.x, wandZug.bis.y]}
+                stroke="#66707c"
+                strokeWidth={12}
+                lineCap="butt"
+                opacity={0.6}
+              />
+              <Text
+                listening={false}
+                x={(wandZug.von.x + wandZug.bis.x) / 2 - 100 / zoom}
+                y={(wandZug.von.y + wandZug.bis.y) / 2 - 26 / zoom}
+                width={200 / zoom}
+                align="center"
+                text={formatiereLaenge(
+                  Math.hypot(wandZug.bis.x - wandZug.von.x, wandZug.bis.y - wandZug.von.y),
+                  einheit,
+                )}
+                fontSize={13 / zoom}
+                fill="#0a5fbf"
+              />
+            </>
+          )}
+
           {/* Aufgezogener Rahmen – Farbe je nachdem, was er bewirkt */}
           {auswahlrahmen && (
             <Rect
@@ -808,6 +977,8 @@ const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> = {
   flaecheAnfuegen: { fuellung: 'rgba(46,160,67,0.16)', linie: '#2ea043' },
   flaecheAbziehen: { fuellung: 'rgba(229,72,77,0.14)', linie: '#e5484d' },
   raum: { fuellung: 'rgba(140,120,200,0.16)', linie: '#7b6bc4' },
+  wand: { fuellung: 'transparent', linie: '#66707c' },
+  oeffnung: { fuellung: 'transparent', linie: '#66707c' },
 };
 
 /** Kurze Anleitung zum jeweils gewählten Werkzeug. */
@@ -828,6 +999,16 @@ const WERKZEUG_TEXT: Record<string, { titel: string; hinweis: string }> = {
   raum: {
     titel: 'Raum abtrennen',
     hinweis: 'Rechteck aufziehen – Art und Name danach rechts einstellen',
+  },
+  wand: {
+    titel: 'Innenwand ziehen',
+    hinweis:
+      'Von einem Punkt zum anderen ziehen. Fast waagerechte und fast senkrechte Wände werden gerade gezogen.',
+  },
+  oeffnung: {
+    titel: 'Tür oder Durchgang setzen',
+    hinweis:
+      'Auf eine Wand klicken – die Öffnung übernimmt Richtung und Wandstärke von selbst. Art und Breite danach rechts einstellen.',
   },
 };
 

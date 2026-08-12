@@ -8,11 +8,13 @@ import type {
   BibliothekEintrag,
   Einstellungen,
   Grundflaeche,
+  Oeffnung,
   PlanElement,
   Projekt,
   Punkt,
   Raum,
   Raumart,
+  Wand,
 } from '../typen/modell';
 
 /**
@@ -52,15 +54,31 @@ export type Reihenfolgebefehl = 'ganzVorne' | 'ganzHinten' | 'nachVorne' | 'nach
  * Elementen ab, damit man beim Aufziehen einer Fläche nicht aus Versehen ein
  * Regal erwischt.
  */
-export type Werkzeug = 'auswahl' | 'umriss' | 'flaecheAnfuegen' | 'flaecheAbziehen' | 'raum';
+export type Werkzeug =
+  | 'auswahl'
+  | 'umriss'
+  | 'flaecheAnfuegen'
+  | 'flaecheAbziehen'
+  | 'raum'
+  | 'wand'
+  | 'oeffnung';
+
+/**
+ * Was außer Elementen noch ausgewählt sein kann.
+ *
+ * Räume, Wände und Öffnungen teilen sich einen Platz: Das Eigenschaftenfenster
+ * zeigt immer nur eines davon, und drei getrennte Felder wären drei Stellen,
+ * an denen man das Aufräumen vergessen kann.
+ */
+export type Sonderauswahl = { art: 'raum' | 'wand' | 'oeffnung'; id: string } | null;
 
 interface PlanStore {
   // ------------------------------------------------------------------ Daten
   projekt: Projekt;
   /** Kennungen der ausgewählten Elemente. */
   auswahl: string[];
-  /** Der ausgewählte Raum – Räume und Elemente werden getrennt ausgewählt. */
-  raumAuswahl: string | null;
+  /** Ausgewählter Raum, ausgewählte Wand oder Öffnung. */
+  sonderauswahl: Sonderauswahl;
   werkzeug: Werkzeug;
   /** Inhalt der internen Zwischenablage (Kopieren/Einfügen). */
   zwischenablage: PlanElement[];
@@ -97,12 +115,21 @@ interface PlanStore {
   /** Ersetzt den Umriss des Gebäudes. */
   setzeUmriss(umriss: Punkt[]): void;
 
-  // ---------------------------------------------------------------- Räume
-  waehleRaum(id: string | null): void;
+  // ------------------------------------------- Räume, Wände und Öffnungen
+  waehleSonder(auswahl: Sonderauswahl): void;
+  /** Löscht, was gerade an Raum, Wand oder Öffnung ausgewählt ist. */
+  loescheSonderauswahl(): void;
+
   fuegeRaumHinzu(umriss: Punkt[], art?: Raumart): string;
   aendereRaum(id: string, werte: Partial<Raum>, mitHistorie?: boolean): void;
   verschiebeRaum(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
-  loescheRaum(id: string): void;
+
+  fuegeWandHinzu(von: Punkt, bis: Punkt, staerke?: number): string;
+  aendereWand(id: string, werte: Partial<Wand>, mitHistorie?: boolean): void;
+  verschiebeWand(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
+
+  fuegeOeffnungHinzu(werte: Omit<Oeffnung, 'id' | 'gesperrt' | 'beschriftung'>): string;
+  aendereOeffnung(id: string, werte: Partial<Oeffnung>, mitHistorie?: boolean): void;
 
   // ------------------------------------------------------------- Historie
   /** Merkt den aktuellen Stand, bevor eine längere Aktion (z. B. Ziehen) beginnt. */
@@ -147,7 +174,7 @@ function naechsteReihenfolge(elemente: PlanElement[]): number {
 export const usePlanStore = create<PlanStore>((set, get) => ({
   projekt: neuesProjekt(),
   auswahl: [],
-  raumAuswahl: null,
+  sonderauswahl: null,
   werkzeug: 'auswahl',
   zwischenablage: [],
   eigeneVorlagen: [],
@@ -164,7 +191,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       projekt,
       geladenerStand: projekt,
       auswahl: [],
-      raumAuswahl: null,
+      sonderauswahl: null,
       // Beim Öffnen einer anderen Planung wieder ins normale Arbeiten
       // zurückfallen – ein noch aktives Zeichenwerkzeug wäre eine Falle.
       werkzeug: 'auswahl',
@@ -209,7 +236,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   setzeWerkzeug(werkzeug) {
     // Beim Wechsel ins Zeichnen die Auswahl aufheben: Sonst blieben die
     // Anfasser eines Regals sichtbar, während man am Grundriss arbeitet.
-    set(werkzeug === 'auswahl' ? { werkzeug } : { werkzeug, auswahl: [], raumAuswahl: null });
+    set(werkzeug === 'auswahl' ? { werkzeug } : { werkzeug, auswahl: [], sonderauswahl: null });
   },
 
   setzeUmriss(umriss) {
@@ -220,11 +247,34 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     }));
   },
 
-  // ================================================================== Räume
-  waehleRaum(id) {
-    // Raum und Elemente schließen einander aus – das Eigenschaftenfenster
-    // zeigt immer nur eines von beiden.
-    set(id ? { raumAuswahl: id, auswahl: [] } : { raumAuswahl: null });
+  // ============================== Räume, Wände und Öffnungen
+  waehleSonder(auswahl) {
+    // Schließt die Elementauswahl aus – das Eigenschaftenfenster zeigt
+    // immer nur eines von beiden.
+    set(auswahl ? { sonderauswahl: auswahl, auswahl: [] } : { sonderauswahl: null });
+  },
+
+  loescheSonderauswahl() {
+    const { sonderauswahl, projekt } = get();
+    if (!sonderauswahl) return;
+    const { art, id } = sonderauswahl;
+
+    // Gesperrtes bleibt stehen – sonst wäre die Sperre wertlos.
+    const gesperrt =
+      art === 'raum'
+        ? projekt.raeume.find((r) => r.id === id)?.gesperrt
+        : art === 'wand'
+          ? projekt.waende.find((w) => w.id === id)?.gesperrt
+          : projekt.oeffnungen.find((o) => o.id === id)?.gesperrt;
+    if (gesperrt) return;
+
+    aendere(set, get, (p) => ({
+      ...p,
+      raeume: art === 'raum' ? p.raeume.filter((r) => r.id !== id) : p.raeume,
+      waende: art === 'wand' ? p.waende.filter((w) => w.id !== id) : p.waende,
+      oeffnungen: art === 'oeffnung' ? p.oeffnungen.filter((o) => o.id !== id) : p.oeffnungen,
+    }));
+    set({ sonderauswahl: null });
   },
 
   fuegeRaumHinzu(umriss, art = 'lager') {
@@ -246,7 +296,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         },
       ],
     }));
-    set({ raumAuswahl: id, auswahl: [] });
+    set({ sonderauswahl: { art: 'raum', id }, auswahl: [] });
     return id;
   },
 
@@ -270,12 +320,61 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     else set((s) => ({ projekt: wandeln(s.projekt) }));
   },
 
-  loescheRaum(id) {
+  // ---------------------------------------------------------------- Wände
+  fuegeWandHinzu(von, bis, staerke = 12) {
+    const id = neueId('wand');
     aendere(set, get, (p) => ({
       ...p,
-      raeume: p.raeume.filter((r) => r.id !== id || r.gesperrt),
+      waende: [...p.waende, { id, von, bis, staerke, art: 'trennwand', gesperrt: false }],
     }));
-    set({ raumAuswahl: null });
+    set({ sonderauswahl: { art: 'wand', id }, auswahl: [] });
+    return id;
+  },
+
+  aendereWand(id, werte, mitHistorie = true) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      waende: p.waende.map((w) => (w.id === id ? { ...w, ...werte } : w)),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  verschiebeWand(id, dx, dy, mitHistorie = false) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      waende: p.waende.map((w) =>
+        w.id === id && !w.gesperrt
+          ? {
+              ...w,
+              von: { x: w.von.x + dx, y: w.von.y + dy },
+              bis: { x: w.bis.x + dx, y: w.bis.y + dy },
+            }
+          : w,
+      ),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  // ------------------------------------------------------------ Öffnungen
+  fuegeOeffnungHinzu(werte) {
+    const id = neueId('oeffnung');
+    aendere(set, get, (p) => ({
+      ...p,
+      oeffnungen: [...p.oeffnungen, { ...werte, id, beschriftung: '', gesperrt: false }],
+    }));
+    set({ sonderauswahl: { art: 'oeffnung', id }, auswahl: [] });
+    return id;
+  },
+
+  aendereOeffnung(id, werte, mitHistorie = true) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      oeffnungen: p.oeffnungen.map((o) => (o.id === id ? { ...o, ...werte } : o)),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
   },
 
   // =============================================================== Historie
@@ -570,8 +669,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   // ================================================================ Auswahl
   waehleAus(ids, modus = 'ersetzen') {
-    // Ein Element auszuwählen hebt die Raumauswahl auf – siehe `waehleRaum`.
-    if (ids.length > 0) set({ raumAuswahl: null });
+    // Ein Element auszuwählen hebt die Raumauswahl auf – siehe `waehleSonder`.
+    if (ids.length > 0) set({ sonderauswahl: null });
     if (modus === 'ersetzen') {
       set({ auswahl: ids });
       return;
@@ -599,7 +698,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   hebeAuswahlAuf() {
-    set({ auswahl: [], raumAuswahl: null });
+    set({ auswahl: [], sonderauswahl: null });
   },
 
   // ================================================================ Ansicht

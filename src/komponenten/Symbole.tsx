@@ -115,6 +115,21 @@ export const SymbolRaum = () => (
   </Zeichnung>
 );
 
+export const SymbolWand = () => (
+  <Zeichnung>
+    <path d="M3 8h18M3 12h18" />
+    <path d="M3 8v4M21 8v4" />
+  </Zeichnung>
+);
+
+export const SymbolTuer = () => (
+  <Zeichnung>
+    <path d="M3 20h4M17 20h4" />
+    <path d="M7 20V6" />
+    <path d="M7 6a14 14 0 0 1 10 14" />
+  </Zeichnung>
+);
+
 export const SymbolAbgleich = () => (
   <Zeichnung>
     <path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.6" />
