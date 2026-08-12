@@ -64,12 +64,19 @@ https://marktplaner-sync.DEIN-NAME.workers.dev
 Beim Worker: **Einstellungen** (Settings) → **Bindungen** (Bindings) →
 **Hinzufügen** (Add) → **KV-Namespace**
 
+- **Typ: KV-Namespace** — das ist der Klick, auf den es ankommt. Wird hier
+  „Variable" oder „Secret" gewählt, liegt unter dem Namen später eine
+  Zeichenkette statt einer Ablage.
 - **Variablenname** (Variable name): `MARKTPLANER` — genau so, groß geschrieben
 - **KV-Namespace:** `marktplaner` auswählen
 - **Bereitstellen** (Deploy)
 
 > Ohne diesen Schritt meldet der Worker später „Der KV-Namensraum MARKTPLANER
 > ist nicht verbunden".
+
+> **Achtung:** Stellst du später den Code neu bereit, kann Cloudflare eine über
+> das Dashboard angelegte Bindung wieder entfernen. Nach jedem *Deploy* aus dem
+> Code-Editor also kurz nachsehen, ob sie noch da ist.
 
 ---
 
@@ -84,8 +91,11 @@ Beim Worker: **Code bearbeiten** (Edit code)
 **Prüfen:** Ruf die Adresse aus Schritt 3 im Browser auf. Dort muss stehen:
 
 ```json
-{"dienst":"marktplaner-sync","bereit":true,"version":1}
+{"dienst":"marktplaner-sync","bereit":true,"version":1,"ablage":true}
 ```
+
+Steht dort `"ablage":false`, läuft das Programm, aber Schritt 4 hat nicht
+geklappt — dann dorthin zurück.
 
 ---
 
@@ -133,6 +143,8 @@ zurück.
 | „Server nicht erreichbar" | Adresse falsch, oder der Worker wurde nicht veröffentlicht. Adresse im Browser aufrufen und auf die Statusmeldung prüfen. |
 | „Unter dieser Adresse läuft etwas anderes" | Im Worker steht noch das Hello-World-Beispiel. Schritt 5 wiederholen. |
 | „Der KV-Namensraum MARKTPLANER ist nicht verbunden" | Schritt 4 fehlt oder der Variablenname ist nicht exakt `MARKTPLANER`. |
+| „Die Bindung MARKTPLANER ist kein KV-Namensraum" | Bei Schritt 4 wurde der falsche Typ gewählt (z. B. „Variable" statt „KV-Namespace"). Eintrag löschen und neu anlegen. |
+| „Keine Antwort vom Server" — im Browser steht `error code: 1101` | Der Worker ist abgestürzt. Fast immer Schritt 4: Bindung fehlt oder hat den falschen Typ. |
 | „Der Block ließ sich nicht entschlüsseln" | Auf den beiden Rechnern stehen verschiedene Kopplungscodes. Auf dem zweiten Rechner den Code des ersten eintragen, nicht einen neuen erzeugen. |
 | „Zwischenzeitlich geändert" | Zwei Rechner haben gleichzeitig geschrieben. Der Marktplaner versucht es von selbst erneut — nur wenn es dauerhaft bleibt, ist etwas faul. |
 | Code verloren | Dann kommst du an den Serverstand nicht mehr heran. Die Planungen auf deinen Rechnern bleiben aber unangetastet: neuen Code erzeugen und neu koppeln. |

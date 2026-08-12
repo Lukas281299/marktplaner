@@ -72,8 +72,41 @@ function saubereAdresse(adresse: string): string {
   return adresse.trim().replace(/\/+$/, '');
 }
 
+/**
+ * Jeder Zugriff aufs Netz läuft hierüber.
+ *
+ * Scheitert eine Anfrage schon auf Netzebene, wirft der Browser ein nacktes
+ * „Failed to fetch" – eine Meldung, aus der niemand etwas ableiten kann. Sie
+ * bedeutet in der Praxis fast immer eines von dreien: keine Verbindung, die
+ * Adresse stimmt nicht, oder der Worker ist abgestürzt und Cloudflares
+ * Fehlerseite kommt ohne CORS-Kopfzeilen zurück.
+ */
+async function netz(adresse: string, pfad: string, optionen?: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`${saubereAdresse(adresse)}${pfad}`, optionen);
+  } catch {
+    throw new Error(
+      'Keine Antwort vom Server. Entweder ist gerade keine Verbindung da, ' +
+        'oder der Worker läuft nicht sauber. Ruf die Adresse einmal im Browser auf: ' +
+        'Dort muss {"dienst":"marktplaner-sync",…} stehen.',
+    );
+  }
+}
+
 async function hole(adresse: string, pfad: string): Promise<Response> {
-  return fetch(`${saubereAdresse(adresse)}${pfad}`, { method: 'GET' });
+  return netz(adresse, pfad, { method: 'GET' });
+}
+
+/**
+ * Zieht die Begründung aus einer abschlägigen Antwort.
+ *
+ * Der Worker legt seinen Grund immer ins Feld `fehler`. Den weiterzureichen
+ * ist der Unterschied zwischen „Abholen fehlgeschlagen (500)" und einem Satz,
+ * der sagt, welcher Haken in Cloudflare fehlt.
+ */
+async function begruendung(antwort: Response, ersatz: string): Promise<string> {
+  const daten = (await antwort.json().catch(() => null)) as { fehler?: string } | null;
+  return daten?.fehler ?? `${ersatz} (${antwort.status}).`;
 }
 
 /**
@@ -94,10 +127,21 @@ export async function serverPruefen(adresse: string): Promise<void> {
   if (!antwort.ok) {
     throw new Error(`Der Server antwortet mit Fehler ${antwort.status}.`);
   }
-  const daten = (await antwort.json().catch(() => null)) as { dienst?: string } | null;
+  const daten = (await antwort.json().catch(() => null)) as
+    | { dienst?: string; ablage?: boolean }
+    | null;
   if (daten?.dienst !== 'marktplaner-sync') {
     throw new Error(
       'Unter dieser Adresse läuft etwas anderes. Steht dort der Inhalt von worker.js?',
+    );
+  }
+  // Der Worker läuft, aber ohne Ablage kann er nichts aufbewahren. Das hier
+  // zu bemerken erspart die Suche nach dem Fehler beim ersten Abgleich.
+  if (daten.ablage === false) {
+    throw new Error(
+      'Der Worker läuft, aber die Ablage fehlt. In Cloudflare beim Worker unter ' +
+        'Einstellungen → Bindungen eine Bindung vom Typ „KV-Namespace" mit dem ' +
+        'Namen MARKTPLANER auf den Namensraum „marktplaner" anlegen.',
     );
   }
 }
@@ -112,7 +156,7 @@ interface Serverstand {
 async function verzeichnisHolen(zugang: SyncZugang, konto: string): Promise<Serverstand> {
   const antwort = await hole(zugang.adresse, `/daten/${konto}`);
   if (antwort.status === 404) return { version: 0 };
-  if (!antwort.ok) throw new Error(`Abholen fehlgeschlagen (${antwort.status}).`);
+  if (!antwort.ok) throw new Error(await begruendung(antwort, 'Abholen fehlgeschlagen'));
 
   const roh = (await antwort.json()) as { version: number; inhalt: string };
   const paket = await entschluesseln<SyncPaket>(roh.inhalt, zugang.code);
@@ -127,13 +171,13 @@ async function verzeichnisSchreiben(
   paket: SyncPaket,
 ): Promise<boolean> {
   const inhalt = await verschluesseln(paket, zugang.code);
-  const antwort = await fetch(`${saubereAdresse(zugang.adresse)}/daten/${konto}`, {
+  const antwort = await netz(zugang.adresse, `/daten/${konto}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ version, inhalt }),
   });
   if (antwort.status === 409) return false;
-  if (!antwort.ok) throw new Error(`Speichern fehlgeschlagen (${antwort.status}).`);
+  if (!antwort.ok) throw new Error(await begruendung(antwort, 'Speichern fehlgeschlagen'));
   return true;
 }
 
@@ -156,18 +200,22 @@ async function projektSchicken(
   projekt: Projekt,
 ): Promise<void> {
   const inhalt = await verschluesseln(projekt, zugang.code);
-  const antwort = await fetch(`${saubereAdresse(zugang.adresse)}/anhang/${konto}/${projekt.id}`, {
+  const antwort = await netz(zugang.adresse, `/anhang/${konto}/${projekt.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ inhalt }),
   });
-  if (!antwort.ok) throw new Error(`„${projekt.name}" ließ sich nicht hochladen (${antwort.status}).`);
+  if (!antwort.ok) {
+    throw new Error(await begruendung(antwort, `„${projekt.name}" ließ sich nicht hochladen`));
+  }
 }
 
 async function projektEntfernen(zugang: SyncZugang, konto: string, id: string): Promise<void> {
-  await fetch(`${saubereAdresse(zugang.adresse)}/anhang/${konto}/${id}`, {
-    method: 'DELETE',
-  }).catch(() => undefined);
+  // Bewusst ohne Fehlerbehandlung: Bleibt hier ein verwaister Anhang liegen,
+  // stört er niemanden – im Verzeichnis steht er nicht mehr.
+  await netz(zugang.adresse, `/anhang/${konto}/${id}`, { method: 'DELETE' }).catch(
+    () => undefined,
+  );
 }
 
 // ---------------------------------------------------------------- Abgleich

@@ -26,7 +26,7 @@
  *   DEL  /anhang/<konto>/<name>     →  { ok: true }
  *
  * Nötige Einstellung am Worker:
- *   MARKTPLANER     KV-Namensraum (Bindung)
+ *   MARKTPLANER     KV-Namensraum (Bindung vom Typ „KV-Namespace")
  */
 
 const KOPFZEILEN = {
@@ -61,6 +61,35 @@ function kontoGueltig(konto) {
   return typeof konto === 'string' && /^[0-9a-f]{32}$/.test(konto);
 }
 
+/**
+ * Holt die Ablage und prüft, dass es wirklich eine ist.
+ *
+ * Der häufigste Fehler beim Einrichten: Die Bindung wird angelegt, aber mit
+ * dem falschen Typ (etwa „Variable" statt „KV-Namespace"). Dann liegt unter
+ * dem Namen eine Zeichenkette. Ohne diese Prüfung stürbe der Worker beim
+ * ersten Zugriff mit einer Ausnahme – und der Browser bekäme nur ein
+ * nichtssagendes „Failed to fetch" zu sehen, weil Cloudflares eigene
+ * Fehlerseite keine CORS-Kopfzeilen mitschickt.
+ */
+function ablageHolen(umgebung) {
+  const ablage = umgebung?.MARKTPLANER;
+  if (!ablage) {
+    return { fehler: antwort({ fehler: 'Der KV-Namensraum MARKTPLANER ist nicht verbunden.' }, 500) };
+  }
+  if (typeof ablage.get !== 'function' || typeof ablage.put !== 'function') {
+    return {
+      fehler: antwort(
+        {
+          fehler:
+            'Die Bindung MARKTPLANER ist kein KV-Namensraum. In den Einstellungen des Worker unter „Bindungen" den Eintrag löschen und neu anlegen – dabei den Typ „KV-Namespace" wählen.',
+        },
+        500,
+      ),
+    };
+  }
+  return { ablage };
+}
+
 /** Liest den Rumpf und prüft, dass ein verschlüsselter Inhalt drinsteht. */
 async function inhaltLesen(anfrage) {
   let neu;
@@ -79,97 +108,118 @@ async function inhaltLesen(anfrage) {
 }
 
 export default {
+  /**
+   * Fängt alles ab, was unterwegs schiefgeht.
+   *
+   * Ohne diesen Mantel liefert Cloudflare bei einer Ausnahme seine eigene
+   * Fehlerseite („error code: 1101"), und die hat keine CORS-Kopfzeilen. Im
+   * Browser käme dann nur „Failed to fetch" an – eine Meldung, aus der sich
+   * nichts ablesen lässt. So bleibt wenigstens die Ursache lesbar.
+   */
   async fetch(anfrage, umgebung) {
-    if (anfrage.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: KOPFZEILEN });
+    try {
+      return await behandeln(anfrage, umgebung);
+    } catch (fehler) {
+      return antwort({ fehler: `Fehler im Worker: ${fehler?.message ?? fehler}` }, 500);
     }
+  },
+};
 
-    const pfad = new URL(anfrage.url).pathname;
+async function behandeln(anfrage, umgebung) {
+  if (anfrage.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: KOPFZEILEN });
+  }
 
-    // Die Startseite dient nur dazu, beim Einrichten zu erkennen, ob unter
-    // der eingegebenen Adresse wirklich dieses Programm läuft.
-    if (pfad === '/' || pfad === '') {
-      return antwort({ dienst: 'marktplaner-sync', bereit: true, version: 1 });
-    }
+  const pfad = new URL(anfrage.url).pathname;
 
-    const ablage = umgebung.MARKTPLANER;
-    if (!ablage) {
-      return antwort({ fehler: 'Der KV-Namensraum MARKTPLANER ist nicht verbunden.' }, 500);
-    }
+  // Die Startseite dient nur dazu, beim Einrichten zu erkennen, ob unter
+  // der eingegebenen Adresse wirklich dieses Programm läuft. Sie sagt
+  // gleich mit, ob auch die Ablage hängt – sonst merkt man das erst beim
+  // ersten Abgleich.
+  if (pfad === '/' || pfad === '') {
+    return antwort({
+      dienst: 'marktplaner-sync',
+      bereit: true,
+      version: 1,
+      ablage: !ablageHolen(umgebung).fehler,
+    });
+  }
 
-    const daten = pfad.match(/^\/daten\/([^/]+)$/);
-    const anhang = pfad.match(/^\/anhang\/([^/]+)\/([a-z0-9-]{1,64})$/);
-    if (!daten && !anhang) return antwort({ fehler: 'Unbekannter Pfad.' }, 404);
+  const { ablage, fehler: ablageFehler } = ablageHolen(umgebung);
+  if (ablageFehler) return ablageFehler;
 
-    const konto = (daten ?? anhang)[1];
-    if (!kontoGueltig(konto)) {
-      return antwort({ fehler: 'Ungültige Kontokennung.' }, 400);
-    }
+  const daten = pfad.match(/^\/daten\/([^/]+)$/);
+  const anhang = pfad.match(/^\/anhang\/([^/]+)\/([a-z0-9-]{1,64})$/);
+  if (!daten && !anhang) return antwort({ fehler: 'Unbekannter Pfad.' }, 404);
 
-    // ===================================================== einzelne Planung
-    if (anhang) {
-      const schluessel = `${konto}:anhang:${anhang[2]}`;
+  const konto = (daten ?? anhang)[1];
+  if (!kontoGueltig(konto)) {
+    return antwort({ fehler: 'Ungültige Kontokennung.' }, 400);
+  }
 
-      if (anfrage.method === 'GET') {
-        const roh = await ablage.get(schluessel);
-        if (roh === null) return antwort({ fehler: 'Nicht vorhanden.' }, 404);
-        return new Response(roh, {
-          headers: { ...KOPFZEILEN, 'Content-Type': 'application/json' },
-        });
-      }
+  // ===================================================== einzelne Planung
+  if (anhang) {
+    const schluessel = `${konto}:anhang:${anhang[2]}`;
 
-      if (anfrage.method === 'PUT') {
-        const { neu, fehler } = await inhaltLesen(anfrage);
-        if (fehler) return fehler;
-        await ablage.put(schluessel, JSON.stringify({ inhalt: neu.inhalt }));
-        return antwort({ ok: true });
-      }
-
-      if (anfrage.method === 'DELETE') {
-        await ablage.delete(schluessel);
-        return antwort({ ok: true });
-      }
-
-      return antwort({ fehler: 'Nicht erlaubt.' }, 405);
-    }
-
-    // ============================================================ Abholen
     if (anfrage.method === 'GET') {
-      const roh = await ablage.get(konto);
-      if (roh === null) return antwort({ fehler: 'Noch nichts abgelegt.' }, 404);
+      const roh = await ablage.get(schluessel);
+      if (roh === null) return antwort({ fehler: 'Nicht vorhanden.' }, 404);
       return new Response(roh, {
         headers: { ...KOPFZEILEN, 'Content-Type': 'application/json' },
       });
     }
 
-    // ============================================================= Ablegen
     if (anfrage.method === 'PUT') {
       const { neu, fehler } = await inhaltLesen(anfrage);
       if (fehler) return fehler;
+      await ablage.put(schluessel, JSON.stringify({ inhalt: neu.inhalt }));
+      return antwort({ ok: true });
+    }
 
-      // Fassung prüfen: Hat inzwischen ein anderes Gerät geschrieben, muss
-      // dieses Gerät erst neu zusammenführen. Sonst gingen dessen Planungen
-      // still verloren.
-      const vorhanden = await ablage.get(konto, { type: 'json' });
-      const aktuell = vorhanden?.version ?? 0;
-      const erwartet = Number(neu.version ?? 0);
-
-      if (erwartet !== aktuell) {
-        return antwort({ fehler: 'Zwischenzeitlich geändert.', version: aktuell }, 409);
-      }
-
-      const fassung = aktuell + 1;
-      await ablage.put(
-        konto,
-        JSON.stringify({
-          version: fassung,
-          inhalt: neu.inhalt,
-          stand: new Date().toISOString(),
-        }),
-      );
-      return antwort({ version: fassung });
+    if (anfrage.method === 'DELETE') {
+      await ablage.delete(schluessel);
+      return antwort({ ok: true });
     }
 
     return antwort({ fehler: 'Nicht erlaubt.' }, 405);
-  },
-};
+  }
+
+  // ============================================================ Abholen
+  if (anfrage.method === 'GET') {
+    const roh = await ablage.get(konto);
+    if (roh === null) return antwort({ fehler: 'Noch nichts abgelegt.' }, 404);
+    return new Response(roh, {
+      headers: { ...KOPFZEILEN, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ============================================================= Ablegen
+  if (anfrage.method === 'PUT') {
+    const { neu, fehler } = await inhaltLesen(anfrage);
+    if (fehler) return fehler;
+
+    // Fassung prüfen: Hat inzwischen ein anderes Gerät geschrieben, muss
+    // dieses Gerät erst neu zusammenführen. Sonst gingen dessen Planungen
+    // still verloren.
+    const vorhanden = await ablage.get(konto, { type: 'json' });
+    const aktuell = vorhanden?.version ?? 0;
+    const erwartet = Number(neu.version ?? 0);
+
+    if (erwartet !== aktuell) {
+      return antwort({ fehler: 'Zwischenzeitlich geändert.', version: aktuell }, 409);
+    }
+
+    const fassung = aktuell + 1;
+    await ablage.put(
+      konto,
+      JSON.stringify({
+        version: fassung,
+        inhalt: neu.inhalt,
+        stand: new Date().toISOString(),
+      }),
+    );
+    return antwort({ version: fassung });
+  }
+
+  return antwort({ fehler: 'Nicht erlaubt.' }, 405);
+}

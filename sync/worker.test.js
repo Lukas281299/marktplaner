@@ -57,7 +57,18 @@ describe('Startseite', () => {
   it('meldet sich als Marktplaner-Dienst', async () => {
     // Genau daran erkennt die Einrichtung, dass die Adresse stimmt.
     const antwort = await anfragen('/');
-    expect(await antwort.json()).toMatchObject({ dienst: 'marktplaner-sync', bereit: true });
+    expect(await antwort.json()).toMatchObject({
+      dienst: 'marktplaner-sync',
+      bereit: true,
+      ablage: true,
+    });
+  });
+
+  it('meldet gleich mit, wenn die Ablage fehlt', async () => {
+    // So fällt der vergessene Haken schon beim Verbinden auf und nicht erst
+    // beim ersten Abgleich.
+    umgebung = {};
+    expect(await (await anfragen('/')).json()).toMatchObject({ ablage: false });
   });
 
   it('sagt Bescheid, wenn die Ablage nicht verbunden ist', async () => {
@@ -65,6 +76,40 @@ describe('Startseite', () => {
     const antwort = await anfragen(`/daten/${KONTO}`);
     expect(antwort.status).toBe(500);
     expect((await antwort.json()).fehler).toContain('MARKTPLANER');
+  });
+});
+
+describe('Fehler bleiben lesbar', () => {
+  /**
+   * Der Kern dieser Prüfungen: Eine Antwort **ohne** CORS-Kopfzeilen kommt im
+   * Browser als „Failed to fetch" an – eine Meldung, aus der niemand etwas
+   * ableiten kann. Jede Fehlerantwort muss die Kopfzeilen tragen.
+   */
+  it('erkennt eine Bindung vom falschen Typ, statt abzustürzen', async () => {
+    // Der häufigste Fehler beim Einrichten: „Variable" statt „KV-Namespace".
+    umgebung = { MARKTPLANER: 'aus Versehen eine Zeichenkette' };
+
+    const antwort = await anfragen(`/daten/${KONTO}`);
+    expect(antwort.status).toBe(500);
+    expect((await antwort.json()).fehler).toContain('KV-Namespace');
+    expect(antwort.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
+
+  it('fängt eine Ausnahme aus der Ablage ab', async () => {
+    umgebung = {
+      MARKTPLANER: {
+        get: () => {
+          throw new Error('Ablage streikt');
+        },
+        put: () => {},
+      },
+    };
+
+    const antwort = await anfragen(`/daten/${KONTO}`);
+    expect(antwort.status).toBe(500);
+    expect((await antwort.json()).fehler).toContain('Ablage streikt');
+    // Ohne diese Kopfzeile stünde im Browser nur „Failed to fetch".
+    expect(antwort.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
 });
 
