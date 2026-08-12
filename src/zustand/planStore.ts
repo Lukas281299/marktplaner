@@ -51,6 +51,15 @@ interface PlanStore {
   ansicht: Ansicht;
   /** Erst `true`, wenn aus der Datenbank geladen wurde. */
   geladen: boolean;
+  /**
+   * Genau der Stand, wie er zuletzt geladen wurde – als Vergleichspunkt.
+   *
+   * Damit lässt sich „geöffnet" von „geändert" unterscheiden: Solange
+   * `projekt` noch dasselbe Objekt ist, hat niemand etwas angefasst. Ohne das
+   * würde schon das bloße Öffnen einer Planung als Änderung durchgehen und
+   * beim Abgleich einen Unterschied vortäuschen, den es gar nicht gibt.
+   */
+  geladenerStand: Projekt | null;
   /** Beim Ziehen an den Ecken das Seitenverhältnis beibehalten? */
   seitenverhaeltnisHalten: boolean;
 
@@ -112,6 +121,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   eigeneVorlagen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
+  geladenerStand: null,
   seitenverhaeltnisHalten: false,
   vergangenheit: [],
   zukunft: [],
@@ -120,6 +130,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   setzeProjekt(projekt, alsGeladen = true) {
     set({
       projekt,
+      geladenerStand: projekt,
       auswahl: [],
       vergangenheit: [],
       zukunft: [],

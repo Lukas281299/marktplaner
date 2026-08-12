@@ -79,6 +79,15 @@ export const SymbolWiederholen = () => (
   </Zeichnung>
 );
 
+export const SymbolAbgleich = () => (
+  <Zeichnung>
+    <path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.6" />
+    <path d="M20 4v4.6h-4.6" />
+    <path d="M20 12a8 8 0 0 1-13.7 5.7L4 15.4" />
+    <path d="M4 20v-4.6h4.6" />
+  </Zeichnung>
+);
+
 export const SymbolKopieren = () => (
   <Zeichnung>
     <rect x="9" y="9" width="12" height="12" rx="2" />

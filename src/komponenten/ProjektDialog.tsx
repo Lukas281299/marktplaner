@@ -1,5 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { neuesProjekt } from '../daten/standardProjekt';
+import { Dialog } from './Dialog';
 import { anzeigeInCm } from '../logik/masse';
 import {
   kopiereProjekt,
@@ -16,39 +17,6 @@ import { Zahlfeld } from './Feld';
  * Die beiden Dialoge für die Projektverwaltung:
  * "Neue Marktplanung" und "Marktplanung öffnen".
  */
-
-// -------------------------------------------------------------- Grundgerüst
-
-function Dialog({
-  titel,
-  children,
-  fuss,
-  schliessen,
-}: {
-  titel: string;
-  children: ReactNode;
-  fuss: ReactNode;
-  schliessen: () => void;
-}) {
-  // Mit Escape lässt sich jeder Dialog schließen.
-  useEffect(() => {
-    const taste = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') schliessen();
-    };
-    window.addEventListener('keydown', taste);
-    return () => window.removeEventListener('keydown', taste);
-  }, [schliessen]);
-
-  return (
-    <div className="dialog-hintergrund" onMouseDown={schliessen}>
-      <div className="dialog" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="dialog-kopf">{titel}</div>
-        <div className="dialog-inhalt">{children}</div>
-        <div className="dialog-fuss">{fuss}</div>
-      </div>
-    </div>
-  );
-}
 
 // ------------------------------------------------------------- Neues Projekt
 

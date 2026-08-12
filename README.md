@@ -27,6 +27,15 @@ npm run build
 npm run preview
 ```
 
+Die Prüfungen laufen mit:
+
+```bash
+npm test
+```
+
+Sie decken die Stellen ab, an denen ein Fehler still Daten kosten würde: das
+Zusammenführen beim Abgleich und das Vermittlungsprogramm auf dem Server.
+
 ## Bedienung
 
 | Was du tun willst | Wie es geht |
@@ -47,16 +56,48 @@ npm run preview
 | Raster ein/aus | **G** |
 | Einrasten ein/aus | **S** |
 | Speichern | passiert automatisch; Strg + S speichert sofort |
+| Abgleich mit anderen Rechnern | Knopf „Abgleich" in der Werkzeugleiste (einmal einrichten, danach von allein) |
 
 ## Wie die Daten gespeichert werden
 
-Alles liegt lokal im Browser (IndexedDB, Datenbank `marktplaner`). Es wird nichts
-ins Internet übertragen. Nach jeder Änderung wird nach kurzer Pause automatisch
-gespeichert; beim nächsten Start öffnet sich die zuletzt bearbeitete Planung.
+Alles liegt lokal im Browser (IndexedDB, Datenbank `marktplaner`). Nach jeder
+Änderung wird nach kurzer Pause automatisch gespeichert; beim nächsten Start
+öffnet sich die zuletzt bearbeitete Planung.
 
 Zur Sicherung gibt es **JSON-Export**: Diese Datei enthält alle Räume, Elemente,
 Maße, Positionen, Drehungen, Farben und Beschriftungen und kann jederzeit wieder
 eingelesen werden.
+
+## Abgleich zwischen mehreren Rechnern
+
+Auf Wunsch gleicht der Marktplaner alle Planungen zwischen mehreren Rechnern ab –
+man fängt im Büro an und macht am Laptop an derselben Stelle weiter. Solange das
+nicht eingerichtet ist, verlässt keine Zeile den Rechner.
+
+Die Einrichtung dauert etwa zehn Minuten und ist Schritt für Schritt in
+[sync/LIESMICH.md](sync/LIESMICH.md) beschrieben. Kurz gefasst:
+
+- Ein winziges Programm (`sync/worker.js`) läuft bei **Cloudflare** auf der
+  kostenlosen Stufe und tut nichts weiter, als einen Block abzulegen und wieder
+  herauszugeben.
+- Alles wird **im Browser verschlüsselt** (AES-GCM), bevor es hochgeht. Der
+  Schlüssel wird aus dem Kopplungscode abgeleitet und nie übertragen. Cloudflare
+  sieht eine Zeichenkette und sonst nichts.
+- Zusammengeführt wird **pro Planung: die zuletzt geänderte gewinnt.** Haben
+  beide Rechner an derselben Planung gearbeitet, wird die ältere Fassung
+  automatisch als Kopie „Name (Stand vom …)" gesichert. Verloren geht nichts.
+- Gelöschtes bleibt gelöscht – dafür sorgen Grabsteine (`graeber`), sonst käme
+  eine gelöschte Planung vom anderen Rechner zurück.
+
+Wer entscheidet was, steht in `src/speicher/abgleich.ts`; diese Datei rechnet nur
+und ist vollständig durch Prüfungen abgedeckt.
+
+## Veröffentlichung im Web
+
+Bei jedem Push auf `main` baut GitHub den Marktplaner und stellt ihn auf GitHub
+Pages bereit (`.github/workflows/deploy.yml`). Schlägt eine Prüfung fehl, wird
+nichts veröffentlicht. Danach ist er von jedem Rechner aus erreichbar, ohne
+etwas zu installieren.
 
 ## Aufbau des Quellcodes
 
@@ -76,19 +117,26 @@ src/
 │   ├── tastatur.ts        alle Tastenkombinationen
 │   ├── bildExport.ts      PNG-Export
 │   ├── buehne.ts          Verbindung Werkzeugleiste ↔ Zeichenfläche
+│   ├── abgleichSteuerung.ts  wann von selbst abgeglichen wird
 │   └── id.ts              eindeutige Kennungen
 ├── speicher/              Speicherung
 │   ├── datenbank.ts       IndexedDB öffnen
-│   └── projektArchiv.ts   speichern, laden, kopieren, JSON-Im-/Export
+│   ├── projektArchiv.ts   speichern, laden, kopieren, JSON-Im-/Export
+│   ├── krypto.ts          Verschlüsselung und Kopplungscode
+│   ├── abgleich.ts        entscheidet, was geholt, geschickt, gelöscht wird
+│   └── syncClient.ts      spricht mit dem Server
 ├── zustand/
 │   ├── planStore.ts       zentraler Datenspeicher inkl. Rückgängig/Wiederholen
+│   ├── syncStore.ts       Zustand des Abgleichs
 │   └── statusStore.ts     nur die Mausposition (aus Geschwindigkeitsgründen)
 └── komponenten/           Oberfläche
     ├── Werkzeugleiste.tsx
     ├── Elementbibliothek.tsx
     ├── Eigenschaftenfenster.tsx
     ├── Statusleiste.tsx
+    ├── Dialog.tsx         Grundgerüst aller Dialoge
     ├── ProjektDialog.tsx
+    ├── SyncDialog.tsx     Einrichtung und Stand des Abgleichs
     ├── Feld.tsx           wiederverwendbare Eingabefelder
     ├── Symbole.tsx        alle Schaltflächen-Symbole
     └── zeichenflaeche/
@@ -96,6 +144,10 @@ src/
         ├── Gebaeude.tsx        Boden, Außenwand, Außenmaße
         ├── Raster.tsx          Hilfsraster
         └── ElementSymbol.tsx   Zeichnung eines einzelnen Elements
+
+sync/
+├── worker.js              das Programm, das bei Cloudflare läuft
+└── LIESMICH.md            Einrichtung Schritt für Schritt
 ```
 
 ### Zwei Grundregeln

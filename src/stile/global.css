@@ -583,6 +583,16 @@ body {
   gap: var(--abstand-4);
 }
 
+/* Kleiner roter Punkt am Knopf „Abgleich", wenn zuletzt etwas schiefging. */
+.punkt-fehler {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hilfslinie);
+  margin-left: 2px;
+  flex: none;
+}
+
 /* ================================================================= Dialog */
 
 .dialog-hintergrund {
@@ -604,6 +614,11 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Für Dialoge mit längeren Erklärungen, z. B. den Abgleich. */
+.dialog-breit {
+  width: 560px;
 }
 
 .dialog-kopf {

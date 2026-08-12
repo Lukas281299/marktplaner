@@ -8,8 +8,11 @@ import {
   speichereVorlage,
 } from '../speicher/projektArchiv';
 import { usePlanStore } from '../zustand/planStore';
+import { useSyncStore } from '../zustand/syncStore';
 import { NeuesProjektDialog, ProjekteDialog } from './ProjektDialog';
+import { SyncDialog } from './SyncDialog';
 import {
+  SymbolAbgleich,
   SymbolBild,
   SymbolDrehenLinks,
   SymbolDrehenRechts,
@@ -45,7 +48,9 @@ export function Werkzeugleiste() {
   const kannWiederholen = usePlanStore((s) => s.zukunft.length > 0);
   const einstellungen = projekt.einstellungen;
 
-  const [dialog, setDialog] = useState<'neu' | 'oeffnen' | null>(null);
+  const syncZustand = useSyncStore((s) => s.zustand);
+
+  const [dialog, setDialog] = useState<'neu' | 'oeffnen' | 'abgleich' | null>(null);
   const [meldung, setMeldung] = useState('');
   const dateiRef = useRef<HTMLInputElement>(null);
 
@@ -112,6 +117,14 @@ export function Werkzeugleiste() {
           </button>
           <button className="knopf" onClick={() => void jetztSpeichern()} title="Jetzt speichern (Strg+S)">
             <SymbolSpeichern /> Speichern
+          </button>
+          <button
+            className={`knopf${syncZustand === 'laeuft' ? ' aktiv' : ''}`}
+            onClick={() => setDialog('abgleich')}
+            title={ABGLEICH_HINWEIS[syncZustand]}
+          >
+            <SymbolAbgleich /> Abgleich
+            {syncZustand === 'fehler' && <span className="punkt-fehler" />}
           </button>
 
           <span className="trenner" />
@@ -266,6 +279,15 @@ export function Werkzeugleiste() {
 
       {dialog === 'neu' && <NeuesProjektDialog schliessen={() => setDialog(null)} />}
       {dialog === 'oeffnen' && <ProjekteDialog schliessen={() => setDialog(null)} />}
+      {dialog === 'abgleich' && <SyncDialog schliessen={() => setDialog(null)} />}
     </>
   );
 }
+
+/** Was der Knopf „Abgleich" je nach Lage als Mauszeiger-Hinweis zeigt. */
+const ABGLEICH_HINWEIS = {
+  aus: 'Planungen zwischen mehreren Rechnern abgleichen – noch nicht eingerichtet',
+  bereit: 'Abgleich zwischen mehreren Rechnern',
+  laeuft: 'Abgleich läuft gerade …',
+  fehler: 'Beim letzten Abgleich ist etwas schiefgegangen – hier klicken',
+} as const;

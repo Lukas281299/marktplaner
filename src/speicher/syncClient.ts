@@ -1,0 +1,302 @@
+import type { Projekt } from '../typen/modell';
+import { paketBauen, planeAbgleich, type SyncPaket, type Verzeichniseintrag } from './abgleich';
+import { entschluesseln, kontoKennung, verschluesseln } from './krypto';
+import {
+  entferneProjektStill,
+  holeAbgleichStand,
+  holeGeraeteName,
+  holeZuletztGeoeffnet,
+  holeZuletztGeoeffnetAm,
+  ladeProjekt,
+  listeGraeber,
+  listeProjekte,
+  listeVorlagen,
+  merkeZuletztGeoeffnet,
+  setzeGraeber,
+  speichereAbgleichStand,
+  speichereLetztenAbgleich,
+  speichereVorlage,
+  uebernehmeProjekt,
+  type SyncZugang,
+} from './projektArchiv';
+
+/**
+ * Der Teil, der mit dem Server spricht.
+ *
+ * Die Reihenfolge ist mit Absicht so gewählt, dass ein Abbruch an jeder Stelle
+ * folgenlos bleibt:
+ *
+ *   1. Verzeichnis holen und rechnen, was zu tun ist
+ *   2. fremde Planungen herunterladen (nur in den Arbeitsspeicher)
+ *   3. eigene Planungen hochladen
+ *   4. Verzeichnis schreiben – erst hier wird der neue Stand gültig
+ *   5. lokal übernehmen und aufräumen
+ *
+ * Reißt die Verbindung vor Schritt 4 ab, steht danach genau der Zustand von
+ * vorher. Hochgeladene Planungen, auf die noch kein Verzeichnis zeigt, stören
+ * niemanden – sie werden beim nächsten Versuch einfach überschrieben.
+ */
+
+export interface SyncErgebnis {
+  /** Planungen insgesamt nach dem Abgleich. */
+  planungen: number;
+  /** Wie viele vom anderen Rechner dazukamen oder aktualisiert wurden. */
+  geholt: number;
+  geschickt: number;
+  geloescht: number;
+  /** Planungen, an denen beide Rechner gearbeitet haben – gesichert als Kopie. */
+  gabelungen: string[];
+  /**
+   * Kennungen der Planungen, die hier neu geschrieben wurden. Die Oberfläche
+   * muss das wissen: Ist die gerade geöffnete Planung dabei, zeigt der
+   * Bildschirm einen überholten Stand, und der nächste Tastendruck würde ihn
+   * über den geholten zurückschreiben.
+   */
+  aktualisiert: string[];
+  /** Kennungen der Planungen, die anderswo gelöscht wurden. */
+  entfernt: string[];
+  /** Die Planung, an der zuletzt gearbeitet wurde – egal an welchem Rechner. */
+  zuletztGeoeffnet?: string;
+  /** Rechner, die schon in dieses Fach geschrieben haben. */
+  geraete: string[];
+  /**
+   * Warnung, wenn dieser Rechner als einziger in einem sonst leeren Fach sitzt.
+   * Typisch dafür, dass am zweiten Rechner ein neuer Kopplungscode erzeugt
+   * statt der vorhandene eingegeben wurde.
+   */
+  alleinImFach: boolean;
+  zeitpunkt: number;
+}
+
+function saubereAdresse(adresse: string): string {
+  return adresse.trim().replace(/\/+$/, '');
+}
+
+async function hole(adresse: string, pfad: string): Promise<Response> {
+  return fetch(`${saubereAdresse(adresse)}${pfad}`, { method: 'GET' });
+}
+
+/**
+ * Prüft, ob unter der Adresse wirklich das Vermittlungsprogramm läuft.
+ *
+ * Ohne diese Prüfung würde ein Tippfehler in der Adresse erst beim ersten
+ * Abgleich auffallen – und dann mit einer Meldung, die niemand versteht.
+ */
+export async function serverPruefen(adresse: string): Promise<void> {
+  let antwort: Response;
+  try {
+    antwort = await hole(adresse, '/');
+  } catch {
+    throw new Error(
+      'Der Server ist nicht erreichbar. Stimmt die Adresse, und wurde der Worker veröffentlicht?',
+    );
+  }
+  if (!antwort.ok) {
+    throw new Error(`Der Server antwortet mit Fehler ${antwort.status}.`);
+  }
+  const daten = (await antwort.json().catch(() => null)) as { dienst?: string } | null;
+  if (daten?.dienst !== 'marktplaner-sync') {
+    throw new Error(
+      'Unter dieser Adresse läuft etwas anderes. Steht dort der Inhalt von worker.js?',
+    );
+  }
+}
+
+// ------------------------------------------------------------- Verzeichnis
+
+interface Serverstand {
+  version: number;
+  paket?: SyncPaket;
+}
+
+async function verzeichnisHolen(zugang: SyncZugang, konto: string): Promise<Serverstand> {
+  const antwort = await hole(zugang.adresse, `/daten/${konto}`);
+  if (antwort.status === 404) return { version: 0 };
+  if (!antwort.ok) throw new Error(`Abholen fehlgeschlagen (${antwort.status}).`);
+
+  const roh = (await antwort.json()) as { version: number; inhalt: string };
+  const paket = await entschluesseln<SyncPaket>(roh.inhalt, zugang.code);
+  return { version: roh.version, paket };
+}
+
+/** Schreibt das Verzeichnis. Liefert false, wenn inzwischen jemand anders schrieb. */
+async function verzeichnisSchreiben(
+  zugang: SyncZugang,
+  konto: string,
+  version: number,
+  paket: SyncPaket,
+): Promise<boolean> {
+  const inhalt = await verschluesseln(paket, zugang.code);
+  const antwort = await fetch(`${saubereAdresse(zugang.adresse)}/daten/${konto}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ version, inhalt }),
+  });
+  if (antwort.status === 409) return false;
+  if (!antwort.ok) throw new Error(`Speichern fehlgeschlagen (${antwort.status}).`);
+  return true;
+}
+
+// -------------------------------------------------------- einzelne Planungen
+
+async function projektHolen(
+  zugang: SyncZugang,
+  konto: string,
+  id: string,
+): Promise<Projekt | undefined> {
+  const antwort = await hole(zugang.adresse, `/anhang/${konto}/${id}`);
+  if (!antwort.ok) return undefined;
+  const roh = (await antwort.json()) as { inhalt: string };
+  return entschluesseln<Projekt>(roh.inhalt, zugang.code);
+}
+
+async function projektSchicken(
+  zugang: SyncZugang,
+  konto: string,
+  projekt: Projekt,
+): Promise<void> {
+  const inhalt = await verschluesseln(projekt, zugang.code);
+  const antwort = await fetch(`${saubereAdresse(zugang.adresse)}/anhang/${konto}/${projekt.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ inhalt }),
+  });
+  if (!antwort.ok) throw new Error(`„${projekt.name}" ließ sich nicht hochladen (${antwort.status}).`);
+}
+
+async function projektEntfernen(zugang: SyncZugang, konto: string, id: string): Promise<void> {
+  await fetch(`${saubereAdresse(zugang.adresse)}/anhang/${konto}/${id}`, {
+    method: 'DELETE',
+  }).catch(() => undefined);
+}
+
+// ---------------------------------------------------------------- Abgleich
+
+/** Sammelt den hiesigen Stand für die Entscheidungslogik. */
+async function lokalenStandLesen() {
+  const [verzeichnis, graeber, abgeglichen, eigeneVorlagen, zuletztGeoeffnet, zuletztGeoeffnetAm] =
+    await Promise.all([
+      listeProjekte(),
+      listeGraeber(),
+      holeAbgleichStand(),
+      listeVorlagen(),
+      holeZuletztGeoeffnet(),
+      holeZuletztGeoeffnetAm(),
+    ]);
+  return { verzeichnis, graeber, abgeglichen, eigeneVorlagen, zuletztGeoeffnet, zuletztGeoeffnetAm };
+}
+
+/**
+ * Ein vollständiger Abgleich.
+ *
+ * Schreibt ein anderer Rechner dazwischen, beginnt der Vorgang von vorn – bis
+ * zu drei Mal. Danach wäre etwas grundsätzlich faul.
+ */
+export async function abgleichen(zugang: SyncZugang): Promise<SyncErgebnis> {
+  const konto = await kontoKennung(zugang.code);
+  const geraet = await holeGeraeteName();
+
+  for (let versuch = 0; versuch < 3; versuch++) {
+    const stand = await verzeichnisHolen(zugang, konto);
+    const lokal = await lokalenStandLesen();
+    const plan = planeAbgleich(lokal, stand.paket);
+
+    // ------------------------------------------------- 2. herunterladen
+    const zuSpeichern = new Map<string, Projekt>();
+    const hochladen = new Map<string, Projekt>();
+    const fehlend = new Set<string>();
+
+    // Gabelungen zuerst: Sie legen die Sicherungskopie der unterlegenen
+    // Fassung an, bevor die neuere sie überschreibt.
+    for (const gabel of plan.gabelungen) {
+      const quelle =
+        gabel.verlierer === 'lokal'
+          ? await ladeProjekt(gabel.id)
+          : await projektHolen(zugang, konto, gabel.id);
+      if (!quelle) {
+        fehlend.add(gabel.kopieId);
+        continue;
+      }
+      const kopie: Projekt = { ...structuredClone(quelle), id: gabel.kopieId, name: gabel.kopieName };
+      zuSpeichern.set(kopie.id, kopie);
+      hochladen.set(kopie.id, kopie);
+    }
+
+    for (const id of plan.holen) {
+      const projekt = await projektHolen(zugang, konto, id);
+      // Steht im Verzeichnis, liegt aber nicht da: Das kann nach einem
+      // abgebrochenen Abgleich vorkommen. Der Eintrag fliegt dann raus,
+      // damit sich das Verzeichnis von selbst wieder einrenkt.
+      if (projekt) zuSpeichern.set(id, projekt);
+      else fehlend.add(id);
+    }
+
+    // --------------------------------------------------- 3. hochladen
+    for (const id of plan.schicken) {
+      if (hochladen.has(id)) continue; // Kopien aus Gabelungen sind schon dabei
+      const projekt = await ladeProjekt(id);
+      if (projekt) hochladen.set(id, projekt);
+      else fehlend.add(id);
+    }
+    for (const projekt of hochladen.values()) {
+      await projektSchicken(zugang, konto, projekt);
+    }
+
+    // ----------------------------------------- 4. Verzeichnis schreiben
+    const verzeichnis = plan.verzeichnis.filter((e) => !fehlend.has(e.id));
+    const jetzt = Date.now();
+    const paket = paketBauen(
+      { ...plan, verzeichnis },
+      geraet,
+      stand.paket?.geraete ?? [],
+      jetzt,
+    );
+
+    const geschrieben = await verzeichnisSchreiben(zugang, konto, stand.version, paket);
+    if (!geschrieben) continue; // ein anderer Rechner war schneller – von vorn
+
+    // --------------------------------- 5. lokal übernehmen und aufräumen
+    for (const projekt of zuSpeichern.values()) await uebernehmeProjekt(projekt);
+    for (const id of plan.loeschenLokal) await entferneProjektStill(id);
+    for (const id of plan.loeschenFern) await projektEntfernen(zugang, konto, id);
+    for (const vorlage of plan.eigeneVorlagen) await speichereVorlage(vorlage);
+    await setzeGraeber(paket.graeber);
+
+    if (plan.zuletztGeoeffnet && plan.zuletztGeoeffnet !== lokal.zuletztGeoeffnet) {
+      await merkeZuletztGeoeffnet(plan.zuletztGeoeffnet, plan.zuletztGeoeffnetAm);
+    }
+
+    await speichereAbgleichStand(neuerAbgleichStand(verzeichnis));
+    await speichereLetztenAbgleich(jetzt);
+
+    return {
+      planungen: verzeichnis.length,
+      geholt: plan.holen.filter((id) => !fehlend.has(id)).length,
+      geschickt: hochladen.size,
+      geloescht: plan.loeschenLokal.length,
+      gabelungen: plan.gabelungen.map((g) => g.kopieName),
+      aktualisiert: [...zuSpeichern.keys()],
+      entfernt: plan.loeschenLokal,
+      zuletztGeoeffnet: plan.zuletztGeoeffnet,
+      geraete: paket.geraete,
+      // Ein Fach, in dem noch nie ein anderer Rechner war, ist entweder das
+      // erste – oder ein Versehen bei der Einrichtung.
+      alleinImFach: paket.geraete.length <= 1,
+      zeitpunkt: jetzt,
+    };
+  }
+
+  throw new Error(
+    'Ein anderer Rechner schreibt gerade dauernd dazwischen. Versuch es in einer Minute noch einmal.',
+  );
+}
+
+/**
+ * Der neue Bezugspunkt: Nach dem Abgleich sind hiesiger und ferner Stand
+ * identisch, also gilt für jede Planung ihre aktuelle Änderungszeit.
+ */
+function neuerAbgleichStand(verzeichnis: Verzeichniseintrag[]): Record<string, number> {
+  const stand: Record<string, number> = {};
+  for (const eintrag of verzeichnis) stand[eintrag.id] = eintrag.geaendertAm;
+  return stand;
+}

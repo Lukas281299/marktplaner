@@ -5,6 +5,7 @@ import { Statusleiste } from './komponenten/Statusleiste';
 import { Werkzeugleiste } from './komponenten/Werkzeugleiste';
 import { Zeichenflaeche } from './komponenten/zeichenflaeche/Zeichenflaeche';
 import { neuesProjekt } from './daten/standardProjekt';
+import { useAbgleich } from './logik/abgleichSteuerung';
 import { useTastatur } from './logik/tastatur';
 import {
   holeZuletztGeoeffnet,
@@ -24,13 +25,16 @@ const SPEICHER_VERZOEGERUNG = 900;
  * Aufgaben dieser Datei:
  *  1. beim Start die zuletzt geöffnete Planung laden (oder eine neue anlegen),
  *  2. Änderungen automatisch speichern,
- *  3. die vier Bereiche der Oberfläche zusammensetzen.
+ *  3. den Abgleich mit den anderen Rechnern anstoßen,
+ *  4. die vier Bereiche der Oberfläche zusammensetzen.
  */
 export default function App() {
   const geladen = usePlanStore((s) => s.geladen);
   const projekt = usePlanStore((s) => s.projekt);
+  const geladenerStand = usePlanStore((s) => s.geladenerStand);
 
   useTastatur();
+  useAbgleich();
 
   // ------------------------------------------------------------ Erster Start
   useEffect(() => {
@@ -58,17 +62,28 @@ export default function App() {
     };
   }, []);
 
+  // ------------------------------------------- Welche Planung ist geöffnet?
+  // Getrennt vom Speichern, denn das Öffnen selbst ist keine Änderung –
+  // gemerkt werden muss es trotzdem, damit man am anderen Rechner hier
+  // weitermachen kann.
+  useEffect(() => {
+    if (!geladen) return;
+    void merkeZuletztGeoeffnet(projekt.id);
+  }, [projekt.id, geladen]);
+
   // -------------------------------------------------- Automatisches Speichern
   const uhrRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (!geladen) return;
+    // Solange die Planung noch genau das Objekt ist, das geladen wurde, hat
+    // niemand etwas angefasst. Ohne diese Prüfung bekäme jede Planung schon
+    // beim bloßen Ansehen eine neue Änderungszeit – und der Abgleich hielte
+    // sie für bearbeitet, obwohl nichts geschehen ist.
+    if (projekt === geladenerStand) return;
     window.clearTimeout(uhrRef.current);
-    uhrRef.current = window.setTimeout(() => {
-      void speichereProjekt(projekt);
-      void merkeZuletztGeoeffnet(projekt.id);
-    }, SPEICHER_VERZOEGERUNG);
+    uhrRef.current = window.setTimeout(() => void speichereProjekt(projekt), SPEICHER_VERZOEGERUNG);
     return () => window.clearTimeout(uhrRef.current);
-  }, [projekt, geladen]);
+  }, [projekt, geladenerStand, geladen]);
 
   return (
     <div className="app">

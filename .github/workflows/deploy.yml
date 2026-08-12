@@ -1,0 +1,50 @@
+# Baut den Marktplaner bei jedem Push auf "main" und veröffentlicht ihn
+# auf GitHub Pages. Danach ist er von jedem Rechner aus erreichbar unter
+#   https://<dein-github-name>.github.io/marktplaner/
+name: Auf GitHub Pages veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  # Erlaubt das manuelle Auslösen über den Reiter "Actions" auf GitHub.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Läuft immer nur eine Veröffentlichung gleichzeitig.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  bauen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Erst prüfen, dann bauen: Schlägt ein Test fehl, wird nicht
+      # veröffentlicht. Besonders wichtig für die Zusammenführ-Logik der
+      # Synchronisation – dort würde ein Fehler Planungen kosten.
+      - run: npm test
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  veroeffentlichen:
+    needs: bauen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

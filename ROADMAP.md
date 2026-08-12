@@ -26,40 +26,77 @@ es gibt keinen Zwischenstand, mit dem man nicht arbeiten könnte.
 - [x] Speichern, Öffnen, Kopieren, Umbenennen (IndexedDB, automatisch)
 - [x] JSON-Export und -Import, PNG-Export
 
-## Phase 2 – Räume und Wände
+## Phase 2 – GitHub und Online-Abgleich ✅ fertig
 
-- [ ] Räume als Rechteck aufziehen (Verkaufsfläche, Lager, Kühlhaus …)
-- [ ] Raumname, Wandstärke, Hintergrundfarbe
-- [ ] Einzelne Wände zeichnen, Wände verschieben
+- [x] Vermittlungsprogramm als Cloudflare Worker (`sync/worker.js`)
+- [x] Verschlüsselung im Browser, Kopplungscode statt Benutzerkonto
+- [x] Abgleich aller Planungen zwischen mehreren Rechnern
+- [x] Sicherungskopie, wenn an zwei Rechnern gleichzeitig geplant wurde
+- [x] Grabsteine, damit Gelöschtes gelöscht bleibt
+- [x] Zuletzt geöffnete Planung wandert mit
+- [x] Abgleich von selbst: beim Start, nach Ruhe, bei Rückkehr ins Fenster
+- [x] Veröffentlichung auf GitHub Pages bei jedem Push
+- [x] Prüfungen für Zusammenführung und Worker
+
+## Phase 3 – Grundriss frei festlegen
+
+Der Grundriss soll nicht mehr nur ein Rechteck sein.
+
+- [ ] Umriss als Polygon zeichnen, Punkte nachträglich verschieben
+- [ ] Zusammengesetzte Rechtecke (Rechtecke hinzufügen und abziehen)
+- [ ] Maße an jeder Wandkante, Eingabe über Zahlen
+- [ ] Räume als abgetrennte Bereiche: Verkaufsraum, Lager, Kühlräume, Sozialraum
+- [ ] Raumname, Wandstärke, Hintergrundfarbe, Flächenberechnung je Raum
+- [ ] Einzelne Innenwände zeichnen und verschieben
 - [ ] Türen und Durchgänge in Wände setzen
-- [ ] Flächenberechnung je Raum
-- [ ] Nicht rechteckige Grundfläche (Polygon)
 
-## Phase 3 – Eigene Elemente
+## Phase 4 – Regale und Marktausstattung (Wanzl)
 
-- [ ] Editor für eigene Vorlagen (Name, Kategorie, Maße, Farbe, Form)
-- [ ] Kombination mehrerer Grundformen
-- [ ] Frei definierbare Zusatzeigenschaften
-- [ ] Eigene SVG- und PNG-Symbole hochladen
-- [ ] Vorlagen dauerhaft in der Bibliothek (bereits vorbereitet in der Datenbank)
+Ersetzt die vorläufige Bibliothek durch die tatsächlich verbauten Möbel.
+Grundlage ist der Plan des bestehenden Marktes.
 
-## Phase 4 – Laufwege und Auswertung
+- [ ] Bedientheken
+- [ ] Tiefkühlung: Truhen und Schränke
+- [ ] Molkerei / SB-Wurst und Fleisch: Truhen und Schränke
+- [ ] Trockensortiment in verschiedenen Achsmaßen
+- [ ] Obstabteilung in verschiedenen Achsmaßen
+- [ ] Backstation
+- [ ] Kassen in allen Varianten: Selbstscanner, Tandem, zusammengesetzte
+      Tandemkassen, Einzelkassen, Kassen mit Tabakshop
+- [ ] Symbole aus dem Plan abgeleitet statt Platzhalter-Rechtecke
+
+## Phase 5 – Bestehende Ladenpläne einlesen
+
+- [ ] PDF einlesen und maßstabsgetreu als Hintergrund einpassen
+- [ ] Maßstab über eine bekannte Strecke festlegen
+- [ ] Umriss und Räume über dem eingelesenen Plan nachzeichnen
+- [ ] Im bestehenden Plan weiterarbeiten: Regale versetzen, austauschen,
+      Bereiche verändern
+
+## Phase 6 – Auswertung und Ausgabe
 
 - [ ] Kundenlaufwege und interne Laufwege als Linien und Pfeile
 - [ ] Farbige Flächen für Zonen
 - [ ] Auswertung je Abteilung und je Warengruppe
 - [ ] Gruppieren und Gruppierung aufheben
-
-## Phase 5 – Ausgabe
-
-- [ ] PDF-Export mit Maßstab
-- [ ] Druckansicht
+- [ ] PDF-Export mit Maßstab, Druckansicht
 - [ ] SVG-Export (direkt aus dem Datenmodell)
 - [ ] Legende und Beschriftungsfeld auf dem Ausdruck
 
-## Phase 6 – Später
+## Phase 7 – Eigene Elemente
 
-- [ ] Benutzerkonten und Cloud-Speicherung
-- [ ] Mehrere Personen an einer Planung
+- [ ] Editor für eigene Vorlagen (Name, Kategorie, Maße, Farbe, Form)
+- [ ] Kombination mehrerer Grundformen
+- [ ] Frei definierbare Zusatzeigenschaften
+- [ ] Eigene SVG- und PNG-Symbole hochladen
+
+## Zum Schluss
+
+- [ ] **Bedienungsanleitung** – vollständig, mit Bildern, für jemanden
+      geschrieben, der den Marktplaner zum ersten Mal öffnet
+
+## Später
+
+- [ ] Mehrere Personen gleichzeitig an einer Planung
 - [ ] Tablet-Bedienung mit Touch
 - [ ] Versionen einer Planung vergleichen

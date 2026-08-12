@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { BibliothekEintrag, Projekt } from '../typen/modell';
+import type { Grabstein } from './abgleich';
 
 /**
  * Die lokale Datenbank im Browser (IndexedDB).
@@ -18,7 +19,16 @@ interface MarktplanerDb extends DBSchema {
     key: string;
     value: BibliothekEintrag;
   };
-  /** Kleinkram wie "zuletzt geöffnetes Projekt". */
+  /**
+   * Merkzettel über gelöschte Planungen. Ohne sie käme eine gelöschte Planung
+   * beim nächsten Abgleich vom anderen Rechner zurück – der dort ja nichts
+   * von der Löschung weiß und sie nur als „hier fehlt etwas" sähe.
+   */
+  graeber: {
+    key: string;
+    value: Grabstein;
+  };
+  /** Kleinkram wie "zuletzt geöffnetes Projekt" und der Sync-Zugang. */
   einstellungen: {
     key: string;
     value: unknown;
@@ -26,18 +36,26 @@ interface MarktplanerDb extends DBSchema {
 }
 
 const DB_NAME = 'marktplaner';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let verbindung: Promise<IDBPDatabase<MarktplanerDb>> | null = null;
 
 export function db(): Promise<IDBPDatabase<MarktplanerDb>> {
   if (!verbindung) {
     verbindung = openDB<MarktplanerDb>(DB_NAME, DB_VERSION, {
-      upgrade(datenbank) {
-        const projekte = datenbank.createObjectStore('projekte', { keyPath: 'id' });
-        projekte.createIndex('geaendertAm', 'geaendertAm');
-        datenbank.createObjectStore('vorlagen', { keyPath: 'id' });
-        datenbank.createObjectStore('einstellungen');
+      // `vorher` ist die Fassung, die auf diesem Rechner bisher lag: 0 bei
+      // einer frischen Einrichtung. Jeder Schritt läuft nur einmal und baut
+      // auf dem vorherigen auf – so kommt auch ein alter Stand sauber nach.
+      upgrade(datenbank, vorher) {
+        if (vorher < 1) {
+          const projekte = datenbank.createObjectStore('projekte', { keyPath: 'id' });
+          projekte.createIndex('geaendertAm', 'geaendertAm');
+          datenbank.createObjectStore('vorlagen', { keyPath: 'id' });
+          datenbank.createObjectStore('einstellungen');
+        }
+        if (vorher < 2) {
+          datenbank.createObjectStore('graeber', { keyPath: 'id' });
+        }
       },
     });
   }
