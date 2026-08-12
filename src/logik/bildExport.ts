@@ -1,6 +1,7 @@
 import type { Projekt } from '../typen/modell';
 import { dateinameAus, ladeDateiHerunter } from '../speicher/projektArchiv';
 import { buehneSteuerung } from './buehne';
+import { rahmen } from './polygon';
 import type { Ansicht } from '../zustand/planStore';
 
 /**
@@ -20,11 +21,15 @@ export function exportierePng(projekt: Projekt, ansicht: Ansicht, faktor = 2): v
   overlay?.visible(false);
 
   const rand = 60;
+  // Der Ausschnitt richtet sich nach der Umgrenzung des Grundrisses. Die kann
+  // nach dem Umformen auch links oder oberhalb von 0 anfangen – deshalb wird
+  // sie mitgerechnet und nicht angenommen, dass sie bei 0/0 beginnt.
+  const bereich = rahmen(projekt.grundflaeche.umriss);
   const quelle = buehne.toCanvas({
-    x: ansicht.x - rand,
-    y: ansicht.y - rand,
-    width: projekt.grundflaeche.breite * ansicht.zoom + rand * 2,
-    height: projekt.grundflaeche.laenge * ansicht.zoom + rand * 2,
+    x: ansicht.x + bereich.links * ansicht.zoom - rand,
+    y: ansicht.y + bereich.oben * ansicht.zoom - rand,
+    width: (bereich.rechts - bereich.links) * ansicht.zoom + rand * 2,
+    height: (bereich.unten - bereich.oben) * ansicht.zoom + rand * 2,
     pixelRatio: faktor,
   });
 

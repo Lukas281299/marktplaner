@@ -1,4 +1,5 @@
 import { neueId } from '../logik/id';
+import { rechteck } from '../logik/polygon';
 import { SCHEMA_VERSION, type Ebene, type Projekt } from '../typen/modell';
 
 /**
@@ -18,7 +19,10 @@ export const STANDARD_EBENE_ID = 'einrichtung';
 
 /**
  * Erzeugt ein leeres Projekt.
+ *
  * Voreinstellung: 40 m × 25 m – eine typische Größe für einen mittleren Markt.
+ * Angefangen wird mit einem Rechteck, weil das der häufigste Fall ist und man
+ * am schnellsten etwas sieht. Umformen lässt es sich danach beliebig.
  */
 export function neuesProjekt(
   name = 'Neue Marktplanung',
@@ -32,7 +36,7 @@ export function neuesProjekt(
     version: SCHEMA_VERSION,
     erstelltAm: jetzt,
     geaendertAm: jetzt,
-    grundflaeche: { breite, laenge, wandstaerke: 30 },
+    grundflaeche: { umriss: rechteck(0, 0, breite, laenge), wandstaerke: 30 },
     einstellungen: {
       anzeigeEinheit: 'm',
       rasterSichtbar: true,

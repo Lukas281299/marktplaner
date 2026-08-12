@@ -13,11 +13,16 @@ import {
 } from '../../logik/einrasten';
 import { runde, ueberschneiden, umgrenzung } from '../../logik/geometrie';
 import { formatiereLaenge } from '../../logik/masse';
+import { rahmen as umrissRahmen, rechteckAusEcken, vereinige, ziehAb } from '../../logik/polygon';
+import { punktEinfuegen, punktEntfernen, punktVerschieben } from '../../logik/umrissBearbeiten';
+import type { Punkt } from '../../typen/modell';
 import { usePlanStore } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Gebaeude } from './Gebaeude';
+import { Raeume } from './Raeume';
 import { Raster } from './Raster';
+import { UmrissBearbeitung } from './UmrissBearbeitung';
 
 /** Grenzen für den Zoom: 1 Bildpunkt pro 50 cm bis 4 Bildpunkte pro cm. */
 const ZOOM_MIN = 0.02;
@@ -34,6 +39,8 @@ const ZOOM_MAX = 4;
 export function Zeichenflaeche() {
   const projekt = usePlanStore((s) => s.projekt);
   const auswahl = usePlanStore((s) => s.auswahl);
+  const raumAuswahl = usePlanStore((s) => s.raumAuswahl);
+  const werkzeug = usePlanStore((s) => s.werkzeug);
   const ansicht = usePlanStore((s) => s.ansicht);
   const seitenverhaeltnisHalten = usePlanStore((s) => s.seitenverhaeltnisHalten);
   const setzeAnsicht = usePlanStore((s) => s.setzeAnsicht);
@@ -66,6 +73,8 @@ export function Zeichenflaeche() {
   } | null>(null);
   const [zeiger, setZeiger] = useState<'default' | 'grab' | 'grabbing'>('default');
   const [istAblageziel, setIstAblageziel] = useState(false);
+  /** Kurze Rückmeldung beim Umformen des Grundrisses. */
+  const [meldung, setMeldung] = useState('');
 
   // ------------------------------------------------------ Größe des Bereichs
   useLayoutEffect(() => {
@@ -101,7 +110,9 @@ export function Zeichenflaeche() {
 
   // -------------------------------------------------------- Ansicht einpassen
   const einpassen = useCallback(() => {
-    const { breite, laenge } = usePlanStore.getState().projekt.grundflaeche;
+    const bereich = umrissRahmen(usePlanStore.getState().projekt.grundflaeche.umriss);
+    const breite = bereich.rechts - bereich.links;
+    const laenge = bereich.unten - bereich.oben;
     // Ohne belastbare Größe der Zeichenfläche lässt sich nichts einpassen.
     if (groesse.breite < 200 || groesse.hoehe < 200 || breite <= 0 || laenge <= 0) return;
     const rand = 90;
@@ -114,8 +125,10 @@ export function Zeichenflaeche() {
     );
     setzeAnsicht({
       zoom,
-      x: (groesse.breite - breite * zoom) / 2,
-      y: (groesse.hoehe - laenge * zoom) / 2,
+      // Der Umriss muss nicht bei 0/0 anfangen – nach dem Umformen kann er
+      // überall liegen. Deshalb wird seine Umgrenzung mit eingerechnet.
+      x: (groesse.breite - breite * zoom) / 2 - bereich.links * zoom,
+      y: (groesse.hoehe - laenge * zoom) / 2 - bereich.oben * zoom,
     });
   }, [groesse, setzeAnsicht]);
 
@@ -159,6 +172,23 @@ export function Zeichenflaeche() {
       window.removeEventListener('keydown', runter);
       window.removeEventListener('keyup', hoch);
     };
+  }, []);
+
+  /**
+   * Rastet einen Punkt am Raster ein – für alles, was am Grundriss gezeichnet
+   * wird. Ohne das kämen krumme Wandmaße wie 12,37 m heraus.
+   */
+  const aufRaster = useCallback((p: Punkt): Punkt => {
+    const { einstellungen } = usePlanStore.getState().projekt;
+    if (!einstellungen.amRasterEinrasten) return { x: runde(p.x), y: runde(p.y) };
+    const w = einstellungen.rasterWeite;
+    return { x: Math.round(p.x / w) * w, y: Math.round(p.y / w) * w };
+  }, []);
+
+  /** Zeigt kurz eine Rückmeldung über der Zeichenfläche an. */
+  const melde = useCallback((text: string) => {
+    setMeldung(text);
+    window.setTimeout(() => setMeldung((alt) => (alt === text ? '' : alt)), 6000);
   }, []);
 
   /** Rechnet einen Bildschirmpunkt in Planmaße (cm) um. */
@@ -210,9 +240,19 @@ export function Zeichenflaeche() {
     }
     if (e.evt.button !== 0) return;
 
+    const store = usePlanStore.getState();
+
+    // Beim Zeichnen am Grundriss wird immer ein Rechteck aufgezogen – auch
+    // wenn die Maus dabei über einem Regal startet.
+    if (store.werkzeug === 'flaecheAnfuegen' || store.werkzeug === 'flaecheAbziehen' || store.werkzeug === 'raum') {
+      const p = aufRaster(planPunkt(e.evt.clientX, e.evt.clientY));
+      rahmenRef.current = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, shift: false };
+      setAuswahlrahmen({ x: p.x, y: p.y, breite: 0, hoehe: 0 });
+      return;
+    }
+
     // Klick ins Leere: bisherige Auswahl aufheben und Auswahlrahmen beginnen.
     if (e.target === buehne) {
-      const store = usePlanStore.getState();
       if (!e.evt.shiftKey) store.hebeAuswahlAuf();
       const p = planPunkt(e.evt.clientX, e.evt.clientY);
       rahmenRef.current = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, shift: e.evt.shiftKey };
@@ -233,10 +273,11 @@ export function Zeichenflaeche() {
         });
         return;
       }
-      // Auswahlrahmen aufziehen
+      // Auswahlrahmen bzw. Fläche aufziehen
       const rahmen = rahmenRef.current;
       if (rahmen) {
-        const p = planPunkt(ev.clientX, ev.clientY);
+        const roh = planPunkt(ev.clientX, ev.clientY);
+        const p = usePlanStore.getState().werkzeug === 'auswahl' ? roh : aufRaster(roh);
         rahmen.x2 = p.x;
         rahmen.y2 = p.y;
         setAuswahlrahmen({
@@ -259,6 +300,34 @@ export function Zeichenflaeche() {
         setAuswahlrahmen(null);
         const breite = Math.abs(rahmen.x2 - rahmen.x1);
         const hoehe = Math.abs(rahmen.y2 - rahmen.y1);
+
+        // ------------------------------------------- Werkzeuge am Grundriss
+        const store0 = usePlanStore.getState();
+        if (store0.werkzeug !== 'auswahl' && store0.werkzeug !== 'umriss') {
+          // Unter einem halben Meter Kantenlänge war es ein verrutschter Klick.
+          if (breite < 50 || hoehe < 50) return;
+          const gezogen = rechteckAusEcken(
+            { x: rahmen.x1, y: rahmen.y1 },
+            { x: rahmen.x2, y: rahmen.y2 },
+          );
+
+          if (store0.werkzeug === 'raum') {
+            store0.fuegeRaumHinzu(gezogen);
+            return;
+          }
+
+          const umriss = store0.projekt.grundflaeche.umriss;
+          const ergebnis =
+            store0.werkzeug === 'flaecheAnfuegen'
+              ? vereinige(umriss, gezogen)
+              : ziehAb(umriss, gezogen);
+
+          if (ergebnis.umriss.length >= 3) store0.setzeUmriss(ergebnis.umriss);
+          if (ergebnis.hinweis) melde(ergebnis.hinweis);
+          return;
+        }
+
+        // ------------------------------------------------------ Auswahlrahmen
         // Ein winziger Rahmen war nur ein Klick – dann nichts auswählen.
         if (breite < 3 && hoehe < 3) return;
         const bereich = {
@@ -285,7 +354,63 @@ export function Zeichenflaeche() {
       window.removeEventListener('mousemove', bewegen);
       window.removeEventListener('mouseup', loslassen);
     };
-  }, [planPunkt, setzeAnsicht]);
+  }, [planPunkt, setzeAnsicht, aufRaster, melde]);
+
+  // --------------------------------------------------- Umriss umformen
+  const umriss = projekt.grundflaeche.umriss;
+
+  const punktZiehen = (index: number, punkt: Punkt) => {
+    // Ohne Historie: Sonst läge nach einem einzigen Ziehen ein Dutzend
+    // Zwischenschritte in "Rückgängig".
+    const neu = punktVerschieben(umriss, index, punkt);
+    usePlanStore.setState((s) => ({
+      projekt: { ...s.projekt, grundflaeche: { ...s.projekt.grundflaeche, umriss: neu } },
+    }));
+  };
+
+  const eckeEinfuegen = (nachIndex: number, punkt: Punkt) => {
+    usePlanStore.getState().setzeUmriss(punktEinfuegen(umriss, nachIndex, punkt));
+  };
+
+  const eckeEntfernen = (index: number) => {
+    const neu = punktEntfernen(umriss, index);
+    if (!neu) {
+      melde('Ein Grundriss braucht mindestens drei Ecken.');
+      return;
+    }
+    usePlanStore.getState().setzeUmriss(neu);
+  };
+
+  // ------------------------------------------------------- Raum verschieben
+  const raumZugRef = useRef<{ id: string; letztesX: number; letztesY: number } | null>(null);
+
+  const raumZiehStart = (id: string) => {
+    usePlanStore.getState().schnappschuss();
+    raumZugRef.current = { id, letztesX: 0, letztesY: 0 };
+  };
+
+  const raumZiehen = (id: string, x: number, y: number) => {
+    const zug = raumZugRef.current;
+    if (!zug || zug.id !== id) return;
+    // Konva liefert die Gesamtverschiebung der Gruppe; gebraucht wird der
+    // Zuwachs seit dem letzten Aufruf, weil die Punkte selbst mitwandern.
+    usePlanStore.getState().verschiebeRaum(id, x - zug.letztesX, y - zug.letztesY);
+    zug.letztesX = x;
+    zug.letztesY = y;
+  };
+
+  const raumZiehEnde = () => {
+    const zug = raumZugRef.current;
+    raumZugRef.current = null;
+    if (!zug) return;
+    // Zum Schluss sauber aufs Raster setzen.
+    const store = usePlanStore.getState();
+    const raum = store.projekt.raeume.find((r) => r.id === zug.id);
+    if (!raum || raum.umriss.length === 0) return;
+    const ecke = raum.umriss[0];
+    const ziel = aufRaster(ecke);
+    store.verschiebeRaum(zug.id, ziel.x - ecke.x, ziel.y - ecke.y);
+  };
 
   // ------------------------------------------------------ Element ausgewählt
   const beiElementMausTaste = (e: KonvaEventObject<MouseEvent>, id: string) => {
@@ -444,6 +569,11 @@ export function Zeichenflaeche() {
     .filter((el) => sichtbareEbenen.has(el.ebeneId))
     .sort((a, b) => a.reihenfolge - b.reihenfolge);
 
+  // Räume hängen an der Ebene "Räume" – sie lassen sich damit ausblenden
+  // und sperren wie alles andere auch.
+  const raeumeSichtbar = sichtbareEbenen.has('raeume');
+  const raeumeGesperrt = gesperrteEbenen.has('raeume');
+
   const einheit = projekt.einstellungen.anzeigeEinheit;
   const zoom = ansicht.zoom;
 
@@ -451,7 +581,14 @@ export function Zeichenflaeche() {
     <div
       ref={behaelterRef}
       className={`zeichenflaeche${istAblageziel ? ' ablageziel' : ''}`}
-      style={{ cursor: zeiger === 'default' ? 'default' : zeiger }}
+      style={{
+        cursor:
+          zeiger !== 'default'
+            ? zeiger
+            : werkzeug === 'flaecheAnfuegen' || werkzeug === 'flaecheAbziehen' || werkzeug === 'raum'
+              ? 'crosshair'
+              : 'default',
+      }}
       onDragOver={beiDarueber}
       onDragLeave={() => setIstAblageziel(false)}
       onDrop={beiAblegen}
@@ -475,16 +612,35 @@ export function Zeichenflaeche() {
           <Gebaeude grundflaeche={projekt.grundflaeche} einheit={einheit} zoom={zoom} />
           {projekt.einstellungen.rasterSichtbar && (
             <Raster
-              breite={projekt.grundflaeche.breite}
-              laenge={projekt.grundflaeche.laenge}
+              bereich={umrissRahmen(umriss)}
               weite={projekt.einstellungen.rasterWeite}
               zoom={zoom}
             />
           )}
         </Layer>
 
+        {/* --------------------------------------------------------- Räume */}
+        {/* Zwischen Gebäude und Einrichtung: Die Regale sollen im Raum
+            stehen können, der Raum aber den Boden abdecken. */}
+        <Layer listening={raeumeSichtbar && werkzeug === 'auswahl'}>
+          {raeumeSichtbar && (
+            <Raeume
+              raeume={projekt.raeume}
+              ausgewaehlt={raumAuswahl}
+              zoom={zoom}
+              anklickbar={werkzeug === 'auswahl' && !raeumeGesperrt}
+              beiKlick={(id) => usePlanStore.getState().waehleRaum(id)}
+              beiZiehStart={raumZiehStart}
+              beiZiehen={raumZiehen}
+              beiZiehEnde={raumZiehEnde}
+            />
+          )}
+        </Layer>
+
         {/* ------------------------------------------------------- Elemente */}
-        <Layer>
+        {/* Solange am Grundriss gearbeitet wird, sind die Regale nicht
+            anklickbar – sonst erwischt man sie beim Aufziehen einer Fläche. */}
+        <Layer listening={werkzeug === 'auswahl'}>
           {sichtbareElemente.map((el) => (
             <ElementSymbol
               key={el.id}
@@ -557,7 +713,21 @@ export function Zeichenflaeche() {
             <AbstandsAnzeige key={`mass-${i}`} mass={mass} zoom={zoom} einheit={einheit} />
           ))}
 
-          {/* Aufgezogener Auswahlrahmen */}
+          {/* Anfasser zum Umformen des Grundrisses */}
+          {werkzeug === 'umriss' && (
+            <UmrissBearbeitung
+              umriss={umriss}
+              zoom={zoom}
+              einrasten={aufRaster}
+              beiZiehStart={() => usePlanStore.getState().schnappschuss()}
+              beiPunktZiehen={punktZiehen}
+              beiZiehEnde={() => usePlanStore.getState().setzeUmriss(umriss)}
+              beiPunktEinfuegen={eckeEinfuegen}
+              beiPunktEntfernen={eckeEntfernen}
+            />
+          )}
+
+          {/* Aufgezogener Rahmen – Farbe je nachdem, was er bewirkt */}
           {auswahlrahmen && (
             <Rect
               listening={false}
@@ -565,21 +735,37 @@ export function Zeichenflaeche() {
               y={auswahlrahmen.y}
               width={auswahlrahmen.breite}
               height={auswahlrahmen.hoehe}
-              fill="rgba(10,132,255,0.12)"
-              stroke="#0a84ff"
-              strokeWidth={1 / zoom}
+              fill={RAHMENFARBEN[werkzeug].fuellung}
+              stroke={RAHMENFARBEN[werkzeug].linie}
+              strokeWidth={1.5 / zoom}
+              dash={werkzeug === 'auswahl' ? undefined : [10 / zoom, 6 / zoom]}
             />
           )}
         </Layer>
       </Stage>
 
-      {projekt.elemente.length === 0 && (
+      {projekt.elemente.length === 0 && werkzeug === 'auswahl' && (
         <div className="leer-hinweis">
           <strong>Noch nichts geplant.</strong>
           <br />
           Ziehe links ein Element auf die Fläche.
           <br />
           Mausrad = Zoomen · Leertaste + Ziehen = Ansicht verschieben
+        </div>
+      )}
+
+      {/* Was das gerade gewählte Werkzeug tut */}
+      {werkzeug !== 'auswahl' && (
+        <div className="werkzeug-fahne">
+          <strong>{WERKZEUG_TEXT[werkzeug].titel}</strong>
+          {WERKZEUG_TEXT[werkzeug].hinweis}
+        </div>
+      )}
+
+      {/* Rückmeldung, wenn beim Umformen etwas nicht ging */}
+      {meldung && (
+        <div className="zeichen-meldung" onClick={() => setMeldung('')}>
+          {meldung}
         </div>
       )}
 
@@ -614,6 +800,36 @@ export function Zeichenflaeche() {
     </div>
   );
 }
+
+/** Die Farbe des aufgezogenen Rahmens sagt, was gleich passiert. */
+const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> = {
+  auswahl: { fuellung: 'rgba(10,132,255,0.12)', linie: '#0a84ff' },
+  umriss: { fuellung: 'rgba(10,132,255,0.12)', linie: '#0a84ff' },
+  flaecheAnfuegen: { fuellung: 'rgba(46,160,67,0.16)', linie: '#2ea043' },
+  flaecheAbziehen: { fuellung: 'rgba(229,72,77,0.14)', linie: '#e5484d' },
+  raum: { fuellung: 'rgba(140,120,200,0.16)', linie: '#7b6bc4' },
+};
+
+/** Kurze Anleitung zum jeweils gewählten Werkzeug. */
+const WERKZEUG_TEXT: Record<string, { titel: string; hinweis: string }> = {
+  umriss: {
+    titel: 'Umriss bearbeiten',
+    hinweis:
+      'Blaue Ecken ziehen · kleine Kreise auf den Wänden anklicken setzt eine neue Ecke · Doppelklick auf eine Ecke entfernt sie',
+  },
+  flaecheAnfuegen: {
+    titel: 'Fläche anfügen',
+    hinweis: 'Rechteck aufziehen – es wird zur Grundfläche hinzugerechnet',
+  },
+  flaecheAbziehen: {
+    titel: 'Fläche abziehen',
+    hinweis: 'Rechteck aufziehen – dieser Bereich wird aus der Grundfläche herausgeschnitten',
+  },
+  raum: {
+    titel: 'Raum abtrennen',
+    hinweis: 'Rechteck aufziehen – Art und Name danach rechts einstellen',
+  },
+};
 
 /** Eine Maßlinie mit Zahl – wird beim Verschieben eingeblendet. */
 function AbstandsAnzeige({

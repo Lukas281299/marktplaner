@@ -2,12 +2,17 @@ import { create } from 'zustand';
 import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
 import { gesamtUmgrenzung, umgrenzung } from '../logik/geometrie';
 import { neueId } from '../logik/id';
+import { raumart } from '../daten/raumarten';
+import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
 import type {
   BibliothekEintrag,
   Einstellungen,
   Grundflaeche,
   PlanElement,
   Projekt,
+  Punkt,
+  Raum,
+  Raumart,
 } from '../typen/modell';
 
 /**
@@ -39,11 +44,24 @@ export type Auswahlmodus = 'ersetzen' | 'umschalten';
 export type Ausrichtung = 'links' | 'mitteWaagerecht' | 'rechts' | 'oben' | 'mitteSenkrecht' | 'unten';
 export type Reihenfolgebefehl = 'ganzVorne' | 'ganzHinten' | 'nachVorne' | 'nachHinten';
 
+/**
+ * Was die Maus auf der Zeichenfläche gerade tut.
+ *
+ * `auswahl` ist der Normalfall – Elemente anklicken und verschieben. Die
+ * übrigen Werkzeuge betreffen den Grundriss und schalten das Anklicken von
+ * Elementen ab, damit man beim Aufziehen einer Fläche nicht aus Versehen ein
+ * Regal erwischt.
+ */
+export type Werkzeug = 'auswahl' | 'umriss' | 'flaecheAnfuegen' | 'flaecheAbziehen' | 'raum';
+
 interface PlanStore {
   // ------------------------------------------------------------------ Daten
   projekt: Projekt;
   /** Kennungen der ausgewählten Elemente. */
   auswahl: string[];
+  /** Der ausgewählte Raum – Räume und Elemente werden getrennt ausgewählt. */
+  raumAuswahl: string | null;
+  werkzeug: Werkzeug;
   /** Inhalt der internen Zwischenablage (Kopieren/Einfügen). */
   zwischenablage: PlanElement[];
   /** Selbst angelegte Bibliotheksvorlagen. */
@@ -73,6 +91,18 @@ interface PlanStore {
   setzeGrundflaeche(werte: Partial<Grundflaeche>): void;
   setzeEinstellung(werte: Partial<Einstellungen>): void;
   setzeEbene(id: string, werte: Partial<{ sichtbar: boolean; gesperrt: boolean }>): void;
+
+  // -------------------------------------------------------------- Grundriss
+  setzeWerkzeug(werkzeug: Werkzeug): void;
+  /** Ersetzt den Umriss des Gebäudes. */
+  setzeUmriss(umriss: Punkt[]): void;
+
+  // ---------------------------------------------------------------- Räume
+  waehleRaum(id: string | null): void;
+  fuegeRaumHinzu(umriss: Punkt[], art?: Raumart): string;
+  aendereRaum(id: string, werte: Partial<Raum>, mitHistorie?: boolean): void;
+  verschiebeRaum(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
+  loescheRaum(id: string): void;
 
   // ------------------------------------------------------------- Historie
   /** Merkt den aktuellen Stand, bevor eine längere Aktion (z. B. Ziehen) beginnt. */
@@ -117,6 +147,8 @@ function naechsteReihenfolge(elemente: PlanElement[]): number {
 export const usePlanStore = create<PlanStore>((set, get) => ({
   projekt: neuesProjekt(),
   auswahl: [],
+  raumAuswahl: null,
+  werkzeug: 'auswahl',
   zwischenablage: [],
   eigeneVorlagen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
@@ -132,6 +164,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       projekt,
       geladenerStand: projekt,
       auswahl: [],
+      raumAuswahl: null,
+      // Beim Öffnen einer anderen Planung wieder ins normale Arbeiten
+      // zurückfallen – ein noch aktives Zeichenwerkzeug wäre eine Falle.
+      werkzeug: 'auswahl',
       vergangenheit: [],
       zukunft: [],
       geladen: alsGeladen,
@@ -167,6 +203,79 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         ebenen: s.projekt.ebenen.map((e) => (e.id === id ? { ...e, ...werte } : e)),
       },
     }));
+  },
+
+  // ============================================================== Grundriss
+  setzeWerkzeug(werkzeug) {
+    // Beim Wechsel ins Zeichnen die Auswahl aufheben: Sonst blieben die
+    // Anfasser eines Regals sichtbar, während man am Grundriss arbeitet.
+    set(werkzeug === 'auswahl' ? { werkzeug } : { werkzeug, auswahl: [], raumAuswahl: null });
+  },
+
+  setzeUmriss(umriss) {
+    if (umriss.length < 3) return;
+    aendere(set, get, (p) => ({
+      ...p,
+      grundflaeche: { ...p.grundflaeche, umriss: imUhrzeigersinn(umriss) },
+    }));
+  },
+
+  // ================================================================== Räume
+  waehleRaum(id) {
+    // Raum und Elemente schließen einander aus – das Eigenschaftenfenster
+    // zeigt immer nur eines von beiden.
+    set(id ? { raumAuswahl: id, auswahl: [] } : { raumAuswahl: null });
+  },
+
+  fuegeRaumHinzu(umriss, art = 'lager') {
+    const id = neueId('raum');
+    const vorlage = raumart(art);
+    aendere(set, get, (p) => ({
+      ...p,
+      raeume: [
+        ...p.raeume,
+        {
+          id,
+          name: vorlage.name,
+          umriss: imUhrzeigersinn(umriss),
+          art,
+          wandstaerke: 15,
+          farbe: vorlage.farbe,
+          beschriftungSichtbar: true,
+          gesperrt: false,
+        },
+      ],
+    }));
+    set({ raumAuswahl: id, auswahl: [] });
+    return id;
+  },
+
+  aendereRaum(id, werte, mitHistorie = true) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      raeume: p.raeume.map((r) => (r.id === id ? { ...r, ...werte } : r)),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  verschiebeRaum(id, dx, dy, mitHistorie = false) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      raeume: p.raeume.map((r) =>
+        r.id === id && !r.gesperrt ? { ...r, umriss: verschiebe(r.umriss, dx, dy) } : r,
+      ),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  loescheRaum(id) {
+    aendere(set, get, (p) => ({
+      ...p,
+      raeume: p.raeume.filter((r) => r.id !== id || r.gesperrt),
+    }));
+    set({ raumAuswahl: null });
   },
 
   // =============================================================== Historie
@@ -461,6 +570,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   // ================================================================ Auswahl
   waehleAus(ids, modus = 'ersetzen') {
+    // Ein Element auszuwählen hebt die Raumauswahl auf – siehe `waehleRaum`.
+    if (ids.length > 0) set({ raumAuswahl: null });
     if (modus === 'ersetzen') {
       set({ auswahl: ids });
       return;
@@ -488,7 +599,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   hebeAuswahlAuf() {
-    set({ auswahl: [] });
+    set({ auswahl: [], raumAuswahl: null });
   },
 
   // ================================================================ Ansicht

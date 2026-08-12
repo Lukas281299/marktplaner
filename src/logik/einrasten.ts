@@ -1,5 +1,6 @@
 import type { Einstellungen, Grundflaeche, PlanElement } from '../typen/modell';
 import { umgrenzung, type Rahmen } from './geometrie';
+import { rahmen as umrissRahmen, strahlAufUmriss, wandlinien } from './polygon';
 
 /**
  * Einrasten ("Snapping") und automatische Hilfslinien.
@@ -53,12 +54,22 @@ function sammleKandidaten(
 ): Kandidat[] {
   const liste: Kandidat[] = [];
 
-  // Die Außenwände: Innenkante und Außenkante.
-  const maxWert = achse === 'x' ? grund.breite : grund.laenge;
-  const querMax = achse === 'x' ? grund.laenge : grund.breite;
-  for (const wert of [0, grund.wandstaerke, maxWert - grund.wandstaerke, maxWert, maxWert / 2]) {
-    liste.push({ wert, von: 0, bis: querMax });
+  // Jede Wand des Grundrisses – Außenkante und Innenkante. Bei einem einfachen
+  // Rechteck sind das die vier bekannten Wände; bei einer L-Form kommen die
+  // einspringenden Wände von selbst dazu.
+  for (const linie of wandlinien(grund.umriss, grund.wandstaerke)) {
+    if (linie.achse === achse) {
+      liste.push({ wert: linie.wert, von: linie.von, bis: linie.bis });
+    }
   }
+
+  // Die Mitte des Gebäudes – praktisch, um etwas mittig auszurichten.
+  const aussen = umrissRahmen(grund.umriss);
+  liste.push(
+    achse === 'x'
+      ? { wert: (aussen.links + aussen.rechts) / 2, von: aussen.oben, bis: aussen.unten }
+      : { wert: (aussen.oben + aussen.unten) / 2, von: aussen.links, bis: aussen.rechts },
+  );
 
   // Kanten und Mitte aller übrigen Elemente.
   for (const el of andere) {
@@ -175,16 +186,30 @@ export function berechneAbstaende(
 
   const nachbarn = andere.map(umgrenzung);
 
+  /**
+   * Die Innenkante der Wand, die in dieser Richtung gegenübersteht.
+   *
+   * Gesucht wird vom Mittelpunkt des Elements aus. Bei einem L-förmigen Markt
+   * ist das die tatsächlich gegenüberliegende Wand und nicht die äußere
+   * Umgrenzung – sonst zeigte das Maß einen Abstand an, den es nicht gibt.
+   */
+  const wand = (richtung: 'links' | 'rechts' | 'oben' | 'unten'): number | undefined => {
+    const start = { x: mitteX, y: mitteY };
+    const treffer = strahlAufUmriss(start, richtung, grund.umriss);
+    if (treffer === undefined) return undefined;
+    return richtung === 'rechts' || richtung === 'unten' ? treffer - w : treffer + w;
+  };
+
   // --- waagerecht: links und rechts ---
   const waagerechteNachbarn = nachbarn.filter(
     (r) => r.unten > rahmen.oben && r.oben < rahmen.unten,
   );
   const links = Math.max(
-    w,
+    wand('links') ?? rahmen.links,
     ...waagerechteNachbarn.filter((r) => r.rechts <= rahmen.links).map((r) => r.rechts),
   );
   const rechts = Math.min(
-    grund.breite - w,
+    wand('rechts') ?? rahmen.rechts,
     ...waagerechteNachbarn.filter((r) => r.links >= rahmen.rechts).map((r) => r.links),
   );
   if (rahmen.links - links > 0.5) {
@@ -199,11 +224,11 @@ export function berechneAbstaende(
     (r) => r.rechts > rahmen.links && r.links < rahmen.rechts,
   );
   const oben = Math.max(
-    w,
+    wand('oben') ?? rahmen.oben,
     ...senkrechteNachbarn.filter((r) => r.unten <= rahmen.oben).map((r) => r.unten),
   );
   const unten = Math.min(
-    grund.laenge - w,
+    wand('unten') ?? rahmen.unten,
     ...senkrechteNachbarn.filter((r) => r.oben >= rahmen.unten).map((r) => r.oben),
   );
   if (rahmen.oben - oben > 0.5) {

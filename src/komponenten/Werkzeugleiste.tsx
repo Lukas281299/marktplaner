@@ -14,6 +14,11 @@ import { SyncDialog } from './SyncDialog';
 import {
   SymbolAbgleich,
   SymbolBild,
+  SymbolFlaecheMinus,
+  SymbolFlaechePlus,
+  SymbolRaum,
+  SymbolUmriss,
+  SymbolZeiger,
   SymbolDrehenLinks,
   SymbolDrehenRechts,
   SymbolDuplizieren,
@@ -49,6 +54,7 @@ export function Werkzeugleiste() {
   const einstellungen = projekt.einstellungen;
 
   const syncZustand = useSyncStore((s) => s.zustand);
+  const werkzeug = usePlanStore((s) => s.werkzeug);
 
   const [dialog, setDialog] = useState<'neu' | 'oeffnen' | 'abgleich' | null>(null);
   const [meldung, setMeldung] = useState('');
@@ -265,6 +271,60 @@ export function Werkzeugleiste() {
           <span className="hinweis" style={{ whiteSpace: 'nowrap' }}>
             Leertaste + Ziehen verschiebt die Ansicht · Umschalt + Klick wählt mehrere aus
           </span>
+        </div>
+
+        {/* ------------------------------------------- Zeile 3: Grundriss */}
+        <div className="werkzeugleiste-zeile">
+          <span className="leisten-titel">Grundriss</span>
+
+          <button
+            className={`knopf${werkzeug === 'auswahl' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug('auswahl')}
+            title="Ganz normal planen: Elemente auswählen und verschieben (Esc)"
+          >
+            <SymbolZeiger /> Bearbeiten
+          </button>
+          <button
+            className={`knopf${werkzeug === 'umriss' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'umriss' ? 'auswahl' : 'umriss')}
+            title="Ecken des Grundrisses ziehen, einfügen und entfernen"
+          >
+            <SymbolUmriss /> Umriss
+          </button>
+          <button
+            className={`knopf${werkzeug === 'flaecheAnfuegen' ? ' aktiv' : ''}`}
+            onClick={() =>
+              store().setzeWerkzeug(werkzeug === 'flaecheAnfuegen' ? 'auswahl' : 'flaecheAnfuegen')
+            }
+            title="Ein Rechteck aufziehen und zur Grundfläche hinzufügen – so entstehen zusammengesetzte Formen"
+          >
+            <SymbolFlaechePlus /> Fläche anfügen
+          </button>
+          <button
+            className={`knopf${werkzeug === 'flaecheAbziehen' ? ' aktiv' : ''}`}
+            onClick={() =>
+              store().setzeWerkzeug(werkzeug === 'flaecheAbziehen' ? 'auswahl' : 'flaecheAbziehen')
+            }
+            title="Ein Rechteck aus der Grundfläche herausschneiden"
+          >
+            <SymbolFlaecheMinus /> Fläche abziehen
+          </button>
+
+          <span className="trenner" />
+
+          <button
+            className={`knopf${werkzeug === 'raum' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'raum' ? 'auswahl' : 'raum')}
+            title="Einen Raum abtrennen: Lager, Kühlraum, Sozialraum …"
+          >
+            <SymbolRaum /> Raum abtrennen
+          </button>
+
+          {werkzeug !== 'auswahl' && (
+            <button className="knopf" onClick={() => store().setzeWerkzeug('auswahl')}>
+              Fertig
+            </button>
+          )}
         </div>
       </header>
 

@@ -19,6 +19,7 @@ import {
   uebernehmeProjekt,
   type SyncZugang,
 } from './projektArchiv';
+import { wandleProjekt } from './wandlung';
 
 /**
  * Der Teil, der mit dem Server spricht.
@@ -191,7 +192,9 @@ async function projektHolen(
   const antwort = await hole(zugang.adresse, `/anhang/${konto}/${id}`);
   if (!antwort.ok) return undefined;
   const roh = (await antwort.json()) as { inhalt: string };
-  return entschluesseln<Projekt>(roh.inhalt, zugang.code);
+  // Der andere Rechner kann eine ältere Fassung des Marktplaners haben –
+  // etwa weil dort die Web-Version noch nicht neu geladen wurde.
+  return wandleProjekt(await entschluesseln<Projekt>(roh.inhalt, zugang.code));
 }
 
 async function projektSchicken(

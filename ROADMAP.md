@@ -40,15 +40,20 @@ es gibt keinen Zwischenstand, mit dem man nicht arbeiten könnte.
 
 ## Phase 3 – Grundriss frei festlegen
 
-Der Grundriss soll nicht mehr nur ein Rechteck sein.
+Der Grundriss ist kein Rechteck mehr, sondern ein Polygon.
 
-- [ ] Umriss als Polygon zeichnen, Punkte nachträglich verschieben
-- [ ] Zusammengesetzte Rechtecke (Rechtecke hinzufügen und abziehen)
-- [ ] Maße an jeder Wandkante, Eingabe über Zahlen
-- [ ] Räume als abgetrennte Bereiche: Verkaufsraum, Lager, Kühlräume, Sozialraum
-- [ ] Raumname, Wandstärke, Hintergrundfarbe, Flächenberechnung je Raum
-- [ ] Einzelne Innenwände zeichnen und verschieben
+- [x] Umriss als Polygon, Ecken ziehen, einfügen und entfernen
+- [x] Zusammengesetzte Formen: Rechtecke anfügen und abziehen
+- [x] Maße an jeder Wandkante, auch an schrägen
+- [x] Breite und Länge weiterhin eintippbar, solange die Form ein Rechteck ist
+- [x] Räume als abgetrennte Bereiche: Verkaufsraum, Lager, Kühlraum, Sozialraum,
+      Technik
+- [x] Raumname, Art, Wandstärke, Farbe, Flächenberechnung je Raum
+- [x] Auswertung getrennt nach Verkaufsfläche und Nebenflächen
+- [x] Bestehende Planungen werden beim Öffnen umgewandelt (Schemaversion 2)
+- [ ] Einzelne Innenwände zeichnen und verschieben (ohne kompletten Raum)
 - [ ] Türen und Durchgänge in Wände setzen
+- [ ] Wandmaße direkt über Zahleneingabe ändern, auch bei zusammengesetzten Formen
 
 ## Phase 4 – Regale und Marktausstattung (Wanzl)
 

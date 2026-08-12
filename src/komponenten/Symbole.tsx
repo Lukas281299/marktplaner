@@ -79,6 +79,42 @@ export const SymbolWiederholen = () => (
   </Zeichnung>
 );
 
+export const SymbolZeiger = () => (
+  <Zeichnung>
+    <path d="M5 3l5.5 16 2.4-6.6 6.6-2.4z" />
+  </Zeichnung>
+);
+
+export const SymbolUmriss = () => (
+  <Zeichnung>
+    <path d="M4 4h9v7h7v9H4z" />
+    <rect x="2.4" y="2.4" width="3.2" height="3.2" />
+    <rect x="18.4" y="18.4" width="3.2" height="3.2" />
+    <rect x="11.4" y="9.4" width="3.2" height="3.2" />
+  </Zeichnung>
+);
+
+export const SymbolFlaechePlus = () => (
+  <Zeichnung>
+    <path d="M3 3h10v10H3z" />
+    <path d="M17 12v10M12 17h10" />
+  </Zeichnung>
+);
+
+export const SymbolFlaecheMinus = () => (
+  <Zeichnung>
+    <path d="M3 3h10v10H3z" />
+    <path d="M12 17h10" />
+  </Zeichnung>
+);
+
+export const SymbolRaum = () => (
+  <Zeichnung>
+    <rect x="3" y="4" width="18" height="16" rx="1" />
+    <path d="M13 4v16M13 10h8" />
+  </Zeichnung>
+);
+
 export const SymbolAbgleich = () => (
   <Zeichnung>
     <path d="M4 12a8 8 0 0 1 13.7-5.7L20 8.6" />

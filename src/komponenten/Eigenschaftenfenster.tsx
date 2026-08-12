@@ -1,8 +1,10 @@
 import { KATEGORIEN } from '../daten/kategorien';
+import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { WARENGRUPPEN } from '../daten/warengruppen';
-import { berechneFlaechen, berechneRegalmeter } from '../logik/flaechen';
+import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
-import type { Grundform, KategorieId, PlanElement } from '../typen/modell';
+import { aussenmasse, istRechteck, rahmen, rechteck } from '../logik/polygon';
+import type { Grundform, KategorieId, PlanElement, Raum, Raumart } from '../typen/modell';
 import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
 import {
   Auswahlfeld,
@@ -42,26 +44,134 @@ const FORMEN: { wert: Grundform; text: string }[] = [
  */
 export function Eigenschaftenfenster() {
   const auswahl = usePlanStore((s) => s.auswahl);
+  const raumAuswahl = usePlanStore((s) => s.raumAuswahl);
   const elemente = usePlanStore((s) => s.projekt.elemente);
+  const raeume = usePlanStore((s) => s.projekt.raeume);
   const ausgewaehlte = elemente.filter((el) => auswahl.includes(el.id));
+  const raum = raeume.find((r) => r.id === raumAuswahl);
+
+  const titel = raum
+    ? 'Raum'
+    : ausgewaehlte.length === 0
+      ? 'Projekt'
+      : ausgewaehlte.length === 1
+        ? 'Element'
+        : `${ausgewaehlte.length} Elemente`;
 
   return (
     <aside className="spalte spalte-rechts">
-      <div className="spalte-kopf">
-        {ausgewaehlte.length === 0
-          ? 'Projekt'
-          : ausgewaehlte.length === 1
-            ? 'Element'
-            : `${ausgewaehlte.length} Elemente`}
-      </div>
+      <div className="spalte-kopf">{titel}</div>
       <div className="spalte-inhalt">
-        {ausgewaehlte.length === 0 ? (
+        {raum ? (
+          <RaumEigenschaften raum={raum} />
+        ) : ausgewaehlte.length === 0 ? (
           <ProjektEigenschaften />
         ) : (
           <ElementEigenschaften ausgewaehlte={ausgewaehlte} />
         )}
       </div>
     </aside>
+  );
+}
+
+// ===========================================================================
+//  Eigenschaften eines Raums
+// ===========================================================================
+
+function RaumEigenschaften({ raum }: { raum: Raum }) {
+  const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
+  const aendereRaum = usePlanStore((s) => s.aendereRaum);
+  const beiStart = () => usePlanStore.getState().schnappschuss();
+
+  const setze = (werte: Partial<Raum>) => aendereRaum(raum.id, werte);
+  const info = raumart(raum.art);
+  const kasten = rahmen(raum.umriss);
+
+  return (
+    <>
+      <div className="gruppe">
+        <div className="feld-zeile einspaltig">
+          <Textfeld label="Name" wert={raum.name} beiStart={beiStart} aendern={(name) => setze({ name })} />
+        </div>
+        <div className="feld-zeile einspaltig">
+          <Auswahlfeld<Raumart>
+            label="Art des Raums"
+            wert={raum.art}
+            moeglichkeiten={RAUMARTEN.map((a) => ({ wert: a.id, text: a.name }))}
+            // Die Farbe zieht mit der Art mit – wer sie vorher von Hand
+            // geändert hat, bekommt sie beim Umstellen bewusst überschrieben:
+            // Sonst hieße ein Raum „Kühlraum" und wäre beige.
+            aendern={(art) => setze({ art, farbe: raumart(art).farbe })}
+          />
+        </div>
+        <p className="hinweis" style={{ marginTop: 0 }}>
+          {info.hinweis}
+        </p>
+      </div>
+
+      <div className="gruppe">
+        <div className="gruppe-titel">Darstellung</div>
+        <div className="feld-zeile">
+          <Massfeld
+            label="Wandstärke"
+            cm={raum.wandstaerke}
+            einheit={einheit}
+            min={0}
+            beiStart={beiStart}
+            aendern={(wandstaerke) => setze({ wandstaerke })}
+          />
+          <Farbfeld label="Farbe" wert={raum.farbe} beiStart={beiStart} aendern={(farbe) => setze({ farbe })} />
+        </div>
+        <Schalter
+          label="Name und Fläche anzeigen"
+          wert={raum.beschriftungSichtbar}
+          aendern={(beschriftungSichtbar) => setze({ beschriftungSichtbar })}
+        />
+        <Schalter
+          label="Gegen Verschieben sperren"
+          wert={raum.gesperrt}
+          aendern={(gesperrt) => setze({ gesperrt })}
+        />
+      </div>
+
+      <div className="gruppe">
+        <div className="gruppe-titel">Maße</div>
+        <div className="kennzahl">
+          <span>Fläche (ohne Wände)</span>
+          <span className="kennzahl-wert">{formatiereFlaeche(raumflaeche(raum))}</span>
+        </div>
+        <div className="kennzahl">
+          <span>Umgrenzung</span>
+          <span className="kennzahl-wert">
+            {formatiereLaenge(kasten.rechts - kasten.links, einheit)} ×{' '}
+            {formatiereLaenge(kasten.unten - kasten.oben, einheit)}
+          </span>
+        </div>
+        <div className="kennzahl">
+          <span>Ecken</span>
+          <span className="kennzahl-wert">{raum.umriss.length}</span>
+        </div>
+      </div>
+
+      <div className="gruppe">
+        <div className="knopfreihe">
+          <button className="knopf" onClick={() => usePlanStore.getState().waehleRaum(null)}>
+            Auswahl aufheben
+          </button>
+          <button
+            className="knopf knopf-gefahr"
+            disabled={raum.gesperrt}
+            onClick={() => usePlanStore.getState().loescheRaum(raum.id)}
+          >
+            Raum löschen
+          </button>
+        </div>
+        <p className="hinweis">
+          Zum Verschieben den Raum auf dem Plan ziehen. Die Regale darin bleiben stehen – sie
+          gehören nicht zum Raum, sondern liegen nur darauf.
+        </p>
+      </div>
+    </>
   );
 }
 
@@ -415,29 +525,63 @@ function ProjektEigenschaften() {
   const flaechen = berechneFlaechen(projekt);
   const regalmeter = berechneRegalmeter(projekt);
 
+  const umriss = projekt.grundflaeche.umriss;
+  const rechteckig = istRechteck(umriss);
+  const masse = aussenmasse(umriss);
+
+  /** Zieht ein rechteckiges Gebäude auf neue Maße – die linke obere Ecke bleibt. */
+  const setzeUmrissGroesse = (breite: number, laenge: number) => {
+    const kasten = rahmen(umriss);
+    usePlanStore.getState().setzeUmriss(rechteck(kasten.links, kasten.oben, breite, laenge));
+  };
+
   return (
     <>
       {/* ------------------------------------------------------ Grundfläche */}
       <div className="gruppe">
         <div className="gruppe-titel">Grundfläche des Marktes</div>
-        <div className="feld-zeile">
-          <Massfeld
-            label="Breite"
-            cm={projekt.grundflaeche.breite}
-            einheit={einheit}
-            min={100}
-            beiStart={beiStart}
-            aendern={(breite) => setzeGrundflaeche({ breite })}
-          />
-          <Massfeld
-            label="Länge"
-            cm={projekt.grundflaeche.laenge}
-            einheit={einheit}
-            min={100}
-            beiStart={beiStart}
-            aendern={(laenge) => setzeGrundflaeche({ laenge })}
-          />
-        </div>
+
+        {/* Solange der Grundriss ein Rechteck ist, lassen sich Breite und
+            Länge einfach eintippen. Bei einer zusammengesetzten Form ergäben
+            zwei Zahlen keinen Sinn mehr – dann steht dort die Umgrenzung. */}
+        {rechteckig ? (
+          <div className="feld-zeile">
+            <Massfeld
+              label="Breite"
+              cm={masse.breite}
+              einheit={einheit}
+              min={100}
+              beiStart={beiStart}
+              aendern={(breite) => setzeUmrissGroesse(breite, masse.laenge)}
+            />
+            <Massfeld
+              label="Länge"
+              cm={masse.laenge}
+              einheit={einheit}
+              min={100}
+              beiStart={beiStart}
+              aendern={(laenge) => setzeUmrissGroesse(masse.breite, laenge)}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="kennzahl">
+              <span>Umgrenzung</span>
+              <span className="kennzahl-wert">
+                {formatiereLaenge(masse.breite, einheit)} × {formatiereLaenge(masse.laenge, einheit)}
+              </span>
+            </div>
+            <div className="kennzahl">
+              <span>Ecken</span>
+              <span className="kennzahl-wert">{projekt.grundflaeche.umriss.length}</span>
+            </div>
+            <p className="hinweis" style={{ marginTop: 6 }}>
+              Zusammengesetzte Form. Zum Ändern oben in der Werkzeugleiste unter
+              <strong> Grundriss</strong> ein Werkzeug wählen.
+            </p>
+          </>
+        )}
+
         <div className="feld-zeile">
           <Massfeld
             label="Wandstärke"
@@ -537,15 +681,27 @@ function ProjektEigenschaften() {
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.brutto)}</span>
         </div>
         <div className="kennzahl">
-          <span>Innenfläche</span>
+          <span>Innenfläche (ohne Außenwand)</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.netto)}</span>
+        </div>
+        {flaechen.nebenflaeche > 0 && (
+          <div className="kennzahl">
+            <span>Nebenflächen (Lager, Kühlung …)</span>
+            <span className="kennzahl-wert">− {formatiereFlaeche(flaechen.nebenflaeche)}</span>
+          </div>
+        )}
+        <div className="kennzahl">
+          <span>
+            <strong>Verkaufsfläche</strong>
+          </span>
+          <span className="kennzahl-wert">{formatiereFlaeche(flaechen.verkaufsflaeche)}</span>
         </div>
         <div className="kennzahl">
           <span>Belegt durch Elemente</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.belegt)}</span>
         </div>
         <div className="kennzahl">
-          <span>Freie Fläche</span>
+          <span>Freie Verkaufsfläche</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.frei)}</span>
         </div>
         <div className="kennzahl">
@@ -554,6 +710,25 @@ function ProjektEigenschaften() {
             {regalmeter.toLocaleString('de-DE', { maximumFractionDigits: 1 })} lfm
           </span>
         </div>
+
+        {flaechen.raeume.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div className="gruppe-titel">Räume</div>
+            {flaechen.raeume.map((raum) => (
+              <div className="kennzahl" key={raum.id}>
+                <span
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => usePlanStore.getState().waehleRaum(raum.id)}
+                  title="Diesen Raum auswählen"
+                >
+                  {raum.name}
+                  {!raum.verkauf && <span className="kategorie-anzahl"> · Nebenfläche</span>}
+                </span>
+                <span className="kennzahl-wert">{formatiereFlaeche(raum.flaeche)}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {flaechen.jeKategorie.length > 0 && (
           <div style={{ marginTop: 10 }}>
@@ -573,9 +748,8 @@ function ProjektEigenschaften() {
       <div className="gruppe">
         <p className="hinweis">
           Es ist nichts ausgewählt. Klicke ein Element auf dem Plan an, um seine Eigenschaften zu
-          bearbeiten. Das gesamte Gebäude misst{' '}
-          {formatiereLaenge(projekt.grundflaeche.breite, einheit)} ×{' '}
-          {formatiereLaenge(projekt.grundflaeche.laenge, einheit)}.
+          bearbeiten. Das gesamte Gebäude misst {formatiereLaenge(masse.breite, einheit)} ×{' '}
+          {formatiereLaenge(masse.laenge, einheit)}.
         </p>
       </div>
     </>

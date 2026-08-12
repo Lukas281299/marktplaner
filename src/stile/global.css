@@ -38,7 +38,8 @@
   --rundung: 6px;
   --schatten: 0 1px 2px rgba(20, 30, 45, 0.08), 0 4px 12px rgba(20, 30, 45, 0.06);
 
-  --kopf-hoehe: 92px;
+  /* Drei Zeilen Werkzeugleiste: Datei, Bearbeiten, Grundriss. */
+  --kopf-hoehe: 136px;
   --fuss-hoehe: 28px;
   --spalte-links: 264px;
   --spalte-rechts: 304px;
@@ -192,6 +193,17 @@ body {
   outline: none;
   border-color: var(--blau);
   background: var(--flaeche);
+}
+
+/* Überschrift einer Werkzeugzeile, z. B. „Grundriss". */
+.leisten-titel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-schwach);
+  padding-right: var(--abstand-2);
+  white-space: nowrap;
 }
 
 .trenner {
@@ -581,6 +593,54 @@ body {
   margin-left: auto;
   display: flex;
   gap: var(--abstand-4);
+}
+
+/* ================================================== Werkzeuge am Grundriss */
+
+/* Fahne oben in der Zeichenfläche: sagt, was das Werkzeug gerade tut. */
+.werkzeug-fahne {
+  position: absolute;
+  top: var(--abstand-3);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-2);
+  max-width: min(680px, calc(100% - 32px));
+  padding: var(--abstand-2) var(--abstand-3);
+  border-radius: var(--rundung);
+  background: var(--blau);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: var(--schatten);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.werkzeug-fahne strong {
+  white-space: nowrap;
+  padding-right: var(--abstand-2);
+  border-right: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Rückmeldung, wenn eine Umformung nicht so ging wie gedacht. */
+.zeichen-meldung {
+  position: absolute;
+  bottom: var(--abstand-4);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100% - 32px));
+  padding: var(--abstand-3);
+  border-radius: var(--rundung);
+  border: 1px solid var(--rand-stark);
+  background: var(--flaeche);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: var(--schatten);
+  cursor: pointer;
+  z-index: 6;
 }
 
 /* Kleiner roter Punkt am Knopf „Abgleich", wenn zuletzt etwas schiefging. */

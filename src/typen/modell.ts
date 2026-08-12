@@ -15,6 +15,12 @@
 /** In welcher Einheit werden Zahlen angezeigt? Gespeichert wird immer in cm. */
 export type Massinheit = 'm' | 'cm';
 
+/** Ein Punkt auf dem Plan, in cm ab der linken oberen Ecke. */
+export interface Punkt {
+  x: number;
+  y: number;
+}
+
 /** Oberkategorien der Elementbibliothek. */
 export type KategorieId =
   | 'regale'
@@ -99,26 +105,46 @@ export interface PlanElement {
   reihenfolge: number;
 }
 
-/** Ein Raum bzw. Bereich innerhalb des Marktes (ab Phase 2 im Einsatz). */
+/**
+ * Wozu ein Raum dient.
+ *
+ * Die Art entscheidet nicht nur über die Farbe, sondern auch darüber, ob der
+ * Raum in der Auswertung zur Verkaufsfläche zählt. Im Ladenbau ist das die
+ * Trennlinie, auf die es ankommt: Ein Kühlhaus ist Nebenfläche, auch wenn es
+ * mitten im Gebäude liegt.
+ */
+export type Raumart = 'verkauf' | 'lager' | 'kuehlung' | 'sozial' | 'technik' | 'sonstige';
+
+/** Ein Raum bzw. abgetrennter Bereich innerhalb des Marktes. */
 export interface Raum {
   id: string;
   name: string;
-  /** Linke obere Ecke in cm. */
-  x: number;
-  y: number;
-  breite: number;
-  laenge: number;
+  /** Umriss als Polygon in cm. Mindestens drei Punkte. */
+  umriss: Punkt[];
+  art: Raumart;
+  /** Stärke der Trennwände in cm. 0 = nur eine farbige Fläche ohne Wand. */
   wandstaerke: number;
   farbe: string;
   beschriftungSichtbar: boolean;
+  /** Gesperrte Räume lassen sich nicht aus Versehen verschieben. */
+  gesperrt: boolean;
 }
 
-/** Die Außenmaße des Gebäudes. */
+/**
+ * Die Grundfläche des Gebäudes.
+ *
+ * Der Umriss ist ein Polygon, kein Rechteck: Ein Markt ist selten ein
+ * sauberer Kasten – es kommen Anbauten dazu, Ecken werden ausgespart, und
+ * gelegentlich ist die Fläche schlicht schief. Ein Rechteck ist davon nur der
+ * einfachste Fall.
+ *
+ * Der Umriss hat kein Loch. Wäre mitten in der Fläche etwas ausgespart, wäre
+ * das in der Praxis ein Raum (Technikzentrale, Innenhof) – und dafür gibt es
+ * `Raum`.
+ */
 export interface Grundflaeche {
-  /** Außenmaß in X-Richtung, in cm. */
-  breite: number;
-  /** Außenmaß in Y-Richtung, in cm. */
-  laenge: number;
+  /** Die Eckpunkte im Uhrzeigersinn, in cm. */
+  umriss: Punkt[];
   /** Stärke der Außenwand in cm. */
   wandstaerke: number;
 }
@@ -151,5 +177,12 @@ export interface Projekt {
   elemente: PlanElement[];
 }
 
-/** Aktuelle Schemaversion. Bei Änderungen am Modell hochzählen. */
-export const SCHEMA_VERSION = 1;
+/**
+ * Aktuelle Schemaversion. Bei Änderungen am Modell hochzählen – und in
+ * `speicher/wandlung.ts` einen Schritt ergänzen, der ältere Planungen
+ * nachzieht.
+ *
+ *   1 – erste Fassung, Grundfläche als Rechteck (Breite × Länge)
+ *   2 – Grundfläche und Räume als Polygon, Räume mit Art
+ */
+export const SCHEMA_VERSION = 2;

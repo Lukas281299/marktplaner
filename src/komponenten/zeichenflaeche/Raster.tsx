@@ -1,5 +1,6 @@
 import { Shape } from 'react-konva';
 import type Konva from 'konva';
+import type { Rahmen } from '../../logik/geometrie';
 
 /**
  * Das Hilfsraster auf der Zeichenfläche.
@@ -7,10 +8,13 @@ import type Konva from 'konva';
  * Aus Geschwindigkeitsgründen werden alle Linien in einer einzigen Zeichnung
  * gebündelt (ein sogenannter "Pfad"), statt für jede Linie ein eigenes Objekt
  * anzulegen. Selbst bei einem 60-m-Markt bleibt das flüssig.
+ *
+ * Gezeichnet wird über die Umgrenzung des Grundrisses, nicht über den Umriss
+ * selbst: Bei einer L-Form soll das Raster auch in der einspringenden Ecke
+ * weiterlaufen, weil man dort ja ebenfalls plant.
  */
 interface Props {
-  breite: number;
-  laenge: number;
+  bereich: Rahmen;
   /** Abstand der feinen Linien in cm. */
   weite: number;
   /** Bildschirmpunkte pro Zentimeter – bestimmt die Strichstärke. */
@@ -19,14 +23,12 @@ interface Props {
 
 /** Zeichnet ein Liniennetz mit dem angegebenen Abstand. */
 function Linien({
-  breite,
-  laenge,
+  bereich,
   weite,
   farbe,
   staerke,
 }: {
-  breite: number;
-  laenge: number;
+  bereich: Rahmen;
   weite: number;
   farbe: string;
   staerke: number;
@@ -39,15 +41,17 @@ function Linien({
       strokeWidth={staerke}
       sceneFunc={(ctx: Konva.Context, shape: Konva.Shape) => {
         ctx.beginPath();
-        // Senkrechte Linien
-        for (let x = 0; x <= breite + 0.01; x += weite) {
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, laenge);
+        // Am Nullpunkt ausgerichtet, damit die Linien auch dann auf runden
+        // Maßen liegen, wenn der Grundriss nicht bei 0/0 anfängt.
+        const ersterX = Math.ceil(bereich.links / weite) * weite;
+        const ersterY = Math.ceil(bereich.oben / weite) * weite;
+        for (let x = ersterX; x <= bereich.rechts + 0.01; x += weite) {
+          ctx.moveTo(x, bereich.oben);
+          ctx.lineTo(x, bereich.unten);
         }
-        // Waagerechte Linien
-        for (let y = 0; y <= laenge + 0.01; y += weite) {
-          ctx.moveTo(0, y);
-          ctx.lineTo(breite, y);
+        for (let y = ersterY; y <= bereich.unten + 0.01; y += weite) {
+          ctx.moveTo(bereich.links, y);
+          ctx.lineTo(bereich.rechts, y);
         }
         ctx.strokeShape(shape);
       }}
@@ -55,7 +59,7 @@ function Linien({
   );
 }
 
-export function Raster({ breite, laenge, weite, zoom }: Props) {
+export function Raster({ bereich, weite, zoom }: Props) {
   // Wenn die feinen Linien enger als vier Bildschirmpunkte stehen, werden sie
   // weggelassen – sonst entsteht nur eine graue Fläche.
   const feineSichtbar = weite * zoom >= 4;
@@ -65,21 +69,9 @@ export function Raster({ breite, laenge, weite, zoom }: Props) {
   return (
     <>
       {feineSichtbar && (
-        <Linien
-          breite={breite}
-          laenge={laenge}
-          weite={weite}
-          farbe="#d6dbe0"
-          staerke={1 / zoom}
-        />
+        <Linien bereich={bereich} weite={weite} farbe="#d6dbe0" staerke={1 / zoom} />
       )}
-      <Linien
-        breite={breite}
-        laenge={laenge}
-        weite={grobeWeite}
-        farbe="#bcc4cc"
-        staerke={1 / zoom}
-      />
+      <Linien bereich={bereich} weite={grobeWeite} farbe="#bcc4cc" staerke={1 / zoom} />
     </>
   );
 }

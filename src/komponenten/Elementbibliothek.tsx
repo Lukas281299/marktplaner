@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { BIBLIOTHEK } from '../daten/bibliothek';
 import { KATEGORIEN } from '../daten/kategorien';
 import { formatiereLaenge } from '../logik/masse';
+import { rahmen } from '../logik/polygon';
 import type { BibliothekEintrag, KategorieId } from '../typen/modell';
 import { usePlanStore } from '../zustand/planStore';
 import { SymbolPfeilAb, SymbolPfeilAuf, SymbolSuche } from './Symbole';
@@ -39,11 +40,15 @@ export function Elementbibliothek() {
     });
   };
 
-  /** Setzt eine Vorlage in die Mitte der sichtbaren Fläche. */
+  /** Setzt eine Vorlage in die Mitte der Grundfläche. */
   const inDieMitte = (vorlage: BibliothekEintrag) => {
     const store = usePlanStore.getState();
-    const { breite, laenge } = store.projekt.grundflaeche;
-    store.fuegeElementHinzu(vorlage, Math.round(breite / 2), Math.round(laenge / 2));
+    const bereich = rahmen(store.projekt.grundflaeche.umriss);
+    store.fuegeElementHinzu(
+      vorlage,
+      Math.round((bereich.links + bereich.rechts) / 2),
+      Math.round((bereich.oben + bereich.unten) / 2),
+    );
   };
 
   return (

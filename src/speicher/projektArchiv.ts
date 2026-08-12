@@ -2,6 +2,7 @@ import { neueId } from '../logik/id';
 import { SCHEMA_VERSION, type BibliothekEintrag, type Projekt } from '../typen/modell';
 import type { Grabstein, Verzeichniseintrag } from './abgleich';
 import { db } from './datenbank';
+import { wandleProjekt } from './wandlung';
 
 /**
  * Alles rund um Speichern, Laden, Kopieren und den Austausch als JSON-Datei.
@@ -40,7 +41,9 @@ export async function uebernehmeProjekt(projekt: Projekt): Promise<void> {
 
 export async function ladeProjekt(id: string): Promise<Projekt | undefined> {
   const datenbank = await db();
-  return datenbank.get('projekte', id);
+  const gespeichert = await datenbank.get('projekte', id);
+  // Ältere Planungen werden beim Öffnen auf das aktuelle Modell gebracht.
+  return gespeichert ? wandleProjekt(gespeichert) : undefined;
 }
 
 export async function listeProjekte(): Promise<ProjektInfo[]> {
@@ -266,7 +269,7 @@ export async function importiereAusJson(datei: File): Promise<Austauschdatei> {
   }
   // Neue Kennung vergeben, damit ein Import ein vorhandenes Projekt nicht überschreibt.
   const projekt: Projekt = {
-    ...inhalt.projekt,
+    ...wandleProjekt(inhalt.projekt),
     id: neueId('projekt'),
     geaendertAm: Date.now(),
   };

@@ -57,6 +57,35 @@ Zusammenführen beim Abgleich und das Vermittlungsprogramm auf dem Server.
 | Einrasten ein/aus | **S** |
 | Speichern | passiert automatisch; Strg + S speichert sofort |
 | Abgleich mit anderen Rechnern | Knopf „Abgleich" in der Werkzeugleiste (einmal einrichten, danach von allein) |
+| Grundriss umformen | dritte Werkzeugzeile, siehe unten |
+
+## Grundriss und Räume
+
+Ein Markt ist selten ein sauberer Kasten. Deshalb ist der Grundriss ein
+**Polygon**, kein Rechteck – ein Rechteck ist davon nur der einfachste Fall.
+Die Werkzeuge dafür stehen in der dritten Zeile der Werkzeugleiste:
+
+| Werkzeug | Was es tut |
+| --- | --- |
+| **Umriss** | Blaue Ecken ziehen. Die kleinen Kreise auf den Wänden setzen eine neue Ecke, Doppelklick auf eine Ecke entfernt sie. |
+| **Fläche anfügen** | Rechteck aufziehen – es wird zur Grundfläche hinzugerechnet. So entstehen zusammengesetzte Formen und Anbauten. |
+| **Fläche abziehen** | Rechteck aufziehen – dieser Bereich wird herausgeschnitten. Für ausgesparte Ecken und Kerben. |
+| **Raum abtrennen** | Rechteck aufziehen – daraus wird ein Raum. Art, Name, Wandstärke und Farbe danach rechts einstellen. |
+
+Solange der Grundriss ein Rechteck ist, lassen sich Breite und Länge weiterhin
+rechts als Zahlen eintippen. Sobald die Form zusammengesetzt ist, steht dort
+stattdessen die Umgrenzung – zwei Zahlen würden eine L-Form ja nicht
+beschreiben.
+
+**Verkaufsfläche oder Nebenfläche?** Die Art eines Raums entscheidet darüber.
+Nur „Verkaufsraum" zählt zur Verkaufsfläche; Lager, Kühlraum, Sozialraum und
+Technik sind Nebenfläche und werden von der Innenfläche abgezogen. Das ist die
+Trennlinie, auf die es im Ladenbau ankommt, deshalb steht sie so in der
+Flächenübersicht.
+
+**Löcher kann der Umriss nicht.** Wer mitten aus der Fläche etwas
+herausschneidet, bekommt einen Hinweis – für ausgesparte Bereiche innerhalb
+des Gebäudes ist ein Raum das richtige Mittel.
 
 ## Wie die Daten gespeichert werden
 
@@ -108,12 +137,15 @@ src/
 │   ├── bibliothek.ts      alle Elementvorlagen mit Standardmaßen
 │   ├── kategorien.ts      die Oberkategorien der Bibliothek
 │   ├── warengruppen.ts    Vorschläge für das Feld „Warengruppe"
+│   ├── raumarten.ts       Raumarten, Farben und was zur Verkaufsfläche zählt
 │   └── standardProjekt.ts leeres Projekt und Standardebenen
 ├── logik/                 reines Rechnen, ohne Oberfläche
 │   ├── masse.ts           Umrechnung cm ↔ m, Maßstab, Formatierung
 │   ├── geometrie.ts       Umgrenzungen, Drehung, Flächen einzelner Elemente
+│   ├── polygon.ts         Umrisse: Fläche, Kanten, Anfügen und Abziehen
+│   ├── umrissBearbeiten.ts  Ecken verschieben, einfügen, entfernen
 │   ├── einrasten.ts       Einrasten am Raster/an Nachbarn, Hilfslinien, Abstände
-│   ├── flaechen.ts        Flächenübersicht und Regalmeter
+│   ├── flaechen.ts        Flächenübersicht, Verkaufs- und Nebenflächen
 │   ├── tastatur.ts        alle Tastenkombinationen
 │   ├── bildExport.ts      PNG-Export
 │   ├── buehne.ts          Verbindung Werkzeugleiste ↔ Zeichenfläche
@@ -124,7 +156,8 @@ src/
 │   ├── projektArchiv.ts   speichern, laden, kopieren, JSON-Im-/Export
 │   ├── krypto.ts          Verschlüsselung und Kopplungscode
 │   ├── abgleich.ts        entscheidet, was geholt, geschickt, gelöscht wird
-│   └── syncClient.ts      spricht mit dem Server
+│   ├── syncClient.ts      spricht mit dem Server
+│   └── wandlung.ts        bringt ältere Planungen auf das aktuelle Modell
 ├── zustand/
 │   ├── planStore.ts       zentraler Datenspeicher inkl. Rückgängig/Wiederholen
 │   ├── syncStore.ts       Zustand des Abgleichs
@@ -140,8 +173,10 @@ src/
     ├── Feld.tsx           wiederverwendbare Eingabefelder
     ├── Symbole.tsx        alle Schaltflächen-Symbole
     └── zeichenflaeche/
-        ├── Zeichenflaeche.tsx  Maus, Zoom, Auswahl, Ziehen
-        ├── Gebaeude.tsx        Boden, Außenwand, Außenmaße
+        ├── Zeichenflaeche.tsx  Maus, Zoom, Auswahl, Ziehen, Grundriss-Werkzeuge
+        ├── Gebaeude.tsx        Boden, Außenwand, Wandmaße
+        ├── Raeume.tsx          abgetrennte Räume
+        ├── UmrissBearbeitung.tsx  Anfasser zum Umformen des Grundrisses
         ├── Raster.tsx          Hilfsraster
         └── ElementSymbol.tsx   Zeichnung eines einzelnen Elements
 
@@ -150,13 +185,29 @@ sync/
 └── LIESMICH.md            Einrichtung Schritt für Schritt
 ```
 
-### Zwei Grundregeln
+### Drei Grundregeln
 
 1. **Intern wird immer in Zentimetern gerechnet.** Ob Meter oder Zentimeter
    angezeigt werden, ist reine Anzeigesache.
 2. **Die Oberfläche ändert nie selbst Daten.** Sie ruft nur Aktionen aus
    `planStore.ts` auf. Dadurch funktionieren Rückgängig und die automatische
    Speicherung überall zuverlässig.
+3. **Was rechnet, liegt in `logik/` und ist geprüft.** Flächen, Verschneidungen
+   und die Zusammenführung beim Abgleich sind reine Funktionen ohne
+   Nebenwirkungen. Ein Fehler an diesen Stellen fällt nicht auf – er verschiebt
+   still eine Quadratmeterzahl oder verliert eine Planung.
+
+### Beim Entwickeln
+
+In der Entwicklungsfassung liegt der Datenspeicher auf `window`, damit sich in
+der Browser-Konsole nachsehen lässt, was gerade drinsteht:
+
+```js
+marktplaner.getState().projekt.grundflaeche.umriss
+polygon.flaeche(marktplaner.getState().projekt.grundflaeche.umriss) / 10000
+```
+
+In der gebauten Fassung fällt das weg.
 
 ### Warum Canvas und nicht SVG?
 
