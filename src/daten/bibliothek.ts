@@ -19,6 +19,114 @@ import type { BibliothekEintrag } from '../typen/modell';
  * Steht als eigener Wert hier oben, weil es in vielen Einträgen vorkommt.
  */
 const OG_GRUEN = '#1a7a1a';
+
+/**
+ * Die Vitable-Varianten aus dem Workbook, Seiten 12 und 13.
+ *
+ * Der Katalog führt jede Variante als Höhe mit einer Auflagenkette:
+ * „H 1800 / T 800 + T600 + T400" heißt unterste Auflage 800 tief, darüber
+ * 600, oben 400. Jede davon gibt es in beiden Achsmaßen, 1000 und 1250 mm.
+ *
+ * Die Liste steht hier als Tabelle und wird darunter ausmultipliziert. Von
+ * Hand geschrieben wären es achtzig Zeilen, in denen früher oder später eine
+ * Variante fehlt oder ein Maß nicht zum Namen passt.
+ */
+interface VitableVariante {
+  /** Höhe in cm. */
+  hoehe: number;
+  /** Auflagentiefen in cm, tiefste zuerst. */
+  stufen: number[];
+  /** Zusatz wie „Cross-Selling", „Spiegel" oder „Klappetage". */
+  zusatz?: string;
+  /** Beidseitige Gondel statt einseitigem Wandmöbel. */
+  beidseitig?: boolean;
+}
+
+const VITABLE_VARIANTEN: VitableVariante[] = [
+  // Seite 12 – H1800 und H1600
+  { hoehe: 180, stufen: [120, 60] },
+  { hoehe: 180, stufen: [80, 60, 60] },
+  { hoehe: 180, stufen: [80, 60, 40] },
+  { hoehe: 160, stufen: [120, 60] },
+  { hoehe: 160, stufen: [80, 60] },
+  { hoehe: 160, stufen: [80, 40] },
+  { hoehe: 160, stufen: [80, 60, 60] },
+  { hoehe: 160, stufen: [80, 60, 40] },
+  { hoehe: 160, stufen: [120], zusatz: 'Cross-Selling' },
+  { hoehe: 160, stufen: [120], zusatz: 'Spiegel' },
+  { hoehe: 160, stufen: [120], zusatz: 'Klappetage' },
+  // Seite 13 – H1300 und H1100
+  { hoehe: 130, stufen: [120] },
+  { hoehe: 130, stufen: [80] },
+  { hoehe: 130, stufen: [80, 60] },
+  { hoehe: 130, stufen: [80, 40] },
+  { hoehe: 110, stufen: [80] },
+  { hoehe: 110, stufen: [80, 60] },
+  { hoehe: 110, stufen: [80, 40] },
+  // Beidseitige Gondeln
+  { hoehe: 130, stufen: [120], beidseitig: true },
+  { hoehe: 110, stufen: [80], beidseitig: true },
+];
+
+/**
+ * Korpus- und Gesamttiefe je nach tiefster Auflage und Bauart, in cm.
+ * Abgelesen aus den Schnittzeichnungen im Workbook.
+ */
+function vitableTiefen(tiefsteAuflage: number, beidseitig: boolean) {
+  if (beidseitig) {
+    return tiefsteAuflage >= 120
+      ? { tiefe: 255.4, korpustiefe: 173.4 }
+      : { tiefe: 182.9, korpustiefe: 137.2 };
+  }
+  return tiefsteAuflage >= 120
+    ? { tiefe: 131.7, korpustiefe: 90.8 }
+    : { tiefe: 95.5, korpustiefe: 72.6 };
+}
+
+/** Schreibt die Auflagenkette so, wie sie im Workbook steht: „T800+600+400". */
+function stufenText(stufen: number[]): string {
+  return stufen.map((s, i) => (i === 0 ? `T${s * 10}` : `${s * 10}`)).join('+');
+}
+
+/** Multipliziert die Variantentabelle mit den beiden Achsmaßen aus. */
+function vitableEintraege(): BibliothekEintrag[] {
+  const eintraege: BibliothekEintrag[] = [];
+  for (const variante of VITABLE_VARIANTEN) {
+    for (const breite of [100, 125]) {
+      const tiefste = Math.max(...variante.stufen);
+      const { tiefe, korpustiefe } = vitableTiefen(tiefste, Boolean(variante.beidseitig));
+      const art = variante.beidseitig ? 'Gondel ' : '';
+      const zusatz = variante.zusatz ? ` + ${variante.zusatz}` : '';
+      const kennung = [
+        'vt',
+        variante.beidseitig ? 'gondel' : 'wand',
+        breite,
+        `h${variante.hoehe * 10}`,
+        variante.stufen.join('-'),
+        variante.zusatz?.toLowerCase().replace(/[^a-z]/g, '') ?? '',
+      ]
+        .filter(Boolean)
+        .join('-');
+
+      eintraege.push({
+        id: kennung,
+        name: `O&G ${art}${(breite / 100).toFixed(2).replace('.', ',')} m · H${variante.hoehe * 10} · ${stufenText(variante.stufen)}${zusatz}`,
+        kategorie: 'obstgemuese',
+        breite,
+        tiefe,
+        korpustiefe,
+        hoehe: variante.hoehe,
+        form: 'vitable',
+        farbe: OG_GRUEN,
+        stufen: variante.stufen,
+        beidseitig: variante.beidseitig,
+        hinweis: `${variante.stufen.length}-etagig · Korpus ${Math.round(korpustiefe * 10)} mm, Gesamttiefe ${Math.round(tiefe * 10)} mm`,
+      });
+    }
+  }
+  return eintraege;
+}
+
 export const BIBLIOTHEK: BibliothekEintrag[] = [
   // ---------------------------------------------------------------- Regale
   { id: 'regal-trocken', name: 'Trockensortimentsregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'rechteck', farbe: '#d9d0c1', hinweis: 'Einseitiges Regalfeld, 125 cm' },
@@ -55,47 +163,18 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
 
   // ------------------------------------------------------- Obst und Gemüse
   //
-  // Vitable von Wanzl. Maße aus dem Workbook (Version 38 / 10-2025).
+  // Vitable von Wanzl, Workbook Version 38 / 10-2025.
   //
-  // Achsmaße: 1000 und 1250 mm. Höhen: 1100, 1300, 1600, 1800, 2000 mm.
-  // Auflagen gibt es in 400, 600, 800 und 1200 mm Tiefe.
+  // Die geraden Möbel entstehen oben aus der Variantentabelle: jede der
+  // 20 Varianten des Katalogs in beiden Achsmaßen, 1000 und 1250 mm.
   //
-  // Die Varianten stehen im Workbook als Auflagenkette, zum Beispiel
-  // „H 1800 / T 800 + T600 + T400": unterste Auflage 800 tief, darüber 600,
-  // oben 400. Die Gesamttiefe des Möbels ist die tiefste Auflage – genau so
-  // steht es unten in `tiefe`, und die Kette in `stufen`.
-  // Die Gesamttiefe ist NICHT die tiefste Auflage: Die Front kragt über den
-  // Korpus hinaus. Beide Maße stehen in den Schnittzeichnungen des Workbooks
-  // und sind hier eingetragen – `tiefe` ist der Platzbedarf am Boden,
-  // `korpustiefe` das, was tatsächlich darauf steht.
-  //
-  //   T800-Varianten   Korpus  726 mm   Gesamttiefe   955 mm
-  //   T1200-Varianten  Korpus  908 mm   Gesamttiefe  1317 mm
+  // Wichtig bei den Tiefen: Die Front kragt über den Korpus hinaus. Das Feld
+  // "tiefe" ist der Platzbedarf am Boden, "korpustiefe" das, was darauf steht.
+  ...vitableEintraege(),
 
-  // ---- einseitig, Achsmaß 1000
-  { id: 'vt-1000-h1100-800', name: 'O&G 1,00 m · H1100 · T800', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], hinweis: 'Einetagig' },
-  { id: 'vt-1000-h1100-800-600', name: 'O&G 1,00 m · H1100 · T800+600', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
-  { id: 'vt-1000-h1300-1200', name: 'O&G 1,00 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 100, tiefe: 131.7, korpustiefe: 90.8, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120] },
-  { id: 'vt-1000-h1600-800-600', name: 'O&G 1,00 m · H1600 · T800+600', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 160, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
-  { id: 'vt-1000-h1800-800-600-400', name: 'O&G 1,00 m · H1800 · T800+600+400', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Dreietagig' },
-  { id: 'vt-1000-h1800-1200-600', name: 'O&G 1,00 m · H1800 · T1200+600', kategorie: 'obstgemuese', breite: 100, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60] },
-
-  // ---- einseitig, Achsmaß 1250
-  { id: 'vt-1250-h1100-800', name: 'O&G 1,25 m · H1100 · T800', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80] },
-  { id: 'vt-1250-h1300-800-600', name: 'O&G 1,25 m · H1300 · T800+600', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
-  { id: 'vt-1250-h1300-1200', name: 'O&G 1,25 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 125, tiefe: 131.7, korpustiefe: 90.8, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120] },
-  { id: 'vt-1250-h1600-800-600', name: 'O&G 1,25 m · H1600 · T800+600', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 160, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
-  { id: 'vt-1250-h1800-800-600-400', name: 'O&G 1,25 m · H1800 · T800+600+400', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40] },
-  { id: 'vt-1250-h1800-1200-600', name: 'O&G 1,25 m · H1800 · T1200+600', kategorie: 'obstgemuese', breite: 125, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60] },
-
-  // ---- beidseitige Gondeln. Auch diese Maße stehen im Workbook; sie sind
-  //      weniger als das Doppelte, weil sich beide Seiten eine Mittelsäule teilen.
-  { id: 'vt-gondel-1000-h1100-800', name: 'O&G Gondel 1,00 m · H1100 · T800', kategorie: 'obstgemuese', breite: 100, tiefe: 182.9, korpustiefe: 137.2, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], beidseitig: true, hinweis: 'Beidseitig, Korpus 1372 mm, gesamt 1829 mm' },
-  { id: 'vt-gondel-1250-h1100-800', name: 'O&G Gondel 1,25 m · H1100 · T800', kategorie: 'obstgemuese', breite: 125, tiefe: 182.9, korpustiefe: 137.2, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], beidseitig: true },
-  { id: 'vt-gondel-1000-h1300-1200', name: 'O&G Gondel 1,00 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 100, tiefe: 255.4, korpustiefe: 173.4, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120], beidseitig: true, hinweis: 'Beidseitig, Korpus 1734 mm, gesamt 2554 mm' },
-  { id: 'vt-gondel-1250-h1300-1200', name: 'O&G Gondel 1,25 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 125, tiefe: 255.4, korpustiefe: 173.4, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120], beidseitig: true },
-
-  // ---- Ecken, Abschlüsse und Gondelköpfe
+  // Ecken, Abschlüsse und Gondelköpfe. Für diese Bausteine nennt das Workbook
+  // keine eigenen Maße – sie übernehmen die des geraden Möbels, an das sie
+  // anschließen.
   { id: 'vt-eck-innen-800', name: 'O&G Inneneck 45° · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Zwei davon ergeben ein Inneneck 90°. Danach muss eine gerade Einheit folgen.' },
   { id: 'vt-eck-innen-1200', name: 'O&G Inneneck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60] },
   { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN },

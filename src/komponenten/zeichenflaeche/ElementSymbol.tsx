@@ -197,7 +197,9 @@ function helleLinien(element: PlanElement, b: number, t: number): number[][] {
   if (element.korpustiefe && element.korpustiefe < tiefe) stellen.push(halberKorpus);
 
   const linien: number[][] = [];
-  for (const stelle of stellen) {
+  // Zwei gleich tiefe Auflagen (etwa „T800 + 2x T600") liegen von oben
+  // gesehen übereinander und ergeben nur eine Kante.
+  for (const stelle of [...new Set(stellen)]) {
     const y = (stelle / tiefe) * t;
     linien.push([0, y, b, y]);
     if (element.beidseitig) linien.push([0, t - y, b, t - y]);
