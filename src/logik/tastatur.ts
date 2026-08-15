@@ -99,6 +99,12 @@ export function useTastatur(): void {
             amRasterEinrasten: !store.projekt.einstellungen.amRasterEinrasten,
           });
           return;
+        case 'm':
+        case 'M':
+          // Das Maßband ein- und wieder ausschalten. Ein zweiter Druck legt
+          // es weg, damit man nicht erst Escape suchen muss.
+          store.setzeWerkzeug(store.werkzeug === 'messen' ? 'auswahl' : 'messen');
+          return;
         case 'ArrowLeft':
         case 'ArrowRight':
         case 'ArrowUp':
