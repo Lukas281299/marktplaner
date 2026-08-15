@@ -44,7 +44,7 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'kuehl-getraenke', name: 'Getränke-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#b0d4e6' },
 
   // ------------------------------------------------------ Frischeabteilung
-  { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'frische', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche' },
+  { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'obstgemuese', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche – Zonenmarkierung, kein Möbel' },
   { id: 'theke-fleisch', name: 'Fleischtheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e2bdbd' },
   { id: 'theke-wurst', name: 'Wursttheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e5c6c2' },
   { id: 'theke-kaese', name: 'Käsetheke', kategorie: 'frische', breite: 200, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#eeddb4' },
@@ -64,26 +64,48 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   // „H 1800 / T 800 + T600 + T400": unterste Auflage 800 tief, darüber 600,
   // oben 400. Die Gesamttiefe des Möbels ist die tiefste Auflage – genau so
   // steht es unten in `tiefe`, und die Kette in `stufen`.
-  { id: 'vt-1000-800', name: 'O&G 1,00 m · T800', kategorie: 'frische', breite: 100, tiefe: 80, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], hinweis: 'Einetagig, H1100 / T800' },
-  { id: 'vt-1000-800-600', name: 'O&G 1,00 m · T800+600', kategorie: 'frische', breite: 100, tiefe: 80, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60], hinweis: 'Zweietagig, H1300 / T800 + T600' },
-  { id: 'vt-1000-800-600-400', name: 'O&G 1,00 m · T800+600+400', kategorie: 'frische', breite: 100, tiefe: 80, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Dreietagig, H1800 / T800 + T600 + T400' },
-  { id: 'vt-1000-1200-600', name: 'O&G 1,00 m · T1200+600', kategorie: 'frische', breite: 100, tiefe: 120, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60], hinweis: 'H1800 / T1200 + T600' },
-  { id: 'vt-1250-800', name: 'O&G 1,25 m · T800', kategorie: 'frische', breite: 125, tiefe: 80, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], hinweis: 'Einetagig, H1100 / T800' },
-  { id: 'vt-1250-800-600', name: 'O&G 1,25 m · T800+600', kategorie: 'frische', breite: 125, tiefe: 80, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60], hinweis: 'Zweietagig, H1300 / T800 + T600' },
-  { id: 'vt-1250-800-600-400', name: 'O&G 1,25 m · T800+600+400', kategorie: 'frische', breite: 125, tiefe: 80, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Dreietagig, H1800 / T800 + T600 + T400' },
-  { id: 'vt-1250-1200-600', name: 'O&G 1,25 m · T1200+600', kategorie: 'frische', breite: 125, tiefe: 120, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60], hinweis: 'H1800 / T1200 + T600' },
+  // Die Gesamttiefe ist NICHT die tiefste Auflage: Die Front kragt über den
+  // Korpus hinaus. Beide Maße stehen in den Schnittzeichnungen des Workbooks
+  // und sind hier eingetragen – `tiefe` ist der Platzbedarf am Boden,
+  // `korpustiefe` das, was tatsächlich darauf steht.
+  //
+  //   T800-Varianten   Korpus  726 mm   Gesamttiefe   955 mm
+  //   T1200-Varianten  Korpus  908 mm   Gesamttiefe  1317 mm
 
-  // Bausteine für Ecken und Gondelköpfe
-  { id: 'vt-eck-innen-800', name: 'O&G Inneneck 45° · T800', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Zwei davon ergeben ein Inneneck 90°. Danach muss eine gerade Einheit folgen.' },
-  { id: 'vt-eck-innen-1200', name: 'O&G Inneneck 45° · T1200', kategorie: 'frische', breite: 120, tiefe: 120, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60] },
-  { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN },
-  { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges' },
-  { id: 'vt-abschluss-1200', name: 'O&G Abschluss gerade · T1200', kategorie: 'frische', breite: 120, tiefe: 120, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [120, 60] },
-  { id: 'vt-kopf-rund-800', name: 'O&G Kopfgondel rund · T800', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 180° – runder Kopf einer freistehenden Gondel' },
-  { id: 'vt-kopf-rund-1200', name: 'O&G Kopfgondel rund · T1200', kategorie: 'frische', breite: 120, tiefe: 120, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [120, 60] },
+  // ---- einseitig, Achsmaß 1000
+  { id: 'vt-1000-h1100-800', name: 'O&G 1,00 m · H1100 · T800', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], hinweis: 'Einetagig' },
+  { id: 'vt-1000-h1100-800-600', name: 'O&G 1,00 m · H1100 · T800+600', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
+  { id: 'vt-1000-h1300-1200', name: 'O&G 1,00 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 100, tiefe: 131.7, korpustiefe: 90.8, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120] },
+  { id: 'vt-1000-h1600-800-600', name: 'O&G 1,00 m · H1600 · T800+600', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 160, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
+  { id: 'vt-1000-h1800-800-600-400', name: 'O&G 1,00 m · H1800 · T800+600+400', kategorie: 'obstgemuese', breite: 100, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Dreietagig' },
+  { id: 'vt-1000-h1800-1200-600', name: 'O&G 1,00 m · H1800 · T1200+600', kategorie: 'obstgemuese', breite: 100, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60] },
+
+  // ---- einseitig, Achsmaß 1250
+  { id: 'vt-1250-h1100-800', name: 'O&G 1,25 m · H1100 · T800', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80] },
+  { id: 'vt-1250-h1300-800-600', name: 'O&G 1,25 m · H1300 · T800+600', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
+  { id: 'vt-1250-h1300-1200', name: 'O&G 1,25 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 125, tiefe: 131.7, korpustiefe: 90.8, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120] },
+  { id: 'vt-1250-h1600-800-600', name: 'O&G 1,25 m · H1600 · T800+600', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 160, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60] },
+  { id: 'vt-1250-h1800-800-600-400', name: 'O&G 1,25 m · H1800 · T800+600+400', kategorie: 'obstgemuese', breite: 125, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40] },
+  { id: 'vt-1250-h1800-1200-600', name: 'O&G 1,25 m · H1800 · T1200+600', kategorie: 'obstgemuese', breite: 125, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60] },
+
+  // ---- beidseitige Gondeln. Auch diese Maße stehen im Workbook; sie sind
+  //      weniger als das Doppelte, weil sich beide Seiten eine Mittelsäule teilen.
+  { id: 'vt-gondel-1000-h1100-800', name: 'O&G Gondel 1,00 m · H1100 · T800', kategorie: 'obstgemuese', breite: 100, tiefe: 182.9, korpustiefe: 137.2, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], beidseitig: true, hinweis: 'Beidseitig, Korpus 1372 mm, gesamt 1829 mm' },
+  { id: 'vt-gondel-1250-h1100-800', name: 'O&G Gondel 1,25 m · H1100 · T800', kategorie: 'obstgemuese', breite: 125, tiefe: 182.9, korpustiefe: 137.2, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], beidseitig: true },
+  { id: 'vt-gondel-1000-h1300-1200', name: 'O&G Gondel 1,00 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 100, tiefe: 255.4, korpustiefe: 173.4, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120], beidseitig: true, hinweis: 'Beidseitig, Korpus 1734 mm, gesamt 2554 mm' },
+  { id: 'vt-gondel-1250-h1300-1200', name: 'O&G Gondel 1,25 m · H1300 · T1200', kategorie: 'obstgemuese', breite: 125, tiefe: 255.4, korpustiefe: 173.4, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [120], beidseitig: true },
+
+  // ---- Ecken, Abschlüsse und Gondelköpfe
+  { id: 'vt-eck-innen-800', name: 'O&G Inneneck 45° · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Zwei davon ergeben ein Inneneck 90°. Danach muss eine gerade Einheit folgen.' },
+  { id: 'vt-eck-innen-1200', name: 'O&G Inneneck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60] },
+  { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN },
+  { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges' },
+  { id: 'vt-abschluss-1200', name: 'O&G Abschluss gerade · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [120, 60] },
+  { id: 'vt-kopf-rund-800', name: 'O&G Kopfgondel rund · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 182.9, korpustiefe: 137.2, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [80, 60, 40], beidseitig: true, hinweis: 'Abschluss 180° – runder Kopf einer freistehenden Gondel' },
+  { id: 'vt-kopf-rund-1200', name: 'O&G Kopfgondel rund · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 255.4, korpustiefe: 173.4, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [120, 60], beidseitig: true },
 
   // Das freie Element: gleiches Symbol, alle Maße selbst bestimmbar.
-  { id: 'vt-frei', name: 'O&G frei', kategorie: 'frische', breite: 200, tiefe: 80, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Maße und Stufen frei einstellbar' },
+  { id: 'vt-frei', name: 'O&G frei', kategorie: 'obstgemuese', breite: 200, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Maße, Korpustiefe und Stufen frei einstellbar' },
 
   // ------------------------------------------------------------ Backwaren
   //

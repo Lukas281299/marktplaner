@@ -27,10 +27,16 @@ export const KATEGORIEN: Kategorie[] = [
     beschreibung: 'Kühlregale, Truhen und Tiefkühlschränke',
   },
   {
+    id: 'obstgemuese',
+    name: 'Obst & Gemüse',
+    farbe: '#1a7a1a',
+    beschreibung: 'Vitable-Tische, Gondeln, Ecken und Köpfe',
+  },
+  {
     id: 'frische',
-    name: 'Frischeabteilungen',
+    name: 'Frischetheken',
     farbe: '#c3ddb8',
-    beschreibung: 'Obst und Gemüse, Theken, Backshop',
+    beschreibung: 'Fleisch, Wurst, Käse, Fisch und Salatbar',
   },
   {
     id: 'backwaren',

@@ -25,6 +25,7 @@ export interface Punkt {
 export type KategorieId =
   | 'regale'
   | 'kuehlung'
+  | 'obstgemuese'
   | 'frische'
   | 'backwaren'
   | 'kassen'
@@ -75,6 +76,8 @@ export interface BibliothekEintrag {
   hinweis?: string;
   /** Auflagentiefen eines gestuften Möbels – siehe `PlanElement.stufen`. */
   stufen?: number[];
+  /** Tiefe des Korpus – siehe `PlanElement.korpustiefe`. */
+  korpustiefe?: number;
   /** Wird das Möbel von beiden Seiten bestückt? */
   beidseitig?: boolean;
   /** Selbst angelegte Vorlage (nicht mitgeliefert). */
@@ -148,6 +151,18 @@ export interface PlanElement {
    * wird das Möbel ohne Stufen gezeichnet.
    */
   stufen?: number[];
+  /**
+   * Tiefe des Korpus in cm – der Teil, der tatsächlich auf dem Boden steht.
+   *
+   * Bei den Obst- und Gemüsemöbeln kragt die Front über den Korpus hinaus:
+   * Ein H1800 / T1200 + T600 hat einen Korpus von 908 mm, nimmt am Boden
+   * aber 1317 mm ein. Für den Platzbedarf zählt `tiefe` (die Gesamttiefe),
+   * für die Zeichnung zusätzlich diese Kante – erst dahinter beginnt die
+   * auskragende Front.
+   *
+   * Fehlt der Wert, steht das Möbel auf seiner ganzen Tiefe.
+   */
+  korpustiefe?: number;
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */

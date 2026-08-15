@@ -170,17 +170,39 @@ function zeichneAchsmass(ctx: Konva.Context, form: Grundform, breite: number, b:
  * Vorderkante des Möbels und schon vom Umriss gezeichnet.
  */
 function helleLinien(element: PlanElement, b: number, t: number): number[][] {
-  const stufen = element.stufen;
-  if (!stufen || stufen.length < 2) return [];
-  const tiefste = Math.max(...stufen);
-  if (tiefste <= 0) return [];
+  const tiefe = element.tiefe;
+  if (tiefe <= 0) return [];
 
-  return stufen
-    .filter((stufe) => stufe < tiefste)
-    .map((stufe) => {
-      const y = (stufe / tiefste) * t;
-      return [0, y, b, y];
-    });
+  // Eine beidseitige Gondel ist an der Mitte gespiegelt: Jede Seite bekommt
+  // die halbe Tiefe, und jede Linie erscheint zweimal.
+  const seiten = element.beidseitig ? 2 : 1;
+  const korpus = element.korpustiefe ?? tiefe;
+  const halberKorpus = korpus / seiten;
+
+  const stellen: number[] = [];
+
+  // Die Kanten der Auflagen, gemessen ab der Rückwand.
+  const stufen = element.stufen;
+  if (stufen && stufen.length >= 2) {
+    const tiefste = Math.max(...stufen);
+    if (tiefste > 0) {
+      for (const stufe of stufen) {
+        if (stufe >= tiefste) continue;
+        stellen.push((stufe / tiefste) * halberKorpus);
+      }
+    }
+  }
+
+  // Die Vorderkante des Korpus – ab hier kragt die Front über.
+  if (element.korpustiefe && element.korpustiefe < tiefe) stellen.push(halberKorpus);
+
+  const linien: number[][] = [];
+  for (const stelle of stellen) {
+    const y = (stelle / tiefe) * t;
+    linien.push([0, y, b, y]);
+    if (element.beidseitig) linien.push([0, t - y, b, t - y]);
+  }
+  return linien;
 }
 
 interface Props {

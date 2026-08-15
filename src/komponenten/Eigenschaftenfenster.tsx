@@ -602,6 +602,14 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
             titel="Nur zur Information – wird im Grundriss nicht gezeichnet."
             aendern={(hoehe) => setze({ hoehe })}
           />
+          <Massfeld
+            label="Korpustiefe"
+            cm={erstes.korpustiefe ?? 0}
+            einheit={einheit}
+            beiStart={beiStart}
+            titel="Der Teil, der auf dem Boden steht. Kragt die Front darüber hinaus, ist die Tiefe größer. 0 = keine auskragende Front."
+            aendern={(korpustiefe) => setze({ korpustiefe: korpustiefe > 0 ? korpustiefe : undefined })}
+          />
           <div className="feld">
             <label>Fläche</label>
             <div style={{ padding: '5px 0', fontWeight: 600 }}>
