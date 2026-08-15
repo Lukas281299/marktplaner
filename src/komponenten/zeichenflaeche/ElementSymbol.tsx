@@ -429,31 +429,41 @@ export function zeichneForm(
     }
 
     // ------------------------------------------------------------- Kassen
-    case 'kasse': {
-      // Die bediente Kasse, so wie sie im Marktplan steht: das lange
-      // Warenband, der Kassenplatz und dahinter der Packtisch.
+    case 'kasse':
+    case 'kasseSitz':
+      zeichneKasse(ctx, b, t, false);
+      break;
+
+    case 'kasseDoppel':
+      zeichneKasse(ctx, b, t, true);
+      break;
+
+    case 'sbKasse': {
+      // Selbstbedienungskasse: hinten der Terminalkopf mit Scanner und
+      // Bildschirm, davor die Ablage zum Einpacken. Der Kreis ist der
+      // Bezahlteil – so unterscheidet sie sich vom bloßen Tisch.
       ctx.rect(0, 0, b, t);
-      const bandEnde = b * 0.58;
-      ctx.rect(0, t * 0.1, bandEnde, t * 0.4);
-      for (let i = 1; i < 6; i++) {
-        const x = (bandEnde * i) / 6;
-        ctx.moveTo(x, t * 0.1);
-        ctx.lineTo(x, t * 0.5);
-      }
-      // Der Kreis ist der Platz an der Kasse.
-      const r = Math.min(t * 0.17, b * 0.07);
-      ctx.moveTo(b * 0.68 + r, t * 0.55);
-      ctx.ellipse(b * 0.68, t * 0.55, r, r, 0, 0, Math.PI * 2);
-      ctx.rect(b * 0.78, t * 0.1, b * 0.2, t * 0.8);
+      const kopf = t * 0.42;
+      ctx.rect(b * 0.06, t * 0.06, b * 0.88, kopf - t * 0.06);
+      ctx.moveTo(0, kopf);
+      ctx.lineTo(b, kopf);
+      const r = Math.min(b, t) * 0.11;
+      ctx.moveTo(b * 0.78 + r, kopf + (t - kopf) / 2);
+      ctx.ellipse(b * 0.78, kopf + (t - kopf) / 2, r, r, 0, 0, Math.PI * 2);
+      // Die Ablage davor.
+      ctx.rect(b * 0.06, kopf + t * 0.08, b * 0.6, t - kopf - t * 0.16);
       break;
     }
 
-    case 'sbKasse': {
-      // Selbstbedienungskasse: der Terminalkopf hinten, davor die Ablage.
-      ctx.rect(0, 0, b, t);
-      ctx.rect(b * 0.18, t * 0.08, b * 0.64, t * 0.28);
-      ctx.moveTo(0, t * 0.55);
-      ctx.lineTo(b, t * 0.55);
+    case 'ausgangsanlage': {
+      // Die Ausgangsanlage: ein Pfosten an jedem Ende, dazwischen das
+      // Geländer, und der Flügel schwenkt in Laufrichtung auf. Der Bogen
+      // kommt als Strich dazu, sonst würde er zum Tortenstück.
+      const pfosten = Math.min(t, b * 0.12);
+      ctx.rect(0, 0, pfosten, t);
+      ctx.rect(b - pfosten, 0, pfosten, t);
+      // Das Geländer dazwischen, dünner als die Pfosten.
+      ctx.rect(pfosten, t * 0.3, b - 2 * pfosten, t * 0.4);
       break;
     }
 
@@ -507,6 +517,116 @@ export function zeichneForm(
       ctx.rect(0, 0, b, t);
       break;
   }
+}
+
+/**
+ * Die festen Abschnitte einer bedienten Kasse in cm, in Laufrichtung.
+ *
+ * Abgemessen an der Straight IV im Marktplan Immenhausen: Das Möbel ist dort
+ * 3913 mm lang und teilt sich in Kopfteil, Warenband, Kassenplatz und
+ * Abpacktisch. Aufgedruckt ist nur das Band mit 450 × 1800 mm – die übrigen
+ * Abschnitte sind am Plan gemessen und summieren sich mit dem Band genau auf
+ * die Gesamtlänge.
+ *
+ * Fest sind hier alle Abschnitte außer dem Band. Das ist auch der Grund: Wird
+ * das Element länger gezogen, wächst nur das Band – genau so wird eine Kasse
+ * auch bestellt. Kopfteil, Kassenplatz und Abpacktisch bleiben, wie sie sind.
+ */
+const KASSE_KOPF = 42.8;
+const KASSE_PLATZ = 61.8;
+const KASSE_ABPACK = 106.7;
+const KASSE_FEST = KASSE_KOPF + KASSE_PLATZ + KASSE_ABPACK;
+
+/** Breite eines Warenbands quer zur Laufrichtung, in cm. */
+const KASSE_BAND = 45;
+
+/**
+ * Zeichnet eine bediente Kasse: b ist die Länge in Laufrichtung, t die Breite
+ * quer dazu. Die Doppelkasse hat zwei Bänder an den Außenseiten und dazwischen
+ * die Insel, auf der bedient wird.
+ */
+function zeichneKasse(ctx: Konva.Context, b: number, t: number, doppelt: boolean) {
+  ctx.rect(0, 0, b, t);
+
+  // Die Querteilung. Bei einem sehr kurz gezogenen Element bleibt vom Band
+  // nichts übrig – dann rücken die Fugen zusammen, statt sich zu überholen.
+  const band = Math.max(b - KASSE_FEST, 0);
+  const x1 = Math.min(KASSE_KOPF, b);
+  const x2 = Math.min(x1 + band, b);
+  const x3 = Math.min(x2 + KASSE_PLATZ, b);
+  for (const x of [x1, x2, x3]) {
+    if (x <= 0 || x >= b) continue;
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, t);
+  }
+
+  const rahmen = Math.min(t * 0.1, 5);
+  const bandBreite = Math.min(KASSE_BAND, t / (doppelt ? 3 : 1) - rahmen);
+
+  if (band > 0.5 && bandBreite > 0) {
+    if (doppelt) {
+      // Ein Band an jeder Außenseite, die Insel bleibt in der Mitte.
+      ctx.rect(x1, rahmen, band, bandBreite);
+      ctx.rect(x1, t - rahmen - bandBreite, band, bandBreite);
+    } else {
+      ctx.rect(x1, rahmen, band, Math.min(bandBreite, t - 2 * rahmen));
+    }
+  }
+
+  // Der Kassenplatz: Scanner und Geldlade als eigener Kasten.
+  if (x3 - x2 > 1 && t > 4) {
+    const laenge = (x3 - x2) * 0.55;
+    const tiefe = Math.min(t * 0.3, 25);
+    const mitte = (x2 + x3) / 2;
+    ctx.rect(mitte - laenge / 2, (t - tiefe) / 2, laenge, tiefe);
+  }
+
+  // Der Abpacktisch als eingesetzte Fläche.
+  if (b - x3 > 2 * rahmen && t > 2 * rahmen) {
+    ctx.rect(x3 + rahmen, rahmen, b - x3 - 2 * rahmen, t - 2 * rahmen);
+  }
+}
+
+/**
+ * Der Stuhl einer Sitzkasse und der Flügel einer Ausgangsanlage.
+ *
+ * Beides ist nur Strich: Ein Stuhl von oben ist ein Kreis mit einer Lehne
+ * dahinter, und eine Lehne ist ein Bogen. Läge der Bogen im Hauptpfad, würde
+ * die Füllung des Möbels ein Tortenstück daraus machen.
+ */
+function zeichneStuhl(ctx: Konva.Context, b: number, t: number, mittig: boolean) {
+  const band = Math.max(b - KASSE_FEST, 0);
+  const mitte = Math.min(KASSE_KOPF + band + KASSE_PLATZ / 2, b);
+  const r = Math.min(18, t * 0.3);
+  if (r < 2) return;
+
+  // Bei der Doppelkasse sitzt die Bedienung auf der Insel zwischen den
+  // Bändern. Bei der Einzelkasse steht der Stuhl neben dem Möbel – dort
+  // gehört er hin, und so sieht man im Plan, wie viel Gang er braucht.
+  const y = mittig ? t / 2 : t + r * 1.3;
+  ctx.moveTo(mitte + r, y);
+  ctx.arc(mitte, y, r, 0, Math.PI * 2);
+  // Die Lehne im Rücken, zur Bandseite hin offen.
+  ctx.moveTo(mitte + r * 1.45, y);
+  ctx.arc(mitte, y, r * 1.45, 0, Math.PI, false);
+}
+
+/**
+ * Der Schwenkbogen des Ausgangsflügels.
+ *
+ * Der Flügel hängt am rechten Pfosten und schlägt zur Verkaufsfläche hin auf.
+ * Gezeichnet wird die offene Stellung samt Bogen – nur so steht im Plan, wie
+ * viel Platz vor der Anlage frei bleiben muss.
+ */
+function zeichneAusgangsfluegel(ctx: Konva.Context, b: number, t: number) {
+  const pfosten = Math.min(t, b * 0.12);
+  const angel = b - pfosten;
+  const weite = Math.max(b - 2 * pfosten, 0);
+  if (weite <= 0) return;
+  ctx.moveTo(angel, t);
+  ctx.lineTo(angel, t + weite);
+  ctx.moveTo(angel, t + weite);
+  ctx.arc(angel, t, weite, Math.PI / 2, Math.PI, false);
 }
 
 /** Modulbreite einer Tiefkühltruhe in cm – daraus setzt sich ihre Länge zusammen. */
@@ -565,6 +685,31 @@ function zeichneTuerboegen(ctx: Konva.Context, b: number, t: number, anzahl: num
     ctx.arc(angel, t, breiteJeTuer, Math.PI / 2, 0, true);
   }
 }
+
+/**
+ * Alles, was nur Strich sein darf, in einem Durchgang.
+ *
+ * Bögen und Kreise gehören nicht in den Hauptpfad: Der wird gefüllt, und aus
+ * jedem offenen Bogen würde dabei ein farbiges Tortenstück. Hier stehen sie
+ * deshalb zusammen und werden allein gestrichelt.
+ */
+function zeichneStriche(ctx: Konva.Context, form: Grundform, b: number, t: number) {
+  const tueren = MIT_TUEREN.get(form);
+  if (tueren !== undefined) {
+    zeichneTuerboegen(ctx, b, t, tueren === 'nachBreite' ? tuerAnzahl(b) : tueren);
+  }
+  if (form === 'kasseSitz') zeichneStuhl(ctx, b, t, false);
+  if (form === 'kasseDoppel') zeichneStuhl(ctx, b, t, true);
+  if (form === 'ausgangsanlage') zeichneAusgangsfluegel(ctx, b, t);
+}
+
+/** Formen, die im zweiten Durchgang noch etwas dazubekommen. */
+const MIT_STRICHEN = new Set<Grundform>([
+  ...MIT_TUEREN.keys(),
+  'kasseSitz',
+  'kasseDoppel',
+  'ausgangsanlage',
+]);
 
 /**
  * Formen, die ein Möbel darstellen und deshalb das Achsmaß-Zeichen tragen.
@@ -713,14 +858,13 @@ export function ElementSymbol({
           ctx.restore();
         }
 
-        // 3. Die Türbögen – ebenfalls nur Strich, siehe `zeichneTuerboegen`.
-        const tueren = MIT_TUEREN.get(element.form);
-        if (tueren !== undefined) {
+        // 3. Türbögen, Stühle und Schwenkflügel – siehe `zeichneStriche`.
+        if (MIT_STRICHEN.has(element.form)) {
           ctx.save();
           ctx.setAttr('strokeStyle', 'rgba(30,40,52,0.65)');
           ctx.setAttr('lineWidth', 1.1 / zoom);
           ctx.beginPath();
-          zeichneTuerboegen(ctx, b, t, tueren === 'nachBreite' ? tuerAnzahl(b) : tueren);
+          zeichneStriche(ctx, element.form, b, t);
           ctx.stroke();
           ctx.restore();
         }

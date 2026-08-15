@@ -40,6 +40,38 @@ describe('Bibliothek allgemein', () => {
   });
 });
 
+describe('Kassen', () => {
+  const KASSEN = BIBLIOTHEK.filter((e) => e.kategorie === 'kassen');
+  const BEDIENT = KASSEN.filter((e) => /^kasse-(steh|sitz|doppel)-\d+$/.test(e.id));
+
+  it('rechnet die Gesamtlänge aus Band und festen Abschnitten', () => {
+    // Am Plan gemessen: Kopf 428 + Band + Kassenplatz 618 + Abpacktisch 1067.
+    // Bei Band 1800 sind das 3913 mm – gemessen wurden 3912.
+    const eintrag = BEDIENT.find((e) => e.id === 'kasse-sitz-1800');
+    expect(eintrag).toBeDefined();
+    expect(Math.round(eintrag!.breite * 10)).toBe(3913);
+  });
+
+  it('führt jede Bauart in allen fünf Bandlängen', () => {
+    for (const bauart of ['steh', 'sitz', 'doppel']) {
+      const treffer = BEDIENT.filter((e) => e.id.startsWith(`kasse-${bauart}-`));
+      expect(treffer).toHaveLength(5);
+    }
+  });
+
+  it('macht die Doppelkasse quer so breit wie zwei Bänder und die Insel', () => {
+    // 480 + 745 + 480 plus Rahmen ergeben die gemessenen 1812 mm.
+    const doppel = BEDIENT.filter((e) => e.id.startsWith('kasse-doppel-'));
+    expect(doppel.length).toBeGreaterThan(0);
+    for (const eintrag of doppel) expect(eintrag.tiefe).toBe(181.2);
+  });
+
+  it('gibt allen Kassen die Arbeitshöhe 960 mm', () => {
+    // Die Höhe ist in der DGUV-Information 208-002 festgelegt.
+    for (const eintrag of BEDIENT) expect(eintrag.hoehe).toBe(96);
+  });
+});
+
 describe('Aktionsflächen', () => {
   const AKTION = BIBLIOTHEK.filter((e) => e.kategorie === 'aktion');
 

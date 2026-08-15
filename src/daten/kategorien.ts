@@ -54,7 +54,7 @@ export const KATEGORIEN: Kategorie[] = [
     id: 'kassen',
     name: 'Kassen & Eingang',
     farbe: '#f5dda0',
-    beschreibung: 'Kassenzone, Ein- und Ausgang, Leergut',
+    beschreibung: 'Steh-, Sitz- und Doppelkassen, SB, Ausgang, Leergut',
   },
   {
     id: 'aktion',

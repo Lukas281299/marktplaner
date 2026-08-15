@@ -174,6 +174,88 @@ function kuehlEintraege(): BibliothekEintrag[] {
 }
 
 /**
+ * Die bedienten Kassen, abgemessen am Marktplan Immenhausen.
+ *
+ * Der Plan zeigt die ITAB Straight IV. Aufgedruckt ist dort nur das Band –
+ * „450 × 1800", bei der Doppelkasse „480 × 2000". Alles andere ist am Plan
+ * gemessen, umgerechnet über den Maßstab 1:100 auf A1:
+ *
+ *   Kopfteil        428 mm
+ *   Warenband      1800 mm  (aufgedruckt, veränderlich)
+ *   Kassenplatz     618 mm
+ *   Abpacktisch    1067 mm
+ *   ------------------------
+ *   Gesamtlänge    3913 mm  – gemessen 3912 mm
+ *
+ * Quer misst die Einzelkasse 584 mm, die Doppelkasse 1812 mm: zwei Bänder
+ * von je 480 mm und dazwischen die Insel mit 745 mm, auf der bedient wird.
+ *
+ * Die Bandlängen sind die im Plan vorkommenden. Länger ziehen geht trotzdem –
+ * die Zeichnung lässt dann nur das Band wachsen, die übrigen Abschnitte
+ * bleiben fest. Genau so wird eine Kasse auch bestellt.
+ */
+const KASSE_SAND = '#f5dda0';
+const KASSE_SAND_HELL = '#f7e5b8';
+
+/** Länge der festen Abschnitte in cm: Kopf + Kassenplatz + Abpacktisch. */
+const KASSE_FEST = 42.8 + 61.8 + 106.7;
+
+const KASSE_BANDLAENGEN = [150, 180, 200, 270, 330];
+
+function kassenEintraege(): BibliothekEintrag[] {
+  const eintraege: BibliothekEintrag[] = [];
+
+  const bauarten: { kennung: string; name: string; form: Grundform; tiefe: number; gruppe: string }[] = [
+    { kennung: 'steh', name: 'Einzelstehkasse', form: 'kasse', tiefe: 58.4, gruppe: 'Einzelkassen stehend' },
+    { kennung: 'sitz', name: 'Einzelsitzkasse', form: 'kasseSitz', tiefe: 58.4, gruppe: 'Einzelkassen sitzend' },
+    { kennung: 'doppel', name: 'Doppelsitzkasse', form: 'kasseDoppel', tiefe: 181.2, gruppe: 'Doppelkassen' },
+  ];
+
+  for (const bauart of bauarten) {
+    for (const band of KASSE_BANDLAENGEN) {
+      const gesamt = Math.round((band + KASSE_FEST) * 10) / 10;
+      eintraege.push({
+        id: `kasse-${bauart.kennung}-${band * 10}`,
+        name: `${bauart.name} · Band ${band * 10} mm`,
+        kategorie: 'kassen',
+        breite: gesamt,
+        tiefe: bauart.tiefe,
+        hoehe: 96,
+        form: bauart.form,
+        farbe: KASSE_SAND,
+        gruppe: bauart.gruppe,
+        hinweis: `ITAB Straight IV · Gesamtlänge ${Math.round(gesamt * 10)} mm, Arbeitshöhe 960 mm`,
+      });
+    }
+    eintraege.push({
+      id: `kasse-${bauart.kennung}-frei`,
+      name: `${bauart.name} frei`,
+      kategorie: 'kassen',
+      breite: Math.round((180 + KASSE_FEST) * 10) / 10,
+      tiefe: bauart.tiefe,
+      hoehe: 96,
+      form: bauart.form,
+      farbe: KASSE_SAND,
+      gruppe: bauart.gruppe,
+      hinweis: 'Länger ziehen verlängert nur das Warenband',
+    });
+  }
+
+  // Selbstbedienung und die Anlage, durch die der Kunde danach hinausgeht.
+  eintraege.push(
+    { id: 'kasse-sb-schmal', name: 'SB-Kasse schmal · 0,70 × 0,80 m', kategorie: 'kassen', breite: 70, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen' },
+    { id: 'kasse-sb', name: 'SB-Kasse · 0,90 × 0,80 m', kategorie: 'kassen', breite: 90, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen' },
+    { id: 'kasse-sb-breit', name: 'SB-Kasse mit Ablage · 1,20 × 0,80 m', kategorie: 'kassen', breite: 120, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen' },
+    { id: 'kasse-sb-frei', name: 'SB-Kasse frei', kategorie: 'kassen', breite: 90, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen', hinweis: 'Maße frei einstellbar' },
+    { id: 'ausgang-90', name: 'Ausgangsanlage 0,90 m', kategorie: 'kassen', breite: 90, tiefe: 15, hoehe: 100, form: 'ausgangsanlage', farbe: '#c9b47a', gruppe: 'SB-Kassen', hinweis: 'Der Bogen zeigt, wie weit der Flügel aufschlägt' },
+    { id: 'ausgang-120', name: 'Ausgangsanlage 1,20 m', kategorie: 'kassen', breite: 120, tiefe: 15, hoehe: 100, form: 'ausgangsanlage', farbe: '#c9b47a', gruppe: 'SB-Kassen' },
+    { id: 'ausgang-180', name: 'Ausgangsanlage 1,80 m · breit', kategorie: 'kassen', breite: 180, tiefe: 15, hoehe: 100, form: 'ausgangsanlage', farbe: '#c9b47a', gruppe: 'SB-Kassen', hinweis: 'Barrierefreier Durchgang' },
+  );
+
+  return eintraege;
+}
+
+/**
  * Die Blink-Bedienmöbel von WSL, Katalog 2026 Seite 32/33.
  *
  * Drei Möbel, jedes in sechs Längen und drei Farben. Die Farben sind im
@@ -428,17 +510,15 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'bakeoff-frei', name: 'BakeOff frei', kategorie: 'backwaren', breite: 200, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Maße frei einstellbar – Breite, Tiefe und Höhe rechts eintragen', gruppe: 'Frei' },
 
   // ------------------------------------------------------ Kassen & Eingang
-  { id: 'kasse-normal', name: 'Kasse', kategorie: 'kassen', breite: 300, tiefe: 100, hoehe: 110, form: 'kasse', farbe: '#f5dda0', hinweis: 'Bediente Kasse mit Warenband' },
-  { id: 'kasse-tandem', name: 'Tandemkasse', kategorie: 'kassen', breite: 450, tiefe: 100, hoehe: 110, form: 'kasse', farbe: '#f5dda0', hinweis: 'Zwei Bänder an einem Kassenplatz' },
-  { id: 'kasse-sb', name: 'Selbstbedienungskasse', kategorie: 'kassen', breite: 100, tiefe: 100, hoehe: 140, form: 'sbKasse', farbe: '#f7e5b8', hinweis: 'SB-Kasse' },
-  { id: 'kassentisch', name: 'Kassentisch', kategorie: 'kassen', breite: 200, tiefe: 80, hoehe: 90, form: 'rechteck', farbe: '#efdcaa' },
-  { id: 'kassensperre', name: 'Kassensperre', kategorie: 'kassen', breite: 100, tiefe: 15, hoehe: 100, form: 'linie', farbe: '#c9b47a' },
-  { id: 'eingangsbereich', name: 'Eingangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#d8e6c8' },
-  { id: 'ausgangsbereich', name: 'Ausgangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#e6d8c8' },
-  { id: 'einkaufswagenbox', name: 'Einkaufswagenbox', kategorie: 'kassen', breite: 200, tiefe: 120, hoehe: 100, form: 'wagenbox', farbe: '#dfe3e6' },
-  { id: 'kundendienst', name: 'Kundendienst', kategorie: 'kassen', breite: 200, tiefe: 100, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb' },
-  { id: 'information', name: 'Information', kategorie: 'kassen', breite: 150, tiefe: 80, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb' },
-  { id: 'leergutautomat', name: 'Leergutautomat', kategorie: 'kassen', breite: 120, tiefe: 100, hoehe: 200, form: 'automat', farbe: '#cddac2' },
+  ...kassenEintraege(),
+  { id: 'kassentisch', name: 'Kassentisch', kategorie: 'kassen', breite: 200, tiefe: 80, hoehe: 90, form: 'rechteck', farbe: KASSE_SAND, gruppe: 'Übriges' },
+  { id: 'kassensperre', name: 'Kassensperre', kategorie: 'kassen', breite: 100, tiefe: 15, hoehe: 100, form: 'linie', farbe: '#c9b47a', gruppe: 'Übriges' },
+  { id: 'eingangsbereich', name: 'Eingangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#d8e6c8', gruppe: 'Ein- und Ausgang' },
+  { id: 'ausgangsbereich', name: 'Ausgangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#e6d8c8', gruppe: 'Ein- und Ausgang' },
+  { id: 'einkaufswagenbox', name: 'Einkaufswagenbox', kategorie: 'kassen', breite: 200, tiefe: 120, hoehe: 100, form: 'wagenbox', farbe: '#dfe3e6', gruppe: 'Ein- und Ausgang' },
+  { id: 'kundendienst', name: 'Kundendienst', kategorie: 'kassen', breite: 200, tiefe: 100, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb', gruppe: 'Übriges' },
+  { id: 'information', name: 'Information', kategorie: 'kassen', breite: 150, tiefe: 80, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb', gruppe: 'Übriges' },
+  { id: 'leergutautomat', name: 'Leergutautomat', kategorie: 'kassen', breite: 120, tiefe: 100, hoehe: 200, form: 'automat', farbe: '#cddac2', gruppe: 'Übriges' },
 
   // -------------------------------------------- Aktions- & Sonderflächen
   // ------------------------------------------ Aktions- und Sonderflächen

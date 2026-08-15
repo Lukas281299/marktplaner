@@ -77,9 +77,13 @@ export type Grundform =
   | 'stellflaeche'
   | 'schild'
   | 'regal'
-  // Kassenzone.
+  // Kassenzone. `kasse` ist die Einzelstehkasse; die Sitzkasse kommt mit
+  // Stuhl, die Doppelkasse mit zwei Bändern und einer Insel dazwischen.
   | 'kasse'
+  | 'kasseSitz'
+  | 'kasseDoppel'
   | 'sbKasse'
+  | 'ausgangsanlage'
   | 'wagenbox'
   | 'automat'
   | 'zugang';
