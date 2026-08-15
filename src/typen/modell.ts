@@ -47,7 +47,12 @@ export type Grundform =
   | 'linie'
   | 'pfeil'
   | 'bakeoff'
-  | 'bakeoffEcke';
+  | 'bakeoffEcke'
+  | 'vitable'
+  | 'vitableEckInnen'
+  | 'vitableEckAussen'
+  | 'vitableAbschluss'
+  | 'vitableAbschlussRund';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {
@@ -68,6 +73,10 @@ export interface BibliothekEintrag {
   standardBeschriftung?: string;
   /** Kurzer Hinweis für den Mauszeiger-Tooltip. */
   hinweis?: string;
+  /** Auflagentiefen eines gestuften Möbels – siehe `PlanElement.stufen`. */
+  stufen?: number[];
+  /** Wird das Möbel von beiden Seiten bestückt? */
+  beidseitig?: boolean;
   /** Selbst angelegte Vorlage (nicht mitgeliefert). */
   eigene?: boolean;
 }
@@ -127,6 +136,18 @@ export interface PlanElement {
    * selbst zweimal gezählt werden.
    */
   beidseitig?: boolean;
+  /**
+   * Die Auflagentiefen eines gestuften Möbels, in cm, **tiefste zuerst**.
+   *
+   * Im Wanzl-Workbook stehen die Varianten genau so: „T 800 + T600 + T400"
+   * heißt unterste Auflage 800 tief, darüber 600, oben 400. Von oben gesehen
+   * verdeckt jede Auflage die darunter, sichtbar bleiben also Bänder – und
+   * genau deren Kanten zeichnet das Symbol.
+   *
+   * Die Gesamttiefe des Möbels ist die tiefste Auflage. Fehlt die Angabe,
+   * wird das Möbel ohne Stufen gezeichnet.
+   */
+  stufen?: number[];
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */

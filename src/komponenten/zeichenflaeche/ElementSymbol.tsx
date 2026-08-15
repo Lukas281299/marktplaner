@@ -1,6 +1,7 @@
 import { Shape, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { achsmassZeichen } from '../../logik/achsmass';
 import type { Grundform, PlanElement } from '../../typen/modell';
 
 /**
@@ -82,11 +83,104 @@ function zeichneForm(ctx: Konva.Context, form: Grundform, b: number, t: number) 
       ctx.closePath();
       break;
     }
+    case 'vitable':
+      // Der Obst- und Gemüsetisch von oben. Die Stufenkanten kommen als
+      // helle Linien in einem zweiten Durchgang dazu (siehe `helleLinien`) –
+      // sie sind im Plan weiß und heben sich so vom Grün ab.
+      ctx.rect(0, 0, b, t);
+      break;
+
+    case 'vitableAbschluss':
+      // Gerader Abschluss („Abschluss 90°"): schließt den Zug stumpf ab.
+      ctx.rect(0, 0, b, t);
+      break;
+
+    case 'vitableAbschlussRund': {
+      // Runder Abschluss („Abschluss 180°") am Kopf einer Gondel:
+      // vorn halbrund, hinten gerade am Zug anschließend.
+      const r = t / 2;
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b - r, 0);
+      ctx.arc(b - r, r, r, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(0, t);
+      ctx.closePath();
+      break;
+    }
+
+    case 'vitableEckInnen':
+      // Inneneck 45°: Die Front läuft schräg, die Rückseite bleibt gerade.
+      // Zwei davon ergeben laut Workbook ein Inneneck 90°.
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b, 0);
+      ctx.lineTo(b, t);
+      ctx.closePath();
+      break;
+
+    case 'vitableEckAussen':
+      // Außeneck 90°: füllt die Ecke, um die der Zug außen herumgeführt wird.
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b, 0);
+      ctx.lineTo(0, t);
+      ctx.closePath();
+      break;
+
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);
       break;
   }
+}
+
+/**
+ * Formen, die ein Möbel darstellen und deshalb das Achsmaß-Zeichen tragen.
+ *
+ * Die Regel gilt laut Ladenbau für alle Möbel. Reine Zeichenhilfen wie Linie
+ * und Pfeil bekommen es nicht – dort wäre eine Diagonale nur Verwirrung.
+ */
+const MIT_ACHSMASS = new Set<Grundform>([
+  'rechteck',
+  'abgerundet',
+  'bakeoff',
+  'vitable',
+  'vitableAbschluss',
+]);
+
+/** Zeichnet das Achsmaß-Zeichen: Diagonale oder Kreuz, siehe `achsmass.ts`. */
+function zeichneAchsmass(ctx: Konva.Context, form: Grundform, breite: number, b: number, t: number) {
+  if (!MIT_ACHSMASS.has(form)) return;
+  const zeichen = achsmassZeichen(breite);
+  if (zeichen === 'keins') return;
+
+  // Von unten links nach oben rechts – y zeigt auf dem Bildschirm nach unten.
+  ctx.moveTo(0, t);
+  ctx.lineTo(b, 0);
+  if (zeichen === 'kreuz') {
+    ctx.moveTo(0, 0);
+    ctx.lineTo(b, t);
+  }
+}
+
+/**
+ * Die hellen Linien, die in einem zweiten Durchgang gezeichnet werden.
+ *
+ * Bisher sind das die Stufenkanten der Obst- und Gemüsetische. Von oben
+ * gesehen verdeckt jede Auflage die darunterliegende – sichtbar bleibt je ein
+ * Band, und dessen Kante liegt genau bei der Tiefe der darüberliegenden
+ * Auflage. Deshalb wird die tiefste Auflage übersprungen: Sie ist die
+ * Vorderkante des Möbels und schon vom Umriss gezeichnet.
+ */
+function helleLinien(element: PlanElement, b: number, t: number): number[][] {
+  const stufen = element.stufen;
+  if (!stufen || stufen.length < 2) return [];
+  const tiefste = Math.max(...stufen);
+  if (tiefste <= 0) return [];
+
+  return stufen
+    .filter((stufe) => stufe < tiefste)
+    .map((stufe) => {
+      const y = (stufe / tiefste) * t;
+      return [0, y, b, y];
+    });
 }
 
 interface Props {
@@ -133,9 +227,30 @@ export function ElementSymbol({
       shadowForStrokeEnabled={false}
       perfectDrawEnabled={false}
       sceneFunc={(ctx, shape) => {
+        const b = shape.width();
+        const t = shape.height();
+
+        // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
+        //    Linienfarbe des Elements.
         ctx.beginPath();
-        zeichneForm(ctx, element.form, shape.width(), shape.height());
+        zeichneForm(ctx, element.form, b, t);
+        zeichneAchsmass(ctx, element.form, element.breite, b, t);
         ctx.fillStrokeShape(shape);
+
+        // 2. Die hellen Stufenkanten darüber. Sie brauchen eine eigene Farbe
+        //    und deshalb einen zweiten Durchgang.
+        const hell = helleLinien(element, b, t);
+        if (hell.length === 0) return;
+        ctx.save();
+        ctx.setAttr('strokeStyle', '#ffffff');
+        ctx.setAttr('lineWidth', 1.6 / zoom);
+        ctx.beginPath();
+        for (const [x1, y1, x2, y2] of hell) {
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+        }
+        ctx.stroke();
+        ctx.restore();
       }}
       onMouseDown={(e) => beiMausTaste(e, element.id)}
       onDragStart={(e) => beiZiehStart(e, element.id)}

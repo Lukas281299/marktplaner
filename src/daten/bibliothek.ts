@@ -7,11 +7,18 @@ import type { BibliothekEintrag } from '../typen/modell';
  * Lebensmitteleinzelhandel. Sie sind nur Startwerte – nach dem Platzieren kann
  * jedes Element frei verändert werden.
  *
- * Die Symbole sind bewusst einfache Grundformen. Sie lassen sich später ohne
- * Änderungen an der übrigen Anwendung durch eigene Zeichnungen ersetzen:
- * Es muss nur die Eigenschaft `form` erweitert und in `ElementSymbol.tsx`
- * ein weiterer Fall ergänzt werden.
+ * Die allgemeinen Einträge benutzen einfache Grundformen. Daneben stehen
+ * nachgezeichnete Wanzl-Symbole (BakeOff, Vitable) mit den Maßen aus den
+ * zugehörigen Workbooks – erkennbar an der Form, die den Systemnamen trägt.
+ * Für ein neues Symbol muss nur `Grundform` erweitert und in
+ * `ElementSymbol.tsx` ein weiterer Fall ergänzt werden.
  */
+
+/**
+ * Das Grün der Obst- und Gemüsemöbel, abgenommen aus dem Wanzl-Plan.
+ * Steht als eigener Wert hier oben, weil es in vielen Einträgen vorkommt.
+ */
+const OG_GRUEN = '#1a7a1a';
 export const BIBLIOTHEK: BibliothekEintrag[] = [
   // ---------------------------------------------------------------- Regale
   { id: 'regal-trocken', name: 'Trockensortimentsregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'rechteck', farbe: '#d9d0c1', hinweis: 'Einseitiges Regalfeld, 125 cm' },
@@ -38,7 +45,6 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
 
   // ------------------------------------------------------ Frischeabteilung
   { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'frische', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche' },
-  { id: 'frische-og-tisch', name: 'Obst- und Gemüsetisch', kategorie: 'frische', breite: 200, tiefe: 100, hoehe: 90, form: 'abgerundet', farbe: '#c3ddb8' },
   { id: 'theke-fleisch', name: 'Fleischtheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e2bdbd' },
   { id: 'theke-wurst', name: 'Wursttheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e5c6c2' },
   { id: 'theke-kaese', name: 'Käsetheke', kategorie: 'frische', breite: 200, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#eeddb4' },
@@ -46,6 +52,38 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'theke-backwaren', name: 'Backwarentheke', kategorie: 'frische', breite: 250, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e6cfa4', hinweis: 'Bedientheke – für Selbstbedienung siehe Backwaren' },
   { id: 'frische-salatbar', name: 'Salatbar', kategorie: 'frische', breite: 150, tiefe: 100, hoehe: 120, form: 'abgerundet', farbe: '#cbe3bb' },
   { id: 'theke-heiss', name: 'Heiße Theke', kategorie: 'frische', breite: 200, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e7c39c' },
+
+  // ------------------------------------------------------- Obst und Gemüse
+  //
+  // Vitable von Wanzl. Maße aus dem Workbook (Version 38 / 10-2025).
+  //
+  // Achsmaße: 1000 und 1250 mm. Höhen: 1100, 1300, 1600, 1800, 2000 mm.
+  // Auflagen gibt es in 400, 600, 800 und 1200 mm Tiefe.
+  //
+  // Die Varianten stehen im Workbook als Auflagenkette, zum Beispiel
+  // „H 1800 / T 800 + T600 + T400": unterste Auflage 800 tief, darüber 600,
+  // oben 400. Die Gesamttiefe des Möbels ist die tiefste Auflage – genau so
+  // steht es unten in `tiefe`, und die Kette in `stufen`.
+  { id: 'vt-1000-800', name: 'O&G 1,00 m · T800', kategorie: 'frische', breite: 100, tiefe: 80, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], hinweis: 'Einetagig, H1100 / T800' },
+  { id: 'vt-1000-800-600', name: 'O&G 1,00 m · T800+600', kategorie: 'frische', breite: 100, tiefe: 80, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60], hinweis: 'Zweietagig, H1300 / T800 + T600' },
+  { id: 'vt-1000-800-600-400', name: 'O&G 1,00 m · T800+600+400', kategorie: 'frische', breite: 100, tiefe: 80, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Dreietagig, H1800 / T800 + T600 + T400' },
+  { id: 'vt-1000-1200-600', name: 'O&G 1,00 m · T1200+600', kategorie: 'frische', breite: 100, tiefe: 120, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60], hinweis: 'H1800 / T1200 + T600' },
+  { id: 'vt-1250-800', name: 'O&G 1,25 m · T800', kategorie: 'frische', breite: 125, tiefe: 80, hoehe: 110, form: 'vitable', farbe: OG_GRUEN, stufen: [80], hinweis: 'Einetagig, H1100 / T800' },
+  { id: 'vt-1250-800-600', name: 'O&G 1,25 m · T800+600', kategorie: 'frische', breite: 125, tiefe: 80, hoehe: 130, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60], hinweis: 'Zweietagig, H1300 / T800 + T600' },
+  { id: 'vt-1250-800-600-400', name: 'O&G 1,25 m · T800+600+400', kategorie: 'frische', breite: 125, tiefe: 80, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Dreietagig, H1800 / T800 + T600 + T400' },
+  { id: 'vt-1250-1200-600', name: 'O&G 1,25 m · T1200+600', kategorie: 'frische', breite: 125, tiefe: 120, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [120, 60], hinweis: 'H1800 / T1200 + T600' },
+
+  // Bausteine für Ecken und Gondelköpfe
+  { id: 'vt-eck-innen-800', name: 'O&G Inneneck 45° · T800', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Zwei davon ergeben ein Inneneck 90°. Danach muss eine gerade Einheit folgen.' },
+  { id: 'vt-eck-innen-1200', name: 'O&G Inneneck 45° · T1200', kategorie: 'frische', breite: 120, tiefe: 120, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60] },
+  { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN },
+  { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges' },
+  { id: 'vt-abschluss-1200', name: 'O&G Abschluss gerade · T1200', kategorie: 'frische', breite: 120, tiefe: 120, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [120, 60] },
+  { id: 'vt-kopf-rund-800', name: 'O&G Kopfgondel rund · T800', kategorie: 'frische', breite: 80, tiefe: 80, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 180° – runder Kopf einer freistehenden Gondel' },
+  { id: 'vt-kopf-rund-1200', name: 'O&G Kopfgondel rund · T1200', kategorie: 'frische', breite: 120, tiefe: 120, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [120, 60] },
+
+  // Das freie Element: gleiches Symbol, alle Maße selbst bestimmbar.
+  { id: 'vt-frei', name: 'O&G frei', kategorie: 'frische', breite: 200, tiefe: 80, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Maße und Stufen frei einstellbar' },
 
   // ------------------------------------------------------------ Backwaren
   //

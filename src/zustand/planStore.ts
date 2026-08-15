@@ -526,6 +526,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           drehung: 0,
           form: vorlage.form,
           farbe: vorlage.farbe,
+          stufen: vorlage.stufen,
+          beidseitig: vorlage.beidseitig,
           beschriftung: vorlage.standardBeschriftung ?? vorlage.name,
           beschriftungSichtbar: true,
           schriftgroesse: 12,
