@@ -26,19 +26,28 @@ export type KategorieId =
   | 'regale'
   | 'kuehlung'
   | 'frische'
+  | 'backwaren'
   | 'kassen'
   | 'aktion'
   | 'ausstattung'
   | 'eigene';
 
-/** Grundformen, aus denen ein Element gezeichnet werden kann. */
+/**
+ * Grundformen, aus denen ein Element gezeichnet werden kann.
+ *
+ * Die ersten sechs sind allgemeine Formen. Alles danach sind Symbole
+ * bestimmter Möbel, nachgezeichnet aus den Wanzl-Plänen – sie tragen den
+ * Namen des Systems, damit erkennbar bleibt, woher sie kommen.
+ */
 export type Grundform =
   | 'rechteck'
   | 'abgerundet'
   | 'kreis'
   | 'halbkreis'
   | 'linie'
-  | 'pfeil';
+  | 'pfeil'
+  | 'bakeoff'
+  | 'bakeoffEcke';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {

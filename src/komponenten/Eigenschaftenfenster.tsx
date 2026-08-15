@@ -45,6 +45,8 @@ const FORMEN: { wert: Grundform; text: string }[] = [
   { wert: 'halbkreis', text: 'Halbkreis' },
   { wert: 'linie', text: 'Linie' },
   { wert: 'pfeil', text: 'Pfeil' },
+  { wert: 'bakeoff', text: 'BakeOff-Turm' },
+  { wert: 'bakeoffEcke', text: 'BakeOff-Eckstück' },
 ];
 
 /**

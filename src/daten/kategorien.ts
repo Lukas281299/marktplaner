@@ -33,6 +33,12 @@ export const KATEGORIEN: Kategorie[] = [
     beschreibung: 'Obst und Gemüse, Theken, Backshop',
   },
   {
+    id: 'backwaren',
+    name: 'Backwaren',
+    farbe: '#d8bc98',
+    beschreibung: 'BakeOff-Türme und Backwarenzeilen',
+  },
+  {
     id: 'kassen',
     name: 'Kassen & Eingang',
     farbe: '#f5dda0',

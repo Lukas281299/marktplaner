@@ -56,6 +56,32 @@ function zeichneForm(ctx: Konva.Context, form: Grundform, b: number, t: number) 
       ctx.closePath();
       break;
     }
+    case 'bakeoff': {
+      // Ein BakeOff-Turm von oben, nachgezeichnet aus dem Wanzl-Plan.
+      //
+      // Der Turm zeigt im Grundriss vier Bänder: hinten die Rückwand, davor
+      // ein schmaler Streifen, dann die große Warenfläche und vorn die
+      // Ablage. Genau diese Gliederung macht die Zeile auf dem Plan
+      // wiedererkennbar – ein leeres Rechteck wäre nur ein Kasten.
+      //
+      // Die Trennlinien liegen als eigene Teilpfade im selben Pfad: Sie haben
+      // keine Fläche, werden also nur gestrichelt gezeichnet und nicht gefüllt.
+      ctx.rect(0, 0, b, t);
+      for (const anteil of [0.23, 0.32, 0.83]) {
+        ctx.moveTo(0, t * anteil);
+        ctx.lineTo(b, t * anteil);
+      }
+      break;
+    }
+    case 'bakeoffEcke': {
+      // Das Eckstück: ein Keil, der die Lücke füllt, wenn die Zeile abknickt.
+      // Bei gleicher Breite und Tiefe steht die Schräge genau auf 45°.
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b, 0);
+      ctx.lineTo(0, t);
+      ctx.closePath();
+      break;
+    }
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);

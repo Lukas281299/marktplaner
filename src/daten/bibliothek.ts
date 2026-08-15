@@ -43,10 +43,26 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'theke-wurst', name: 'Wursttheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e5c6c2' },
   { id: 'theke-kaese', name: 'Käsetheke', kategorie: 'frische', breite: 200, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#eeddb4' },
   { id: 'theke-fisch', name: 'Fischtheke', kategorie: 'frische', breite: 200, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#c2dbe2' },
-  { id: 'frische-backshop', name: 'Backshop', kategorie: 'frische', breite: 300, tiefe: 200, hoehe: 200, form: 'rechteck', farbe: '#e9d5ae' },
-  { id: 'theke-backwaren', name: 'Backwarentheke', kategorie: 'frische', breite: 250, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e6cfa4' },
+  { id: 'theke-backwaren', name: 'Backwarentheke', kategorie: 'frische', breite: 250, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e6cfa4', hinweis: 'Bedientheke – für Selbstbedienung siehe Backwaren' },
   { id: 'frische-salatbar', name: 'Salatbar', kategorie: 'frische', breite: 150, tiefe: 100, hoehe: 120, form: 'abgerundet', farbe: '#cbe3bb' },
   { id: 'theke-heiss', name: 'Heiße Theke', kategorie: 'frische', breite: 200, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e7c39c' },
+
+  // ------------------------------------------------------------ Backwaren
+  //
+  // BakeOff 3.0 von Wanzl. Maße aus dem Workbook (Version 18 / 08-2025):
+  // Der Backwarenturm gibt es in genau einer Größe – 1000 x 1855 x 885 mm
+  // (Breite x Höhe x Tiefe). Die Varianten unterscheiden sich nicht im Maß,
+  // sondern in der Ausstattung. Deshalb ist die Breite hier überall 100 cm:
+  // Eine 5-Meter-Zeile sind fünf Türme nebeneinander.
+  { id: 'bakeoff-turm', name: 'BakeOff-Turm', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Grundmodul BO3.0 01.001 – 1000 x 1855 x 885 mm' },
+  { id: 'bakeoff-turm-strom', name: 'BakeOff-Turm mit Strom', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d0ad82', hinweis: 'Stromführend, Anschluss 230 V – BO3.0 01.002' },
+  { id: 'bakeoff-turm-schneider', name: 'BakeOff-Turm Brotschneider', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d0ad82', hinweis: 'Für Brotschneidemaschine – BO3.0 01.003' },
+  { id: 'bakeoff-turm-einzel', name: 'BakeOff-Turm einzeln', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Stand-Alone, freistehend – BO3.0 01.004' },
+  { id: 'bakeoff-ecke', name: 'BakeOff-Eckstück 45°', kategorie: 'backwaren', breite: 88.5, tiefe: 88.5, hoehe: 185.5, form: 'bakeoffEcke', farbe: '#c49a6c', hinweis: 'Füllt die Ecke, wenn die Zeile abknickt' },
+  { id: 'bakeoff-ablage', name: 'Klappbare Ablage', kategorie: 'backwaren', breite: 100, tiefe: 40, hoehe: 90, form: 'rechteck', farbe: '#e8dcc8', hinweis: 'Vor der Zeile, im Plan gestrichelt' },
+  // Das freie Element: gleiches Symbol, aber alle Maße selbst bestimmbar –
+  // für Sonderbauten und für alles, was das Workbook nicht hergibt.
+  { id: 'bakeoff-frei', name: 'BakeOff frei', kategorie: 'backwaren', breite: 200, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Maße frei einstellbar – Breite, Tiefe und Höhe rechts eintragen' },
 
   // ------------------------------------------------------ Kassen & Eingang
   { id: 'kasse-normal', name: 'Kasse', kategorie: 'kassen', breite: 300, tiefe: 100, hoehe: 110, form: 'rechteck', farbe: '#f5dda0', hinweis: 'Bediente Kasse mit Warenband' },
