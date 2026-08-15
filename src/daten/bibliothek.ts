@@ -107,6 +107,10 @@ const BLINK_FARBEN: { name: string; wert: string }[] = [
   { name: 'rot', wert: '#d0504f' },
   { name: 'blau', wert: '#3f86c9' },
   { name: 'gelb', wert: '#e0b93a' },
+  // Dunkelbraun für eine Backwarenbedienung – bewusst dunkler als die
+  // BakeOff-Türme, damit die bediente Theke sich von der Selbstbedienung
+  // abhebt, ohne aus der Reihe zu fallen.
+  { name: 'dunkelbraun', wert: '#a67c4e' },
 ];
 
 const BLINK_MOEBEL: {
@@ -233,15 +237,8 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'kuehl-wurst-sb', name: 'Wurst-SB-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#dcc8cd' },
   { id: 'kuehl-getraenke', name: 'Getränke-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#b0d4e6' },
 
-  // ------------------------------------------------------ Frischeabteilung
+  // Die Zonenmarkierung für Obst und Gemüse. Kein Möbel, sondern eine Fläche.
   { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'obstgemuese', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche – Zonenmarkierung, kein Möbel', gruppe: 'Frei' },
-  { id: 'theke-fleisch', name: 'Fleischtheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e2bdbd' },
-  { id: 'theke-wurst', name: 'Wursttheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e5c6c2' },
-  { id: 'theke-kaese', name: 'Käsetheke', kategorie: 'frische', breite: 200, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#eeddb4' },
-  { id: 'theke-fisch', name: 'Fischtheke', kategorie: 'frische', breite: 200, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#c2dbe2' },
-  { id: 'theke-backwaren', name: 'Backwarentheke', kategorie: 'frische', breite: 250, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e6cfa4', hinweis: 'Bedientheke – für Selbstbedienung siehe Backwaren' },
-  { id: 'frische-salatbar', name: 'Salatbar', kategorie: 'frische', breite: 150, tiefe: 100, hoehe: 120, form: 'abgerundet', farbe: '#cbe3bb' },
-  { id: 'theke-heiss', name: 'Heiße Theke', kategorie: 'frische', breite: 200, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e7c39c' },
 
   // ------------------------------------------------- Bedienung & SB-Theken
   //
@@ -257,22 +254,30 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   //
   //   Eclipse Remote  – Schrank    T 940,  H 2010/2210, L 1562/2343/3124/3898
   //   Eclipse Combo   – Kombi      T 1145, H 2098/2298, L 1875/2500/3750
-  //   Eclipse Island  – Truhe      T 1532/2022, H 986,  L 1875/2500/3750
+  //   Eclipse Island  – Truhe      T 1121/2119, H 987/986, L 1875/2500/3750
   //
   // Die Truhenlängen sind genau 3, 4 und 6 Module à 625 mm – deshalb zeichnet
   // das Symbol diese Teilung mit, und deshalb lässt sich eine Truhe in
   // 62,5er-Schritten verlängern.
 
   // ---- Truhen (Eclipse Island)
-  { id: 'tk-truhe-1532-1875', name: 'TK-Truhe 1,88 m · T1532', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T1532', hinweis: '3 Module à 625 mm · Auslage 604 mm je Seite' },
-  { id: 'tk-truhe-1532-2500', name: 'TK-Truhe 2,50 m · T1532', kategorie: 'tiefkuehlung', breite: 250, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T1532', hinweis: '4 Module à 625 mm' },
-  { id: 'tk-truhe-1532-3750', name: 'TK-Truhe 3,75 m · T1532', kategorie: 'tiefkuehlung', breite: 375, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T1532', hinweis: '6 Module à 625 mm' },
-  { id: 'tk-truhe-2022-1875', name: 'TK-Truhe 1,88 m · T2022', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T2022', hinweis: '3 Module à 625 mm · Auslage 850 mm je Seite' },
-  { id: 'tk-truhe-2022-2500', name: 'TK-Truhe 2,50 m · T2022', kategorie: 'tiefkuehlung', breite: 250, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T2022', hinweis: '4 Module à 625 mm' },
-  { id: 'tk-truhe-2022-3750', name: 'TK-Truhe 3,75 m · T2022', kategorie: 'tiefkuehlung', breite: 375, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T2022', hinweis: '6 Module à 625 mm' },
-  // Kopfstück am Ende einer Truhenzeile. Seine Länge entspricht der Tiefe.
-  { id: 'tk-truhe-kopf-1532', name: 'TK-Truhe Kopfstück · T1532', kategorie: 'tiefkuehlung', breite: 62.5, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA_DUNKEL, gruppe: 'Truhen T1532', hinweis: 'Kopfstück, im Katalog 1532 mm einschließlich Seitenwänden' },
-  { id: 'tk-truhe-kopf-2022', name: 'TK-Truhe Kopfstück · T2022', kategorie: 'tiefkuehlung', breite: 62.5, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA_DUNKEL, gruppe: 'Truhen T2022', hinweis: 'Kopfstück, im Katalog 2022 mm einschließlich Seitenwänden' },
+  //
+  // Zwei Bauarten, beide mit den Maßen aus den Schnittzeichnungen:
+  //
+  //   Single Island   T 1121 mm (Korpus 1073)  H  987 mm  Auslage 849 mm
+  //   Double Island   T 2119 mm (Korpus 2022)  H  986 mm  Auslage 850 mm je Seite
+  //
+  // Eingetragen ist das äußere Maß einschließlich Stoßschutz, denn das ist
+  // der Platz, den die Truhe am Boden wirklich braucht.
+  { id: 'tk-truhe-einzel-1875', name: 'TK-Truhe einseitig 1,88 m', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 112.1, hoehe: 98.7, form: 'tkTruhe', farbe: TK_LILA, gruppe: 'Truhen einseitig', hinweis: 'Single Island · 3 Module à 625 mm · Auslage 849 mm' },
+  { id: 'tk-truhe-einzel-2500', name: 'TK-Truhe einseitig 2,50 m', kategorie: 'tiefkuehlung', breite: 250, tiefe: 112.1, hoehe: 98.7, form: 'tkTruhe', farbe: TK_LILA, gruppe: 'Truhen einseitig', hinweis: 'Single Island · 4 Module à 625 mm' },
+  { id: 'tk-truhe-einzel-3750', name: 'TK-Truhe einseitig 3,75 m', kategorie: 'tiefkuehlung', breite: 375, tiefe: 112.1, hoehe: 98.7, form: 'tkTruhe', farbe: TK_LILA, gruppe: 'Truhen einseitig', hinweis: 'Single Island · 6 Module à 625 mm' },
+  { id: 'tk-truhe-doppel-1875', name: 'TK-Truhe beidseitig 1,88 m', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 211.9, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen beidseitig', hinweis: 'Double Island · 3 Module à 625 mm · Auslage 850 mm je Seite' },
+  { id: 'tk-truhe-doppel-2500', name: 'TK-Truhe beidseitig 2,50 m', kategorie: 'tiefkuehlung', breite: 250, tiefe: 211.9, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen beidseitig', hinweis: 'Double Island · 4 Module à 625 mm' },
+  { id: 'tk-truhe-doppel-3750', name: 'TK-Truhe beidseitig 3,75 m', kategorie: 'tiefkuehlung', breite: 375, tiefe: 211.9, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen beidseitig', hinweis: 'Double Island · 6 Module à 625 mm' },
+  // Kopfstück am Ende einer Truhenzeile.
+  { id: 'tk-truhe-kopf-einzel', name: 'TK-Truhe Kopfstück einseitig', kategorie: 'tiefkuehlung', breite: 62.5, tiefe: 112.1, hoehe: 98.7, form: 'tkTruhe', farbe: TK_LILA_DUNKEL, gruppe: 'Truhen einseitig' },
+  { id: 'tk-truhe-kopf-doppel', name: 'TK-Truhe Kopfstück beidseitig', kategorie: 'tiefkuehlung', breite: 62.5, tiefe: 211.9, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA_DUNKEL, beidseitig: true, gruppe: 'Truhen beidseitig' },
 
   // ---- Schränke (Eclipse Remote)
   { id: 'tk-schrank-h2010-2t', name: 'TK-Schrank 1,56 m · 2 Türen · H2010', kategorie: 'tiefkuehlung', breite: 156.2, tiefe: 94, hoehe: 201, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2010', hinweis: 'Auslage 1531 mm, Etagentiefe 600 mm' },
@@ -293,7 +298,8 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'tk-kombi-h2298-3750', name: 'TK-Kombi 3,75 m · H2298', kategorie: 'tiefkuehlung', breite: 375, tiefe: 114.5, hoehe: 229.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Kombigeräte' },
 
   // ---- Frei einstellbar
-  { id: 'tk-truhe-frei', name: 'TK-Truhe frei', kategorie: 'tiefkuehlung', breite: 312.5, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Frei', hinweis: 'Länge in Schritten von 62,5 cm eintragen – das Symbol teilt sich danach' },
+  { id: 'tk-truhe-frei', name: 'TK-Truhe frei einseitig', kategorie: 'tiefkuehlung', breite: 312.5, tiefe: 112.1, hoehe: 98.7, form: 'tkTruhe', farbe: TK_LILA, gruppe: 'Frei', hinweis: 'Länge in Schritten von 62,5 cm eintragen – das Symbol teilt sich danach' },
+  { id: 'tk-truhe-frei-doppel', name: 'TK-Truhe frei beidseitig', kategorie: 'tiefkuehlung', breite: 312.5, tiefe: 211.9, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Frei', hinweis: 'Länge in Schritten von 62,5 cm eintragen' },
   { id: 'tk-schrank-frei', name: 'TK-Schrank frei', kategorie: 'tiefkuehlung', breite: 234.3, tiefe: 94, hoehe: 201, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Frei', hinweis: 'Die Zahl der Türen ergibt sich aus der Länge (rund 78 cm je Tür)' },
   { id: 'tk-kombi-frei', name: 'TK-Kombi frei', kategorie: 'tiefkuehlung', breite: 250, tiefe: 114.5, hoehe: 209.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Frei' },
 

@@ -45,12 +45,6 @@ export const KATEGORIEN: Kategorie[] = [
     beschreibung: 'Vitable-Tische, Gondeln, Ecken und Köpfe',
   },
   {
-    id: 'frische',
-    name: 'Frischetheken',
-    farbe: '#c3ddb8',
-    beschreibung: 'Fleisch, Wurst, Käse, Fisch und Salatbar',
-  },
-  {
     id: 'backwaren',
     name: 'Backwaren',
     farbe: '#d8bc98',

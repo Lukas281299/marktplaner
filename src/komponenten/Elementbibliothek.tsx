@@ -17,7 +17,17 @@ export function Elementbibliothek() {
   const eigeneVorlagen = usePlanStore((s) => s.eigeneVorlagen);
   const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
   const [suche, setSuche] = useState('');
-  const [zugeklappt, setZugeklappt] = useState<Set<KategorieId>>(new Set());
+  /**
+   * Zugeklappte Abteilungen. Beim Start sind **alle** zu.
+   *
+   * Die Bibliothek ist inzwischen mehrere hundert Vorlagen lang. Alles
+   * aufgeklappt zu zeigen hieße, jedes Mal an einer meterlangen Liste
+   * vorbeizuscrollen. Wer eine Abteilung braucht, klappt sie auf – oder
+   * benutzt die Suche, die alles aufklappt.
+   */
+  const [zugeklappt, setZugeklappt] = useState<Set<KategorieId>>(
+    () => new Set(KATEGORIEN.map((k) => k.id)),
+  );
   /**
    * Zugeklappte Untergruppen, gemerkt als „Kategorie|Gruppe".
    *

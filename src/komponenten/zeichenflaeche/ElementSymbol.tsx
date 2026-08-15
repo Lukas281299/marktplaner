@@ -17,8 +17,19 @@ import type { Grundform, PlanElement } from '../../typen/modell';
  * jedes Element um die eigene Mitte.
  */
 
-/** Zeichnet die gewählte Grundform in ein Rechteck der Größe b × t. */
-function zeichneForm(ctx: Konva.Context, form: Grundform, b: number, t: number) {
+/**
+ * Zeichnet die gewählte Grundform in ein Rechteck der Größe b × t.
+ *
+ * `beidseitig` ändert bei manchen Möbeln die Zeichnung: Eine Doppeltruhe hat
+ * einen Steg in der Mitte, eine Einzeltruhe eine Rückwand.
+ */
+function zeichneForm(
+  ctx: Konva.Context,
+  form: Grundform,
+  b: number,
+  t: number,
+  beidseitig = false,
+) {
   switch (form) {
     case 'abgerundet': {
       const r = Math.min(b, t) * 0.18;
@@ -125,19 +136,26 @@ function zeichneForm(ctx: Konva.Context, form: Grundform, b: number, t: number) 
       break;
 
     case 'tkTruhe': {
-      // Tiefkühlinsel von oben: zwei Bedienseiten mit einem Steg dazwischen,
-      // unterteilt in Module von 62,5 cm. Genau diese Teilung macht die
-      // Truhe im Plan erkennbar und zeigt, wie lang sie sich bauen lässt.
+      // Tiefkühlinsel von oben, unterteilt in Module von 62,5 cm. Genau
+      // diese Teilung macht die Truhe im Plan erkennbar und zeigt, wie lang
+      // sie sich bauen lässt.
       ctx.rect(0, 0, b, t);
       for (let x = TRUHENMODUL; x < b - 0.1; x += TRUHENMODUL) {
         ctx.moveTo(x, 0);
         ctx.lineTo(x, t);
       }
-      // Der Steg in der Mitte, an dem sich die beiden Seiten treffen.
-      ctx.moveTo(0, t * 0.46);
-      ctx.lineTo(b, t * 0.46);
-      ctx.moveTo(0, t * 0.54);
-      ctx.lineTo(b, t * 0.54);
+      if (beidseitig) {
+        // Doppeltruhe: der Steg in der Mitte, an dem beide Seiten
+        // aufeinandertreffen.
+        ctx.moveTo(0, t * 0.46);
+        ctx.lineTo(b, t * 0.46);
+        ctx.moveTo(0, t * 0.54);
+        ctx.lineTo(b, t * 0.54);
+      } else {
+        // Einzeltruhe: nur eine Auslage, dahinter die Rückwand.
+        ctx.moveTo(0, t * 0.18);
+        ctx.lineTo(b, t * 0.18);
+      }
       break;
     }
 
@@ -387,7 +405,7 @@ export function ElementSymbol({
         // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
         //    Linienfarbe des Elements.
         ctx.beginPath();
-        zeichneForm(ctx, element.form, b, t);
+        zeichneForm(ctx, element.form, b, t, Boolean(element.beidseitig));
         zeichneAchsmass(ctx, element.form, element.breite, b, t);
         ctx.fillStrokeShape(shape);
 

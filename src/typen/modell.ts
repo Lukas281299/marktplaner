@@ -28,7 +28,6 @@ export type KategorieId =
   | 'tiefkuehlung'
   | 'bedienung'
   | 'obstgemuese'
-  | 'frische'
   | 'backwaren'
   | 'kassen'
   | 'aktion'
