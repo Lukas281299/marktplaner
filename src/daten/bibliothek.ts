@@ -1,4 +1,4 @@
-import type { BibliothekEintrag } from '../typen/modell';
+import type { BibliothekEintrag, Grundform } from '../typen/modell';
 
 /**
  * Die mitgelieferte Elementbibliothek.
@@ -93,6 +93,79 @@ function stufenText(stufen: number[]): string {
   return stufen.map((s, i) => (i === 0 ? `T${s * 10}` : `${s * 10}`)).join('+');
 }
 
+/**
+ * Die Blink-Bedienmöbel von WSL, Katalog 2026 Seite 32/33.
+ *
+ * Drei Möbel, jedes in sechs Längen und drei Farben. Die Farben sind im
+ * Ladenbau die übliche Kennzeichnung der Warengruppe – rot für Fleisch,
+ * blau für Fisch, gelb für Käse –, deshalb stehen sie hier gleich zur Wahl,
+ * statt sie hinterher am einzelnen Möbel einstellen zu müssen.
+ */
+const BLINK_LAENGEN = [93.7, 125, 187.5, 250, 312.5, 375];
+
+const BLINK_FARBEN: { name: string; wert: string }[] = [
+  { name: 'rot', wert: '#d0504f' },
+  { name: 'blau', wert: '#3f86c9' },
+  { name: 'gelb', wert: '#e0b93a' },
+];
+
+const BLINK_MOEBEL: {
+  kennung: string;
+  name: string;
+  form: Grundform;
+  tiefe: number;
+  hoehe: number;
+  hinweis: string;
+}[] = [
+  {
+    kennung: 'theke',
+    name: 'Bedientheke',
+    form: 'blinkTheke',
+    tiefe: 123,
+    hoehe: 124.7,
+    hinweis: 'Blink Standard Flat – bedient, mit Glasfront und Arbeitsbereich',
+  },
+  {
+    kennung: 'sb-flach',
+    name: 'SB flach',
+    form: 'blinkSelf',
+    tiefe: 123,
+    hoehe: 87.1,
+    hinweis: 'Blink Self Flat – Selbstbedienung, niedrig und offen',
+  },
+  {
+    kennung: 'sb-halbhoch',
+    name: 'SB halbhoch',
+    form: 'blinkSv',
+    tiefe: 119,
+    hoehe: 150,
+    hinweis: 'Blink SV – Selbstbedienung mit mehreren Etagen',
+  },
+];
+
+function blinkEintraege(): BibliothekEintrag[] {
+  const eintraege: BibliothekEintrag[] = [];
+  for (const moebel of BLINK_MOEBEL) {
+    for (const farbe of BLINK_FARBEN) {
+      for (const laenge of BLINK_LAENGEN) {
+        eintraege.push({
+          id: `blink-${moebel.kennung}-${farbe.name}-${Math.round(laenge * 10)}`,
+          name: `${moebel.name} ${(laenge / 100).toFixed(2).replace('.', ',')} m`,
+          kategorie: 'bedienung',
+          breite: laenge,
+          tiefe: moebel.tiefe,
+          hoehe: moebel.hoehe,
+          form: moebel.form,
+          farbe: farbe.wert,
+          gruppe: `${moebel.name} ${farbe.name}`,
+          hinweis: moebel.hinweis,
+        });
+      }
+    }
+  }
+  return eintraege;
+}
+
 /** Multipliziert die Variantentabelle mit den beiden Achsmaßen aus. */
 function vitableEintraege(): BibliothekEintrag[] {
   const eintraege: BibliothekEintrag[] = [];
@@ -169,6 +242,13 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'theke-backwaren', name: 'Backwarentheke', kategorie: 'frische', breite: 250, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e6cfa4', hinweis: 'Bedientheke – für Selbstbedienung siehe Backwaren' },
   { id: 'frische-salatbar', name: 'Salatbar', kategorie: 'frische', breite: 150, tiefe: 100, hoehe: 120, form: 'abgerundet', farbe: '#cbe3bb' },
   { id: 'theke-heiss', name: 'Heiße Theke', kategorie: 'frische', breite: 200, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e7c39c' },
+
+  // ------------------------------------------------- Bedienung & SB-Theken
+  //
+  // Blink von WSL, Katalog 2026 Seite 32/33. Längen 937, 1250, 1875, 2500,
+  // 3125 und 3750 mm – bis auf die kürzeste wieder das 625er-Raster.
+  ...blinkEintraege(),
+  { id: 'blink-frei', name: 'Bedientheke frei', kategorie: 'bedienung', breite: 250, tiefe: 123, hoehe: 124.7, form: 'blinkTheke', farbe: '#d0504f', gruppe: 'Frei', hinweis: 'Maße und Farbe frei einstellbar' },
 
   // ---------------------------------------------------------- Tiefkühlung
   //

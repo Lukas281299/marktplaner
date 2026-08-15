@@ -26,6 +26,7 @@ export type KategorieId =
   | 'regale'
   | 'kuehlung'
   | 'tiefkuehlung'
+  | 'bedienung'
   | 'obstgemuese'
   | 'frische'
   | 'backwaren'
@@ -57,7 +58,10 @@ export type Grundform =
   | 'vitableAbschlussRund'
   | 'tkSchrank'
   | 'tkTruhe'
-  | 'tkKombi';
+  | 'tkKombi'
+  | 'blinkTheke'
+  | 'blinkSelf'
+  | 'blinkSv';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {

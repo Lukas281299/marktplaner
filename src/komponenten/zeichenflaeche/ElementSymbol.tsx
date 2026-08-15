@@ -176,6 +176,39 @@ function zeichneForm(ctx: Konva.Context, form: Grundform, b: number, t: number) 
       break;
     }
 
+    // Die drei Blink-Möbel unterscheiden sich im Grundriss durch ihre
+    // Längslinien. Das ist ihr einziges sichtbares Merkmal – die Umrisse
+    // sind fast gleich groß, und nur daran erkennt man auf dem Plan, ob
+    // dort bedient wird oder der Kunde selbst zugreift.
+    case 'blinkTheke':
+      // Bedientheke: hinten der Arbeitsbereich, vorn die Glasfront.
+      ctx.rect(0, 0, b, t);
+      for (const anteil of [0.2, 0.78, 0.9]) {
+        ctx.moveTo(0, t * anteil);
+        ctx.lineTo(b, t * anteil);
+      }
+      break;
+
+    case 'blinkSelf':
+      // SB flach: kein Arbeitsbereich, dafür zwei gleich große Auslagen,
+      // an die der Kunde von vorn herankommt.
+      ctx.rect(0, 0, b, t);
+      for (const anteil of [0.16, 0.58]) {
+        ctx.moveTo(0, t * anteil);
+        ctx.lineTo(b, t * anteil);
+      }
+      break;
+
+    case 'blinkSv':
+      // SB halbhoch: mehrere übereinanderliegende Etagen, von oben als
+      // schmale Bänder sichtbar – wie bei einem Wandregal.
+      ctx.rect(0, 0, b, t);
+      for (const anteil of [0.22, 0.42, 0.62, 0.82]) {
+        ctx.moveTo(0, t * anteil);
+        ctx.lineTo(b, t * anteil);
+      }
+      break;
+
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);

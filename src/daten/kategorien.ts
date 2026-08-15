@@ -33,6 +33,12 @@ export const KATEGORIEN: Kategorie[] = [
     beschreibung: 'Truhen, Schränke und Kombigeräte von WSL',
   },
   {
+    id: 'bedienung',
+    name: 'Bedienung & SB-Theken',
+    farbe: '#d0504f',
+    beschreibung: 'Blink-Theken von WSL – bedient und Selbstbedienung',
+  },
+  {
     id: 'obstgemuese',
     name: 'Obst & Gemüse',
     farbe: '#1a7a1a',
