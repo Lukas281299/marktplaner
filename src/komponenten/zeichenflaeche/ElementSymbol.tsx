@@ -227,6 +227,33 @@ function zeichneForm(
       }
       break;
 
+    // Normalkühlung. Alle drei sind blau, deshalb muss die Zeichnung sie
+    // auseinanderhalten – im Plan stehen sie oft nebeneinander.
+    case 'kuehlSchrank':
+    case 'kuehlOffen':
+      // Hochkühlregal: eine Etagenkante und die tiefere Sockeletage davor.
+      // Der Unterschied zwischen den beiden ist die Tür: Das offene Möbel
+      // bekommt keinen Schwenkbogen (siehe MIT_TUEREN).
+      ctx.rect(0, 0, b, t);
+      for (const anteil of [0.48, 0.62]) {
+        ctx.moveTo(0, t * anteil);
+        ctx.lineTo(b, t * anteil);
+      }
+      break;
+
+    case 'kuehlStufen':
+      // Das Stufenmöbel: vier eng gestaffelte Etagenkanten und weiter vorn
+      // die tiefe Sockeletage. Die dichte Staffelung ist sein Kennzeichen –
+      // daran erkennt man es auch ohne Beschriftung.
+      // Anteile aus den Etagentiefen 392 / 442 / 492 und Sockel 705 bei
+      // einer Gesamttiefe von 991 mm.
+      ctx.rect(0, 0, b, t);
+      for (const anteil of [0.396, 0.446, 0.496, 0.711]) {
+        ctx.moveTo(0, t * anteil);
+        ctx.lineTo(b, t * anteil);
+      }
+      break;
+
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);
@@ -252,7 +279,7 @@ function tuerAnzahl(breite: number): number {
 }
 
 /** Formen, vor deren Front Türen gezeichnet werden. */
-const MIT_TUEREN = new Set<Grundform>(['tkSchrank', 'tkKombi']);
+const MIT_TUEREN = new Set<Grundform>(['tkSchrank', 'tkKombi', 'kuehlSchrank', 'kuehlStufen']);
 
 /**
  * Zeichnet die Schwenkbögen der Türen vor die Front.

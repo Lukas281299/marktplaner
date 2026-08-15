@@ -94,6 +94,74 @@ function stufenText(stufen: number[]): string {
 }
 
 /**
+ * Die Normalkühlung von WSL, Katalog 2026 Seiten 18 bis 21.
+ *
+ *   Titan Remote  – Hochkühlregal, mit Glastür oder offen
+ *                   T 1040 / 1215 mm, H 2100 / 2300 mm
+ *   Cloud Remote  – Stufenmöbel mit Tür, halbhoch
+ *                   T 991 mm, H 1500 mm
+ *
+ * Angegeben ist wie bei der Tiefkühlung das äußere Maß einschließlich
+ * Stoßschutz – der Platz, den das Möbel am Boden braucht. Der Korpus ist
+ * jeweils 40 mm schmaler (1000 bzw. 1175, beim Cloud 951).
+ */
+const KUEHL_BLAU = '#4f97d4';
+const KUEHL_BLAU_DUNKEL = '#2f6ea8';
+
+const KUEHL_LAENGEN = [93.7, 125, 187.5, 250, 375];
+
+/** Die vier Baugrößen des Titan, je mit Etagen- und Sockeltiefe. */
+const TITAN_GROESSEN = [
+  { tiefe: 104, hoehe: 210, etage: 500, sockel: 625, auslage: 1560 },
+  { tiefe: 104, hoehe: 230, etage: 500, sockel: 625, auslage: 1760 },
+  { tiefe: 121.5, hoehe: 210, etage: 600, sockel: 800, auslage: 1560 },
+  { tiefe: 121.5, hoehe: 230, etage: 600, sockel: 800, auslage: 1760 },
+];
+
+function kuehlEintraege(): BibliothekEintrag[] {
+  const eintraege: BibliothekEintrag[] = [];
+
+  for (const groesse of TITAN_GROESSEN) {
+    for (const mitTuer of [true, false]) {
+      for (const laenge of KUEHL_LAENGEN) {
+        const tiefeMm = Math.round(groesse.tiefe * 10);
+        const hoeheMm = Math.round(groesse.hoehe * 10);
+        const art = mitTuer ? 'mit Tür' : 'offen';
+        eintraege.push({
+          id: `kuehl-titan-${tiefeMm}-${hoeheMm}-${mitTuer ? 'tuer' : 'offen'}-${Math.round(laenge * 10)}`,
+          name: `Kühlregal ${(laenge / 100).toFixed(2).replace('.', ',')} m · ${art}`,
+          kategorie: 'kuehlung',
+          breite: laenge,
+          tiefe: groesse.tiefe,
+          hoehe: groesse.hoehe,
+          form: mitTuer ? 'kuehlSchrank' : 'kuehlOffen',
+          farbe: KUEHL_BLAU,
+          gruppe: `${mitTuer ? 'Mit Tür' : 'Offen'} · T${tiefeMm} · H${hoeheMm}`,
+          hinweis: `Titan Remote · Auslage ${groesse.auslage} mm, Etagentiefe ${groesse.etage} mm, Sockel ${groesse.sockel} mm`,
+        });
+      }
+    }
+  }
+
+  for (const laenge of KUEHL_LAENGEN) {
+    eintraege.push({
+      id: `kuehl-cloud-${Math.round(laenge * 10)}`,
+      name: `Stufenmöbel ${(laenge / 100).toFixed(2).replace('.', ',')} m · mit Tür`,
+      kategorie: 'kuehlung',
+      breite: laenge,
+      tiefe: 99.1,
+      hoehe: 150,
+      form: 'kuehlStufen',
+      farbe: KUEHL_BLAU_DUNKEL,
+      gruppe: 'Stufenmöbel',
+      hinweis: 'Cloud Remote · Auslage 1043 mm, Etagen 392 / 442 / 492 mm, Sockel 705 mm',
+    });
+  }
+
+  return eintraege;
+}
+
+/**
  * Die Blink-Bedienmöbel von WSL, Katalog 2026 Seite 32/33.
  *
  * Drei Möbel, jedes in sechs Längen und drei Farben. Die Farben sind im
@@ -226,16 +294,13 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'regal-brot', name: 'Brotregal', kategorie: 'regale', breite: 100, tiefe: 80, hoehe: 180, form: 'rechteck', farbe: '#e3d3b6' },
   { id: 'regal-zeitschriften', name: 'Zeitschriftenregal', kategorie: 'regale', breite: 125, tiefe: 50, hoehe: 160, form: 'rechteck', farbe: '#dcd4c6' },
 
-  // ------------------------------------------------ Kühlung & Tiefkühlung
-  { id: 'kuehl-regal', name: 'Kühlregal', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#b9d7ea', hinweis: 'Offenes Kühlregal' },
-  { id: 'kuehl-wand', name: 'Wandkühlregal', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#aecfe4' },
-  { id: 'kuehl-gondel', name: 'Kühlgondel', kategorie: 'kuehlung', breite: 250, tiefe: 110, hoehe: 120, form: 'abgerundet', farbe: '#a5c9e0' },
-  { id: 'tk-truhe', name: 'Tiefkühltruhe', kategorie: 'kuehlung', breite: 200, tiefe: 90, hoehe: 90, form: 'abgerundet', farbe: '#94bedb', hinweis: 'Waagerechte Truhe' },
-  { id: 'tk-schrank', name: 'Tiefkühlschrank', kategorie: 'kuehlung', breite: 125, tiefe: 90, hoehe: 200, form: 'rechteck', farbe: '#88b6d6', hinweis: 'Stehender TK-Schrank mit Glastüren' },
-  { id: 'kuehl-molkerei', name: 'Molkereiprodukte-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#c3ddec' },
-  { id: 'kuehl-fleisch-sb', name: 'Fleisch-SB-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#d9c2c8' },
-  { id: 'kuehl-wurst-sb', name: 'Wurst-SB-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#dcc8cd' },
-  { id: 'kuehl-getraenke', name: 'Getränke-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#b0d4e6' },
+  // ---------------------------------------------------- Normalkuehlung
+  //
+  // Titan Remote und Cloud Remote von WSL, Katalog 2026 Seiten 18 bis 21.
+  // Die frueheren allgemeinen Rechtecke sind entfallen: Molkerei, SB-Fleisch
+  // und Getraenke sind dieselben Moebel mit anderer Warengruppe, und die
+  // beiden Tiefkuehleintraege stehen jetzt richtig unter Tiefkuehlung.
+  ...kuehlEintraege(),
 
   // Die Zonenmarkierung für Obst und Gemüse. Kein Möbel, sondern eine Fläche.
   { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'obstgemuese', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche – Zonenmarkierung, kein Möbel', gruppe: 'Frei' },

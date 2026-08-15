@@ -60,7 +60,10 @@ export type Grundform =
   | 'tkKombi'
   | 'blinkTheke'
   | 'blinkSelf'
-  | 'blinkSv';
+  | 'blinkSv'
+  | 'kuehlSchrank'
+  | 'kuehlOffen'
+  | 'kuehlStufen';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {
