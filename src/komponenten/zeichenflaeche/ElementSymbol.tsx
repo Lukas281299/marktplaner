@@ -124,10 +124,107 @@ function zeichneForm(ctx: Konva.Context, form: Grundform, b: number, t: number) 
       ctx.closePath();
       break;
 
+    case 'tkTruhe': {
+      // Tiefkühlinsel von oben: zwei Bedienseiten mit einem Steg dazwischen,
+      // unterteilt in Module von 62,5 cm. Genau diese Teilung macht die
+      // Truhe im Plan erkennbar und zeigt, wie lang sie sich bauen lässt.
+      ctx.rect(0, 0, b, t);
+      for (let x = TRUHENMODUL; x < b - 0.1; x += TRUHENMODUL) {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, t);
+      }
+      // Der Steg in der Mitte, an dem sich die beiden Seiten treffen.
+      ctx.moveTo(0, t * 0.46);
+      ctx.lineTo(b, t * 0.46);
+      ctx.moveTo(0, t * 0.54);
+      ctx.lineTo(b, t * 0.54);
+      break;
+    }
+
+    case 'tkSchrank': {
+      // Tiefkühlschrank: ein Feld je Tür, dazu die Türen selbst als
+      // Schwenkbogen davor – so sieht man im Plan sofort, wie weit sie
+      // aufgehen und ob der Gang dafür reicht.
+      ctx.rect(0, 0, b, t);
+      const tueren = tuerAnzahl(b);
+      const breiteJeTuer = b / tueren;
+      for (let i = 1; i < tueren; i++) {
+        ctx.moveTo(i * breiteJeTuer, 0);
+        ctx.lineTo(i * breiteJeTuer, t);
+      }
+      break;
+    }
+
+    case 'tkKombi': {
+      // Kombigerät: hinten der Schrankteil mit Türen, vorn die offene Wanne.
+      // Die Trennlinie liegt bei der Tiefe der oberen Etagen (400 von 1145).
+      ctx.rect(0, 0, b, t);
+      const grenze = t * 0.35;
+      ctx.moveTo(0, grenze);
+      ctx.lineTo(b, grenze);
+      const tueren = tuerAnzahl(b);
+      const breiteJeTuer = b / tueren;
+      for (let i = 1; i < tueren; i++) {
+        ctx.moveTo(i * breiteJeTuer, 0);
+        ctx.lineTo(i * breiteJeTuer, grenze);
+      }
+      // Die Wanne davor ist wie die Truhe in 62,5er-Module geteilt.
+      for (let x = TRUHENMODUL; x < b - 0.1; x += TRUHENMODUL) {
+        ctx.moveTo(x, grenze);
+        ctx.lineTo(x, t);
+      }
+      break;
+    }
+
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);
       break;
+  }
+}
+
+/** Modulbreite einer Tiefkühltruhe in cm – daraus setzt sich ihre Länge zusammen. */
+const TRUHENMODUL = 62.5;
+
+/**
+ * Übliche Türbreite eines Tiefkühlschranks in cm.
+ *
+ * Der Katalog führt Längen von 1562, 2343, 3124 und 3898 mm mit zwei bis
+ * fünf Türen – das sind rund 781 mm je Tür. Die Zahl der Türen wird daraus
+ * berechnet statt gespeichert: Zieht jemand den Schrank länger, kommen Türen
+ * dazu, und genau so wird er auch bestellt.
+ */
+const TUERBREITE = 78.1;
+
+function tuerAnzahl(breite: number): number {
+  return Math.max(1, Math.round(breite / TUERBREITE));
+}
+
+/** Formen, vor deren Front Türen gezeichnet werden. */
+const MIT_TUEREN = new Set<Grundform>(['tkSchrank', 'tkKombi']);
+
+/**
+ * Zeichnet die Schwenkbögen der Türen vor die Front.
+ *
+ * Bewusst in einem eigenen Durchgang und nur als Strich: Türbögen sind
+ * Linien, keine Flächen. Lägen sie im Hauptpfad, würde die Füllung des
+ * Möbels sie mit ausfüllen und aus jedem Bogen ein farbiges Tortenstück
+ * machen.
+ *
+ * Alle Türen schlagen in dieselbe Richtung auf. Im Plan sieht man dadurch auf
+ * einen Blick, wie viel Gang eine geöffnete Tür braucht.
+ */
+function zeichneTuerboegen(ctx: Konva.Context, b: number, t: number) {
+  const tueren = tuerAnzahl(b);
+  const breiteJeTuer = b / tueren;
+  for (let i = 0; i < tueren; i++) {
+    const angel = i * breiteJeTuer;
+    // Das Türblatt, im rechten Winkel offen.
+    ctx.moveTo(angel, t);
+    ctx.lineTo(angel, t + breiteJeTuer);
+    // Der Bogen von der offenen Tür bis zur gegenüberliegenden Zarge.
+    ctx.moveTo(angel, t + breiteJeTuer);
+    ctx.arc(angel, t, breiteJeTuer, Math.PI / 2, 0, true);
   }
 }
 
@@ -264,17 +361,29 @@ export function ElementSymbol({
         // 2. Die hellen Stufenkanten darüber. Sie brauchen eine eigene Farbe
         //    und deshalb einen zweiten Durchgang.
         const hell = helleLinien(element, b, t);
-        if (hell.length === 0) return;
-        ctx.save();
-        ctx.setAttr('strokeStyle', '#ffffff');
-        ctx.setAttr('lineWidth', 1.6 / zoom);
-        ctx.beginPath();
-        for (const [x1, y1, x2, y2] of hell) {
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
+        if (hell.length > 0) {
+          ctx.save();
+          ctx.setAttr('strokeStyle', '#ffffff');
+          ctx.setAttr('lineWidth', 1.6 / zoom);
+          ctx.beginPath();
+          for (const [x1, y1, x2, y2] of hell) {
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+          }
+          ctx.stroke();
+          ctx.restore();
         }
-        ctx.stroke();
-        ctx.restore();
+
+        // 3. Die Türbögen – ebenfalls nur Strich, siehe `zeichneTuerboegen`.
+        if (MIT_TUEREN.has(element.form)) {
+          ctx.save();
+          ctx.setAttr('strokeStyle', 'rgba(30,40,52,0.65)');
+          ctx.setAttr('lineWidth', 1.1 / zoom);
+          ctx.beginPath();
+          zeichneTuerboegen(ctx, b, t);
+          ctx.stroke();
+          ctx.restore();
+        }
       }}
       onMouseDown={(e) => beiMausTaste(e, element.id)}
       onDragStart={(e) => beiZiehStart(e, element.id)}

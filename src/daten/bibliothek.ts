@@ -20,6 +20,11 @@ import type { BibliothekEintrag } from '../typen/modell';
  */
 const OG_GRUEN = '#1a7a1a';
 
+/** Die Lilatöne der Tiefkühlmöbel – Truhe, Kombigerät, Kopfstück. */
+const TK_LILA = '#a78ecf';
+const TK_LILA_HELL = '#c2aee6';
+const TK_LILA_DUNKEL = '#8a70b8';
+
 /**
  * Die Vitable-Varianten aus dem Workbook, Seiten 12 und 13.
  *
@@ -164,6 +169,53 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'theke-backwaren', name: 'Backwarentheke', kategorie: 'frische', breite: 250, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e6cfa4', hinweis: 'Bedientheke – für Selbstbedienung siehe Backwaren' },
   { id: 'frische-salatbar', name: 'Salatbar', kategorie: 'frische', breite: 150, tiefe: 100, hoehe: 120, form: 'abgerundet', farbe: '#cbe3bb' },
   { id: 'theke-heiss', name: 'Heiße Theke', kategorie: 'frische', breite: 200, tiefe: 100, hoehe: 130, form: 'rechteck', farbe: '#e7c39c' },
+
+  // ---------------------------------------------------------- Tiefkühlung
+  //
+  // WSL Refrigeration (Wanzl), Produktkatalog 2026, Seiten 24 bis 29.
+  // Alle Maße in Millimetern aus den Datentabellen, hier in Zentimetern.
+  //
+  //   Eclipse Remote  – Schrank    T 940,  H 2010/2210, L 1562/2343/3124/3898
+  //   Eclipse Combo   – Kombi      T 1145, H 2098/2298, L 1875/2500/3750
+  //   Eclipse Island  – Truhe      T 1532/2022, H 986,  L 1875/2500/3750
+  //
+  // Die Truhenlängen sind genau 3, 4 und 6 Module à 625 mm – deshalb zeichnet
+  // das Symbol diese Teilung mit, und deshalb lässt sich eine Truhe in
+  // 62,5er-Schritten verlängern.
+
+  // ---- Truhen (Eclipse Island)
+  { id: 'tk-truhe-1532-1875', name: 'TK-Truhe 1,88 m · T1532', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T1532', hinweis: '3 Module à 625 mm · Auslage 604 mm je Seite' },
+  { id: 'tk-truhe-1532-2500', name: 'TK-Truhe 2,50 m · T1532', kategorie: 'tiefkuehlung', breite: 250, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T1532', hinweis: '4 Module à 625 mm' },
+  { id: 'tk-truhe-1532-3750', name: 'TK-Truhe 3,75 m · T1532', kategorie: 'tiefkuehlung', breite: 375, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T1532', hinweis: '6 Module à 625 mm' },
+  { id: 'tk-truhe-2022-1875', name: 'TK-Truhe 1,88 m · T2022', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T2022', hinweis: '3 Module à 625 mm · Auslage 850 mm je Seite' },
+  { id: 'tk-truhe-2022-2500', name: 'TK-Truhe 2,50 m · T2022', kategorie: 'tiefkuehlung', breite: 250, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T2022', hinweis: '4 Module à 625 mm' },
+  { id: 'tk-truhe-2022-3750', name: 'TK-Truhe 3,75 m · T2022', kategorie: 'tiefkuehlung', breite: 375, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Truhen T2022', hinweis: '6 Module à 625 mm' },
+  // Kopfstück am Ende einer Truhenzeile. Seine Länge entspricht der Tiefe.
+  { id: 'tk-truhe-kopf-1532', name: 'TK-Truhe Kopfstück · T1532', kategorie: 'tiefkuehlung', breite: 62.5, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA_DUNKEL, gruppe: 'Truhen T1532', hinweis: 'Kopfstück, im Katalog 1532 mm einschließlich Seitenwänden' },
+  { id: 'tk-truhe-kopf-2022', name: 'TK-Truhe Kopfstück · T2022', kategorie: 'tiefkuehlung', breite: 62.5, tiefe: 202.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA_DUNKEL, gruppe: 'Truhen T2022', hinweis: 'Kopfstück, im Katalog 2022 mm einschließlich Seitenwänden' },
+
+  // ---- Schränke (Eclipse Remote)
+  { id: 'tk-schrank-h2010-2t', name: 'TK-Schrank 1,56 m · 2 Türen · H2010', kategorie: 'tiefkuehlung', breite: 156.2, tiefe: 94, hoehe: 201, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2010', hinweis: 'Auslage 1531 mm, Etagentiefe 600 mm' },
+  { id: 'tk-schrank-h2010-3t', name: 'TK-Schrank 2,34 m · 3 Türen · H2010', kategorie: 'tiefkuehlung', breite: 234.3, tiefe: 94, hoehe: 201, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2010' },
+  { id: 'tk-schrank-h2010-4t', name: 'TK-Schrank 3,12 m · 4 Türen · H2010', kategorie: 'tiefkuehlung', breite: 312.4, tiefe: 94, hoehe: 201, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2010' },
+  { id: 'tk-schrank-h2010-5t', name: 'TK-Schrank 3,90 m · 5 Türen · H2010', kategorie: 'tiefkuehlung', breite: 389.8, tiefe: 94, hoehe: 201, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2010' },
+  { id: 'tk-schrank-h2210-2t', name: 'TK-Schrank 1,56 m · 2 Türen · H2210', kategorie: 'tiefkuehlung', breite: 156.2, tiefe: 94, hoehe: 221, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2210', hinweis: 'Auslage 1731 mm, Etagentiefe 600 mm' },
+  { id: 'tk-schrank-h2210-3t', name: 'TK-Schrank 2,34 m · 3 Türen · H2210', kategorie: 'tiefkuehlung', breite: 234.3, tiefe: 94, hoehe: 221, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2210' },
+  { id: 'tk-schrank-h2210-4t', name: 'TK-Schrank 3,12 m · 4 Türen · H2210', kategorie: 'tiefkuehlung', breite: 312.4, tiefe: 94, hoehe: 221, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2210' },
+  { id: 'tk-schrank-h2210-5t', name: 'TK-Schrank 3,90 m · 5 Türen · H2210', kategorie: 'tiefkuehlung', breite: 389.8, tiefe: 94, hoehe: 221, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Schränke H2210' },
+
+  // ---- Kombigeräte (Eclipse Combo): Schrank oben, offene Wanne vorn
+  { id: 'tk-kombi-h2098-1875', name: 'TK-Kombi 1,88 m · H2098', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 114.5, hoehe: 209.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Kombigeräte', hinweis: 'Oben Schrank (Auslage 852 mm), vorn Wanne (846 mm tief)' },
+  { id: 'tk-kombi-h2098-2500', name: 'TK-Kombi 2,50 m · H2098', kategorie: 'tiefkuehlung', breite: 250, tiefe: 114.5, hoehe: 209.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Kombigeräte' },
+  { id: 'tk-kombi-h2098-3750', name: 'TK-Kombi 3,75 m · H2098', kategorie: 'tiefkuehlung', breite: 375, tiefe: 114.5, hoehe: 209.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Kombigeräte' },
+  { id: 'tk-kombi-h2298-1875', name: 'TK-Kombi 1,88 m · H2298', kategorie: 'tiefkuehlung', breite: 187.5, tiefe: 114.5, hoehe: 229.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Kombigeräte', hinweis: 'Oben Schrank (Auslage 1052 mm), vorn Wanne (846 mm tief)' },
+  { id: 'tk-kombi-h2298-2500', name: 'TK-Kombi 2,50 m · H2298', kategorie: 'tiefkuehlung', breite: 250, tiefe: 114.5, hoehe: 229.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Kombigeräte' },
+  { id: 'tk-kombi-h2298-3750', name: 'TK-Kombi 3,75 m · H2298', kategorie: 'tiefkuehlung', breite: 375, tiefe: 114.5, hoehe: 229.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Kombigeräte' },
+
+  // ---- Frei einstellbar
+  { id: 'tk-truhe-frei', name: 'TK-Truhe frei', kategorie: 'tiefkuehlung', breite: 312.5, tiefe: 153.2, hoehe: 98.6, form: 'tkTruhe', farbe: TK_LILA, beidseitig: true, gruppe: 'Frei', hinweis: 'Länge in Schritten von 62,5 cm eintragen – das Symbol teilt sich danach' },
+  { id: 'tk-schrank-frei', name: 'TK-Schrank frei', kategorie: 'tiefkuehlung', breite: 234.3, tiefe: 94, hoehe: 201, form: 'tkSchrank', farbe: TK_LILA, gruppe: 'Frei', hinweis: 'Die Zahl der Türen ergibt sich aus der Länge (rund 78 cm je Tür)' },
+  { id: 'tk-kombi-frei', name: 'TK-Kombi frei', kategorie: 'tiefkuehlung', breite: 250, tiefe: 114.5, hoehe: 209.8, form: 'tkKombi', farbe: TK_LILA_HELL, gruppe: 'Frei' },
 
   // ------------------------------------------------------- Obst und Gemüse
   //

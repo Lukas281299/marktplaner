@@ -25,6 +25,7 @@ export interface Punkt {
 export type KategorieId =
   | 'regale'
   | 'kuehlung'
+  | 'tiefkuehlung'
   | 'obstgemuese'
   | 'frische'
   | 'backwaren'
@@ -53,7 +54,10 @@ export type Grundform =
   | 'vitableEckInnen'
   | 'vitableEckAussen'
   | 'vitableAbschluss'
-  | 'vitableAbschlussRund';
+  | 'vitableAbschlussRund'
+  | 'tkSchrank'
+  | 'tkTruhe'
+  | 'tkKombi';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {

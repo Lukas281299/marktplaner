@@ -22,9 +22,15 @@ export const KATEGORIEN: Kategorie[] = [
   },
   {
     id: 'kuehlung',
-    name: 'Kühlung & Tiefkühlung',
+    name: 'Kühlung',
     farbe: '#b9d7ea',
-    beschreibung: 'Kühlregale, Truhen und Tiefkühlschränke',
+    beschreibung: 'Normalkühlung: Molkerei, SB-Fleisch, Convenience',
+  },
+  {
+    id: 'tiefkuehlung',
+    name: 'Tiefkühlung',
+    farbe: '#a78ecf',
+    beschreibung: 'Truhen, Schränke und Kombigeräte von WSL',
   },
   {
     id: 'obstgemuese',
