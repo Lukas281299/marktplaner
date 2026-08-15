@@ -58,6 +58,11 @@ Zusammenführen beim Abgleich und das Vermittlungsprogramm auf dem Server.
 | Speichern | passiert automatisch; Strg + S speichert sofort |
 | Abgleich mit anderen Rechnern | Knopf „Abgleich" in der Werkzeugleiste (einmal einrichten, danach von allein) |
 | Grundriss umformen | dritte Werkzeugzeile, siehe unten |
+| Regale zusammenfassen | auswählen, dann **Gruppieren** (Strg+G); lösen mit Strg+Umschalt+G |
+| Ganze Gondel verschieben | einfach anklicken – ein Klick nimmt die ganze Gruppe |
+| Einzelnes Feld herausgreifen | **Alt** + Klick |
+| Lückenlos aneinanderreihen | auswählen, dann **Aneinanderreihen** |
+| Abstand messen | Werkzeug **Maß**, von Punkt zu Punkt ziehen |
 
 ## Grundriss und Räume
 
@@ -99,6 +104,28 @@ Flächenübersicht.
 **Löcher kann der Umriss nicht.** Wer mitten aus der Fläche etwas
 herausschneidet, bekommt einen Hinweis – für ausgesparte Bereiche innerhalb
 des Gebäudes ist ein Raum das richtige Mittel.
+
+## Gruppen, Gondeln und Maße
+
+**Gruppen** halten zusammen, was gemeinsam bewegt werden soll. Ein Klick auf
+ein gruppiertes Regal nimmt die ganze Gruppe – wer eine Gondel anfasst, will
+sie im Ganzen schieben. Mit **Alt** greift man ein einzelnes Feld heraus.
+
+**Beidseitig bestückt** ist dagegen eine Eigenschaft des einzelnen Möbels,
+keine der Gruppe: Eine Wanzl-Gondel ist *ein* Möbel mit zwei Seiten und zählt
+bei den Regalmetern doppelt. Zwei Wandregale Rücken an Rücken sind *zwei*
+einseitige Möbel und werden schon von selbst zweimal gezählt. Die Verwechslung
+kostet sonst die Hälfte der Kennzahl.
+
+**Aneinanderreihen** schiebt die Auswahl lückenlos zusammen. Das erste Regal
+bleibt stehen, die übrigen rücken heran – von Hand trifft man das nie genau,
+und ein Millimeter Luft je Feld summiert sich über einen 20-Meter-Zug.
+
+**Maße** bleiben im Plan stehen, anders als die Abstände, die beim Verschieben
+kurz aufblitzen. Das Maßband rastet an Regalecken, Wandenden und Raumecken
+ein — ein Maß ist nur so gut wie sein Anfangspunkt. Statt der gemessenen Zahl
+lässt sich auch ein eigener Text eintragen, etwa „min. 1,20 m" für eine
+Vorgabe.
 
 ## Wie die Daten gespeichert werden
 

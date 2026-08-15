@@ -103,6 +103,58 @@ export interface PlanElement {
   gesperrt: boolean;
   /** Zeichenreihenfolge: größere Zahl liegt weiter oben. */
   reihenfolge: number;
+  /**
+   * Zu welcher Gruppe gehört das Element? Leer = zu keiner.
+   *
+   * Ein Klick wählt die ganze Gruppe aus, Alt-Klick nur dieses eine Regal.
+   */
+  gruppeId?: string;
+  /**
+   * Wird das Regal von beiden Seiten bestückt (Gondel)?
+   *
+   * Zählt bei den Regalmetern doppelt. Steht am Element und nicht an der
+   * Gruppe: Eine Wanzl-Gondel ist **ein** Möbel mit zwei Seiten, während zwei
+   * Rücken an Rücken gestellte Wandregale zwei Möbel sind, die schon von
+   * selbst zweimal gezählt werden.
+   */
+  beidseitig?: boolean;
+}
+
+/** Wozu mehrere Elemente zusammengefasst sind. */
+export type Gruppenart = 'zug' | 'gondel' | 'frei';
+
+/**
+ * Eine Gruppe zusammengehörender Elemente.
+ *
+ * Sie hält nur zusammen, was gemeinsam bewegt werden soll – sie verändert die
+ * Elemente nicht. Deshalb steht in ihr auch keine Geometrie: Wo die Regale
+ * stehen, wissen die Regale selbst.
+ */
+export interface Gruppe {
+  id: string;
+  name: string;
+  art: Gruppenart;
+}
+
+/**
+ * Eine dauerhaft eingezeichnete Maßlinie.
+ *
+ * Anders als die Abstände, die beim Verschieben kurz aufblitzen, bleibt sie
+ * stehen – für alles, was im Plan dokumentiert sein muss: Gangbreiten,
+ * Fluchtwege, Abstand zur Wand.
+ */
+export interface Masslinie {
+  id: string;
+  von: Punkt;
+  bis: Punkt;
+  /**
+   * Eigener Text statt des gemessenen Maßes. Leer = das Maß anzeigen.
+   * Gedacht für Fälle wie „min. 1,20 m" – eine Vorgabe statt eines Istwertes.
+   */
+  text: string;
+  /** Abstand der Maßlinie von der gemessenen Strecke, in cm. */
+  versatz: number;
+  gesperrt: boolean;
 }
 
 /**
@@ -238,6 +290,10 @@ export interface Projekt {
   /** Türen, Durchgänge und Tore. */
   oeffnungen: Oeffnung[];
   elemente: PlanElement[];
+  /** Zusammengefasste Regale – Züge und Gondeln. */
+  gruppen: Gruppe[];
+  /** Dauerhaft eingezeichnete Maße. */
+  masslinien: Masslinie[];
 }
 
 /**
@@ -248,5 +304,6 @@ export interface Projekt {
  *   1 – erste Fassung, Grundfläche als Rechteck (Breite × Länge)
  *   2 – Grundfläche und Räume als Polygon, Räume mit Art
  *   3 – einzelne Innenwände und Öffnungen (Türen, Durchgänge)
+ *   4 – Gruppen, beidseitige Regale, dauerhafte Maßlinien
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;

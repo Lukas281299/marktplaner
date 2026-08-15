@@ -115,6 +115,36 @@ export const SymbolRaum = () => (
   </Zeichnung>
 );
 
+export const SymbolMassband = () => (
+  <Zeichnung>
+    <path d="M3 9h18v6H3z" />
+    <path d="M7 9v3M11 9v3M15 9v3M19 9v3" />
+  </Zeichnung>
+);
+
+export const SymbolGruppieren = () => (
+  <Zeichnung>
+    <rect x="3" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" />
+    <path d="M3 14v7h7M21 10V3h-7" />
+  </Zeichnung>
+);
+
+export const SymbolGruppeAufheben = () => (
+  <Zeichnung>
+    <rect x="3" y="3" width="7" height="7" />
+    <rect x="14" y="14" width="7" height="7" />
+  </Zeichnung>
+);
+
+export const SymbolAneinander = () => (
+  <Zeichnung>
+    <rect x="2" y="7" width="6" height="10" />
+    <rect x="8" y="7" width="6" height="10" />
+    <rect x="14" y="7" width="6" height="10" />
+  </Zeichnung>
+);
+
 export const SymbolWand = () => (
   <Zeichnung>
     <path d="M3 8h18M3 12h18" />

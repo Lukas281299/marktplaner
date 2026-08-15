@@ -7,3 +7,11 @@ dist
 # Örtliche Einstellungen der Entwicklungsumgebung – gehören zum jeweiligen
 # Rechner, nicht zum Projekt.
 .claude/settings.local.json
+
+# Zuarbeiten: Marktpläne, Workbooks, Preislisten.
+#
+# Das Repository ist öffentlich. Diese Unterlagen sind es nicht – sie bleiben
+# auf dem Rechner und werden nie hochgeladen. Der Ordner selbst ist über seine
+# LIESMICH-Datei trotzdem im Projekt sichtbar, damit klar ist, dass es ihn gibt.
+unterlagen/*
+!unterlagen/LIESMICH.md

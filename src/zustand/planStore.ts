@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
-import { gesamtUmgrenzung, umgrenzung } from '../logik/geometrie';
+import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
+import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
 import { raumart } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
@@ -8,6 +9,8 @@ import type {
   BibliothekEintrag,
   Einstellungen,
   Grundflaeche,
+  Gruppenart,
+  Masslinie,
   Oeffnung,
   PlanElement,
   Projekt,
@@ -61,7 +64,8 @@ export type Werkzeug =
   | 'flaecheAbziehen'
   | 'raum'
   | 'wand'
-  | 'oeffnung';
+  | 'oeffnung'
+  | 'messen';
 
 /**
  * Was außer Elementen noch ausgewählt sein kann.
@@ -70,7 +74,7 @@ export type Werkzeug =
  * zeigt immer nur eines davon, und drei getrennte Felder wären drei Stellen,
  * an denen man das Aufräumen vergessen kann.
  */
-export type Sonderauswahl = { art: 'raum' | 'wand' | 'oeffnung'; id: string } | null;
+export type Sonderauswahl = { art: 'raum' | 'wand' | 'oeffnung' | 'masslinie'; id: string } | null;
 
 interface PlanStore {
   // ------------------------------------------------------------------ Daten
@@ -130,6 +134,17 @@ interface PlanStore {
 
   fuegeOeffnungHinzu(werte: Omit<Oeffnung, 'id' | 'gesperrt' | 'beschriftung'>): string;
   aendereOeffnung(id: string, werte: Partial<Oeffnung>, mitHistorie?: boolean): void;
+
+  fuegeMasslinieHinzu(von: Punkt, bis: Punkt): string;
+  aendereMasslinie(id: string, werte: Partial<Masslinie>, mitHistorie?: boolean): void;
+
+  // ------------------------------------------------------------- Gruppen
+  /** Fasst die Auswahl zu einer Gruppe zusammen. */
+  gruppiere(art: Gruppenart): void;
+  /** Löst die Gruppen aller ausgewählten Elemente auf. */
+  hebeGruppeAuf(): void;
+  /** Schiebt die Auswahl lückenlos aneinander. */
+  reiheAneinanderAus(achse?: 'waagerecht' | 'senkrecht'): void;
 
   // ------------------------------------------------------------- Historie
   /** Merkt den aktuellen Stand, bevor eine längere Aktion (z. B. Ziehen) beginnt. */
@@ -265,7 +280,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         ? projekt.raeume.find((r) => r.id === id)?.gesperrt
         : art === 'wand'
           ? projekt.waende.find((w) => w.id === id)?.gesperrt
-          : projekt.oeffnungen.find((o) => o.id === id)?.gesperrt;
+          : art === 'oeffnung'
+            ? projekt.oeffnungen.find((o) => o.id === id)?.gesperrt
+            : projekt.masslinien.find((m) => m.id === id)?.gesperrt;
     if (gesperrt) return;
 
     aendere(set, get, (p) => ({
@@ -273,6 +290,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       raeume: art === 'raum' ? p.raeume.filter((r) => r.id !== id) : p.raeume,
       waende: art === 'wand' ? p.waende.filter((w) => w.id !== id) : p.waende,
       oeffnungen: art === 'oeffnung' ? p.oeffnungen.filter((o) => o.id !== id) : p.oeffnungen,
+      masslinien: art === 'masslinie' ? p.masslinien.filter((m) => m.id !== id) : p.masslinien,
     }));
     set({ sonderauswahl: null });
   },
@@ -375,6 +393,83 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     });
     if (mitHistorie) aendere(set, get, wandeln);
     else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  // ----------------------------------------------------------- Maßlinien
+  fuegeMasslinieHinzu(von, bis) {
+    const id = neueId('mass');
+    aendere(set, get, (p) => ({
+      ...p,
+      masslinien: [...p.masslinien, { id, von, bis, text: '', versatz: 0, gesperrt: false }],
+    }));
+    set({ sonderauswahl: { art: 'masslinie', id }, auswahl: [] });
+    return id;
+  },
+
+  aendereMasslinie(id, werte, mitHistorie = true) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      masslinien: p.masslinien.map((m) => (m.id === id ? { ...m, ...werte } : m)),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  // ============================================================== Gruppen
+  gruppiere(art) {
+    const { auswahl } = get();
+    // Unter zwei Elementen ergibt eine Gruppe keinen Sinn.
+    if (auswahl.length < 2) return;
+    const id = neueId('gruppe');
+    const menge = new Set(auswahl);
+    const name = art === 'gondel' ? 'Gondel' : art === 'zug' ? 'Regalzug' : 'Gruppe';
+
+    aendere(set, get, (p) => ({
+      ...p,
+      // Bestehende Gruppen der Auswahl fallen weg – sie gehen in der neuen auf.
+      gruppen: [
+        ...p.gruppen.filter((g) =>
+          p.elemente.some((el) => el.gruppeId === g.id && !menge.has(el.id)),
+        ),
+        { id, name: `${name} (${auswahl.length})`, art },
+      ],
+      elemente: p.elemente.map((el) => (menge.has(el.id) ? { ...el, gruppeId: id } : el)),
+    }));
+  },
+
+  hebeGruppeAuf() {
+    const { auswahl, projekt } = get();
+    const betroffen = new Set(
+      projekt.elemente.filter((el) => auswahl.includes(el.id) && el.gruppeId).map((el) => el.gruppeId!),
+    );
+    if (betroffen.size === 0) return;
+
+    aendere(set, get, (p) => ({
+      ...p,
+      gruppen: p.gruppen.filter((g) => !betroffen.has(g.id)),
+      elemente: p.elemente.map((el) =>
+        el.gruppeId && betroffen.has(el.gruppeId) ? { ...el, gruppeId: undefined } : el,
+      ),
+    }));
+  },
+
+  reiheAneinanderAus(achse) {
+    const { auswahl, projekt } = get();
+    const ausgewaehlt = projekt.elemente.filter((el) => auswahl.includes(el.id));
+    if (ausgewaehlt.length < 2) return;
+
+    const richtung = achse ?? hauptrichtung(ausgewaehlt);
+    const neue = reiheAneinander(ausgewaehlt, richtung);
+    if (neue.length === 0) return;
+
+    const karte = new Map(neue.map((n) => [n.id, n]));
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: p.elemente.map((el) => {
+        const ziel = karte.get(el.id);
+        return ziel ? { ...el, x: runde(ziel.x), y: runde(ziel.y) } : el;
+      }),
+    }));
   },
 
   // =============================================================== Historie

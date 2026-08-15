@@ -13,9 +13,13 @@ import { NeuesProjektDialog, ProjekteDialog } from './ProjektDialog';
 import { SyncDialog } from './SyncDialog';
 import {
   SymbolAbgleich,
+  SymbolAneinander,
   SymbolBild,
   SymbolFlaecheMinus,
   SymbolFlaechePlus,
+  SymbolGruppeAufheben,
+  SymbolGruppieren,
+  SymbolMassband,
   SymbolRaum,
   SymbolTuer,
   SymbolUmriss,
@@ -57,6 +61,10 @@ export function Werkzeugleiste() {
 
   const syncZustand = useSyncStore((s) => s.zustand);
   const werkzeug = usePlanStore((s) => s.werkzeug);
+  /** Steckt in der Auswahl mindestens ein Regal, das zu einer Gruppe gehört? */
+  const auswahlHatGruppe = usePlanStore((s) =>
+    s.projekt.elemente.some((el) => s.auswahl.includes(el.id) && el.gruppeId),
+  );
 
   const [dialog, setDialog] = useState<'neu' | 'oeffnen' | 'abgleich' | null>(null);
   const [meldung, setMeldung] = useState('');
@@ -334,6 +342,43 @@ export function Werkzeugleiste() {
             title="Tür, Durchgang oder Tor in eine Wand setzen – auf die Wand klicken"
           >
             <SymbolTuer /> Tür / Durchgang
+          </button>
+
+          <span className="trenner" />
+
+          <button
+            className={`knopf${werkzeug === 'messen' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'messen' ? 'auswahl' : 'messen')}
+            title="Abstand zwischen zwei Punkten messen und dauerhaft eintragen (M)"
+          >
+            <SymbolMassband /> Maß
+          </button>
+
+          <span className="trenner" />
+
+          <button
+            className="knopf"
+            disabled={auswahl.length < 2}
+            onClick={() => store().gruppiere('zug')}
+            title="Die ausgewählten Regale zu einem Zug zusammenfassen (Strg+G)"
+          >
+            <SymbolGruppieren /> Gruppieren
+          </button>
+          <button
+            className="knopf"
+            disabled={!auswahlHatGruppe}
+            onClick={() => store().hebeGruppeAuf()}
+            title="Gruppierung wieder auflösen (Strg+Umschalt+G)"
+          >
+            <SymbolGruppeAufheben /> Lösen
+          </button>
+          <button
+            className="knopf"
+            disabled={auswahl.length < 2}
+            onClick={() => store().reiheAneinanderAus()}
+            title="Die ausgewählten Regale lückenlos aneinanderschieben"
+          >
+            <SymbolAneinander /> Aneinanderreihen
           </button>
 
           {werkzeug !== 'auswahl' && (

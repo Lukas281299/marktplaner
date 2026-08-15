@@ -1,6 +1,6 @@
 import { neueId } from '../logik/id';
 import { imUhrzeigersinn, rechteck } from '../logik/polygon';
-import { SCHEMA_VERSION, type Projekt, type Raum } from '../typen/modell';
+import { SCHEMA_VERSION, type PlanElement, type Projekt, type Raum } from '../typen/modell';
 
 /**
  * Bringt ältere Planungen auf den aktuellen Stand des Datenmodells.
@@ -53,7 +53,25 @@ export function wandleProjekt(roh: unknown): Projekt {
     // Trotzdem über `??`, damit ein späterer Schritt hier nichts überschreibt.
     waende: projekt?.waende ?? [],
     oeffnungen: projekt?.oeffnungen ?? [],
+    // Fassung 4
+    gruppen: projekt?.gruppen ?? [],
+    masslinien: projekt?.masslinien ?? [],
+    elemente: (projekt?.elemente ?? []).map(wandleElement),
   };
+}
+
+/**
+ * Bis Fassung 3 wurde am Namen der Vorlage erkannt, ob ein Regal von beiden
+ * Seiten bestückt wird – die Regalmeter zählten doppelt, wenn „gondel" darin
+ * vorkam. Jetzt steht das als eigene Eigenschaft am Element.
+ *
+ * Die alte Erkennung wird hier einmalig nachgezogen, damit die Regalmeter
+ * einer bestehenden Planung nach dem Öffnen nicht plötzlich kleiner sind.
+ */
+function wandleElement(roh: unknown): PlanElement {
+  const alt = roh as PlanElement;
+  if (typeof alt?.beidseitig === 'boolean') return alt;
+  return { ...alt, beidseitig: (alt?.vorlageId ?? '').includes('gondel') };
 }
 
 /** Aus Breite × Länge wird ein Rechteck an der linken oberen Ecke. */

@@ -3,11 +3,13 @@ import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { WARENGRUPPEN } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
+import { masslaenge } from '../logik/messen';
 import { aussenmasse, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel } from '../logik/waende';
 import type {
   Grundform,
   KategorieId,
+  Masslinie,
   Oeffnung,
   Oeffnungsart,
   PlanElement,
@@ -64,6 +66,10 @@ export function Eigenschaftenfenster() {
     sonderauswahl?.art === 'oeffnung'
       ? projekt.oeffnungen.find((o) => o.id === sonderauswahl.id)
       : undefined;
+  const mass =
+    sonderauswahl?.art === 'masslinie'
+      ? projekt.masslinien.find((m) => m.id === sonderauswahl.id)
+      : undefined;
 
   const titel = raum
     ? 'Raum'
@@ -71,11 +77,13 @@ export function Eigenschaftenfenster() {
       ? 'Innenwand'
       : oeffnung
         ? 'Öffnung'
-        : ausgewaehlte.length === 0
-          ? 'Projekt'
-          : ausgewaehlte.length === 1
-            ? 'Element'
-            : `${ausgewaehlte.length} Elemente`;
+        : mass
+          ? 'Maß'
+          : ausgewaehlte.length === 0
+            ? 'Projekt'
+            : ausgewaehlte.length === 1
+              ? 'Element'
+              : `${ausgewaehlte.length} Elemente`;
 
   return (
     <aside className="spalte spalte-rechts">
@@ -87,6 +95,8 @@ export function Eigenschaftenfenster() {
           <WandEigenschaften wand={wand} />
         ) : oeffnung ? (
           <OeffnungEigenschaften oeffnung={oeffnung} />
+        ) : mass ? (
+          <MassEigenschaften mass={mass} />
         ) : ausgewaehlte.length === 0 ? (
           <ProjektEigenschaften />
         ) : (
@@ -115,6 +125,66 @@ function SonderFuss({ gesperrt, was }: { gesperrt: boolean; was: string }) {
         </button>
       </div>
     </div>
+  );
+}
+
+// ===========================================================================
+//  Eigenschaften einer Maßlinie
+// ===========================================================================
+
+function MassEigenschaften({ mass }: { mass: Masslinie }) {
+  const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
+  const beiStart = () => usePlanStore.getState().schnappschuss();
+  const setze = (werte: Partial<Masslinie>) =>
+    usePlanStore.getState().aendereMasslinie(mass.id, werte);
+
+  const laenge = masslaenge(mass);
+
+  return (
+    <>
+      <div className="gruppe">
+        <div className="kennzahl">
+          <span>Gemessen</span>
+          <span className="kennzahl-wert">{formatiereLaenge(laenge, einheit)}</span>
+        </div>
+        <div className="feld-zeile einspaltig">
+          <Textfeld
+            label="Eigener Text statt des Maßes"
+            wert={mass.text}
+            platzhalter={formatiereLaenge(laenge, einheit)}
+            beiStart={beiStart}
+            aendern={(text) => setze({ text })}
+          />
+        </div>
+        <p className="hinweis" style={{ marginTop: 0 }}>
+          Leer lassen, dann steht das gemessene Maß da. Für Vorgaben wie
+          „min. 1,20 m" hier den Text eintragen – gemessen wird trotzdem weiter.
+        </p>
+      </div>
+
+      <div className="gruppe">
+        <div className="gruppe-titel">Darstellung</div>
+        <Massfeld
+          label="Versatz der Maßlinie"
+          cm={mass.versatz}
+          einheit={einheit}
+          min={-2000}
+          beiStart={beiStart}
+          aendern={(versatz) => setze({ versatz })}
+        />
+        <p className="hinweis" style={{ marginTop: 6 }}>
+          Rückt die Linie seitlich aus dem Weg, damit sie nicht auf dem liegt,
+          was sie bemisst. Negative Werte gehen auf die andere Seite.
+        </p>
+        <Schalter
+          label="Gegen Verschieben sperren"
+          wert={mass.gesperrt}
+          aendern={(gesperrt) => setze({ gesperrt })}
+        />
+      </div>
+
+      <SonderFuss gesperrt={mass.gesperrt} was="Maß" />
+    </>
   );
 }
 
@@ -442,6 +512,11 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
 
   const store = usePlanStore.getState();
 
+  /** Name der Gruppe, in der das erste ausgewählte Element steckt. */
+  const gruppenName = usePlanStore((s) =>
+    erstes.gruppeId ? (s.projekt.gruppen.find((g) => g.id === erstes.gruppeId)?.name ?? null) : null,
+  );
+
   return (
     <>
       {mehrere && (
@@ -746,6 +821,70 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           wert={erstes.gesperrt}
           aendern={(gesperrt) => setzeMitPunkt({ gesperrt })}
         />
+      </div>
+
+      {/* ------------------------------------------- Gruppe und Regalmeter */}
+      <div className="gruppe">
+        <div className="gruppe-titel">Zusammenfassen</div>
+
+        <Schalter
+          label="Beidseitig bestückt (Gondel)"
+          wert={Boolean(erstes.beidseitig)}
+          aendern={(beidseitig) => setzeMitPunkt({ beidseitig })}
+        />
+        <p className="hinweis" style={{ marginTop: 4 }}>
+          Zählt bei den Regalmetern doppelt. Gemeint ist <strong>ein</strong> Möbel mit zwei
+          Seiten. Zwei Wandregale Rücken an Rücken sind zwei einseitige Möbel – die werden schon
+          von selbst zweimal gezählt.
+        </p>
+
+        <div className="kennzahl">
+          <span>Gruppe</span>
+          <span className="kennzahl-wert">{gruppenName ?? 'keine'}</span>
+        </div>
+
+        <div className="knopfreihe">
+          <button
+            className="knopf"
+            disabled={ausgewaehlte.length < 2}
+            onClick={() => store.gruppiere('zug')}
+            title="Als Regalzug zusammenfassen (Strg+G)"
+          >
+            Zug
+          </button>
+          <button
+            className="knopf"
+            disabled={ausgewaehlte.length < 2}
+            onClick={() => store.gruppiere('gondel')}
+            title="Als Gondel zusammenfassen (Strg+G)"
+          >
+            Gondel
+          </button>
+          <button
+            className="knopf"
+            disabled={!gruppenName}
+            onClick={() => store.hebeGruppeAuf()}
+            title="Gruppierung auflösen (Strg+Umschalt+G)"
+          >
+            Lösen
+          </button>
+        </div>
+
+        <div className="knopfreihe">
+          <button
+            className="knopf"
+            disabled={ausgewaehlte.length < 2}
+            onClick={() => store.reiheAneinanderAus()}
+            title="Lückenlos aneinanderschieben"
+          >
+            Aneinanderreihen
+          </button>
+        </div>
+
+        <p className="hinweis">
+          Ein Klick auf ein gruppiertes Regal wählt die ganze Gruppe. Mit gedrückter{' '}
+          <strong>Alt</strong>-Taste greifst du ein einzelnes Feld heraus.
+        </p>
       </div>
     </>
   );

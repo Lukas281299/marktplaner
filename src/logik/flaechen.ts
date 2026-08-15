@@ -103,16 +103,34 @@ export function berechneFlaechen(projekt: Projekt): Flaechenuebersicht {
 }
 
 /**
- * Regallänge in laufenden Metern: die Summe der Breiten aller Regale
- * und Kühlmöbel. Gondeln zählen doppelt, weil sie von beiden Seiten
- * bestückt werden.
+ * Regallänge in laufenden Metern.
+ *
+ * Gezählt wird die Breite jedes Regals und Kühlmöbels. Beidseitige Möbel
+ * zählen doppelt, weil sie von beiden Seiten bestückt werden – eine Gondel
+ * von 4 m bringt 8 laufende Meter.
+ *
+ * Zwei Wandregale Rücken an Rücken sind dagegen zwei einseitige Möbel und
+ * werden schon von selbst zweimal gezählt. Deshalb hängt das Doppeln am
+ * einzelnen Möbel und nicht daran, ob mehrere zu einer Gruppe gehören.
  */
 export function berechneRegalmeter(projekt: Projekt): number {
   let cm = 0;
   for (const el of projekt.elemente) {
     if (el.kategorie !== 'regale' && el.kategorie !== 'kuehlung') continue;
-    const doppelseitig = el.vorlageId.includes('gondel');
-    cm += el.breite * (doppelseitig ? 2 : 1);
+    cm += el.breite * (el.beidseitig ? 2 : 1);
   }
   return cm / 100;
+}
+
+/** Regalmeter je Warengruppe – für die Auswertung einzelner Abteilungen. */
+export function regalmeterJeWarengruppe(projekt: Projekt): { name: string; meter: number }[] {
+  const summen = new Map<string, number>();
+  for (const el of projekt.elemente) {
+    if (el.kategorie !== 'regale' && el.kategorie !== 'kuehlung') continue;
+    const name = el.warengruppe?.trim() || 'ohne Warengruppe';
+    summen.set(name, (summen.get(name) ?? 0) + (el.breite * (el.beidseitig ? 2 : 1)) / 100);
+  }
+  return [...summen.entries()]
+    .map(([name, meter]) => ({ name, meter }))
+    .sort((a, b) => b.meter - a.meter);
 }

@@ -47,6 +47,13 @@ export function useTastatur(): void {
             e.preventDefault();
             store.waehleAlle();
             return;
+          case 'g':
+            e.preventDefault();
+            // Strg+G gruppiert, Strg+Umschalt+G löst wieder auf – so kennt
+            // man es aus jedem Zeichenprogramm.
+            if (e.shiftKey) store.hebeGruppeAuf();
+            else store.gruppiere('zug');
+            return;
           case 's':
             e.preventDefault();
             void speichereProjekt(usePlanStore.getState().projekt);

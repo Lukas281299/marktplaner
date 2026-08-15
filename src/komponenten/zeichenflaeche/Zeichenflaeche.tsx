@@ -12,7 +12,9 @@ import {
   type Hilfslinie,
 } from '../../logik/einrasten';
 import { runde, ueberschneiden, umgrenzung } from '../../logik/geometrie';
+import { mitGruppen, mitgliederVon } from '../../logik/gruppen';
 import { formatiereLaenge } from '../../logik/masse';
+import { fangePunkt, fangpunkte } from '../../logik/messen';
 import { rahmen as umrissRahmen, rechteckAusEcken, vereinige, ziehAb } from '../../logik/polygon';
 import { punktEinfuegen, punktEntfernen, punktVerschieben } from '../../logik/umrissBearbeiten';
 import { alleWandachsen, fangbereich, findeWand, richteWandAus } from '../../logik/waende';
@@ -21,6 +23,7 @@ import { usePlanStore } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Gebaeude } from './Gebaeude';
+import { Masslinien } from './Masslinien';
 import { Oeffnungen } from './Oeffnungen';
 import { Raeume } from './Raeume';
 import { Raster } from './Raster';
@@ -250,7 +253,10 @@ export function Zeichenflaeche() {
     // Beim Zeichnen am Grundriss wird immer aufgezogen – auch wenn die Maus
     // dabei über einem Regal startet.
     if (store.werkzeug !== 'auswahl' && store.werkzeug !== 'umriss') {
-      const p = aufRaster(planPunkt(e.evt.clientX, e.evt.clientY));
+      const roh = planPunkt(e.evt.clientX, e.evt.clientY);
+      // Beim Messen nicht aufs Raster ziehen – dort rastet es an Regalecken
+      // ein, und ein vorheriger Rastersprung würde die Ecke verfehlen.
+      const p = store.werkzeug === 'messen' ? roh : aufRaster(roh);
       rahmenRef.current = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, shift: false };
       setAuswahlrahmen({ x: p.x, y: p.y, breite: 0, hoehe: 0 });
       return;
@@ -282,12 +288,25 @@ export function Zeichenflaeche() {
       const rahmen = rahmenRef.current;
       if (rahmen) {
         const roh = planPunkt(ev.clientX, ev.clientY);
-        const p = usePlanStore.getState().werkzeug === 'auswahl' ? roh : aufRaster(roh);
+        const werkzeugRoh = usePlanStore.getState().werkzeug;
+        const p =
+          werkzeugRoh === 'auswahl' || werkzeugRoh === 'messen' ? roh : aufRaster(roh);
         rahmen.x2 = p.x;
         rahmen.y2 = p.y;
-        if (usePlanStore.getState().werkzeug === 'wand') {
+        const werkzeugJetzt = usePlanStore.getState().werkzeug;
+        if (werkzeugJetzt === 'wand') {
           const von = { x: rahmen.x1, y: rahmen.y1 };
           setWandZug({ von, bis: richteWandAus(von, p) });
+        } else if (werkzeugJetzt === 'messen') {
+          // Beim Messen zeigt die Vorschau die Strecke selbst, nicht ein
+          // Rechteck – und rastet dabei schon an den Ecken ein.
+          const store = usePlanStore.getState();
+          const kandidaten = fangpunkte(store.projekt);
+          const toleranz = 18 / store.ansicht.zoom;
+          setWandZug({
+            von: fangePunkt({ x: rahmen.x1, y: rahmen.y1 }, kandidaten, toleranz),
+            bis: fangePunkt(p, kandidaten, toleranz),
+          });
         } else {
           setAuswahlrahmen({
             x: Math.min(rahmen.x1, rahmen.x2),
@@ -345,6 +364,17 @@ export function Zeichenflaeche() {
             return;
           }
 
+          // ------------------------------------------------------- Maßband
+          if (store0.werkzeug === 'messen') {
+            const kandidaten = fangpunkte(store0.projekt);
+            const toleranz = 18 / store0.ansicht.zoom;
+            const a = fangePunkt(anfang, kandidaten, toleranz);
+            const b = fangePunkt(ende, kandidaten, toleranz);
+            if (Math.hypot(b.x - a.x, b.y - a.y) < 10) return;
+            store0.fuegeMasslinieHinzu(a, b);
+            return;
+          }
+
           // --------------------------------------------------- Innenwand
           if (store0.werkzeug === 'wand') {
             const ausgerichtet = richteWandAus(anfang, ende);
@@ -392,7 +422,11 @@ export function Zeichenflaeche() {
           .filter((el) => offeneEbenen.has(el.ebeneId))
           .filter((el) => ueberschneiden(umgrenzung(el), bereich))
           .map((el) => el.id);
-        store.waehleAus(treffer, rahmen.shift ? 'umschalten' : 'ersetzen');
+        // Wer einen Rahmen über eine halbe Gondel zieht, meint die Gondel.
+        store.waehleAus(
+          mitGruppen(store.projekt.elemente, treffer),
+          rahmen.shift ? 'umschalten' : 'ersetzen',
+        );
       }
     };
 
@@ -487,6 +521,30 @@ export function Zeichenflaeche() {
     store.verschiebeWand(zug.id, ziel.x - wand.von.x, ziel.y - wand.von.y);
   };
 
+  // ---------------------------------------------------- Maßlinie verschieben
+  const massZugRef = useRef({ letztesX: 0, letztesY: 0 });
+
+  const massZiehen = (id: string, x: number, y: number) => {
+    const store = usePlanStore.getState();
+    const mass = store.projekt.masslinien.find((m) => m.id === id);
+    if (!mass) return;
+    const dx = x - massZugRef.current.letztesX;
+    const dy = y - massZugRef.current.letztesY;
+    massZugRef.current = { letztesX: x, letztesY: y };
+    store.aendereMasslinie(
+      id,
+      {
+        von: { x: mass.von.x + dx, y: mass.von.y + dy },
+        bis: { x: mass.bis.x + dx, y: mass.bis.y + dy },
+      },
+      false,
+    );
+  };
+
+  const massZiehEnde = () => {
+    massZugRef.current = { letztesX: 0, letztesY: 0 };
+  };
+
   // ----------------------------------------------------- Öffnung verschieben
   const oeffnungZiehStart = () => usePlanStore.getState().schnappschuss();
 
@@ -525,17 +583,23 @@ export function Zeichenflaeche() {
     if (e.evt.button !== 0 || leertasteRef.current) return;
     e.cancelBubble = true;
     const store = usePlanStore.getState();
+    // Ein Klick nimmt die ganze Gruppe – wer eine Gondel anfasst, will sie im
+    // Ganzen schieben. Mit Alt greift man ein einzelnes Feld heraus.
+    const ids = e.evt.altKey ? [id] : mitgliederVon(store.projekt.elemente, id);
+
     if (e.evt.shiftKey || e.evt.ctrlKey) {
-      store.waehleAus([id], 'umschalten');
-    } else if (!store.auswahl.includes(id)) {
-      store.waehleAus([id]);
+      store.waehleAus(ids, 'umschalten');
+    } else if (!ids.every((k) => store.auswahl.includes(k))) {
+      store.waehleAus(ids);
     }
   };
 
   // ------------------------------------------------------------ Ziehen (Maus)
   const beiZiehStart = (_e: KonvaEventObject<DragEvent>, id: string) => {
     const store = usePlanStore.getState();
-    if (!store.auswahl.includes(id)) store.waehleAus([id]);
+    if (!store.auswahl.includes(id)) {
+      store.waehleAus(mitgliederVon(store.projekt.elemente, id));
+    }
     store.schnappschuss();
     const aktuell = usePlanStore.getState();
     const start = new Map<string, { x: number; y: number }>();
@@ -805,6 +869,23 @@ export function Zeichenflaeche() {
           ))}
         </Layer>
 
+        {/* ------------------------------------------------------ Maßlinien */}
+        {/* Über den Elementen: Ein Maß, das hinter einem Regal verschwindet,
+            ist nutzlos. */}
+        <Layer listening={werkzeug === 'auswahl'}>
+          <Masslinien
+            masslinien={projekt.masslinien}
+            ausgewaehlt={sonderauswahl?.art === 'masslinie' ? sonderauswahl.id : null}
+            einheit={einheit}
+            zoom={zoom}
+            anklickbar={werkzeug === 'auswahl'}
+            beiKlick={(id) => usePlanStore.getState().waehleSonder({ art: 'masslinie', id })}
+            beiZiehStart={() => usePlanStore.getState().schnappschuss()}
+            beiZiehen={massZiehen}
+            beiZiehEnde={massZiehEnde}
+          />
+        </Layer>
+
         {/* -------------------------------------- Anfasser, Hilfslinien, Maße */}
         <Layer>
           <Transformer
@@ -869,16 +950,16 @@ export function Zeichenflaeche() {
             />
           )}
 
-          {/* Vorschau der Innenwand, die gerade gezogen wird */}
+          {/* Vorschau der Innenwand bzw. des Maßes, das gerade gezogen wird */}
           {wandZug && (
             <>
               <Line
                 listening={false}
                 points={[wandZug.von.x, wandZug.von.y, wandZug.bis.x, wandZug.bis.y]}
-                stroke="#66707c"
-                strokeWidth={12}
+                stroke={werkzeug === 'messen' ? '#2f3b49' : '#66707c'}
+                strokeWidth={werkzeug === 'messen' ? 1.4 / zoom : 12}
                 lineCap="butt"
-                opacity={0.6}
+                opacity={werkzeug === 'messen' ? 1 : 0.6}
               />
               <Text
                 listening={false}
@@ -979,6 +1060,7 @@ const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> = {
   raum: { fuellung: 'rgba(140,120,200,0.16)', linie: '#7b6bc4' },
   wand: { fuellung: 'transparent', linie: '#66707c' },
   oeffnung: { fuellung: 'transparent', linie: '#66707c' },
+  messen: { fuellung: 'transparent', linie: '#2f3b49' },
 };
 
 /** Kurze Anleitung zum jeweils gewählten Werkzeug. */
@@ -1009,6 +1091,11 @@ const WERKZEUG_TEXT: Record<string, { titel: string; hinweis: string }> = {
     titel: 'Tür oder Durchgang setzen',
     hinweis:
       'Auf eine Wand klicken – die Öffnung übernimmt Richtung und Wandstärke von selbst. Art und Breite danach rechts einstellen.',
+  },
+  messen: {
+    titel: 'Maß eintragen',
+    hinweis:
+      'Von einem Punkt zum anderen ziehen. Rastet an Regalecken, Wänden und Raumecken ein. Das Maß bleibt im Plan stehen.',
   },
 };
 

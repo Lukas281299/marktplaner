@@ -50,5 +50,7 @@ export function neuesProjekt(
     waende: [],
     oeffnungen: [],
     elemente: [],
+    gruppen: [],
+    masslinien: [],
   };
 }
