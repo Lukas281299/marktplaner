@@ -120,6 +120,10 @@ function vitableEintraege(): BibliothekEintrag[] {
         farbe: OG_GRUEN,
         stufen: variante.stufen,
         beidseitig: variante.beidseitig,
+        // Die Höhe ist das, wonach man beim Planen zuerst greift: Ob ein
+        // Möbel 1,10 m oder 1,80 m hoch ist, entscheidet über die Sichtachsen
+        // im Markt. Deshalb gruppiert die Bibliothek danach.
+        gruppe: variante.beidseitig ? 'Beidseitige Gondeln' : `Höhe ${variante.hoehe * 10}`,
         hinweis: `${variante.stufen.length}-etagig · Korpus ${Math.round(korpustiefe * 10)} mm, Gesamttiefe ${Math.round(tiefe * 10)} mm`,
       });
     }
@@ -152,7 +156,7 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'kuehl-getraenke', name: 'Getränke-Kühlung', kategorie: 'kuehlung', breite: 125, tiefe: 80, hoehe: 200, form: 'rechteck', farbe: '#b0d4e6' },
 
   // ------------------------------------------------------ Frischeabteilung
-  { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'obstgemuese', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche – Zonenmarkierung, kein Möbel' },
+  { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'obstgemuese', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche – Zonenmarkierung, kein Möbel', gruppe: 'Frei' },
   { id: 'theke-fleisch', name: 'Fleischtheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e2bdbd' },
   { id: 'theke-wurst', name: 'Wursttheke', kategorie: 'frische', breite: 250, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#e5c6c2' },
   { id: 'theke-kaese', name: 'Käsetheke', kategorie: 'frische', breite: 200, tiefe: 120, hoehe: 130, form: 'rechteck', farbe: '#eeddb4' },
@@ -175,16 +179,16 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   // Ecken, Abschlüsse und Gondelköpfe. Für diese Bausteine nennt das Workbook
   // keine eigenen Maße – sie übernehmen die des geraden Möbels, an das sie
   // anschließen.
-  { id: 'vt-eck-innen-800', name: 'O&G Inneneck 45° · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Zwei davon ergeben ein Inneneck 90°. Danach muss eine gerade Einheit folgen.' },
-  { id: 'vt-eck-innen-1200', name: 'O&G Inneneck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60] },
-  { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN },
-  { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges' },
-  { id: 'vt-abschluss-1200', name: 'O&G Abschluss gerade · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [120, 60] },
-  { id: 'vt-kopf-rund-800', name: 'O&G Kopfgondel rund · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 182.9, korpustiefe: 137.2, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [80, 60, 40], beidseitig: true, hinweis: 'Abschluss 180° – runder Kopf einer freistehenden Gondel' },
-  { id: 'vt-kopf-rund-1200', name: 'O&G Kopfgondel rund · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 255.4, korpustiefe: 173.4, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [120, 60], beidseitig: true },
+  { id: 'vt-eck-innen-800', name: 'O&G Inneneck 45° · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Zwei davon ergeben ein Inneneck 90°. Danach muss eine gerade Einheit folgen.', gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-eck-innen-1200', name: 'O&G Inneneck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60], gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN, gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges', gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-abschluss-1200', name: 'O&G Abschluss gerade · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [120, 60], gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-kopf-rund-800', name: 'O&G Kopfgondel rund · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 182.9, korpustiefe: 137.2, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [80, 60, 40], beidseitig: true, hinweis: 'Abschluss 180° – runder Kopf einer freistehenden Gondel', gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-kopf-rund-1200', name: 'O&G Kopfgondel rund · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 255.4, korpustiefe: 173.4, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [120, 60], beidseitig: true, gruppe: 'Ecken und Abschlüsse' },
 
   // Das freie Element: gleiches Symbol, alle Maße selbst bestimmbar.
-  { id: 'vt-frei', name: 'O&G frei', kategorie: 'obstgemuese', breite: 200, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Maße, Korpustiefe und Stufen frei einstellbar' },
+  { id: 'vt-frei', name: 'O&G frei', kategorie: 'obstgemuese', breite: 200, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitable', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Maße, Korpustiefe und Stufen frei einstellbar', gruppe: 'Frei' },
 
   // ------------------------------------------------------------ Backwaren
   //
@@ -193,15 +197,15 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   // (Breite x Höhe x Tiefe). Die Varianten unterscheiden sich nicht im Maß,
   // sondern in der Ausstattung. Deshalb ist die Breite hier überall 100 cm:
   // Eine 5-Meter-Zeile sind fünf Türme nebeneinander.
-  { id: 'bakeoff-turm', name: 'BakeOff-Turm', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Grundmodul BO3.0 01.001 – 1000 x 1855 x 885 mm' },
-  { id: 'bakeoff-turm-strom', name: 'BakeOff-Turm mit Strom', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d0ad82', hinweis: 'Stromführend, Anschluss 230 V – BO3.0 01.002' },
-  { id: 'bakeoff-turm-schneider', name: 'BakeOff-Turm Brotschneider', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d0ad82', hinweis: 'Für Brotschneidemaschine – BO3.0 01.003' },
-  { id: 'bakeoff-turm-einzel', name: 'BakeOff-Turm einzeln', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Stand-Alone, freistehend – BO3.0 01.004' },
-  { id: 'bakeoff-ecke', name: 'BakeOff-Eckstück 45°', kategorie: 'backwaren', breite: 88.5, tiefe: 88.5, hoehe: 185.5, form: 'bakeoffEcke', farbe: '#c49a6c', hinweis: 'Füllt die Ecke, wenn die Zeile abknickt' },
-  { id: 'bakeoff-ablage', name: 'Klappbare Ablage', kategorie: 'backwaren', breite: 100, tiefe: 40, hoehe: 90, form: 'rechteck', farbe: '#e8dcc8', hinweis: 'Vor der Zeile, im Plan gestrichelt' },
+  { id: 'bakeoff-turm', name: 'BakeOff-Turm', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Grundmodul BO3.0 01.001 – 1000 x 1855 x 885 mm', gruppe: 'Türme' },
+  { id: 'bakeoff-turm-strom', name: 'BakeOff-Turm mit Strom', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d0ad82', hinweis: 'Stromführend, Anschluss 230 V – BO3.0 01.002', gruppe: 'Türme' },
+  { id: 'bakeoff-turm-schneider', name: 'BakeOff-Turm Brotschneider', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d0ad82', hinweis: 'Für Brotschneidemaschine – BO3.0 01.003', gruppe: 'Türme' },
+  { id: 'bakeoff-turm-einzel', name: 'BakeOff-Turm einzeln', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Stand-Alone, freistehend – BO3.0 01.004', gruppe: 'Türme' },
+  { id: 'bakeoff-ecke', name: 'BakeOff-Eckstück 45°', kategorie: 'backwaren', breite: 88.5, tiefe: 88.5, hoehe: 185.5, form: 'bakeoffEcke', farbe: '#c49a6c', hinweis: 'Füllt die Ecke, wenn die Zeile abknickt', gruppe: 'Ecken und Anbauten' },
+  { id: 'bakeoff-ablage', name: 'Klappbare Ablage', kategorie: 'backwaren', breite: 100, tiefe: 40, hoehe: 90, form: 'rechteck', farbe: '#e8dcc8', hinweis: 'Vor der Zeile, im Plan gestrichelt', gruppe: 'Ecken und Anbauten' },
   // Das freie Element: gleiches Symbol, aber alle Maße selbst bestimmbar –
   // für Sonderbauten und für alles, was das Workbook nicht hergibt.
-  { id: 'bakeoff-frei', name: 'BakeOff frei', kategorie: 'backwaren', breite: 200, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Maße frei einstellbar – Breite, Tiefe und Höhe rechts eintragen' },
+  { id: 'bakeoff-frei', name: 'BakeOff frei', kategorie: 'backwaren', breite: 200, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Maße frei einstellbar – Breite, Tiefe und Höhe rechts eintragen', gruppe: 'Frei' },
 
   // ------------------------------------------------------ Kassen & Eingang
   { id: 'kasse-normal', name: 'Kasse', kategorie: 'kassen', breite: 300, tiefe: 100, hoehe: 110, form: 'rechteck', farbe: '#f5dda0', hinweis: 'Bediente Kasse mit Warenband' },

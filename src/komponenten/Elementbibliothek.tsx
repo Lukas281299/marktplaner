@@ -3,7 +3,7 @@ import { BIBLIOTHEK } from '../daten/bibliothek';
 import { KATEGORIEN } from '../daten/kategorien';
 import { formatiereLaenge } from '../logik/masse';
 import { rahmen } from '../logik/polygon';
-import type { BibliothekEintrag, KategorieId } from '../typen/modell';
+import type { BibliothekEintrag, KategorieId, Massinheit } from '../typen/modell';
 import { usePlanStore } from '../zustand/planStore';
 import { SymbolPfeilAb, SymbolPfeilAuf, SymbolSuche } from './Symbole';
 
@@ -18,6 +18,14 @@ export function Elementbibliothek() {
   const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
   const [suche, setSuche] = useState('');
   const [zugeklappt, setZugeklappt] = useState<Set<KategorieId>>(new Set());
+  /**
+   * Zugeklappte Untergruppen, gemerkt als „Kategorie|Gruppe".
+   *
+   * Untergruppen starten **zu**: Eine Abteilung mit vierzig Vorlagen wäre
+   * sonst genauso unübersichtlich wie ohne Gruppen. Wer eine Höhe aufklappt,
+   * sieht genau die Möbel, die er sucht.
+   */
+  const [offeneGruppen, setOffeneGruppen] = useState<Set<string>>(new Set());
 
   const alleVorlagen = useMemo(
     () => [...BIBLIOTHEK, ...eigeneVorlagen],
@@ -38,6 +46,39 @@ export function Elementbibliothek() {
       else neu.add(id);
       return neu;
     });
+  };
+
+  const klappeGruppe = (schluessel: string) => {
+    setOffeneGruppen((alt) => {
+      const neu = new Set(alt);
+      if (neu.has(schluessel)) neu.delete(schluessel);
+      else neu.add(schluessel);
+      return neu;
+    });
+  };
+
+  /**
+   * Teilt die Vorlagen einer Kategorie in Untergruppen auf.
+   *
+   * Vorlagen ohne Gruppe kommen zuerst und ohne Überschrift – bei einer
+   * Abteilung mit fünf Einträgen wäre eine Gruppierung nur im Weg.
+   */
+  const nachGruppen = (eintraege: BibliothekEintrag[]) => {
+    const ohne = eintraege.filter((v) => !v.gruppe);
+    const mit = new Map<string, BibliothekEintrag[]>();
+    for (const eintrag of eintraege) {
+      if (!eintrag.gruppe) continue;
+      if (!mit.has(eintrag.gruppe)) mit.set(eintrag.gruppe, []);
+      mit.get(eintrag.gruppe)!.push(eintrag);
+    }
+    // Die Reihenfolge folgt der Bibliothek – nur „Frei" rutscht ans Ende.
+    // Dort stehen Sonderfälle, nach denen man erst greift, wenn im Katalog
+    // nichts Passendes steht.
+    const gruppen = [...mit.entries()].sort(([a], [b]) => {
+      const rang = (name: string) => (name.startsWith('Frei') ? 1 : 0);
+      return rang(a) - rang(b);
+    });
+    return { ohne, gruppen };
   };
 
   /** Setzt eine Vorlage in die Mitte der Grundfläche. */
@@ -87,41 +128,59 @@ export function Elementbibliothek() {
                 </span>
               </button>
 
-              {offen && (
-                <div className="vorlagen-liste">
-                  {eintraege.map((vorlage) => (
-                    <div
-                      key={vorlage.id}
-                      className="vorlage"
-                      draggable
-                      title={
-                        vorlage.hinweis
-                          ? `${vorlage.hinweis} — Ziehen oder klicken zum Einfügen`
-                          : 'Ziehen oder klicken zum Einfügen'
-                      }
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', vorlage.id);
-                        e.dataTransfer.effectAllowed = 'copy';
-                      }}
-                      onClick={() => inDieMitte(vorlage)}
-                    >
-                      <span
-                        className={`vorlage-bild${
-                          vorlage.form === 'kreis' || vorlage.form === 'halbkreis' ? ' rund' : ''
-                        }`}
-                        style={{ background: vorlage.farbe }}
-                      />
-                      <span className="vorlage-text">
-                        <span className="vorlage-name">{vorlage.name}</span>
-                        <span className="vorlage-mass">
-                          {formatiereLaenge(vorlage.breite, einheit)} ×{' '}
-                          {formatiereLaenge(vorlage.tiefe, einheit)}
-                        </span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {offen &&
+                (() => {
+                  const { ohne, gruppen } = nachGruppen(eintraege);
+                  return (
+                    <>
+                      {ohne.length > 0 && (
+                        <div className="vorlagen-liste">
+                          {ohne.map((vorlage) => (
+                            <Vorlage
+                              key={vorlage.id}
+                              vorlage={vorlage}
+                              einheit={einheit}
+                              einfuegen={inDieMitte}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      {gruppen.map(([name, inhalt]) => {
+                        const schluessel = `${kategorie.id}|${name}`;
+                        // Beim Suchen alles aufklappen – sonst sucht man
+                        // etwas und sieht nur zugeklappte Überschriften.
+                        const gruppeOffen = offeneGruppen.has(schluessel) || Boolean(suche);
+                        return (
+                          <div key={schluessel}>
+                            <button
+                              className="gruppe-kopf"
+                              onClick={() => klappeGruppe(schluessel)}
+                            >
+                              <span style={{ width: 12, height: 12, color: '#5d6874' }}>
+                                {gruppeOffen ? <SymbolPfeilAuf /> : <SymbolPfeilAb />}
+                              </span>
+                              {name}
+                              <span className="kategorie-anzahl">{inhalt.length}</span>
+                            </button>
+                            {gruppeOffen && (
+                              <div className="vorlagen-liste">
+                                {inhalt.map((vorlage) => (
+                                  <Vorlage
+                                    key={vorlage.id}
+                                    vorlage={vorlage}
+                                    einheit={einheit}
+                                    einfuegen={inDieMitte}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </>
+                  );
+                })()}
             </section>
           );
         })}
@@ -133,5 +192,46 @@ export function Elementbibliothek() {
         )}
       </div>
     </aside>
+  );
+}
+
+/** Eine einzelne Vorlage in der Liste. */
+function Vorlage({
+  vorlage,
+  einheit,
+  einfuegen,
+}: {
+  vorlage: BibliothekEintrag;
+  einheit: Massinheit;
+  einfuegen: (vorlage: BibliothekEintrag) => void;
+}) {
+  return (
+    <div
+      className="vorlage"
+      draggable
+      title={
+        vorlage.hinweis
+          ? `${vorlage.hinweis} — Ziehen oder klicken zum Einfügen`
+          : 'Ziehen oder klicken zum Einfügen'
+      }
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', vorlage.id);
+        e.dataTransfer.effectAllowed = 'copy';
+      }}
+      onClick={() => einfuegen(vorlage)}
+    >
+      <span
+        className={`vorlage-bild${
+          vorlage.form === 'kreis' || vorlage.form === 'halbkreis' ? ' rund' : ''
+        }`}
+        style={{ background: vorlage.farbe }}
+      />
+      <span className="vorlage-text">
+        <span className="vorlage-name">{vorlage.name}</span>
+        <span className="vorlage-mass">
+          {formatiereLaenge(vorlage.breite, einheit)} × {formatiereLaenge(vorlage.tiefe, einheit)}
+        </span>
+      </span>
+    </div>
   );
 }

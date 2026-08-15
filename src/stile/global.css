@@ -343,6 +343,31 @@ body {
   font-size: 11px;
 }
 
+/* Überschrift einer Untergruppe innerhalb einer Kategorie, z. B. „Höhe 1800". */
+.gruppe-kopf {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-1);
+  width: 100%;
+  padding: 5px var(--abstand-3) 5px 22px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-schwach);
+  text-align: left;
+}
+
+.gruppe-kopf:hover {
+  background: var(--flaeche-2);
+  color: var(--text);
+}
+
+.gruppe-kopf .kategorie-anzahl {
+  margin-left: auto;
+}
+
 .vorlagen-liste {
   padding: var(--abstand-1) var(--abstand-2) var(--abstand-2);
   display: flex;

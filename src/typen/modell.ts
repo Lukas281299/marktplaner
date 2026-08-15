@@ -74,6 +74,15 @@ export interface BibliothekEintrag {
   standardBeschriftung?: string;
   /** Kurzer Hinweis für den Mauszeiger-Tooltip. */
   hinweis?: string;
+  /**
+   * Untergruppe innerhalb der Kategorie, z. B. „Höhe 1800".
+   *
+   * Sobald eine Abteilung mehr als eine Handvoll Vorlagen hat, ist eine
+   * einzige Liste unbrauchbar. Vorlagen mit derselben Gruppe erscheinen in
+   * der Bibliothek unter einer eigenen aufklappbaren Überschrift; Vorlagen
+   * ohne Gruppe stehen direkt unter der Kategorie.
+   */
+  gruppe?: string;
   /** Auflagentiefen eines gestuften Möbels – siehe `PlanElement.stufen`. */
   stufen?: number[];
   /** Tiefe des Korpus – siehe `PlanElement.korpustiefe`. */
