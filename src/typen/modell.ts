@@ -63,7 +63,26 @@ export type Grundform =
   | 'blinkSv'
   | 'kuehlSchrank'
   | 'kuehlOffen'
-  | 'kuehlStufen';
+  | 'kuehlStufen'
+  | 'palette'
+  | 'drehstaender'
+  // Gebäude und Ausstattung. Diese Symbole stehen für nichts, was man kaufen
+  // kann – sie sagen, was im Raum steht, und müssen deshalb auf einen Blick
+  // lesbar sein. Eine Treppe soll wie eine Treppe aussehen.
+  | 'treppe'
+  | 'aufzug'
+  | 'saeule'
+  | 'tuerBlatt'
+  | 'fenster'
+  | 'stellflaeche'
+  | 'schild'
+  | 'regal'
+  // Kassenzone.
+  | 'kasse'
+  | 'sbKasse'
+  | 'wagenbox'
+  | 'automat'
+  | 'zugang';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {

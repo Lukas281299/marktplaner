@@ -59,14 +59,14 @@ export const KATEGORIEN: Kategorie[] = [
   {
     id: 'aktion',
     name: 'Aktions- & Sonderflächen',
-    farbe: '#f0c4b3',
-    beschreibung: 'Paletten, Displays, Saison- und Verkostungsflächen',
+    farbe: '#e6d24a',
+    beschreibung: 'Aktionsflächen, EPAL und CHEP, Drehständer, Displays',
   },
   {
     id: 'ausstattung',
     name: 'Weitere Ausstattung',
     farbe: '#d5d8dc',
-    beschreibung: 'Säulen, Türen, Technik und Sonstiges',
+    beschreibung: 'Treppe, Aufzug, Säulen, Türen und Stellflächen',
   },
   {
     id: 'eigene',

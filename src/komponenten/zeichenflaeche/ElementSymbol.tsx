@@ -23,7 +23,7 @@ import type { Grundform, PlanElement } from '../../typen/modell';
  * `beidseitig` ändert bei manchen Möbeln die Zeichnung: Eine Doppeltruhe hat
  * einen Steg in der Mitte, eine Einzeltruhe eine Rückwand.
  */
-function zeichneForm(
+export function zeichneForm(
   ctx: Konva.Context,
   form: Grundform,
   b: number,
@@ -254,6 +254,254 @@ function zeichneForm(
       }
       break;
 
+    case 'palette': {
+      // Palette von oben: die Bretter des Oberdecks. Sie laufen quer zur
+      // längeren Seite, so wie man eine Palette im Plan zeichnet – daran
+      // erkennt man sie sofort als Palette und nicht als Kiste.
+      ctx.rect(0, 0, b, t);
+      const laengs = b >= t;
+      const bretter = 5;
+      for (let i = 1; i < bretter; i++) {
+        const anteil = i / bretter;
+        if (laengs) {
+          ctx.moveTo(0, t * anteil);
+          ctx.lineTo(b, t * anteil);
+        } else {
+          ctx.moveTo(b * anteil, 0);
+          ctx.lineTo(b * anteil, t);
+        }
+      }
+      break;
+    }
+
+    case 'drehstaender': {
+      // Drehständer: Kreis mit Speichen. Die Speichen sind das Zeichen für
+      // „dreht sich" – ohne sie wäre es von einem runden Tisch nicht zu
+      // unterscheiden.
+      const rx = b / 2;
+      const ry = t / 2;
+      ctx.ellipse(rx, ry, rx, ry, 0, 0, Math.PI * 2);
+      for (let i = 0; i < 4; i++) {
+        const winkel = (i * Math.PI) / 4;
+        ctx.moveTo(rx - Math.cos(winkel) * rx, ry - Math.sin(winkel) * ry);
+        ctx.lineTo(rx + Math.cos(winkel) * rx, ry + Math.sin(winkel) * ry);
+      }
+      break;
+    }
+
+    // ---------------------------------------------------------------- Regal
+    case 'regal':
+      // Ein Regalfeld von oben. Der Strich hinten ist die Rückwand, bei einer
+      // Gondel steht er in der Mitte: Dort stoßen die beiden Seiten aneinander.
+      // Das ist im Plan der einzige Unterschied zwischen einem Wandregal und
+      // einer Gondel – die Umrisse sehen sonst gleich aus.
+      ctx.rect(0, 0, b, t);
+      if (beidseitig) {
+        ctx.moveTo(0, t * 0.47);
+        ctx.lineTo(b, t * 0.47);
+        ctx.moveTo(0, t * 0.53);
+        ctx.lineTo(b, t * 0.53);
+      } else {
+        ctx.moveTo(0, t * 0.14);
+        ctx.lineTo(b, t * 0.14);
+      }
+      break;
+
+    // ------------------------------------------------ Gebäude, Ausstattung
+    case 'treppe': {
+      // Eine Treppe von oben: die Stufenkanten quer zur Laufrichtung, dazu
+      // der Laufpfeil. Beides zusammen macht sie erkennbar – Stufen allein
+      // sähen aus wie ein Regal, ein Pfeil allein wie ein Durchgang.
+      //
+      // Gelaufen wird über die längere Seite. Die Auftrittstiefe von 28 cm
+      // ist das übliche Maß im öffentlichen Bereich; daraus ergibt sich die
+      // Zahl der Stufen, statt sie am Element einstellen zu müssen.
+      ctx.rect(0, 0, b, t);
+      const laengs = b >= t;
+      const lauf = laengs ? b : t;
+      const stufen = Math.max(2, Math.round(lauf / 28));
+      for (let i = 1; i < stufen; i++) {
+        const stelle = (lauf * i) / stufen;
+        if (laengs) {
+          ctx.moveTo(stelle, 0);
+          ctx.lineTo(stelle, t);
+        } else {
+          ctx.moveTo(0, stelle);
+          ctx.lineTo(b, stelle);
+        }
+      }
+      // Der Laufpfeil auf der Mittelachse, aufwärts.
+      const laenge = lauf * 0.7;
+      const start = (lauf - laenge) / 2;
+      const kopf = Math.min(laenge * 0.18, (laengs ? t : b) * 0.3);
+      const quer = (laengs ? t : b) / 2;
+      if (laengs) {
+        ctx.moveTo(start, quer);
+        ctx.lineTo(start + laenge, quer);
+        ctx.moveTo(start + laenge - kopf, quer - kopf * 0.6);
+        ctx.lineTo(start + laenge, quer);
+        ctx.lineTo(start + laenge - kopf, quer + kopf * 0.6);
+      } else {
+        ctx.moveTo(quer, start + laenge);
+        ctx.lineTo(quer, start);
+        ctx.moveTo(quer - kopf * 0.6, start + kopf);
+        ctx.lineTo(quer, start);
+        ctx.lineTo(quer + kopf * 0.6, start + kopf);
+      }
+      break;
+    }
+
+    case 'aufzug': {
+      // Der Aufzug: das gekreuzte Rechteck ist das Zeichen für den Fahrkorb,
+      // davor die geteilte Schiebetür.
+      ctx.rect(0, 0, b, t);
+      const rand = Math.min(b, t) * 0.1;
+      ctx.moveTo(rand, rand);
+      ctx.lineTo(b - rand, t - rand);
+      ctx.moveTo(b - rand, rand);
+      ctx.lineTo(rand, t - rand);
+      // Die Tür vorn: zwei Flügel mit einem Spalt in der Mitte.
+      ctx.moveTo(rand, t - rand);
+      ctx.lineTo(b * 0.45, t - rand);
+      ctx.moveTo(b * 0.55, t - rand);
+      ctx.lineTo(b - rand, t - rand);
+      break;
+    }
+
+    case 'saeule': {
+      // Eine tragende Säule wird im Grundriss schraffiert – so unterscheidet
+      // sie sich von einem runden Tisch oder einem Ständer, der nur dort steht.
+      const rx = b / 2;
+      const ry = t / 2;
+      ctx.ellipse(rx, ry, rx, ry, 0, 0, Math.PI * 2);
+      const r = Math.min(rx, ry);
+      // Ohne diese Bremse dreht die Schleife endlos, sobald jemand die Säule
+      // auf null zieht – der Abstand wäre dann ebenfalls null.
+      if (r < 1) break;
+      const abstand = r / 2;
+      for (let d = -r + abstand / 2; d < r; d += abstand) {
+        // Sehne im Abstand d von der Mitte, um 45° gedreht.
+        const halb = Math.sqrt(Math.max(r * r - d * d, 0));
+        const mx = rx + d * Math.SQRT1_2;
+        const my = ry - d * Math.SQRT1_2;
+        ctx.moveTo(mx - halb * Math.SQRT1_2, my - halb * Math.SQRT1_2);
+        ctx.lineTo(mx + halb * Math.SQRT1_2, my + halb * Math.SQRT1_2);
+      }
+      break;
+    }
+
+    case 'tuerBlatt':
+      // Nur die Zarge. Blatt und Schwenkbogen kommen als Strich dazu, sonst
+      // würde die Füllung aus dem Bogen ein Tortenstück machen.
+      ctx.rect(0, 0, b, t);
+      break;
+
+    case 'fenster':
+      // Fenster: die Mauerlaibung und darin die Scheibe als schmales Band.
+      ctx.rect(0, 0, b, t);
+      ctx.moveTo(0, t * 0.38);
+      ctx.lineTo(b, t * 0.38);
+      ctx.moveTo(0, t * 0.62);
+      ctx.lineTo(b, t * 0.62);
+      break;
+
+    case 'stellflaeche': {
+      // Eine Stellfläche ist kein Möbel, sondern freigehaltener Boden.
+      // Die Schraffur sagt genau das: Hier steht etwas, aber nichts Festes.
+      ctx.rect(0, 0, b, t);
+      const abstand = Math.max(Math.min(b, t) / 4, 20);
+      for (let x = -t; x < b; x += abstand) {
+        ctx.moveTo(x, t);
+        ctx.lineTo(x + t, 0);
+      }
+      break;
+    }
+
+    case 'schild': {
+      // Schild oder Bildschirm: die Tafel und davor zwei Striche, die zeigen,
+      // wohin sie schaut. Ohne die Blickrichtung wäre es nur ein Balken.
+      ctx.rect(0, 0, b, t);
+      const spitze = t * 1.2;
+      ctx.moveTo(b * 0.5 - b * 0.15, t + spitze);
+      ctx.lineTo(b * 0.5, t);
+      ctx.lineTo(b * 0.5 + b * 0.15, t + spitze);
+      break;
+    }
+
+    // ------------------------------------------------------------- Kassen
+    case 'kasse': {
+      // Die bediente Kasse, so wie sie im Marktplan steht: das lange
+      // Warenband, der Kassenplatz und dahinter der Packtisch.
+      ctx.rect(0, 0, b, t);
+      const bandEnde = b * 0.58;
+      ctx.rect(0, t * 0.1, bandEnde, t * 0.4);
+      for (let i = 1; i < 6; i++) {
+        const x = (bandEnde * i) / 6;
+        ctx.moveTo(x, t * 0.1);
+        ctx.lineTo(x, t * 0.5);
+      }
+      // Der Kreis ist der Platz an der Kasse.
+      const r = Math.min(t * 0.17, b * 0.07);
+      ctx.moveTo(b * 0.68 + r, t * 0.55);
+      ctx.ellipse(b * 0.68, t * 0.55, r, r, 0, 0, Math.PI * 2);
+      ctx.rect(b * 0.78, t * 0.1, b * 0.2, t * 0.8);
+      break;
+    }
+
+    case 'sbKasse': {
+      // Selbstbedienungskasse: der Terminalkopf hinten, davor die Ablage.
+      ctx.rect(0, 0, b, t);
+      ctx.rect(b * 0.18, t * 0.08, b * 0.64, t * 0.28);
+      ctx.moveTo(0, t * 0.55);
+      ctx.lineTo(b, t * 0.55);
+      break;
+    }
+
+    case 'wagenbox': {
+      // Einkaufswagen ineinandergeschoben. Jedes U ist ein Wagen; sie sind
+      // vorn offen, weil der nächste hineinfährt.
+      ctx.rect(0, 0, b, t);
+      const anzahl = Math.max(2, Math.round(b / 25));
+      const je = b / anzahl;
+      const oben = t * 0.15;
+      const unten = t * 0.85;
+      for (let i = 0; i < anzahl; i++) {
+        const x = i * je + je * 0.12;
+        const breite = je * 0.76;
+        ctx.moveTo(x, oben);
+        ctx.lineTo(x, unten);
+        ctx.lineTo(x + breite, unten);
+        ctx.lineTo(x + breite, oben);
+      }
+      break;
+    }
+
+    case 'automat': {
+      // Leergutautomat: das Gehäuse und darunter der Einwurf.
+      ctx.rect(0, 0, b, t);
+      ctx.rect(b * 0.08, t * 0.08, b * 0.84, t * 0.54);
+      const r = Math.min(b, t) * 0.12;
+      ctx.moveTo(b * 0.5 + r, t * 0.78);
+      ctx.ellipse(b * 0.5, t * 0.78, r, r, 0, 0, Math.PI * 2);
+      break;
+    }
+
+    case 'zugang': {
+      // Ein- oder Ausgang: die Fläche mit dem Pfeil, der die Laufrichtung
+      // angibt. Gedreht wird das Element, nicht das Symbol.
+      ctx.rect(0, 0, b, t);
+      const y = t / 2;
+      const von = b * 0.18;
+      const bis = b * 0.82;
+      const kopf = Math.min((bis - von) * 0.25, t * 0.35);
+      ctx.moveTo(von, y);
+      ctx.lineTo(bis, y);
+      ctx.moveTo(bis - kopf, y - kopf * 0.7);
+      ctx.lineTo(bis, y);
+      ctx.lineTo(bis - kopf, y + kopf * 0.7);
+      break;
+    }
+
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);
@@ -278,8 +526,20 @@ function tuerAnzahl(breite: number): number {
   return Math.max(1, Math.round(breite / TUERBREITE));
 }
 
-/** Formen, vor deren Front Türen gezeichnet werden. */
-const MIT_TUEREN = new Set<Grundform>(['tkSchrank', 'tkKombi', 'kuehlSchrank', 'kuehlStufen']);
+/**
+ * Formen, vor deren Front Türen gezeichnet werden.
+ *
+ * Bei den Kühlmöbeln ergibt sich die Zahl der Türen aus der Länge. Eine
+ * einzelne Tür aus der Ausstattung hat dagegen genau ein Blatt, egal wie
+ * breit sie ist – deshalb steht sie hier mit einer festen Eins.
+ */
+const MIT_TUEREN = new Map<Grundform, number | 'nachBreite'>([
+  ['tkSchrank', 'nachBreite'],
+  ['tkKombi', 'nachBreite'],
+  ['kuehlSchrank', 'nachBreite'],
+  ['kuehlStufen', 'nachBreite'],
+  ['tuerBlatt', 1],
+]);
 
 /**
  * Zeichnet die Schwenkbögen der Türen vor die Front.
@@ -292,8 +552,8 @@ const MIT_TUEREN = new Set<Grundform>(['tkSchrank', 'tkKombi', 'kuehlSchrank', '
  * Alle Türen schlagen in dieselbe Richtung auf. Im Plan sieht man dadurch auf
  * einen Blick, wie viel Gang eine geöffnete Tür braucht.
  */
-function zeichneTuerboegen(ctx: Konva.Context, b: number, t: number) {
-  const tueren = tuerAnzahl(b);
+function zeichneTuerboegen(ctx: Konva.Context, b: number, t: number, anzahl: number) {
+  const tueren = anzahl;
   const breiteJeTuer = b / tueren;
   for (let i = 0; i < tueren; i++) {
     const angel = i * breiteJeTuer;
@@ -315,6 +575,7 @@ function zeichneTuerboegen(ctx: Konva.Context, b: number, t: number) {
 const MIT_ACHSMASS = new Set<Grundform>([
   'rechteck',
   'abgerundet',
+  'regal',
   'bakeoff',
   'vitable',
   'vitableAbschluss',
@@ -453,12 +714,13 @@ export function ElementSymbol({
         }
 
         // 3. Die Türbögen – ebenfalls nur Strich, siehe `zeichneTuerboegen`.
-        if (MIT_TUEREN.has(element.form)) {
+        const tueren = MIT_TUEREN.get(element.form);
+        if (tueren !== undefined) {
           ctx.save();
           ctx.setAttr('strokeStyle', 'rgba(30,40,52,0.65)');
           ctx.setAttr('lineWidth', 1.1 / zoom);
           ctx.beginPath();
-          zeichneTuerboegen(ctx, b, t);
+          zeichneTuerboegen(ctx, b, t, tueren === 'nachBreite' ? tuerAnzahl(b) : tueren);
           ctx.stroke();
           ctx.restore();
         }

@@ -40,6 +40,31 @@ describe('Bibliothek allgemein', () => {
   });
 });
 
+describe('Aktionsflächen', () => {
+  const AKTION = BIBLIOTHEK.filter((e) => e.kategorie === 'aktion');
+
+  it('führt die genormten Palettenmaße', () => {
+    // Diese drei Maße sind der Grund für den ganzen Abschnitt. Sie sind
+    // genormt und dürfen sich nicht durch eine Umstellung verschieben.
+    const paletten = AKTION.filter((e) => e.form === 'palette');
+    const masse = paletten.map((e) => `${e.breite}x${e.tiefe}`);
+    expect(masse).toContain('120x80'); // EPAL
+    expect(masse).toContain('80x60'); // 1/2 CHEP
+    expect(masse).toContain('60x40'); // 1/4 CHEP
+  });
+
+  it('gibt jeder Palette und jedem Ständer eine Untergruppe', () => {
+    const ohne = AKTION.filter((e) => !e.gruppe).map((e) => e.id);
+    expect(ohne).toEqual([]);
+  });
+
+  it('macht Drehständer rund, also breit wie tief', () => {
+    const staender = AKTION.filter((e) => e.form === 'drehstaender');
+    expect(staender.length).toBeGreaterThan(0);
+    for (const eintrag of staender) expect(eintrag.breite).toBe(eintrag.tiefe);
+  });
+});
+
 describe('Obst und Gemüse: die Varianten sind vollständig', () => {
   it('führt jede Variante in beiden Achsmaßen', () => {
     // Der Katalog kennt 1000 und 1250 mm. Eine Variante, die es nur in einer

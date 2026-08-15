@@ -20,6 +20,18 @@ import type { BibliothekEintrag, Grundform } from '../typen/modell';
  */
 const OG_GRUEN = '#1a7a1a';
 
+/**
+ * Die Gelbtöne der Aktionsflächen.
+ *
+ * Die Fläche selbst ist hell, damit die Beschriftung darauf lesbar bleibt –
+ * im Marktplan steht dort meist „Aktionsfläche". Paletten und Ständer sind
+ * kräftiger: Sie sind Möbel und keine Zone, und sollen sich von der Fläche
+ * abheben, auf der sie stehen.
+ */
+const AKTION_GELB = '#ffff99';
+const PALETTE_GELB = '#cfc93f';
+const STAENDER_GELB = '#e0cf52';
+
 /** Die Lilatöne der Tiefkühlmöbel – Truhe, Kombigerät, Kopfstück. */
 const TK_LILA = '#a78ecf';
 const TK_LILA_HELL = '#c2aee6';
@@ -283,16 +295,21 @@ function vitableEintraege(): BibliothekEintrag[] {
 
 export const BIBLIOTHEK: BibliothekEintrag[] = [
   // ---------------------------------------------------------------- Regale
-  { id: 'regal-trocken', name: 'Trockensortimentsregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'rechteck', farbe: '#d9d0c1', hinweis: 'Einseitiges Regalfeld, 125 cm' },
-  { id: 'regal-wand', name: 'Wandregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 220, form: 'rechteck', farbe: '#d4c9b6', hinweis: 'Regal an der Außenwand' },
-  { id: 'regal-gondel', name: 'Gondelregal', kategorie: 'regale', breite: 125, tiefe: 120, hoehe: 180, form: 'rechteck', farbe: '#cfc3ad', hinweis: 'Doppelseitiges Regal in der Gasse' },
-  { id: 'regal-kopf', name: 'Kopfregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 180, form: 'rechteck', farbe: '#e2d6c2', hinweis: 'Stirnseite einer Gondel' },
-  { id: 'regal-getraenke', name: 'Getränkeregal', kategorie: 'regale', breite: 125, tiefe: 80, hoehe: 180, form: 'rechteck', farbe: '#cdd3c0', hinweis: 'Für Kästen und Mehrwegflaschen' },
-  { id: 'regal-wein', name: 'Weinregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'rechteck', farbe: '#cbbfae' },
-  { id: 'regal-drogerie', name: 'Drogerieregal', kategorie: 'regale', breite: 125, tiefe: 50, hoehe: 200, form: 'rechteck', farbe: '#ded5c7' },
-  { id: 'regal-nonfood', name: 'Non-Food-Regal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'rechteck', farbe: '#d7cdbd' },
-  { id: 'regal-brot', name: 'Brotregal', kategorie: 'regale', breite: 100, tiefe: 80, hoehe: 180, form: 'rechteck', farbe: '#e3d3b6' },
-  { id: 'regal-zeitschriften', name: 'Zeitschriftenregal', kategorie: 'regale', breite: 125, tiefe: 50, hoehe: 160, form: 'rechteck', farbe: '#dcd4c6' },
+  //
+  // Vorläufig: Das echte Trockensortiment kommt aus dem Wiretech-Workbook.
+  // Bis dahin stehen hier allgemeine Felder im Achsmaß 125. Sie tragen die
+  // Form `regal`, damit man im Plan sieht, wo die Rückwand steht und ob das
+  // Feld einseitig oder als Gondel geplant ist.
+  { id: 'regal-trocken', name: 'Trockensortimentsregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'regal', farbe: '#d9d0c1', hinweis: 'Einseitiges Regalfeld, 125 cm' },
+  { id: 'regal-wand', name: 'Wandregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 220, form: 'regal', farbe: '#d4c9b6', hinweis: 'Regal an der Außenwand' },
+  { id: 'regal-gondel', name: 'Gondelregal', kategorie: 'regale', breite: 125, tiefe: 120, hoehe: 180, form: 'regal', farbe: '#cfc3ad', beidseitig: true, hinweis: 'Doppelseitiges Regal in der Gasse' },
+  { id: 'regal-kopf', name: 'Kopfregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 180, form: 'regal', farbe: '#e2d6c2', hinweis: 'Stirnseite einer Gondel' },
+  { id: 'regal-getraenke', name: 'Getränkeregal', kategorie: 'regale', breite: 125, tiefe: 80, hoehe: 180, form: 'regal', farbe: '#cdd3c0', hinweis: 'Für Kästen und Mehrwegflaschen' },
+  { id: 'regal-wein', name: 'Weinregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'regal', farbe: '#cbbfae' },
+  { id: 'regal-drogerie', name: 'Drogerieregal', kategorie: 'regale', breite: 125, tiefe: 50, hoehe: 200, form: 'regal', farbe: '#ded5c7' },
+  { id: 'regal-nonfood', name: 'Non-Food-Regal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'regal', farbe: '#d7cdbd' },
+  { id: 'regal-brot', name: 'Brotregal', kategorie: 'regale', breite: 100, tiefe: 80, hoehe: 180, form: 'regal', farbe: '#e3d3b6' },
+  { id: 'regal-zeitschriften', name: 'Zeitschriftenregal', kategorie: 'regale', breite: 125, tiefe: 50, hoehe: 160, form: 'regal', farbe: '#dcd4c6' },
 
   // ---------------------------------------------------- Normalkuehlung
   //
@@ -411,37 +428,74 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'bakeoff-frei', name: 'BakeOff frei', kategorie: 'backwaren', breite: 200, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Maße frei einstellbar – Breite, Tiefe und Höhe rechts eintragen', gruppe: 'Frei' },
 
   // ------------------------------------------------------ Kassen & Eingang
-  { id: 'kasse-normal', name: 'Kasse', kategorie: 'kassen', breite: 300, tiefe: 100, hoehe: 110, form: 'rechteck', farbe: '#f5dda0', hinweis: 'Bediente Kasse mit Warenband' },
-  { id: 'kasse-sb', name: 'Selbstbedienungskasse', kategorie: 'kassen', breite: 100, tiefe: 100, hoehe: 140, form: 'rechteck', farbe: '#f7e5b8', hinweis: 'SB-Kasse' },
+  { id: 'kasse-normal', name: 'Kasse', kategorie: 'kassen', breite: 300, tiefe: 100, hoehe: 110, form: 'kasse', farbe: '#f5dda0', hinweis: 'Bediente Kasse mit Warenband' },
+  { id: 'kasse-tandem', name: 'Tandemkasse', kategorie: 'kassen', breite: 450, tiefe: 100, hoehe: 110, form: 'kasse', farbe: '#f5dda0', hinweis: 'Zwei Bänder an einem Kassenplatz' },
+  { id: 'kasse-sb', name: 'Selbstbedienungskasse', kategorie: 'kassen', breite: 100, tiefe: 100, hoehe: 140, form: 'sbKasse', farbe: '#f7e5b8', hinweis: 'SB-Kasse' },
   { id: 'kassentisch', name: 'Kassentisch', kategorie: 'kassen', breite: 200, tiefe: 80, hoehe: 90, form: 'rechteck', farbe: '#efdcaa' },
-  { id: 'kassensperre', name: 'Kassensperre', kategorie: 'kassen', breite: 100, tiefe: 15, hoehe: 100, form: 'rechteck', farbe: '#c9b47a' },
-  { id: 'eingangsbereich', name: 'Eingangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: '#d8e6c8' },
-  { id: 'ausgangsbereich', name: 'Ausgangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: '#e6d8c8' },
-  { id: 'einkaufswagenbox', name: 'Einkaufswagenbox', kategorie: 'kassen', breite: 200, tiefe: 120, hoehe: 100, form: 'abgerundet', farbe: '#dfe3e6' },
-  { id: 'kundendienst', name: 'Kundendienst', kategorie: 'kassen', breite: 200, tiefe: 100, hoehe: 110, form: 'rechteck', farbe: '#f1e2bb' },
-  { id: 'information', name: 'Information', kategorie: 'kassen', breite: 150, tiefe: 80, hoehe: 110, form: 'rechteck', farbe: '#f1e2bb' },
-  { id: 'leergutautomat', name: 'Leergutautomat', kategorie: 'kassen', breite: 120, tiefe: 100, hoehe: 200, form: 'rechteck', farbe: '#cddac2' },
+  { id: 'kassensperre', name: 'Kassensperre', kategorie: 'kassen', breite: 100, tiefe: 15, hoehe: 100, form: 'linie', farbe: '#c9b47a' },
+  { id: 'eingangsbereich', name: 'Eingangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#d8e6c8' },
+  { id: 'ausgangsbereich', name: 'Ausgangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#e6d8c8' },
+  { id: 'einkaufswagenbox', name: 'Einkaufswagenbox', kategorie: 'kassen', breite: 200, tiefe: 120, hoehe: 100, form: 'wagenbox', farbe: '#dfe3e6' },
+  { id: 'kundendienst', name: 'Kundendienst', kategorie: 'kassen', breite: 200, tiefe: 100, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb' },
+  { id: 'information', name: 'Information', kategorie: 'kassen', breite: 150, tiefe: 80, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb' },
+  { id: 'leergutautomat', name: 'Leergutautomat', kategorie: 'kassen', breite: 120, tiefe: 100, hoehe: 200, form: 'automat', farbe: '#cddac2' },
 
   // -------------------------------------------- Aktions- & Sonderflächen
-  { id: 'aktionsflaeche', name: 'Aktionsfläche', kategorie: 'aktion', breite: 200, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: '#f0c4b3' },
-  { id: 'aktionspalette', name: 'Aktionspalette', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 120, form: 'rechteck', farbe: '#e8b49f', hinweis: 'Europalette 120 × 80 cm' },
-  { id: 'display', name: 'Display', kategorie: 'aktion', breite: 80, tiefe: 60, hoehe: 150, form: 'rechteck', farbe: '#eebda9' },
-  { id: 'schuette', name: 'Schütte', kategorie: 'aktion', breite: 100, tiefe: 80, hoehe: 90, form: 'abgerundet', farbe: '#f2cdbe' },
-  { id: 'kuehldisplay', name: 'Kühldisplay', kategorie: 'aktion', breite: 100, tiefe: 80, hoehe: 120, form: 'abgerundet', farbe: '#c8d9e4' },
-  { id: 'saisonflaeche', name: 'Saisonfläche', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: '#f4d3c4' },
-  { id: 'verkostungsstand', name: 'Verkostungsstand', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 110, form: 'abgerundet', farbe: '#eec6ae' },
+  // ------------------------------------------ Aktions- und Sonderflächen
+  //
+  // Gelb ist im Marktplan die Farbe der Aktionsfläche. Die Fläche selbst
+  // ist hell, damit die Beschriftung darauf lesbar bleibt; Paletten und
+  // Ständer sind kräftiger, weil sie Möbel sind und keine Zone.
+  //
+  // Palettenmaße sind genormt:
+  //   EPAL / Europalette   1200 x 800 mm
+  //   halbe Palette        800 x 600 mm   (1/2 CHEP, "Düsseldorfer")
+  //   Viertelpalette       600 x 400 mm   (1/4 CHEP)
+
+  // ---- Flächen
+  { id: 'aktionsflaeche', name: 'Aktionsfläche 2 x 2 m', kategorie: 'aktion', breite: 200, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen', hinweis: 'Zonenmarkierung, kein Möbel' },
+  { id: 'aktionsflaeche-3x2', name: 'Aktionsfläche 3 x 2 m', kategorie: 'aktion', breite: 300, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche-4x2', name: 'Aktionsfläche 4 x 2 m', kategorie: 'aktion', breite: 400, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche-frei', name: 'Aktionsfläche frei', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen', hinweis: 'Maße frei einstellbar' },
+  { id: 'saisonflaeche', name: 'Saisonfläche', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen' },
+
+  // ---- Paletten
+  { id: 'palette-epal-quer', name: 'EPAL quer · 1,20 x 0,80 m', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: 'Europalette, lange Seite zum Gang' },
+  { id: 'palette-epal-längs', name: 'EPAL längs · 0,80 x 1,20 m', kategorie: 'aktion', breite: 80, tiefe: 120, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: 'Europalette, kurze Seite zum Gang' },
+  { id: 'palette-halb-quer', name: 'Halbe Palette quer · 0,80 x 0,60 m', kategorie: 'aktion', breite: 80, tiefe: 60, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: '1/2 CHEP, Düsseldorfer Palette' },
+  { id: 'palette-halb-längs', name: 'Halbe Palette längs · 0,60 x 0,80 m', kategorie: 'aktion', breite: 60, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten' },
+  { id: 'palette-viertel-quer', name: 'Viertelpalette quer · 0,60 x 0,40 m', kategorie: 'aktion', breite: 60, tiefe: 40, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: '1/4 CHEP' },
+  { id: 'palette-viertel-längs', name: 'Viertelpalette längs · 0,40 x 0,60 m', kategorie: 'aktion', breite: 40, tiefe: 60, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten' },
+  { id: 'palette-chep', name: 'CHEP ganz · 1,20 x 1,00 m', kategorie: 'aktion', breite: 120, tiefe: 100, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten' },
+  { id: 'palette-frei', name: 'Palette frei', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: 'Maße frei einstellbar' },
+
+  // ---- Drehständer
+  { id: 'drehstaender-40', name: 'Drehständer 40 cm', kategorie: 'aktion', breite: 40, tiefe: 40, hoehe: 160, form: 'drehstaender', farbe: STAENDER_GELB, gruppe: 'Drehständer' },
+  { id: 'drehstaender-50', name: 'Drehständer 50 cm', kategorie: 'aktion', breite: 50, tiefe: 50, hoehe: 170, form: 'drehstaender', farbe: STAENDER_GELB, gruppe: 'Drehständer' },
+  { id: 'drehstaender-60', name: 'Drehständer 60 cm', kategorie: 'aktion', breite: 60, tiefe: 60, hoehe: 180, form: 'drehstaender', farbe: STAENDER_GELB, gruppe: 'Drehständer' },
+  { id: 'drehstaender-80', name: 'Drehständer 80 cm', kategorie: 'aktion', breite: 80, tiefe: 80, hoehe: 180, form: 'drehstaender', farbe: STAENDER_GELB, gruppe: 'Drehständer' },
+  { id: 'drehstaender-100', name: 'Drehständer 100 cm', kategorie: 'aktion', breite: 100, tiefe: 100, hoehe: 180, form: 'drehstaender', farbe: STAENDER_GELB, gruppe: 'Drehständer' },
+  { id: 'drehstaender-frei', name: 'Drehständer frei', kategorie: 'aktion', breite: 60, tiefe: 60, hoehe: 180, form: 'drehstaender', farbe: STAENDER_GELB, gruppe: 'Drehständer', hinweis: 'Durchmesser frei einstellbar' },
+
+  // ---- Übriges
+  { id: 'display', name: 'Display', kategorie: 'aktion', breite: 80, tiefe: 60, hoehe: 150, form: 'rechteck', farbe: STAENDER_GELB, gruppe: 'Übriges' },
+  { id: 'schuette', name: 'Schütte', kategorie: 'aktion', breite: 100, tiefe: 80, hoehe: 90, form: 'abgerundet', farbe: STAENDER_GELB, gruppe: 'Übriges' },
+  { id: 'kuehldisplay', name: 'Kühldisplay', kategorie: 'aktion', breite: 100, tiefe: 80, hoehe: 120, form: 'abgerundet', farbe: '#c8d9e4', gruppe: 'Übriges' },
+  { id: 'verkostungsstand', name: 'Verkostungsstand', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 110, form: 'abgerundet', farbe: STAENDER_GELB, gruppe: 'Übriges' },
 
   // ------------------------------------------------------ Weitere Ausstattung
-  { id: 'saeule', name: 'Säule', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'kreis', farbe: '#b9bec4', hinweis: 'Tragende Säule' },
-  { id: 'treppe', name: 'Treppe', kategorie: 'ausstattung', breite: 300, tiefe: 120, hoehe: 0, form: 'rechteck', farbe: '#cfd4d9' },
-  { id: 'aufzug', name: 'Aufzug', kategorie: 'ausstattung', breite: 200, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: '#c6ccd2' },
-  { id: 'tuer', name: 'Tür', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 210, form: 'rechteck', farbe: '#9aa4ae' },
-  { id: 'fenster', name: 'Fenster', kategorie: 'ausstattung', breite: 150, tiefe: 15, hoehe: 150, form: 'rechteck', farbe: '#b6d3e2' },
+  { id: 'saeule', name: 'Säule', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'saeule', farbe: '#b9bec4', hinweis: 'Tragende Säule, im Grundriss schraffiert' },
+  { id: 'saeule-eckig', name: 'Säule eckig', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'stellflaeche', farbe: '#b9bec4', hinweis: 'Quadratische Stütze' },
+  { id: 'treppe', name: 'Treppe', kategorie: 'ausstattung', breite: 300, tiefe: 120, hoehe: 0, form: 'treppe', farbe: '#cfd4d9', hinweis: 'Stufen im Auftritt 28 cm, Pfeil zeigt aufwärts' },
+  { id: 'aufzug', name: 'Aufzug', kategorie: 'ausstattung', breite: 200, tiefe: 200, hoehe: 0, form: 'aufzug', farbe: '#c6ccd2' },
+  { id: 'tuer', name: 'Tür', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 210, form: 'tuerBlatt', farbe: '#9aa4ae', hinweis: 'Mit Schwenkbogen – zeigt den Platzbedarf' },
+  { id: 'fenster', name: 'Fenster', kategorie: 'ausstattung', breite: 150, tiefe: 15, hoehe: 150, form: 'fenster', farbe: '#b6d3e2' },
   { id: 'sitzbereich', name: 'Sitzbereich', kategorie: 'ausstattung', breite: 300, tiefe: 200, hoehe: 0, form: 'abgerundet', farbe: '#dbd3c4' },
-  { id: 'werbeschild', name: 'Werbeschild', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 60, form: 'rechteck', farbe: '#f2d06b' },
-  { id: 'bildschirm', name: 'Bildschirm', kategorie: 'ausstattung', breite: 80, tiefe: 12, hoehe: 50, form: 'rechteck', farbe: '#8d99a6' },
+  { id: 'werbeschild', name: 'Werbeschild', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 60, form: 'schild', farbe: '#f2d06b', hinweis: 'Die Spitze zeigt die Blickrichtung' },
+  { id: 'bildschirm', name: 'Bildschirm', kategorie: 'ausstattung', breite: 80, tiefe: 12, hoehe: 50, form: 'schild', farbe: '#8d99a6' },
   { id: 'abfallbehaelter', name: 'Abfallbehälter', kategorie: 'ausstattung', breite: 60, tiefe: 60, hoehe: 90, form: 'kreis', farbe: '#b0b6bc' },
-  { id: 'hubwagen', name: 'Hubwagenstellplatz', kategorie: 'ausstattung', breite: 200, tiefe: 100, hoehe: 0, form: 'rechteck', farbe: '#d9dde1' },
+  { id: 'hubwagen', name: 'Hubwagenstellplatz', kategorie: 'ausstattung', breite: 200, tiefe: 100, hoehe: 0, form: 'stellflaeche', farbe: '#d9dde1', hinweis: 'Freizuhaltende Fläche' },
+  { id: 'rollcontainer', name: 'Rollcontainer', kategorie: 'ausstattung', breite: 80, tiefe: 70, hoehe: 180, form: 'wagenbox', farbe: '#cfd4d9' },
 ];
 
 /** Sucht eine Vorlage. Gibt `undefined` zurück, wenn es sie nicht (mehr) gibt. */
