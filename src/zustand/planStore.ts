@@ -528,6 +528,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           farbe: vorlage.farbe,
           stufen: vorlage.stufen,
           korpustiefe: vorlage.korpustiefe,
+          achsmass: vorlage.achsmass,
           beidseitig: vorlage.beidseitig,
           beschriftung: vorlage.standardBeschriftung ?? vorlage.name,
           beschriftungSichtbar: true,

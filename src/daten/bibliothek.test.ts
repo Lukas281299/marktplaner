@@ -40,6 +40,90 @@ describe('Bibliothek allgemein', () => {
   });
 });
 
+describe('Trockensortiment: wire tech 100', () => {
+  const WT = BIBLIOTHEK.filter((e) => e.id.startsWith('wt-'));
+  const WAND = WT.filter((e) => e.id.startsWith('wt-wand-'));
+  const GONDEL = WT.filter((e) => e.id.startsWith('wt-gondel-'));
+
+  it('rechnet die tote Zone einmal auf jedes Wandregal', () => {
+    // Ein 600er Grundboden ist nicht 600 tief, sondern 670.
+    expect(WAND.length).toBeGreaterThan(0);
+    for (const eintrag of WAND) {
+      const boden = Number(eintrag.id.split('-')[3]) / 10;
+      expect(eintrag.tiefe).toBeCloseTo(boden + 7, 5);
+    }
+  });
+
+  it('rechnet die tote Zone bei der Gondel nur einmal, nicht zweimal', () => {
+    // 2 × 600 + 70 = 1270 – und gerade nicht 2 × 670 = 1340.
+    expect(GONDEL.length).toBeGreaterThan(0);
+    for (const eintrag of GONDEL) {
+      const boden = Number(eintrag.id.split('-')[3]) / 10;
+      expect(eintrag.tiefe).toBeCloseTo(2 * boden + 7, 5);
+      expect(eintrag.tiefe).toBeLessThan(2 * (boden + 7));
+    }
+  });
+
+  it('macht die Gondel 1270 tief, nicht 1340', () => {
+    const eintrag = GONDEL.find((e) => e.id === 'wt-gondel-1250-600-1800');
+    expect(eintrag?.tiefe).toBe(127);
+  });
+
+  it('lässt Achsmaß 800 nur mit 400er und 500er Boden zu', () => {
+    const achthundert = WT.filter((e) => e.achsmass === 80);
+    expect(achthundert.length).toBeGreaterThan(0);
+    for (const eintrag of achthundert) {
+      const boden = Number(eintrag.id.split('-')[3]) / 10;
+      expect([40, 50]).toContain(boden);
+      expect(eintrag.hoehe).toBeLessThanOrEqual(180);
+    }
+  });
+
+  it('gibt Achsmaß 1333 keinen 800er Boden', () => {
+    const treffer = WT.filter(
+      (e) => e.achsmass === 133.3 && Number(e.id.split('-')[3]) === 800,
+    );
+    expect(treffer).toEqual([]);
+  });
+
+  it('setzt jedem Regalfeld sein Achsmaß, damit die Felder stimmen', () => {
+    for (const eintrag of [...WAND, ...GONDEL]) {
+      expect(eintrag.achsmass).toBeGreaterThan(0);
+      expect(eintrag.breite).toBeCloseTo(eintrag.achsmass!, 5);
+    }
+  });
+
+  it('baut Gondelzüge aus ganzen Feldern', () => {
+    const zuege = WT.filter((e) => e.id.startsWith('wt-zug-'));
+    expect(zuege.length).toBeGreaterThan(0);
+    for (const zug of zuege) {
+      const felder = zug.breite / zug.achsmass!;
+      expect(Math.abs(felder - Math.round(felder))).toBeLessThan(0.01);
+    }
+  });
+
+  it('stellt vor die 600er Gondel eine 1250er Kopfgondel', () => {
+    // Vorgabe aus der Praxis: 600er Boden → A1250, 500er → A1000.
+    const zug = WT.find((e) => e.id === 'wt-zug-1250-5-600');
+    expect(zug?.hinweis).toContain('A1250');
+    const fuenfhundert = WT.find((e) => e.id === 'wt-zug-1250-5-500');
+    expect(fuenfhundert?.hinweis).toContain('A1000');
+  });
+
+  it('führt jede Kopfgondel gerade und rund', () => {
+    const gerade = WT.filter((e) => e.id.startsWith('wt-kopf-gerade-'));
+    const rund = WT.filter((e) => e.id.startsWith('wt-kopf-rund-'));
+    expect(gerade).toHaveLength(rund.length);
+    expect(rund.length).toBeGreaterThan(0);
+  });
+
+  it('macht das Eckfeld quadratisch', () => {
+    const ecken = WT.filter((e) => e.id.startsWith('wt-eck-'));
+    expect(ecken.length).toBeGreaterThan(0);
+    for (const eck of ecken) expect(eck.breite).toBe(eck.tiefe);
+  });
+});
+
 describe('Kassen', () => {
   const KASSEN = BIBLIOTHEK.filter((e) => e.kategorie === 'kassen');
   const BEDIENT = KASSEN.filter((e) => /^kasse-(steh|sitz|doppel)-\d+$/.test(e.id));

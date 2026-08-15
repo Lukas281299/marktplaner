@@ -174,6 +174,227 @@ function kuehlEintraege(): BibliothekEintrag[] {
 }
 
 /**
+ * Das Trockensortiment: Wanzl wire tech 100, Workbook Version 77 / 12–2025.
+ *
+ * Das System baut alles aus einem Raster. Breite ist das Achsmaß der
+ * Rückwand, Tiefe der Grundboden, Höhe die Säule:
+ *
+ *   Achsmaß   625 · 800 · 1000 · 1250 · 1333 mm   (Seite 24)
+ *   Tiefe     200 bis 800 mm in Hundertern         (Seite 54)
+ *   Höhe      1400 bis 2400 mm in Zweihundertern   (Seiten 11 und 12)
+ *
+ * Nicht jede Kombination gibt es – das Workbook lässt Lücken, und die sind
+ * unten als Regeln hinterlegt statt als Liste. Am auffälligsten: Achsmaß 800
+ * gibt es nur mit 400er und 500er Boden und nur bis H1800, und Achsmaß 1333
+ * hat keinen 800er Boden.
+ *
+ * Dazu die Planungsregel, die im Workbook nicht steht, aber jede Stellfläche
+ * bestimmt: Hinter dem Grundboden bleiben immer 70 mm tote Zone. Ein Regal
+ * mit 600er Boden ist deshalb 670 tief. Bei der Gondel liegt die Zone
+ * zwischen beiden Seiten und zählt nur einmal – 2 × 600 + 70 = 1270.
+ */
+const WT_TOTE_ZONE = 7;
+
+const WT_GRAU = '#c9c5bd';
+const WT_GRAU_DUNKEL = '#b7b2a8';
+const WT_GRAU_HELL = '#d8d4cc';
+
+/** Achsmaße in cm, wie sie das Workbook auf Seite 24 führt. */
+const WT_ACHSMASSE = [62.5, 80, 100, 125, 133.3];
+
+/** Schreibt ein Achsmaß so, wie es im Plan steht: „A1250". */
+function achsText(a: number): string {
+  return `A${Math.round(a * 10)}`;
+}
+
+/** Höhen, die es zu einem Achsmaß gibt – begrenzt durch die Rückwand. */
+function wtHoehen(achsmass: number): number[] {
+  if (Math.abs(achsmass - 80) < 0.1) return [140, 160, 180];
+  if (Math.abs(achsmass - 62.5) < 0.1) return [140, 160, 180, 200, 220];
+  return [140, 160, 180, 200, 220, 240];
+}
+
+/** Grundbodentiefen, die es zu einem Achsmaß gibt (Draht-Etage, Seite 54). */
+function wtTiefen(achsmass: number): number[] {
+  if (Math.abs(achsmass - 80) < 0.1) return [40, 50];
+  if (Math.abs(achsmass - 133.3) < 0.1) return [30, 40, 50, 60, 70];
+  return [30, 40, 50, 60, 70, 80];
+}
+
+/**
+ * Zusätzliche Höhengrenze aus der Säule.
+ *
+ * Die L-Säule (Wandregal) gibt es in 700 nur als H2200 und in 800 erst ab
+ * H1800. Die T-Säule (Gondel) reicht bei 2 × 300 nur bis H2000, bei 2 × 400
+ * bis H2200 und bei 2 × 700 erst ab H1800.
+ */
+function wtHoehenNachSaeule(tiefe: number, gondel: boolean): number[] | null {
+  if (gondel) {
+    if (tiefe === 30) return [140, 160, 180, 200];
+    if (tiefe === 40) return [140, 160, 180, 200, 220];
+    if (tiefe === 70) return [180, 200, 220];
+    if (tiefe === 80) return null; // keine T-Säule dafür
+    return null; // 50 und 60: keine zusätzliche Grenze
+  }
+  if (tiefe === 70) return [220];
+  if (tiefe === 80) return [180, 200, 220];
+  return null;
+}
+
+/**
+ * Das Achsmaß der Kopfgondel vor einem Zug dieser Tiefe.
+ *
+ * Vorgabe aus der Praxis: Vor eine Gondel mit 600er Boden kommt eine
+ * 1250er Kopfgondel, vor eine mit 500er eine 1000er. Die übrigen Tiefen
+ * folgen derselben Logik – das Achsmaß, das der Gondeltiefe am nächsten
+ * kommt, aus den vier Maßen, die es den Abschluss 180° gibt.
+ */
+function wtKopfAchsmass(tiefeJeSeite: number): number {
+  const gondeltiefe = 2 * tiefeJeSeite + WT_TOTE_ZONE;
+  const moeglich = [62.5, 100, 125, 133.3];
+  return moeglich.reduce((a, b) =>
+    Math.abs(b - gondeltiefe) < Math.abs(a - gondeltiefe) ? b : a,
+  );
+}
+
+function wt100Eintraege(): BibliothekEintrag[] {
+  const eintraege: BibliothekEintrag[] = [];
+
+  for (const achsmass of WT_ACHSMASSE) {
+    const a = achsText(achsmass);
+
+    // ---- Wandregale, einseitig
+    for (const tiefe of wtTiefen(achsmass)) {
+      const grenze = wtHoehenNachSaeule(tiefe, false);
+      for (const hoehe of wtHoehen(achsmass)) {
+        if (grenze && !grenze.includes(hoehe)) continue;
+        eintraege.push({
+          id: `wt-wand-${Math.round(achsmass * 10)}-${tiefe * 10}-${hoehe * 10}`,
+          name: `Wandregal ${a} · T${tiefe * 10} · H${hoehe * 10}`,
+          kategorie: 'regale',
+          breite: achsmass,
+          tiefe: tiefe + WT_TOTE_ZONE,
+          hoehe,
+          form: 'wt100',
+          farbe: WT_GRAU,
+          achsmass,
+          gruppe: `Wandregale ${a}`,
+          hinweis: `Grundboden ${tiefe * 10} mm + 70 mm tote Zone = ${(tiefe + WT_TOTE_ZONE) * 10} mm Stellfläche`,
+        });
+      }
+    }
+
+    // ---- Gondeln, doppelseitig, ein Feld
+    for (const tiefe of wtTiefen(achsmass)) {
+      if (tiefe === 80) continue; // keine T-Säule für 2 × 800
+      const grenze = wtHoehenNachSaeule(tiefe, true);
+      const gondeltiefe = 2 * tiefe + WT_TOTE_ZONE;
+      for (const hoehe of wtHoehen(achsmass)) {
+        if (grenze && !grenze.includes(hoehe)) continue;
+        eintraege.push({
+          id: `wt-gondel-${Math.round(achsmass * 10)}-${tiefe * 10}-${hoehe * 10}`,
+          name: `Gondel ${a} · T2×${tiefe * 10} · H${hoehe * 10}`,
+          kategorie: 'regale',
+          breite: achsmass,
+          tiefe: gondeltiefe,
+          hoehe,
+          form: 'wt100',
+          farbe: WT_GRAU_DUNKEL,
+          achsmass,
+          beidseitig: true,
+          gruppe: `Gondeln ${a}`,
+          hinweis: `2 × ${tiefe * 10} mm + 70 mm tote Zone = ${gondeltiefe * 10} mm – die Zone zählt nur einmal`,
+        });
+      }
+    }
+  }
+
+  // ---- Fertige Gondelzüge
+  //
+  // Ein Zug ist nichts anderes als eine Gondel über mehrere Felder. Weil sich
+  // die Länge aus Achsmaß und Feldzahl ergibt und nicht jede runde Meterzahl
+  // aufgeht, stehen hier die Feldzahlen und der Name nennt das Ergebnis.
+  for (const achsmass of [62.5, 100, 125, 133.3]) {
+    for (const felder of [2, 3, 4, 5, 6, 8]) {
+      for (const tiefe of [50, 60]) {
+        const laenge = Math.round(achsmass * felder * 10) / 10;
+        eintraege.push({
+          id: `wt-zug-${Math.round(achsmass * 10)}-${felder}-${tiefe * 10}`,
+          name: `Gondelzug ${(laenge / 100).toFixed(2).replace('.', ',')} m · ${felder} Felder ${achsText(achsmass)} · T2×${tiefe * 10}`,
+          kategorie: 'regale',
+          breite: laenge,
+          tiefe: 2 * tiefe + WT_TOTE_ZONE,
+          hoehe: 180,
+          form: 'wt100',
+          farbe: WT_GRAU_DUNKEL,
+          achsmass,
+          beidseitig: true,
+          gruppe: 'Gondelzüge',
+          hinweis: `Höhe am Element einstellbar · Kopfgondel dazu: ${achsText(wtKopfAchsmass(tiefe))}`,
+        });
+      }
+    }
+  }
+
+  // ---- Kopfgondeln, gerade und rund (Abschluss 180°, Workbook Seite 56)
+  for (const achsmass of [62.5, 100, 125, 133.3]) {
+    for (const tiefe of [30, 40, 50, 60]) {
+      const a = achsText(achsmass);
+      eintraege.push({
+        id: `wt-kopf-gerade-${Math.round(achsmass * 10)}-${tiefe * 10}`,
+        name: `Kopfgondel gerade ${a} · T${tiefe * 10}`,
+        kategorie: 'regale',
+        breite: achsmass,
+        tiefe: tiefe + WT_TOTE_ZONE,
+        hoehe: 180,
+        form: 'wt100',
+        farbe: WT_GRAU_HELL,
+        achsmass,
+        gruppe: 'Kopfgondeln',
+        hinweis: `Vor eine Gondel mit ${a === 'A1250' ? '600er' : a === 'A1000' ? '500er' : ''} Boden`,
+      });
+      eintraege.push({
+        id: `wt-kopf-rund-${Math.round(achsmass * 10)}-${tiefe * 10}`,
+        name: `Kopfgondel rund ${a} · T${tiefe * 10}`,
+        kategorie: 'regale',
+        breite: achsmass,
+        tiefe: tiefe + WT_TOTE_ZONE,
+        hoehe: 180,
+        form: 'wt100Rund',
+        farbe: WT_GRAU_HELL,
+        achsmass,
+        gruppe: 'Kopfgondeln',
+        hinweis: 'Abschluss 180° · Drahtetage, Sockelblech und Führungsrohr rund',
+      });
+    }
+  }
+
+  // ---- Eckfelder
+  //
+  // Das Workbook kennt kein Eckbauteil. Über Eck stößt ein Zug stumpf an den
+  // anderen, und dahinter bleibt ein Quadrat liegen, an das niemand
+  // herankommt. Als eigenes Element geplant, geht es wenigstens nicht als
+  // Verkaufsfläche in die Rechnung ein.
+  for (const tiefe of [30, 40, 50, 60, 70, 80]) {
+    const seite = tiefe + WT_TOTE_ZONE;
+    eintraege.push({
+      id: `wt-eck-${tiefe * 10}`,
+      name: `Eckfeld T${tiefe * 10}`,
+      kategorie: 'regale',
+      breite: seite,
+      tiefe: seite,
+      hoehe: 180,
+      form: 'wt100Eck',
+      farbe: WT_GRAU_HELL,
+      gruppe: 'Eckfelder',
+      hinweis: 'Blindfeld – wire tech 100 hat kein Eckbauteil, die Züge stoßen stumpf',
+    });
+  }
+
+  return eintraege;
+}
+
+/**
  * Die bedienten Kassen, abgemessen am Marktplan Immenhausen.
  *
  * Der Plan zeigt die ITAB Straight IV. Aufgedruckt ist dort nur das Band –
@@ -377,21 +598,10 @@ function vitableEintraege(): BibliothekEintrag[] {
 
 export const BIBLIOTHEK: BibliothekEintrag[] = [
   // ---------------------------------------------------------------- Regale
-  //
-  // Vorläufig: Das echte Trockensortiment kommt aus dem Wiretech-Workbook.
-  // Bis dahin stehen hier allgemeine Felder im Achsmaß 125. Sie tragen die
-  // Form `regal`, damit man im Plan sieht, wo die Rückwand steht und ob das
-  // Feld einseitig oder als Gondel geplant ist.
-  { id: 'regal-trocken', name: 'Trockensortimentsregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'regal', farbe: '#d9d0c1', hinweis: 'Einseitiges Regalfeld, 125 cm' },
-  { id: 'regal-wand', name: 'Wandregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 220, form: 'regal', farbe: '#d4c9b6', hinweis: 'Regal an der Außenwand' },
-  { id: 'regal-gondel', name: 'Gondelregal', kategorie: 'regale', breite: 125, tiefe: 120, hoehe: 180, form: 'regal', farbe: '#cfc3ad', beidseitig: true, hinweis: 'Doppelseitiges Regal in der Gasse' },
-  { id: 'regal-kopf', name: 'Kopfregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 180, form: 'regal', farbe: '#e2d6c2', hinweis: 'Stirnseite einer Gondel' },
-  { id: 'regal-getraenke', name: 'Getränkeregal', kategorie: 'regale', breite: 125, tiefe: 80, hoehe: 180, form: 'regal', farbe: '#cdd3c0', hinweis: 'Für Kästen und Mehrwegflaschen' },
-  { id: 'regal-wein', name: 'Weinregal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'regal', farbe: '#cbbfae' },
-  { id: 'regal-drogerie', name: 'Drogerieregal', kategorie: 'regale', breite: 125, tiefe: 50, hoehe: 200, form: 'regal', farbe: '#ded5c7' },
-  { id: 'regal-nonfood', name: 'Non-Food-Regal', kategorie: 'regale', breite: 125, tiefe: 60, hoehe: 200, form: 'regal', farbe: '#d7cdbd' },
-  { id: 'regal-brot', name: 'Brotregal', kategorie: 'regale', breite: 100, tiefe: 80, hoehe: 180, form: 'regal', farbe: '#e3d3b6' },
-  { id: 'regal-zeitschriften', name: 'Zeitschriftenregal', kategorie: 'regale', breite: 125, tiefe: 50, hoehe: 160, form: 'regal', farbe: '#dcd4c6' },
+  ...wt100Eintraege(),
+  // Ein freies Feld für alles, was das System nicht hergibt.
+  { id: 'regal-frei', name: 'Regal frei', kategorie: 'regale', breite: 125, tiefe: 67, hoehe: 180, form: 'regal', farbe: '#d9d0c1', gruppe: 'Frei', hinweis: 'Maße frei einstellbar' },
+  { id: 'regal-gondel-frei', name: 'Gondel frei', kategorie: 'regale', breite: 125, tiefe: 127, hoehe: 180, form: 'regal', farbe: '#cfc3ad', beidseitig: true, gruppe: 'Frei', hinweis: 'Maße frei einstellbar' },
 
   // ---------------------------------------------------- Normalkuehlung
   //

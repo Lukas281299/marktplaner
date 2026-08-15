@@ -17,8 +17,8 @@ export const KATEGORIEN: Kategorie[] = [
   {
     id: 'regale',
     name: 'Regale',
-    farbe: '#d9d0c1',
-    beschreibung: 'Trockensortiment, Wand- und Gondelregale',
+    farbe: '#c9c5bd',
+    beschreibung: 'wire tech 100: Wandregale, Gondeln, Züge, Kopfgondeln',
   },
   {
     id: 'kuehlung',

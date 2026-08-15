@@ -23,12 +23,23 @@ import type { Grundform, PlanElement } from '../../typen/modell';
  * `beidseitig` ändert bei manchen Möbeln die Zeichnung: Eine Doppeltruhe hat
  * einen Steg in der Mitte, eine Einzeltruhe eine Rückwand.
  */
+/**
+ * Die tote Zone hinter einem wire-tech-100-Regal, in cm.
+ *
+ * Sie gehört zum System und lässt sich nicht wegplanen: Hinter dem Grundboden
+ * bleiben immer 70 mm für Säule und Rückwand. Ein Regal mit 600er Boden
+ * braucht also 670 mm Stellfläche. Bei der Gondel liegt die Zone zwischen den
+ * beiden Seiten und zählt nur einmal.
+ */
+const TOTE_ZONE = 7;
+
 export function zeichneForm(
   ctx: Konva.Context,
   form: Grundform,
   b: number,
   t: number,
   beidseitig = false,
+  achsmass = 0,
 ) {
   switch (form) {
     case 'abgerundet': {
@@ -286,6 +297,84 @@ export function zeichneForm(
         ctx.moveTo(rx - Math.cos(winkel) * rx, ry - Math.sin(winkel) * ry);
         ctx.lineTo(rx + Math.cos(winkel) * rx, ry + Math.sin(winkel) * ry);
       }
+      break;
+    }
+
+    // -------------------------------------------------- wire tech 100
+    case 'wt100': {
+      // Ein Regalzug von oben. Drei Dinge machen ihn im Plan lesbar:
+      // die Feldteilung im Achsmaß, das Achsmaß-Zeichen in jedem Feld –
+      // und die tote Zone, maßstäblich eingezeichnet.
+      //
+      // Die tote Zone sind die 70 mm hinter dem Grundboden, die das System
+      // immer braucht. Ein Regal mit 600er Boden ist deshalb 670 tief. Bei
+      // der Gondel teilen sich beide Seiten diese Zone, sie liegt dort in
+      // der Mitte und zählt nur einmal: 2 × 600 + 70 = 1270, nicht 1340.
+      ctx.rect(0, 0, b, t);
+
+      const felder = achsmass > 0 ? Math.max(1, Math.round(b / achsmass)) : 1;
+      const je = b / felder;
+      for (let i = 1; i < felder; i++) {
+        ctx.moveTo(i * je, 0);
+        ctx.lineTo(i * je, t);
+      }
+
+      const zone = Math.min(TOTE_ZONE, t / 2);
+      if (beidseitig) {
+        ctx.moveTo(0, (t - zone) / 2);
+        ctx.lineTo(b, (t - zone) / 2);
+        ctx.moveTo(0, (t + zone) / 2);
+        ctx.lineTo(b, (t + zone) / 2);
+      } else {
+        ctx.moveTo(0, zone);
+        ctx.lineTo(b, zone);
+      }
+
+      // Das Achsmaß-Zeichen steht in jedem Feld, nicht einmal über den
+      // ganzen Zug: Ein 6-m-Zug aus 1,25er Feldern hat fünf Diagonalen.
+      const zeichen = achsmassZeichen(je);
+      if (zeichen !== 'keins') {
+        for (let i = 0; i < felder; i++) {
+          const links = i * je;
+          ctx.moveTo(links, t);
+          ctx.lineTo(links + je, 0);
+          if (zeichen === 'kreuz') {
+            ctx.moveTo(links, 0);
+            ctx.lineTo(links + je, t);
+          }
+        }
+      }
+      break;
+    }
+
+    case 'wt100Rund': {
+      // Der Abschluss 180°, die runde Kopfgondel. Hinten schließt sie
+      // stumpf an den Zug an, vorn laufen die Etagen im Bogen herum.
+      const r = Math.min(t, b / 2);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b, 0);
+      ctx.lineTo(b, t - r);
+      ctx.arcTo(b, t, b - r, t, r);
+      ctx.lineTo(r, t);
+      ctx.arcTo(0, t, 0, t - r, r);
+      ctx.closePath();
+      // Die tote Zone an der Rückseite, wo sie am Zug anliegt.
+      const zone = Math.min(TOTE_ZONE, t / 2);
+      ctx.moveTo(0, zone);
+      ctx.lineTo(b, zone);
+      break;
+    }
+
+    case 'wt100Eck': {
+      // Das Eckfeld. wire tech 100 kennt kein Eckbauteil – über Eck stößt
+      // ein Zug stumpf an den anderen, und dahinter bleibt ein Quadrat
+      // liegen, an das niemand herankommt. Die Kreuzschraffur sagt genau
+      // das: hier steht Ware, aber sie ist nicht verkäuflich erreichbar.
+      ctx.rect(0, 0, b, t);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b, t);
+      ctx.moveTo(b, 0);
+      ctx.lineTo(0, t);
       break;
     }
 
@@ -838,7 +927,7 @@ export function ElementSymbol({
         // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
         //    Linienfarbe des Elements.
         ctx.beginPath();
-        zeichneForm(ctx, element.form, b, t, Boolean(element.beidseitig));
+        zeichneForm(ctx, element.form, b, t, Boolean(element.beidseitig), element.achsmass ?? 0);
         zeichneAchsmass(ctx, element.form, element.breite, b, t);
         ctx.fillStrokeShape(shape);
 

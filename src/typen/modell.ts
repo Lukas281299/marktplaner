@@ -86,7 +86,13 @@ export type Grundform =
   | 'ausgangsanlage'
   | 'wagenbox'
   | 'automat'
-  | 'zugang';
+  | 'zugang'
+  // Trockensortiment. wire tech 100 baut alles aus dem gleichen Raster:
+  // Achsmaß in der Breite, Grundbodentiefe in der Tiefe, dazu hinten
+  // immer 70 mm tote Zone.
+  | 'wt100'
+  | 'wt100Rund'
+  | 'wt100Eck';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {
@@ -120,6 +126,15 @@ export interface BibliothekEintrag {
   stufen?: number[];
   /** Tiefe des Korpus – siehe `PlanElement.korpustiefe`. */
   korpustiefe?: number;
+  /**
+   * Achsmaß eines Regalfelds in cm, z. B. 125.
+   *
+   * Ein Regalzug besteht aus gleich breiten Feldern. Gespeichert wird nur das
+   * Maß eines Felds – wie viele es sind, ergibt sich aus der Breite. Wird der
+   * Zug länger gezogen, kommen Felder dazu, und genau so wird er bestellt.
+   */
+  achsmass?: number;
+
   /** Wird das Möbel von beiden Seiten bestückt? */
   beidseitig?: boolean;
   /** Selbst angelegte Vorlage (nicht mitgeliefert). */
@@ -205,6 +220,14 @@ export interface PlanElement {
    * Fehlt der Wert, steht das Möbel auf seiner ganzen Tiefe.
    */
   korpustiefe?: number;
+  /**
+   * Achsmaß eines Regalfelds in cm – siehe `BibliothekEintrag.achsmass`.
+   *
+   * Die Zeichnung teilt die Breite in Felder dieses Maßes und setzt in jedes
+   * das Achsmaß-Zeichen. Ein 6-m-Zug aus Feldern von 1,25 m bekommt also
+   * fünf Diagonalen, nicht eine über die ganze Länge.
+   */
+  achsmass?: number;
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */
