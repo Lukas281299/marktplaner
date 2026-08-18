@@ -774,18 +774,35 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'verkostungsstand', name: 'Verkostungsstand', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 110, form: 'abgerundet', farbe: STAENDER_GELB, gruppe: 'Übriges' },
 
   // ------------------------------------------------------ Weitere Ausstattung
-  { id: 'saeule', name: 'Säule', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'saeule', farbe: '#b9bec4', hinweis: 'Tragende Säule, im Grundriss schraffiert' },
-  { id: 'saeule-eckig', name: 'Säule eckig', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'stellflaeche', farbe: '#b9bec4', hinweis: 'Quadratische Stütze' },
-  { id: 'treppe', name: 'Treppe', kategorie: 'ausstattung', breite: 300, tiefe: 120, hoehe: 0, form: 'treppe', farbe: '#cfd4d9', hinweis: 'Stufen im Auftritt 28 cm, Pfeil zeigt aufwärts' },
-  { id: 'aufzug', name: 'Aufzug', kategorie: 'ausstattung', breite: 200, tiefe: 200, hoehe: 0, form: 'aufzug', farbe: '#c6ccd2' },
-  { id: 'tuer', name: 'Tür', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 210, form: 'tuerBlatt', farbe: '#9aa4ae', hinweis: 'Mit Schwenkbogen – zeigt den Platzbedarf' },
-  { id: 'fenster', name: 'Fenster', kategorie: 'ausstattung', breite: 150, tiefe: 15, hoehe: 150, form: 'fenster', farbe: '#b6d3e2' },
-  { id: 'sitzbereich', name: 'Sitzbereich', kategorie: 'ausstattung', breite: 300, tiefe: 200, hoehe: 0, form: 'abgerundet', farbe: '#dbd3c4' },
-  { id: 'werbeschild', name: 'Werbeschild', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 60, form: 'schild', farbe: '#f2d06b', hinweis: 'Die Spitze zeigt die Blickrichtung' },
-  { id: 'bildschirm', name: 'Bildschirm', kategorie: 'ausstattung', breite: 80, tiefe: 12, hoehe: 50, form: 'schild', farbe: '#8d99a6' },
-  { id: 'abfallbehaelter', name: 'Abfallbehälter', kategorie: 'ausstattung', breite: 60, tiefe: 60, hoehe: 90, form: 'kreis', farbe: '#b0b6bc' },
-  { id: 'hubwagen', name: 'Hubwagenstellplatz', kategorie: 'ausstattung', breite: 200, tiefe: 100, hoehe: 0, form: 'stellflaeche', farbe: '#d9dde1', hinweis: 'Freizuhaltende Fläche' },
-  { id: 'rollcontainer', name: 'Rollcontainer', kategorie: 'ausstattung', breite: 80, tiefe: 70, hoehe: 180, form: 'wagenbox', farbe: '#cfd4d9' },
+  { id: 'saeule', name: 'Säule', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'saeule', farbe: '#b9bec4', hinweis: 'Tragende Säule, im Grundriss schraffiert', gruppe: 'Einrichtung' },
+  { id: 'saeule-eckig', name: 'Säule eckig', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'stellflaeche', farbe: '#b9bec4', hinweis: 'Quadratische Stütze', gruppe: 'Einrichtung' },
+  { id: 'treppe', name: 'Treppe', kategorie: 'ausstattung', breite: 300, tiefe: 120, hoehe: 0, form: 'treppe', farbe: '#cfd4d9', hinweis: 'Stufen im Auftritt 28 cm, Pfeil zeigt aufwärts', gruppe: 'Einrichtung' },
+  { id: 'aufzug', name: 'Aufzug', kategorie: 'ausstattung', breite: 200, tiefe: 200, hoehe: 0, form: 'aufzug', farbe: '#c6ccd2', gruppe: 'Einrichtung' },
+  { id: 'tuer', name: 'Tür', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 210, form: 'tuerBlatt', farbe: '#9aa4ae', hinweis: 'Mit Schwenkbogen – zeigt den Platzbedarf', gruppe: 'Einrichtung' },
+  { id: 'fenster', name: 'Fenster', kategorie: 'ausstattung', breite: 150, tiefe: 15, hoehe: 150, form: 'fenster', farbe: '#b6d3e2', gruppe: 'Einrichtung' },
+  { id: 'sitzbereich', name: 'Sitzbereich', kategorie: 'ausstattung', breite: 300, tiefe: 200, hoehe: 0, form: 'abgerundet', farbe: '#dbd3c4', gruppe: 'Einrichtung' },
+  { id: 'werbeschild', name: 'Werbeschild', kategorie: 'ausstattung', breite: 100, tiefe: 15, hoehe: 60, form: 'schild', farbe: '#f2d06b', hinweis: 'Die Spitze zeigt die Blickrichtung', gruppe: 'Einrichtung' },
+  { id: 'bildschirm', name: 'Bildschirm', kategorie: 'ausstattung', breite: 80, tiefe: 12, hoehe: 50, form: 'schild', farbe: '#8d99a6', gruppe: 'Einrichtung' },
+  { id: 'abfallbehaelter', name: 'Abfallbehälter', kategorie: 'ausstattung', breite: 60, tiefe: 60, hoehe: 90, form: 'kreis', farbe: '#b0b6bc', gruppe: 'Einrichtung' },
+  { id: 'hubwagen', name: 'Hubwagenstellplatz', kategorie: 'ausstattung', breite: 200, tiefe: 100, hoehe: 0, form: 'stellflaeche', farbe: '#d9dde1', hinweis: 'Freizuhaltende Fläche', gruppe: 'Einrichtung' },
+  { id: 'rollcontainer', name: 'Rollcontainer', kategorie: 'ausstattung', breite: 80, tiefe: 70, hoehe: 180, form: 'wagenbox', farbe: '#cfd4d9', gruppe: 'Einrichtung' },
+
+  // ---------------------------------------------------- Bau und Technik
+  //
+  // Was beim Aufmessen eines bestehenden Marktes mit in den Plan muss. Diese
+  // Zeichen stehen für nichts, was geliefert wird – sie halten fest, was
+  // schon da ist und die Planung einschränkt. Eine Säule mitten in der
+  // Gasse entscheidet ueber den ganzen Zug davor.
+  { id: 'einzelsaeule', name: 'Einzelsäule', kategorie: 'ausstattung', breite: 30, tiefe: 30, hoehe: 300, form: 'einzelsaeule', farbe: '#e8a7a0', gruppe: 'Bau und Technik', hinweis: 'Zeichen wie in der Wanzl-Legende' },
+  { id: 'stuetze-eckig', name: 'Stütze eckig', kategorie: 'ausstattung', breite: 40, tiefe: 40, hoehe: 300, form: 'stuetzeEckig', farbe: '#b9bec4', gruppe: 'Bau und Technik' },
+  { id: 'unterzug', name: 'Unterzug', kategorie: 'ausstattung', breite: 600, tiefe: 40, hoehe: 0, form: 'unterzug', farbe: '#cfd4d9', gruppe: 'Bau und Technik', hinweis: 'Läuft über dem Kopf – nur das Band wird gezeichnet' },
+  { id: 'schacht', name: 'Schacht', kategorie: 'ausstattung', breite: 120, tiefe: 120, hoehe: 0, form: 'schacht', farbe: '#c6ccd2', gruppe: 'Bau und Technik' },
+  { id: 'feuerloescher', name: 'Feuerlöscher', kategorie: 'ausstattung', breite: 30, tiefe: 30, hoehe: 100, form: 'feuerloescher', farbe: '#e0605a', gruppe: 'Bau und Technik' },
+  { id: 'notausgang', name: 'Notausgang', kategorie: 'ausstattung', breite: 120, tiefe: 30, hoehe: 210, form: 'notausgang', farbe: '#7cc47c', gruppe: 'Bau und Technik' },
+  { id: 'rauchabzug', name: 'Rauch- und Wärmeabzug', kategorie: 'ausstattung', breite: 150, tiefe: 100, hoehe: 0, form: 'rauchabzug', farbe: '#c8d4dc', gruppe: 'Bau und Technik', hinweis: 'RWA – Fläche muss frei bleiben' },
+  { id: 'bodenablauf', name: 'Bodenablauf', kategorie: 'ausstattung', breite: 30, tiefe: 30, hoehe: 0, form: 'bodenablauf', farbe: '#aebcc6', gruppe: 'Bau und Technik' },
+  { id: 'anschluss-strom', name: 'Stromanschluss', kategorie: 'ausstattung', breite: 20, tiefe: 20, hoehe: 0, form: 'anschlussStrom', farbe: '#e8c96a', gruppe: 'Bau und Technik' },
+  { id: 'anschluss-wasser', name: 'Wasseranschluss', kategorie: 'ausstattung', breite: 20, tiefe: 20, hoehe: 0, form: 'anschlussWasser', farbe: '#8ec4de', gruppe: 'Bau und Technik' },
 ];
 
 /** Sucht eine Vorlage. Gibt `undefined` zurück, wenn es sie nicht (mehr) gibt. */

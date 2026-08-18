@@ -18,12 +18,6 @@ import type { Grundform, PlanElement } from '../../typen/modell';
  */
 
 /**
- * Zeichnet die gewählte Grundform in ein Rechteck der Größe b × t.
- *
- * `beidseitig` ändert bei manchen Möbeln die Zeichnung: Eine Doppeltruhe hat
- * einen Steg in der Mitte, eine Einzeltruhe eine Rückwand.
- */
-/**
  * Die tote Zone hinter einem wire-tech-100-Regal, in cm.
  *
  * Sie gehört zum System und lässt sich nicht wegplanen: Hinter dem Grundboden
@@ -33,6 +27,32 @@ import type { Grundform, PlanElement } from '../../typen/modell';
  */
 const TOTE_ZONE = 7;
 
+/**
+ * Schraffiert ein Rechteck unter 45 Grad.
+ *
+ * Die Linien werden am Rand abgeschnitten. Ohne das Abschneiden stünden
+ * die Enden über die Fläche hinaus – bei einer kleinen Stütze fällt das
+ * sofort auf, weil das Kreuz dann größer wäre als die Stütze selbst.
+ */
+function schraffiere(ctx: Konva.Context, b: number, t: number, abstand: number) {
+  if (abstand <= 0 || b <= 0 || t <= 0) return;
+  // Jede Linie liegt auf x + y = c.
+  for (let c = abstand; c < b + t; c += abstand) {
+    const x1 = Math.max(0, c - t);
+    const x2 = Math.min(b, c);
+    if (x2 - x1 < 0.01) continue;
+    ctx.moveTo(x1, c - x1);
+    ctx.lineTo(x2, c - x2);
+  }
+}
+
+/**
+ * Zeichnet die gewählte Grundform in ein Rechteck der Größe b × t.
+ *
+ * `beidseitig` ändert bei manchen Möbeln die Zeichnung: Eine Doppeltruhe hat
+ * einen Steg in der Mitte, eine Einzeltruhe eine Rückwand. `achsmass` teilt
+ * einen Regalzug in Felder.
+ */
 export function zeichneForm(
   ctx: Konva.Context,
   form: Grundform,
@@ -494,17 +514,12 @@ export function zeichneForm(
       ctx.lineTo(b, t * 0.62);
       break;
 
-    case 'stellflaeche': {
+    case 'stellflaeche':
       // Eine Stellfläche ist kein Möbel, sondern freigehaltener Boden.
       // Die Schraffur sagt genau das: Hier steht etwas, aber nichts Festes.
       ctx.rect(0, 0, b, t);
-      const abstand = Math.max(Math.min(b, t) / 4, 20);
-      for (let x = -t; x < b; x += abstand) {
-        ctx.moveTo(x, t);
-        ctx.lineTo(x + t, 0);
-      }
+      schraffiere(ctx, b, t, Math.max(Math.min(b, t) / 4, 20));
       break;
-    }
 
     case 'schild': {
       // Schild oder Bildschirm: die Tafel und davor zwei Striche, die zeigen,
@@ -598,6 +613,146 @@ export function zeichneForm(
       ctx.moveTo(bis - kopf, y - kopf * 0.7);
       ctx.lineTo(bis, y);
       ctx.lineTo(bis - kopf, y + kopf * 0.7);
+      break;
+    }
+
+    // -------------------------------------------------------- Bau, Technik
+    //
+    // Diese Zeichen halten fest, was im Markt schon steht und sich nicht
+    // wegplanen lässt. Sie sind bewusst schlicht: Im fertigen Plan sollen
+    // sie erkennbar sein, aber nicht mit der Einrichtung um Aufmerksamkeit
+    // streiten.
+    case 'einzelsaeule': {
+      // Die Einzelsäule aus der Wanzl-Legende: ein Kreis mit einem Kreuz,
+      // dessen Arme über den Kreis hinausstehen.
+      const rx = b / 2;
+      const ry = t / 2;
+      const r = Math.min(rx, ry);
+      ctx.moveTo(rx + r, ry);
+      ctx.ellipse(rx, ry, r, r, 0, 0, Math.PI * 2);
+      const arm = r * 1.5;
+      ctx.moveTo(rx - arm, ry);
+      ctx.lineTo(rx + arm, ry);
+      ctx.moveTo(rx, ry - arm);
+      ctx.lineTo(rx, ry + arm);
+      break;
+    }
+
+    case 'stuetzeEckig':
+      // Eine tragende Stütze mit rechteckigem Querschnitt, schraffiert wie
+      // die runde – im Grundriss ist Schraffur das Zeichen für „massiv".
+      ctx.rect(0, 0, b, t);
+      schraffiere(ctx, b, t, Math.max(Math.min(b, t) / 4, 5));
+      break;
+
+    case 'unterzug': {
+      // Ein Unterzug läuft über dem Kopf. Gezeichnet wird deshalb nur das
+      // Band, in dem er verläuft – zwei Linien, keine Fläche.
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b, 0);
+      ctx.moveTo(0, t);
+      ctx.lineTo(b, t);
+      break;
+    }
+
+    case 'schacht': {
+      // Ein Schacht ist ein Loch im Grundriss: Rechteck mit Kreuz.
+      ctx.rect(0, 0, b, t);
+      ctx.moveTo(0, 0);
+      ctx.lineTo(b, t);
+      ctx.moveTo(b, 0);
+      ctx.lineTo(0, t);
+      break;
+    }
+
+    case 'feuerloescher': {
+      // Kreis mit einer stilisierten Flamme – anders als der Wasseranschluss,
+      // der eine Welle trägt.
+      const rx = b / 2;
+      const ry = t / 2;
+      const r = Math.min(rx, ry);
+      ctx.moveTo(rx + r, ry);
+      ctx.ellipse(rx, ry, r, r, 0, 0, Math.PI * 2);
+      ctx.moveTo(rx, ry + r * 0.5);
+      ctx.lineTo(rx - r * 0.4, ry);
+      ctx.lineTo(rx, ry - r * 0.55);
+      ctx.lineTo(rx + r * 0.4, ry);
+      ctx.closePath();
+      break;
+    }
+
+    case 'notausgang': {
+      // Rechteck mit einem Pfeil, der hinausführt.
+      ctx.rect(0, 0, b, t);
+      const y = t / 2;
+      const kopf = Math.min(b * 0.28, t * 0.4);
+      ctx.moveTo(b * 0.15, y);
+      ctx.lineTo(b * 0.85, y);
+      ctx.moveTo(b * 0.85 - kopf, y - kopf * 0.6);
+      ctx.lineTo(b * 0.85, y);
+      ctx.lineTo(b * 0.85 - kopf, y + kopf * 0.6);
+      break;
+    }
+
+    case 'rauchabzug': {
+      // Rauch- und Wärmeabzug: Öffnung nach oben, deshalb zwei Pfeile, die
+      // aus der Fläche zeigen.
+      ctx.rect(0, 0, b, t);
+      for (const anteil of [0.33, 0.67]) {
+        const x = b * anteil;
+        const kopf = Math.min(t * 0.22, b * 0.16);
+        ctx.moveTo(x, t * 0.8);
+        ctx.lineTo(x, t * 0.2);
+        ctx.moveTo(x - kopf * 0.6, t * 0.2 + kopf);
+        ctx.lineTo(x, t * 0.2);
+        ctx.lineTo(x + kopf * 0.6, t * 0.2 + kopf);
+      }
+      break;
+    }
+
+    case 'bodenablauf': {
+      // Quadrat mit Kreis darin – der Rost über dem Ablauf.
+      ctx.rect(0, 0, b, t);
+      const rx = b / 2;
+      const ry = t / 2;
+      const r = Math.min(rx, ry) * 0.6;
+      ctx.moveTo(rx + r, ry);
+      ctx.ellipse(rx, ry, r, r, 0, 0, Math.PI * 2);
+      ctx.moveTo(rx - r, ry);
+      ctx.lineTo(rx + r, ry);
+      ctx.moveTo(rx, ry - r);
+      ctx.lineTo(rx, ry + r);
+      break;
+    }
+
+    case 'anschlussStrom': {
+      // Kreis mit Blitz.
+      const rx = b / 2;
+      const ry = t / 2;
+      const r = Math.min(rx, ry);
+      ctx.moveTo(rx + r, ry);
+      ctx.ellipse(rx, ry, r, r, 0, 0, Math.PI * 2);
+      ctx.moveTo(rx + r * 0.3, ry - r * 0.6);
+      ctx.lineTo(rx - r * 0.25, ry + r * 0.05);
+      ctx.lineTo(rx + r * 0.1, ry + r * 0.05);
+      ctx.lineTo(rx - r * 0.3, ry + r * 0.6);
+      break;
+    }
+
+    case 'anschlussWasser': {
+      // Kreis mit Welle.
+      const rx = b / 2;
+      const ry = t / 2;
+      const r = Math.min(rx, ry);
+      ctx.moveTo(rx + r, ry);
+      ctx.ellipse(rx, ry, r, r, 0, 0, Math.PI * 2);
+      const schritt = (r * 1.2) / 3;
+      ctx.moveTo(rx - r * 0.6, ry + r * 0.15);
+      for (let i = 0; i < 3; i++) {
+        const x = rx - r * 0.6 + schritt * i;
+        ctx.lineTo(x + schritt / 2, ry - r * 0.2);
+        ctx.lineTo(x + schritt, ry + r * 0.15);
+      }
       break;
     }
 

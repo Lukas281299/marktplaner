@@ -24,11 +24,12 @@ Rechnern weiterbearbeiten.
 8. [Messen und Maßlinien](#8-messen-und-maßlinien)
 9. [Ebenen](#9-ebenen)
 10. [Flächenübersicht und Regalmeter](#10-flächenübersicht-und-regalmeter)
-11. [Speichern, Sichern, Exportieren](#11-speichern-sichern-exportieren)
-12. [Abgleich zwischen mehreren Rechnern](#12-abgleich-zwischen-mehreren-rechnern)
-13. [Die Symbolbibliothek](#13-die-symbolbibliothek)
-14. [Alle Tastenkürzel](#14-alle-tastenkürzel)
-15. [Was noch nicht geht](#15-was-noch-nicht-geht)
+11. [Bestehenden Plan einlesen](#11-bestehenden-plan-einlesen)
+12. [Speichern, Sichern, Exportieren](#12-speichern-sichern-exportieren)
+13. [Abgleich zwischen mehreren Rechnern](#13-abgleich-zwischen-mehreren-rechnern)
+14. [Die Symbolbibliothek](#14-die-symbolbibliothek)
+15. [Alle Tastenkürzel](#15-alle-tastenkürzel)
+16. [Was noch nicht geht](#16-was-noch-nicht-geht)
 
 ---
 
@@ -238,6 +239,19 @@ Eingabefelder.
 **Beidseitig bestückt (Gondel)** — ändert die Zeichnung: Eine Gondel bekommt
 den Mittelsteg, ein einseitiges Möbel die Rückwand.
 
+### Durch eine andere Vorlage ersetzen
+
+Der Knopf **Durch andere Vorlage ersetzen** tauscht das Möbel aus, ohne es
+neu setzen zu müssen. Danach links eine Vorlage anklicken — fertig.
+
+Lage, Drehung, Ebene und Beschriftung bleiben stehen. Bei einem **Regalzug
+bleibt die Feldzahl erhalten**: Aus sechs Feldern zu 1,00 m werden sechs
+Felder zu 1,25 m und nicht ein einzelnes Feld. Genau so denkt man beim
+Umplanen.
+
+Das geht auch für **mehrere Elemente auf einmal** — einfach alle auswählen.
+Gesperrte Elemente bleiben unangetastet.
+
 ---
 
 ## 7. Regalzüge: Gruppieren und Aneinanderreihen
@@ -314,7 +328,49 @@ Raum aus. Und darunter die belegte Fläche je Abteilung.
 
 ---
 
-## 11. Speichern, Sichern, Exportieren
+## 11. Bestehenden Plan einlesen
+
+Mit **Plan-PDF** wird ein bestehender Marktplan eingelesen. Er landet
+maßstäblich unter der Zeichnung, und wenn es ein CAD-Plan ist, kommen die
+Regale gleich mit.
+
+### Der Befund
+
+Nach dem Auswählen der Datei zeigt der Dialog erst einmal, was er gefunden
+hat — geändert wird noch nichts:
+
+| Zeile | Bedeutung |
+|---|---|
+| **Planart** | *CAD-Plan* heißt: Der Plan lässt sich auswerten. *Bildplan* heißt: Er ist ein Scan und taugt nur als Vorlage zum Darüberzeichnen. |
+| **Maßstab** | Wird aus den Maßketten des Plans zurückgerechnet, nicht aus dem Schriftfeld geglaubt. Steht dort etwas anderes, gewinnt die Zeichnung — und der Dialog sagt es. |
+| **Gefundene Wände** | Lange Linien im Bereich des Marktes. Vorschläge, keine Gewissheiten. |
+| **Gefundene Regale** | Züge, Felder und wie viele davon Gondeln sind, dazu die Einschätzung sicher / wahrscheinlich / unsicher. |
+
+Darunter steht **Was zu prüfen ist** — jede Unsicherheit einzeln, mit Grund.
+Ein Regal mit falscher Tiefe sieht im Plan richtig aus und fällt erst auf,
+wenn danach bestellt wird. Deshalb wird nichts verschwiegen.
+
+### Wie die Regale gefunden werden
+
+Nicht aus der Zeichnung, sondern aus den Zahlen darin. Ein Wanzl-Plan trägt
+an jedem Regalfeld seine Etagenzahl — „5+", „6+". Deren Abstand ist das
+Achsmaß, ihre Reihung die Laufrichtung, ihre Anzahl die Länge des Zuges.
+Höhe und Tiefe kommen aus den Etiketten daneben (`wt100 H 1800 T 600`) und
+aus den CAD-Blocknamen (`wt100_1250x600_neu`).
+
+### Danach
+
+Die Vorlage **bleibt liegen**. Das ist Absicht: Was übersehen wurde, sieht man
+nur, wenn der Plan darunter noch da ist. Rechts unter *Eingelesener Plan*
+lässt sich die Deckkraft regeln, die Lage verschieben und die Vorlage
+entfernen.
+
+Der ganze Import ist **ein Schritt in der Historie**. Ein einziges
+**Strg + Z** nimmt ihn komplett zurück.
+
+---
+
+## 12. Speichern, Sichern, Exportieren
 
 | Knopf | Was er tut |
 |---|---|
@@ -328,7 +384,7 @@ jemanden weitergeben will, der kein Konto hat, schickt diese Datei.
 
 ---
 
-## 12. Abgleich zwischen mehreren Rechnern
+## 13. Abgleich zwischen mehreren Rechnern
 
 Mit **Abgleich** arbeitet man an mehreren Rechnern an denselben Planungen.
 
@@ -358,7 +414,7 @@ sich sofort anstoßen.
 
 ---
 
-## 13. Die Symbolbibliothek
+## 14. Die Symbolbibliothek
 
 Alle Symbole sind aus den Wanzl- und WSL-Unterlagen nachgezeichnet und tragen
 echte Maße.
@@ -374,6 +430,7 @@ echte Maße.
 | **Kassen & Eingang** | Steh-, Sitz- und Doppelkassen, SB-Kassen, Ausgangsanlage |
 | **Aktions- & Sonderflächen** | Aktionsflächen, EPAL und CHEP, Drehständer |
 | **Weitere Ausstattung** | Treppe, Aufzug, Säulen, Türen, Stellflächen |
+| **Bau und Technik** | Einzelsäule, Stütze, Unterzug, Schacht, Feuerlöscher, Notausgang, RWA, Bodenablauf, Strom- und Wasseranschluss |
 
 Jede Abteilung hat außerdem ein **freies Element**, dessen Maße man beliebig
 einstellen kann.
@@ -406,7 +463,7 @@ eine mit 500er Boden eine im Achsmaß 1000. Kopfgondeln gibt es gerade und rund
 
 ---
 
-## 14. Alle Tastenkürzel
+## 15. Alle Tastenkürzel
 
 ### Datei und Bearbeiten
 
@@ -456,15 +513,23 @@ eine mit 500er Boden eine im Achsmaß 1000. Kopfgondeln gibt es gerade und rund
 
 ---
 
-## 15. Was noch nicht geht
+## 16. Was noch nicht geht
 
-**PDF-Import.** Einen bestehenden Marktplan als Hintergrund einlesen, auf
-Maßstab kalibrieren und darin weiterarbeiten — das ist gebaut, aber noch nicht
-im Programm.
+**Der Gebäudeumriss aus dem PDF ist nur ein Rechteck.** Beim Einlesen wird ein
+Rahmen um alle erkannten Wände gelegt. Einen krummen Umriss nachzuzeichnen,
+der auch bei Lücken stimmt, ist eine eigene Wissenschaft — ein Rechteck ist
+ehrlich falsch und in zwei Zügen zurechtgezogen, ein halb geratener Umriss
+sähe richtig aus und wäre es nicht.
+
+**Wände werden allein an ihrer Länge erkannt.** Eine Wand trägt im Plan keine
+Beschriftung. Was länger als drei Meter ist, kommt als Vorschlag — darunter
+sind auch Möbelkanten und Maßlinien. Wegzulöschen geht schneller, als zu
+zeichnen.
 
 **Eigene Vorlagen speichern.** Das Datenmodell kann eigene Vorlagen, und der
 Abgleich überträgt sie. Es fehlt der Knopf, mit dem man ein platziertes
-Element als Vorlage ablegt. Bis dahin hilft *Duplizieren*.
+Element als Vorlage ablegt. Bis dahin hilft *Duplizieren* oder *Durch andere
+Vorlage ersetzen*.
 
 **Smokytheke.** Der Zigarettenschrank über dem Kassenband fehlt noch als
 eigenes Symbol.

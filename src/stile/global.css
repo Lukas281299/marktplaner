@@ -750,3 +750,29 @@ body {
   margin-left: auto;
   flex-wrap: nowrap;
 }
+
+/* --------------------------------------------------------------------------
+   Hinweisband, solange auf eine Vorlage zum Austauschen gewartet wird.
+
+   Es sitzt oben in der Bibliothek, weil dort der nächste Klick hingehört.
+   Ein Hinweis im Eigenschaftenfenster – also dort, wo man den Tausch
+   angestoßen hat – würde in die falsche Richtung zeigen.
+   -------------------------------------------------------------------------- */
+.tausch-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-2);
+  margin: var(--abstand-2);
+  padding: var(--abstand-2) var(--abstand-3);
+  border: 1px solid var(--auswahl);
+  border-radius: 4px;
+  background: var(--blau-hell);
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.tausch-banner .knopf {
+  margin-left: auto;
+  flex: none;
+}

@@ -92,7 +92,19 @@ export type Grundform =
   // immer 70 mm tote Zone.
   | 'wt100'
   | 'wt100Rund'
-  | 'wt100Eck';
+  | 'wt100Eck'
+  // Bau und Technik. Diese Zeichen stehen für nichts, was geliefert wird –
+  // sie halten fest, was im Markt schon da ist und die Planung einschränkt.
+  | 'einzelsaeule'
+  | 'stuetzeEckig'
+  | 'unterzug'
+  | 'schacht'
+  | 'feuerloescher'
+  | 'notausgang'
+  | 'rauchabzug'
+  | 'bodenablauf'
+  | 'anschlussStrom'
+  | 'anschlussWasser';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {

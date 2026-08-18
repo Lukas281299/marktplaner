@@ -85,6 +85,12 @@ interface PlanStore {
   /** Ausgewählter Raum, ausgewählte Wand oder Öffnung. */
   sonderauswahl: Sonderauswahl;
   werkzeug: Werkzeug;
+  /**
+   * Wartet die Anwendung darauf, dass eine Vorlage zum Austauschen gewählt
+   * wird? Solange das an ist, fügt ein Klick in der Bibliothek nichts Neues
+   * ein, sondern ersetzt die Auswahl.
+   */
+  tauschModus: boolean;
   /** Inhalt der internen Zwischenablage (Kopieren/Einfügen). */
   zwischenablage: PlanElement[];
   /** Selbst angelegte Bibliotheksvorlagen. */
@@ -142,6 +148,16 @@ interface PlanStore {
 
   // -------------------------------------------------------------- Grundriss
   setzeWerkzeug(werkzeug: Werkzeug): void;
+  setzeTauschModus(an: boolean): void;
+  /**
+   * Ersetzt die ausgewählten Elemente durch eine andere Vorlage.
+   *
+   * Lage, Drehung, Ebene und Beschriftung bleiben – getauscht wird nur, was
+   * das Möbel ausmacht. Bei einem Regalzug bleibt zusätzlich die Feldzahl
+   * erhalten: Aus sechs Feldern zu 1000 werden sechs Felder zu 1250 und
+   * nicht ein einzelnes Feld. Genau so denkt man beim Umplanen.
+   */
+  tauscheVorlage(vorlage: BibliothekEintrag): void;
   /** Ersetzt den Umriss des Gebäudes. */
   setzeUmriss(umriss: Punkt[]): void;
 
@@ -217,6 +233,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   auswahl: [],
   sonderauswahl: null,
   werkzeug: 'auswahl',
+  tauschModus: false,
   zwischenablage: [],
   eigeneVorlagen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
@@ -325,6 +342,46 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   // ============================================================== Grundriss
+  setzeTauschModus(an) {
+    set({ tauschModus: an });
+  },
+
+  tauscheVorlage(vorlage) {
+    const ids = get().auswahl;
+    if (ids.length === 0) return;
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: p.elemente.map((el) => {
+        if (!ids.includes(el.id) || el.gesperrt) return el;
+
+        // Bei einem Zug die Feldzahl mitnehmen, sonst die Breite der Vorlage.
+        const felder =
+          el.achsmass && el.achsmass > 0 ? Math.max(1, Math.round(el.breite / el.achsmass)) : 0;
+        const breite =
+          felder > 0 && vorlage.achsmass && vorlage.achsmass > 0
+            ? Math.round(felder * vorlage.achsmass * 10) / 10
+            : vorlage.breite;
+
+        return {
+          ...el,
+          vorlageId: vorlage.id,
+          name: vorlage.name,
+          kategorie: vorlage.kategorie,
+          breite,
+          tiefe: vorlage.tiefe,
+          hoehe: vorlage.hoehe,
+          form: vorlage.form,
+          farbe: vorlage.farbe,
+          stufen: vorlage.stufen,
+          korpustiefe: vorlage.korpustiefe,
+          achsmass: vorlage.achsmass,
+          beidseitig: vorlage.beidseitig,
+        };
+      }),
+    }));
+    set({ tauschModus: false });
+  },
+
   setzeWerkzeug(werkzeug) {
     // Beim Wechsel ins Zeichnen die Auswahl aufheben: Sonst blieben die
     // Anfasser eines Regals sichtbar, während man am Grundriss arbeitet.

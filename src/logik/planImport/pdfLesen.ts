@@ -2,6 +2,7 @@ import * as pdfjs from 'pdfjs-dist';
 import arbeiterUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import type { Planart, PlanSeite, PlanText } from './typen';
+import type { Strecke } from './waende';
 
 /**
  * Ein Plan-PDF einlesen.
@@ -284,6 +285,70 @@ async function schaetzePlanart(
     begruendung:
       'Weder nennenswerte Zeichnungsdaten noch Bilder gefunden – der Plan wird als Vorlage eingelegt',
   };
+}
+
+
+/**
+ * Holt alle geraden Strecken der Seite.
+ *
+ * pdf.js liefert Pfade als `constructPath` mit einer Liste von Befehlen und
+ * einer flachen Zahlenreihe dahinter. Kurven werden übersprungen: Eine Wand
+ * ist gerade, und die Bogenstücke im Plan sind Türschwenks und Rundungen
+ * an Möbeln.
+ *
+ * Zurück kommen Koordinaten in der Leserichtung des Blattes, also mit y
+ * nach unten – dieselbe Rechnung wie bei den Texten.
+ */
+export async function liesStrecken(dokument: PDFDocumentProxy): Promise<Strecke[]> {
+  const seite = await dokument.getPage(1);
+  const befehle = await seite.getOperatorList();
+  const hoehe = seite.getViewport({ scale: 1 }).height;
+  const { OPS } = pdfjs;
+
+  // Die Befehlscodes innerhalb eines Teilpfades sind nicht die von pdf.js,
+  // sondern eine eigene, kurze Zählung. Das war der Stolperstein: Mit den
+  // OPS-Werten dekodiert kam kein einziges Streckenstück heraus.
+  const MOVE = 0;
+  const LINE = 1;
+  const KURVE = 2;
+
+  const strecken: Strecke[] = [];
+
+  for (let i = 0; i < befehle.fnArray.length; i++) {
+    if (befehle.fnArray[i] !== OPS.constructPath) continue;
+    const teilpfade = (befehle.argsArray[i] as unknown[])[1];
+    if (!Array.isArray(teilpfade)) continue;
+
+    for (const roh of teilpfade as ArrayLike<number>[]) {
+      let x = 0;
+      let y = 0;
+      let n = 0;
+      while (n < roh.length) {
+        const code = roh[n++];
+        if (code === MOVE) {
+          x = roh[n++];
+          y = roh[n++];
+        } else if (code === LINE) {
+          const nx = roh[n++];
+          const ny = roh[n++];
+          strecken.push({ von: { x, y: hoehe - y }, bis: { x: nx, y: hoehe - ny } });
+          x = nx;
+          y = ny;
+        } else if (code === KURVE) {
+          // Ein Bogen ist keine Wand. Nur der Endpunkt wird übernommen,
+          // damit eine anschließende Gerade richtig ansetzt.
+          n += 4;
+          x = roh[n++];
+          y = roh[n++];
+        } else {
+          // Unbekannter Code: Der Teilpfad lässt sich nicht weiter deuten.
+          break;
+        }
+      }
+    }
+  }
+
+  return strecken;
 }
 
 /**

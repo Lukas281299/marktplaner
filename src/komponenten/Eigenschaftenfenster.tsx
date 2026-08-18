@@ -832,6 +832,15 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           wert={erstes.gesperrt}
           aendern={(gesperrt) => setzeMitPunkt({ gesperrt })}
         />
+
+        <button
+          className="knopf"
+          style={{ width: '100%', marginTop: 8 }}
+          onClick={() => usePlanStore.getState().setzeTauschModus(true)}
+          title="Danach links eine Vorlage anklicken. Lage und Drehung bleiben; bei einem Regalzug bleibt auch die Feldzahl."
+        >
+          Durch andere Vorlage ersetzen
+        </button>
       </div>
 
       {/* ------------------------------------------- Gruppe und Regalmeter */}

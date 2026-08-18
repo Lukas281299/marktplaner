@@ -15,6 +15,8 @@ import { SymbolPfeilAb, SymbolPfeilAuf, SymbolSuche } from './Symbole';
  */
 export function Elementbibliothek() {
   const eigeneVorlagen = usePlanStore((s) => s.eigeneVorlagen);
+  const tauschModus = usePlanStore((s) => s.tauschModus);
+  const auswahl = usePlanStore((s) => s.auswahl);
   const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
   const [suche, setSuche] = useState('');
   /**
@@ -102,9 +104,35 @@ export function Elementbibliothek() {
     );
   };
 
+  /**
+   * Was ein Klick auf eine Vorlage bewirkt.
+   *
+   * Im Regelfall wird eingefügt. Wartet die Anwendung dagegen auf eine
+   * Vorlage zum Austauschen, ersetzt derselbe Klick die Auswahl – das ist
+   * der schnellste Weg, einen ganzen Zug auf ein anderes Regal umzustellen.
+   */
+  const waehlen = (vorlage: BibliothekEintrag) => {
+    const store = usePlanStore.getState();
+    if (store.tauschModus && store.auswahl.length > 0) store.tauscheVorlage(vorlage);
+    else inDieMitte(vorlage);
+  };
+
   return (
     <aside className="spalte spalte-links">
       <div className="spalte-kopf">Elemente</div>
+
+      {tauschModus && (
+        <div className="tausch-banner">
+          <span>
+            {auswahl.length === 1
+              ? 'Vorlage wählen, die das Element ersetzen soll'
+              : `Vorlage wählen, die die ${auswahl.length} Elemente ersetzen soll`}
+          </span>
+          <button className="knopf" onClick={() => usePlanStore.getState().setzeTauschModus(false)}>
+            Abbrechen
+          </button>
+        </div>
+      )}
 
       <div className="suchfeld">
         <SymbolSuche />
@@ -150,7 +178,7 @@ export function Elementbibliothek() {
                               key={vorlage.id}
                               vorlage={vorlage}
                               einheit={einheit}
-                              einfuegen={inDieMitte}
+                              einfuegen={waehlen}
                             />
                           ))}
                         </div>
@@ -180,7 +208,7 @@ export function Elementbibliothek() {
                                     key={vorlage.id}
                                     vorlage={vorlage}
                                     einheit={einheit}
-                                    einfuegen={inDieMitte}
+                                    einfuegen={waehlen}
                                   />
                                 ))}
                               </div>

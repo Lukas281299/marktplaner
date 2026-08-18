@@ -3,7 +3,8 @@ import { Dialog } from './Dialog';
 import { bestimmeMassstab, type MassstabBefund } from '../logik/planImport/massstab';
 import { etagenzahlen, findeGondelpaare, findeZuege, type ErkannterZug } from '../logik/planImport/felder';
 import { moebeletiketten, zuMoebel, type ErkanntesMoebel } from '../logik/planImport/moebel';
-import { lesePlan, rendereSeite, type PlanBefund } from '../logik/planImport/pdfLesen';
+import { lesePlan, liesStrecken, rendereSeite, type PlanBefund } from '../logik/planImport/pdfLesen';
+import { findeWaende, umschliessendesRechteck, type Wandvorschlag } from '../logik/planImport/waende';
 import { usePlanStore } from '../zustand/planStore';
 import type { Sicherheit } from '../logik/planImport/typen';
 import type { Hintergrund } from '../typen/modell';
@@ -26,6 +27,7 @@ interface Befund {
   massstab: MassstabBefund;
   zuege: ErkannterZug[];
   moebel: ErkanntesMoebel[];
+  waende: Wandvorschlag[];
   dateiname: string;
   daten: ArrayBuffer;
 }
@@ -48,6 +50,7 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
   const [fehler, setzeFehler] = useState('');
   const [befund, setzeBefund] = useState<Befund | null>(null);
   const [uebernehmen, setzeUebernehmen] = useState(true);
+  const [waendeUebernehmen, setzeWaendeUebernehmen] = useState(true);
 
   const pruefen = async (datei: File | undefined) => {
     if (!datei) return;
@@ -57,11 +60,12 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
       const daten = await datei.arrayBuffer();
       // pdf.js übernimmt den Puffer und leert ihn dabei. Für das spätere
       // Rendern wird deshalb mit einer Kopie gearbeitet.
-      const { befund: plan } = await lesePlan(daten.slice(0));
+      const { befund: plan, dokument } = await lesePlan(daten.slice(0));
       const massstab = bestimmeMassstab(plan.texte);
 
       let zuege: ErkannterZug[] = [];
       let moebel: ErkanntesMoebel[] = [];
+      let waende: Wandvorschlag[] = [];
       if (plan.planart === 'vektor') {
         zuege = findeZuege(etagenzahlen(plan.texte), massstab.mmJePunkt).filter(
           (z) => z.felder.length > 1,
@@ -75,9 +79,26 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
             zweiteSeite.has(i) ? null : zuMoebel(zug, etiketten, massstab.mmJePunkt, istGondel.has(i)),
           )
           .filter((m): m is ErkanntesMoebel => m !== null);
+
+        // Der Bereich, in dem das Gebäude liegen muss: um alle erkannten
+        // Regale herum, mit zehn Metern Luft für Wände und Nebenräume.
+        // Ohne diese Eingrenzung findet die Wandsuche nur den
+        // Zeichnungsrahmen – der ist die längste Linie auf jedem Blatt.
+        const punkte = zuege.flatMap((z) => z.felder.map((f) => f.punkt));
+        const luft = 10000 / massstab.mmJePunkt;
+        const bereich =
+          punkte.length > 0
+            ? {
+                links: Math.min(...punkte.map((p) => p.x)) - luft,
+                rechts: Math.max(...punkte.map((p) => p.x)) + luft,
+                oben: Math.min(...punkte.map((p) => p.y)) - luft,
+                unten: Math.max(...punkte.map((p) => p.y)) + luft,
+              }
+            : undefined;
+        waende = findeWaende(await liesStrecken(dokument), massstab.mmJePunkt, 3000, 80, bereich);
       }
 
-      setzeBefund({ plan, massstab, zuege, moebel, dateiname: datei.name, daten });
+      setzeBefund({ plan, massstab, zuege, moebel, waende, dateiname: datei.name, daten });
     } catch (e) {
       setzeFehler(e instanceof Error ? e.message : 'Das PDF ließ sich nicht lesen.');
     } finally {
@@ -114,6 +135,19 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
       const store = usePlanStore.getState();
       store.schnappschuss();
       store.setzeHintergrund(hintergrund);
+
+      if (waendeUebernehmen && befund.waende.length > 0) {
+        const rahmen = umschliessendesRechteck(befund.waende);
+        if (rahmen) {
+          store.setzeUmriss(rahmen.map((p) => ({ x: p.x * jeCm, y: p.y * jeCm })));
+        }
+        for (const w of befund.waende) {
+          store.fuegeWandHinzu(
+            { x: w.von.x * jeCm, y: w.von.y * jeCm },
+            { x: w.bis.x * jeCm, y: w.bis.y * jeCm },
+          );
+        }
+      }
 
       if (uebernehmen && befund.moebel.length > 0) {
         store.fuegeErkannteMoebelHinzu(
@@ -217,6 +251,37 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
               {befund.massstab.begruendung}
             </p>
           </div>
+
+          {befund.plan.planart === 'vektor' && befund.waende.length > 0 && (
+            <div className="gruppe">
+              <div className="gruppe-titel">Gefundene Wände</div>
+              <div className="kennzahl">
+                <span>Lange Linien</span>
+                <span className="kennzahl-wert">{befund.waende.length}</span>
+              </div>
+              <div className="kennzahl">
+                <span>Längste</span>
+                <span className="kennzahl-wert">
+                  {(befund.waende[0].laengeMm / 1000).toFixed(2).replace('.', ',')} m
+                </span>
+              </div>
+              <label className="schalter" style={{ marginTop: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={waendeUebernehmen}
+                  onChange={(e) => setzeWaendeUebernehmen(e.target.checked)}
+                />
+                <span>Wände und Gebäudeumriss übernehmen</span>
+              </label>
+              <p className="hinweis" style={{ marginTop: 4 }}>
+                Eine Wand trägt im Plan keine Beschriftung – erkannt wird sie
+                allein an ihrer Länge. Deshalb sind hier Vorschläge, keine
+                Gewissheiten: Was zu viel ist, löscht sich schneller weg, als
+                es sich zeichnen ließe. Der Umriss wird als Rechteck um alle
+                Wände gelegt und muss meist noch zurechtgezogen werden.
+              </p>
+            </div>
+          )}
 
           {befund.plan.planart === 'vektor' && (
             <div className="gruppe">
