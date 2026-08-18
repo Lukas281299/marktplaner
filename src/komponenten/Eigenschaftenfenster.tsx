@@ -21,6 +21,7 @@ import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
 import {
   Auswahlfeld,
   Farbfeld,
+  FeldRahmen,
   Massfeld,
   Schalter,
   Textbereich,
@@ -909,6 +910,8 @@ function ProjektEigenschaften() {
   const setzeGrundflaeche = usePlanStore((s) => s.setzeGrundflaeche);
   const setzeEinstellung = usePlanStore((s) => s.setzeEinstellung);
   const setzeEbene = usePlanStore((s) => s.setzeEbene);
+  const setzeHintergrund = usePlanStore((s) => s.setzeHintergrund);
+  const aendereHintergrund = usePlanStore((s) => s.aendereHintergrund);
   const einheit = projekt.einstellungen.anzeigeEinheit;
   const beiStart = () => usePlanStore.getState().schnappschuss();
 
@@ -992,6 +995,69 @@ function ProjektEigenschaften() {
           />
         </div>
       </div>
+
+      {/* ------------------------------------------------------- Planvorlage */}
+      {projekt.hintergrund && (
+        <div className="gruppe">
+          <div className="gruppe-titel">Eingelesener Plan</div>
+          <div className="kennzahl">
+            <span
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              title={projekt.hintergrund.quelle}
+            >
+              {projekt.hintergrund.quelle}
+            </span>
+            <span className="kennzahl-wert">1:{projekt.hintergrund.massstab}</span>
+          </div>
+
+          <Schalter
+            label="Vorlage anzeigen"
+            wert={projekt.hintergrund.sichtbar}
+            aendern={(sichtbar) => aendereHintergrund({ sichtbar })}
+          />
+
+          <FeldRahmen
+            label="Deckkraft"
+            titel="Blasser stellen, um die eigene Zeichnung besser zu sehen – ganz ausblenden erst, wenn nichts mehr nachzutragen ist."
+          >
+            <input
+              type="range"
+              min={5}
+              max={100}
+              step={5}
+              value={Math.round(projekt.hintergrund.deckkraft * 100)}
+              onChange={(e) => aendereHintergrund({ deckkraft: Number(e.target.value) / 100 })}
+              style={{ width: '100%' }}
+            />
+          </FeldRahmen>
+
+          <div className="feld-zeile">
+            <Massfeld
+              label="Versatz X"
+              cm={projekt.hintergrund.x}
+              einheit={einheit}
+              beiStart={beiStart}
+              aendern={(x) => aendereHintergrund({ x })}
+            />
+            <Massfeld
+              label="Versatz Y"
+              cm={projekt.hintergrund.y}
+              einheit={einheit}
+              beiStart={beiStart}
+              aendern={(y) => aendereHintergrund({ y })}
+            />
+          </div>
+
+          <button
+            className="knopf"
+            style={{ width: '100%', marginTop: 6 }}
+            onClick={() => setzeHintergrund(undefined)}
+            title="Die Vorlage entfernen. Mit Strg+Z kommt sie zurück."
+          >
+            Vorlage entfernen
+          </button>
+        </div>
+      )}
 
       {/* ------------------------------------------------------------ Raster */}
       <div className="gruppe">

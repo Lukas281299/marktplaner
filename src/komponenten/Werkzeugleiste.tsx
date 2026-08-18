@@ -10,6 +10,7 @@ import {
 import { usePlanStore } from '../zustand/planStore';
 import { useSyncStore } from '../zustand/syncStore';
 import { NeuesProjektDialog, ProjekteDialog } from './ProjektDialog';
+import { PlanImportDialog } from './PlanImportDialog';
 import { SyncDialog } from './SyncDialog';
 import {
   SymbolAbgleich,
@@ -66,7 +67,7 @@ export function Werkzeugleiste() {
     s.projekt.elemente.some((el) => s.auswahl.includes(el.id) && el.gruppeId),
   );
 
-  const [dialog, setDialog] = useState<'neu' | 'oeffnen' | 'abgleich' | null>(null);
+  const [dialog, setDialog] = useState<'neu' | 'oeffnen' | 'abgleich' | 'planImport' | null>(null);
   const [meldung, setMeldung] = useState('');
   const dateiRef = useRef<HTMLInputElement>(null);
 
@@ -154,6 +155,13 @@ export function Werkzeugleiste() {
           </button>
           <button className="knopf" onClick={dateiAuswaehlen} title="JSON-Datei einlesen">
             <SymbolImport /> Import
+          </button>
+          <button
+            className="knopf"
+            onClick={() => setDialog('planImport')}
+            title="Einen bestehenden Marktplan aus einem PDF einlesen"
+          >
+            <SymbolImport /> Plan-PDF
           </button>
           <button
             className="knopf"
@@ -401,6 +409,7 @@ export function Werkzeugleiste() {
       {dialog === 'neu' && <NeuesProjektDialog schliessen={() => setDialog(null)} />}
       {dialog === 'oeffnen' && <ProjekteDialog schliessen={() => setDialog(null)} />}
       {dialog === 'abgleich' && <SyncDialog schliessen={() => setDialog(null)} />}
+      {dialog === 'planImport' && <PlanImportDialog schliessen={() => setDialog(null)} />}
     </>
   );
 }

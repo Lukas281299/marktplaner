@@ -23,6 +23,7 @@ import { usePlanStore } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Gebaeude } from './Gebaeude';
+import { Planvorlage } from './Planvorlage';
 import { Masslinien } from './Masslinien';
 import { Oeffnungen } from './Oeffnungen';
 import { Raeume } from './Raeume';
@@ -784,6 +785,9 @@ export function Zeichenflaeche() {
       >
         {/* ---------------------------------------------------- Hintergrund */}
         <Layer listening={false}>
+          {/* Die eingelesene Vorlage liegt unter allem – auch unter dem
+              Raster, damit dessen Linien darauf lesbar bleiben. */}
+          {projekt.hintergrund && <Planvorlage hintergrund={projekt.hintergrund} />}
           <Gebaeude grundflaeche={projekt.grundflaeche} einheit={einheit} zoom={zoom} />
           {projekt.einstellungen.rasterSichtbar && (
             <Raster

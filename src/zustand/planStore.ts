@@ -10,6 +10,7 @@ import type {
   Einstellungen,
   Grundflaeche,
   Gruppenart,
+  Hintergrund,
   Masslinie,
   Oeffnung,
   PlanElement,
@@ -111,6 +112,31 @@ interface PlanStore {
   setzeEigeneVorlagen(vorlagen: BibliothekEintrag[]): void;
   benenneProjektUm(name: string): void;
   setzeGrundflaeche(werte: Partial<Grundflaeche>): void;
+  /**
+   * Möbel aus einem eingelesenen Plan anlegen.
+   *
+   * Eigener Weg statt `fuegeElementHinzu` je Möbel: Ein Import bringt
+   * Dutzende Elemente, und jedes einzeln anzulegen wäre ein Dutzend Schritte
+   * in der Historie. So genügt einmal Strg+Z, um einen Import zurückzunehmen.
+   */
+  fuegeErkannteMoebelHinzu(
+    moebel: {
+      vorlage: BibliothekEintrag;
+      x: number;
+      y: number;
+      breite: number;
+      tiefe: number;
+      hoehe: number;
+      drehung: number;
+      achsmass: number;
+      beidseitig: boolean;
+      beschriftung: string;
+    }[],
+  ): void;
+  /** Einen eingelesenen Plan als Vorlage einlegen oder mit `undefined` entfernen. */
+  setzeHintergrund(hintergrund: Hintergrund | undefined): void;
+  /** Deckkraft, Sichtbarkeit und Lage der Vorlage ändern. */
+  aendereHintergrund(werte: Partial<Hintergrund>): void;
   setzeEinstellung(werte: Partial<Einstellungen>): void;
   setzeEbene(id: string, werte: Partial<{ sichtbar: boolean; gesperrt: boolean }>): void;
 
@@ -229,6 +255,57 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       ...p,
       grundflaeche: { ...p.grundflaeche, ...werte },
     }));
+  },
+
+  fuegeErkannteMoebelHinzu(moebel) {
+    aendere(set, get, (p) => {
+      let reihenfolge = naechsteReihenfolge(p.elemente);
+      const neue: PlanElement[] = moebel.map((m) => ({
+        id: neueId('el'),
+        vorlageId: m.vorlage.id,
+        ebeneId: STANDARD_EBENE_ID,
+        name: m.vorlage.name,
+        kategorie: m.vorlage.kategorie,
+        x: m.x,
+        y: m.y,
+        breite: m.breite,
+        tiefe: m.tiefe,
+        hoehe: m.hoehe,
+        drehung: m.drehung,
+        form: m.vorlage.form,
+        farbe: m.vorlage.farbe,
+        stufen: m.vorlage.stufen,
+        korpustiefe: m.vorlage.korpustiefe,
+        achsmass: m.achsmass,
+        beidseitig: m.beidseitig,
+        beschriftung: m.beschriftung,
+        // Aus einem Import kommen Dutzende Elemente auf einmal. Wären alle
+        // beschriftet, wäre der Plan unter Text nicht mehr zu sehen.
+        beschriftungSichtbar: false,
+        schriftgroesse: 12,
+        gesperrt: false,
+        reihenfolge: reihenfolge++,
+      }));
+      return { ...p, elemente: [...p.elemente, ...neue] };
+    });
+  },
+
+  setzeHintergrund(hintergrund) {
+    // Über die Historie, damit ein versehentlich eingelegter oder gelöschter
+    // Plan mit Strg+Z zurückkommt – das Bild noch einmal einzulesen wäre
+    // sonst der einzige Weg zurück.
+    aendere(set, get, (p) => ({ ...p, hintergrund }));
+  },
+
+  aendereHintergrund(werte) {
+    // Deckkraft und Sichtbarkeit sind Ansichtssache und gehören nicht in die
+    // Historie – sonst steht nach dem Zurücknehmen einer Regaländerung
+    // plötzlich der Schieberegler anders.
+    set((s) =>
+      s.projekt.hintergrund
+        ? { projekt: { ...s.projekt, hintergrund: { ...s.projekt.hintergrund, ...werte } } }
+        : s,
+    );
   },
 
   setzeEinstellung(werte) {

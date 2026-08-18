@@ -384,6 +384,38 @@ export interface Einstellungen {
 }
 
 /** Ein komplettes Marktprojekt – das ist genau das, was gespeichert wird. */
+/**
+ * Ein eingelesener Plan, der unter der Zeichnung liegt.
+ *
+ * Er bleibt auch nach einem Import liegen. Das ist Absicht: Was die
+ * Erkennung übersehen hat, sieht man nur, wenn die Vorlage noch da ist.
+ * Deshalb lässt sich die Deckkraft regeln, statt den Plan nur ein- und
+ * auszuschalten.
+ *
+ * Das Bild steht als data:-URL im Projekt und wird mit abgeglichen. Es ist
+ * damit Teil der Planung und nicht bloß eine Datei auf einem Rechner – wer
+ * die Planung öffnet, sieht dieselbe Vorlage.
+ */
+export interface Hintergrund {
+  /** Das gerenderte Blatt als data:-URL. */
+  bild: string;
+  /** Breite und Höhe im Planmaß, also in Zentimetern. */
+  breite: number;
+  hoehe: number;
+  /** Lage der linken oberen Ecke im Planmaß. */
+  x: number;
+  y: number;
+  /** 0 bis 1. */
+  deckkraft: number;
+  sichtbar: boolean;
+  /** Gegen versehentliches Verschieben. Standardmäßig an. */
+  gesperrt: boolean;
+  /** Dateiname der Vorlage, für die Anzeige. */
+  quelle: string;
+  /** Der Nenner des erkannten Maßstabs, z. B. 100 für 1:100. */
+  massstab: number;
+}
+
 export interface Projekt {
   id: string;
   name: string;
@@ -404,6 +436,8 @@ export interface Projekt {
   gruppen: Gruppe[];
   /** Dauerhaft eingezeichnete Maße. */
   masslinien: Masslinie[];
+  /** Ein eingelesener Plan als Vorlage – siehe `Hintergrund`. */
+  hintergrund?: Hintergrund;
 }
 
 /**
@@ -415,5 +449,10 @@ export interface Projekt {
  *   2 – Grundfläche und Räume als Polygon, Räume mit Art
  *   3 – einzelne Innenwände und Öffnungen (Türen, Durchgänge)
  *   4 – Gruppen, beidseitige Regale, dauerhafte Maßlinien
+ *   5 – Achsmaß am Element, Hintergrundbild aus einem Plan-PDF
+ *
+ * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
+ * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
+ * ist auch die richtige Bedeutung von „nicht gesetzt".
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
