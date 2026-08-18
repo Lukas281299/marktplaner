@@ -144,7 +144,17 @@ describe('Züge aus den Feldern', () => {
 });
 
 describe('Gondeln aus zwei Reihen', () => {
-  it('findet die beiden Seiten einer Gondel', () => {
+  it('findet die beiden Seiten einer Gondel an der Mittellinie', () => {
+    // So steht es im echten Plan: Die Zahlenreihen liegen nur rund 380 mm
+    // auseinander, beidseits der Mittellinie – nicht auf Gondeltiefe.
+    const mitte = 380 / JE_PUNKT;
+    const beide = [...reihe(6, 1250, 100, 300, 0, 5), ...reihe(6, 1250, 100, 300 + mitte, 0, 6)];
+    const zuege = findeZuege(etagenzahlen(beide), JE_PUNKT);
+    expect(zuege).toHaveLength(2);
+    expect(findeGondelpaare(zuege, JE_PUNKT)).toEqual([[0, 1]]);
+  });
+
+  it('findet sie auch, wenn sie auf Gondeltiefe gezeichnet sind', () => {
     // Zwei gleich lange Reihen, 1070 mm auseinander – eine Gondel T2x500.
     const tiefe = 1070 / JE_PUNKT;
     const beide = [...reihe(6, 1250, 100, 300, 0, 5), ...reihe(6, 1250, 100, 300 + tiefe, 0, 6)];
@@ -161,10 +171,37 @@ describe('Gondeln aus zwei Reihen', () => {
     expect(findeGondelpaare(zuege, JE_PUNKT)).toEqual([]);
   });
 
-  it('paart nur Züge gleicher Länge und gleichen Achsmaßes', () => {
+  it('paart auch, wenn die Seiten verschieden viele Felder haben', () => {
+    // Der Regelfall im echten Plan: Auf der einen Seite steht ein Feld
+    // weniger, weil dort ein Kopfregal sitzt. Die Forderung nach exakt
+    // gleicher Feldzahl hat deshalb im Plan Fuldabrück keine einzige Gondel
+    // gefunden.
     const tiefe = 1070 / JE_PUNKT;
-    const ungleich = [...reihe(6, 1250, 100, 300), ...reihe(4, 1250, 100, 300 + tiefe)];
+    const ungleich = [...reihe(6, 1250, 100, 300), ...reihe(5, 1250, 100, 300 + tiefe)];
     const zuege = findeZuege(etagenzahlen(ungleich), JE_PUNKT);
+    expect(findeGondelpaare(zuege, JE_PUNKT)).toHaveLength(1);
+  });
+
+  it('paart auch, wenn die Seiten gegenläufig verkettet wurden', () => {
+    // Die Kette der zweiten Seite kann von rechts nach links gelaufen sein.
+    // Dann steht dort 180 Grad statt 0 – dieselbe Gerade, anderer Winkel.
+    const tiefe = 1070 / JE_PUNKT;
+    const zuege = findeZuege(etagenzahlen(reihe(6, 1250, 100, 300)), JE_PUNKT);
+    const gegenlaeufig = findeZuege(etagenzahlen(reihe(6, 1250, 100, 300 + tiefe)), JE_PUNKT).map(
+      (z) => ({ ...z, winkel: z.winkel + 180, felder: [...z.felder].reverse() }),
+    );
+    expect(findeGondelpaare([...zuege, ...gegenlaeufig], JE_PUNKT)).toHaveLength(1);
+  });
+
+  it('paart nicht, wenn sich die Züge längs kaum überdecken', () => {
+    // Zwei kurze Züge nebeneinander, aber versetzt: das sind zwei Regale,
+    // keine Gondel.
+    const tiefe = 1070 / JE_PUNKT;
+    const versetzt = [
+      ...reihe(4, 1250, 100, 300),
+      ...reihe(4, 1250, 100 + (4 * 1250) / JE_PUNKT, 300 + tiefe),
+    ];
+    const zuege = findeZuege(etagenzahlen(versetzt), JE_PUNKT);
     expect(findeGondelpaare(zuege, JE_PUNKT)).toEqual([]);
   });
 });

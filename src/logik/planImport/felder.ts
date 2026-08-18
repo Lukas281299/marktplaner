@@ -234,45 +234,85 @@ function ausKette(kette: ErkanntesFeld[], mmJePunkt: number): ErkannterZug {
 /**
  * Sucht zu jedem Zug den Gegenzug einer Gondel.
  *
- * Eine Gondel trägt auf jeder Seite eine eigene Zahlenreihe. Die beiden
- * laufen parallel, sind gleich lang und liegen höchstens eine Gondeltiefe
- * auseinander. Zusammengehörige Reihen werden hier zu einem Paar erklärt –
- * daraus wird beim Import ein beidseitiges Möbel statt zweier Wandregale.
+ * Eine Gondel trägt auf jeder Seite eine eigene Zahlenreihe. Beide laufen
+ * parallel und decken sich der Länge nach.
+ *
+ * Der Abstand der beiden Reihen ist NICHT die Gondeltiefe – das war die
+ * falsche Annahme, mit der hier zuerst keine einzige Gondel gefunden wurde.
+ * Im Plan Fuldabrück liegen die Reihen 307 bis 446 mm auseinander, während
+ * die Gondeln 1070 und 1270 mm tief sind: Die Zahlen stehen beidseits der
+ * Mittellinie, nicht an den Außenkanten. Das Fenster ist deshalb weit
+ * gefasst, und ausgesiebt wird über die Überdeckung.
+ *
+ * Auf gleiche Feldzahl wird bewusst nicht bestanden. Im echten Plan hat eine
+ * Seite oft ein Feld weniger, weil dort ein Kopfregal sitzt.
  */
 export function findeGondelpaare(
   zuege: ErkannterZug[],
   mmJePunkt: number,
   maxTiefeMm = 1500,
 ): [number, number][] {
+  /** Richtung einer Geraden – 0 und 180 Grad sind dieselbe Richtung. */
+  const geradenwinkel = (grad: number) => ((grad % 180) + 180) % 180;
+
+  /** Wie weit zwei Geradenrichtungen auseinanderliegen, höchstens 90 Grad. */
+  const geradenDifferenz = (a: number, b: number) => {
+    const d = Math.abs(geradenwinkel(a) - geradenwinkel(b));
+    return Math.min(d, 180 - d);
+  };
+
+  interface Anwaerter {
+    j: number;
+    abstand: number;
+  }
+
   const paare: [number, number][] = [];
   const vergeben = new Set<number>();
 
   for (let i = 0; i < zuege.length; i++) {
     if (vergeben.has(i) || zuege[i].felder.length < 2) continue;
+    const a = zuege[i];
+    let bester: Anwaerter | undefined;
+
     for (let j = i + 1; j < zuege.length; j++) {
       if (vergeben.has(j) || zuege[j].felder.length < 2) continue;
-      const a = zuege[i];
       const b = zuege[j];
 
-      if (winkelDifferenz(a.winkel, b.winkel) > MAX_KNICK) continue;
-      if (a.felder.length !== b.felder.length) continue;
+      if (geradenDifferenz(a.winkel, b.winkel) > MAX_KNICK) continue;
       if (a.achsmassMm !== b.achsmassMm) continue;
 
-      // Abstand quer zur Laufrichtung.
+      // In das Koordinatensystem des ersten Zuges umrechnen.
       const bogen = (a.winkel * Math.PI) / 180;
       const quer = (p: Punkt) => -p.x * Math.sin(bogen) + p.y * Math.cos(bogen);
       const laengs = (p: Punkt) => p.x * Math.cos(bogen) + p.y * Math.sin(bogen);
-      const dQuer = Math.abs(quer(a.felder[0].punkt) - quer(b.felder[0].punkt)) * mmJePunkt;
-      const dLaengs = Math.abs(laengs(a.felder[0].punkt) - laengs(b.felder[0].punkt)) * mmJePunkt;
 
-      // Quer dicht beieinander, längs auf gleicher Höhe beginnend.
+      const querA = a.felder.map((f) => quer(f.punkt));
+      const querB = b.felder.map((f) => quer(f.punkt));
+      const dQuer =
+        Math.abs(
+          querA.reduce((s, v) => s + v, 0) / querA.length -
+            querB.reduce((s, v) => s + v, 0) / querB.length,
+        ) * mmJePunkt;
       if (dQuer > maxTiefeMm || dQuer < 50) continue;
-      if (dLaengs > a.achsmassMm * 0.6) continue;
 
-      paare.push([i, j]);
+      // Wie weit sich die beiden Züge längs überdecken.
+      const laengsA = a.felder.map((f) => laengs(f.punkt));
+      const laengsB = b.felder.map((f) => laengs(f.punkt));
+      const vonA = Math.min(...laengsA);
+      const bisA = Math.max(...laengsA);
+      const vonB = Math.min(...laengsB);
+      const bisB = Math.max(...laengsB);
+      const ueberdeckung = Math.min(bisA, bisB) - Math.max(vonA, vonB);
+      const kuerzere = Math.min(bisA - vonA, bisB - vonB);
+      if (kuerzere <= 0 || ueberdeckung / kuerzere < 0.6) continue;
+
+      if (!bester || dQuer < bester.abstand) bester = { j, abstand: dQuer };
+    }
+
+    if (bester) {
+      paare.push([i, bester.j]);
       vergeben.add(i);
-      vergeben.add(j);
-      break;
+      vergeben.add(bester.j);
     }
   }
 

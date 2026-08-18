@@ -239,7 +239,7 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
                     </span>
                   </div>
                   <div className="kennzahl">
-                    <span>Gondeln</span>
+                    <span>davon Gondeln</span>
                     <span className="kennzahl-wert">
                       {befund.moebel.filter((m) => m.beidseitig).length}
                     </span>
