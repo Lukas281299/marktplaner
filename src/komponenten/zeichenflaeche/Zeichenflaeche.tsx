@@ -753,6 +753,34 @@ export function Zeichenflaeche() {
   const einheit = projekt.einstellungen.anzeigeEinheit;
   const zoom = ansicht.zoom;
 
+  /**
+   * Wie groß die Anfasser sein dürfen.
+   *
+   * Sie hatten bisher eine feste Größe von neun Bildschirmpunkten. Das ist
+   * richtig gedacht – ein Anfasser soll sich immer gleich gut treffen lassen,
+   * egal wie weit man hineingezoomt hat. Es geht aber nur so lange gut, wie
+   * das Möbel selbst größer ist als seine Anfasser.
+   *
+   * Weit herausgezoomt ist ein Regalfeld noch fünfzehn Punkte breit. Acht
+   * Anfasser zu neun Punkten verdecken es dann vollständig: Man sieht nur
+   * noch blaue Kästchen und nicht mehr, was man da eigentlich auswählt.
+   *
+   * Deshalb richtet sich die Größe jetzt nach der kürzeren Kante der
+   * Auswahl auf dem Bildschirm. Bleibt für den Anfasser nicht genug Platz,
+   * schrumpft er mit – bis auf drei Punkte, darunter wäre er nicht mehr zu
+   * treffen.
+   */
+  const auswahlBreiten = projekt.elemente
+    .filter((el) => auswahl.includes(el.id))
+    .map((el) => Math.min(el.breite, el.tiefe));
+  const kuerzesteKanteAufSchirm =
+    auswahlBreiten.length > 0 ? Math.min(...auswahlBreiten) * zoom : Infinity;
+  const anfasserGroesse = Math.max(3, Math.min(9, kuerzesteKanteAufSchirm / 3.5));
+  // Der Drehgriff braucht mehr Platz als ein Eckanfasser. Ist das Möbel zu
+  // klein, wäre sein Stiel länger als das Möbel breit – dann bleibt er weg
+  // und man dreht über R oder das Eigenschaftenfenster.
+  const drehenMoeglich = kuerzesteKanteAufSchirm > 26;
+
   return (
     <div
       ref={behaelterRef}
@@ -895,17 +923,17 @@ export function Zeichenflaeche() {
           <Transformer
             ref={trafoRef}
             keepRatio={seitenverhaeltnisHalten}
-            rotateEnabled
+            rotateEnabled={drehenMoeglich}
             rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
             rotationSnapTolerance={5}
             borderStroke="#0a84ff"
             borderStrokeWidth={1 / zoom}
             anchorStroke="#0a84ff"
             anchorFill="#ffffff"
-            anchorSize={9 / zoom}
-            anchorStrokeWidth={1.4 / zoom}
-            anchorCornerRadius={2 / zoom}
-            rotateAnchorOffset={28 / zoom}
+            anchorSize={anfasserGroesse / zoom}
+            anchorStrokeWidth={Math.max(1, anfasserGroesse / 6.5) / zoom}
+            anchorCornerRadius={(anfasserGroesse / 4.5) / zoom}
+            rotateAnchorOffset={(anfasserGroesse * 3.1) / zoom}
             padding={2 / zoom}
             ignoreStroke
             flipEnabled={false}

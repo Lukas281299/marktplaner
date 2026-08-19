@@ -372,13 +372,6 @@ export async function rendereSeite(
   const leinwand = document.createElement('canvas');
   leinwand.width = Math.round(sicht.width);
   leinwand.height = Math.round(sicht.height);
-  const ctx = leinwand.getContext('2d');
-  if (!ctx) throw new Error('Die Zeichenfläche des Browsers ließ sich nicht anlegen.');
-
-  // Weißer Grund: Ein PDF hat keinen, und auf der dunklen Oberfläche wäre
-  // eine Strichzeichnung sonst unsichtbar.
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, leinwand.width, leinwand.height);
 
   // Ein Zeitwächter um das Rendern.
   //
@@ -386,7 +379,35 @@ export async function rendereSeite(
   // hängt vom Rechner ab. Ohne Grenze bliebe der Dialog bei einem Browser,
   // der die Zeichenfläche nicht rastert, für immer auf „Einen Moment" stehen –
   // ohne Fehler, ohne Ausweg. Lieber eine ehrliche Meldung nach einer Minute.
-  const auftrag = seite.render({ canvas: leinwand, canvasContext: ctx, viewport: sicht });
+  // Nur `canvas` übergeben, nicht zusätzlich `canvasContext`.
+  //
+  // Das war der Fehler, an dem der ganze Import hängengeblieben ist: In
+  // pdf.js 6 ist `canvas` das Pflichtfeld, und `canvasContext` gilt nur noch
+  // als Rückfallweg – die Dokumentation sagt dazu ausdrücklich, dass
+  // `canvas` dann `null` sein muss. Werden beide gesetzt, löst das
+  // Versprechen nie auf: kein Fehler, keine Meldung, der Dialog bleibt für
+  // immer auf "Einen Moment" stehen.
+  //
+  // Den weißen Grund legt pdf.js über `background` selbst an. Ein PDF hat
+  // keinen, und auf der dunklen Oberfläche wäre eine Strichzeichnung sonst
+  // unsichtbar.
+  const auftrag = seite.render({
+    canvas: leinwand,
+    viewport: sicht,
+    background: '#ffffff',
+    // `print` statt `display` – und das ist der entscheidende Punkt.
+    //
+    // Im Anzeigemodus zeichnet pdf.js in Häppchen und plant das nächste
+    // über `requestAnimationFrame`. Der feuert aber nicht, solange das
+    // Fenster im Hintergrund liegt oder verborgen ist. Das Versprechen löst
+    // dann nie auf: kein Fehler, keine Meldung, der Dialog steht für immer
+    // auf „Einen Moment". Genau daran ist der Import gescheitert.
+    //
+    // Im Druckmodus läuft das Zeichnen in einem Zug durch, ohne
+    // Bildwiederholung. Für eine Vorlage ist das ohnehin das Richtige: Es
+    // geht um ein vollständiges Blatt, nicht um eine flüssige Anzeige.
+    intent: 'print',
+  });
   let wecker: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
@@ -404,9 +425,14 @@ export async function rendereSeite(
         );
       }),
     ]);
+  } catch (fehler) {
+    // Nur abbrechen, wenn wirklich etwas schiefging. Nach einem erfolgreichen
+    // Lauf wäre `cancel()` überflüssig und könnte künftige Fassungen von
+    // pdf.js stören.
+    auftrag.cancel();
+    throw fehler;
   } finally {
     if (wecker !== undefined) clearTimeout(wecker);
-    auftrag.cancel();
   }
 
   // WebP komprimiert Strichzeichnungen deutlich besser als JPEG und macht
