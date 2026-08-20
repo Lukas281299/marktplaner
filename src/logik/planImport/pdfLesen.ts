@@ -1,8 +1,9 @@
 import * as pdfjs from 'pdfjs-dist';
 import arbeiterUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
-import type { Planart, PlanSeite, PlanText } from './typen';
-import type { Strecke } from './waende';
+import type { Farbe, Planart, PlanSeite, PlanText } from './typen';
+import type { Punkt } from '../../typen/modell';
+import type { Fuellflaeche } from './wandkoerper';
 
 /**
  * Ein Plan-PDF einlesen.
@@ -289,66 +290,155 @@ async function schaetzePlanart(
 
 
 /**
- * Holt alle geraden Strecken der Seite.
+ * Holt alle gefüllten Flächen samt ihrer Füllfarbe.
  *
- * pdf.js liefert Pfade als `constructPath` mit einer Liste von Befehlen und
- * einer flachen Zahlenreihe dahinter. Kurven werden übersprungen: Eine Wand
- * ist gerade, und die Bogenstücke im Plan sind Türschwenks und Rundungen
- * an Möbeln.
+ * Das ist der Weg zu den Wänden: Ein CAD-Plan zeichnet sie nicht als Linien,
+ * sondern als gefüllte Polygone in einer eigenen Farbe.
  *
- * Zurück kommen Koordinaten in der Leserichtung des Blattes, also mit y
- * nach unten – dieselbe Rechnung wie bei den Texten.
+ * Dafür muss die Befehlsliste der Seite von vorn durchlaufen werden – die
+ * Füllfarbe steht als eigener Befehl **vor** dem Pfad und gilt, bis sie
+ * wieder geändert wird. Genauso müssen `save` und `restore` mitgeführt
+ * werden, sonst färbt eine Farbe aus einem abgeschlossenen Abschnitt alle
+ * folgenden Flächen ein.
  */
-export async function liesStrecken(dokument: PDFDocumentProxy): Promise<Strecke[]> {
+
+/**
+ * Eine Transformationsmatrix, wie PDF sie kennt: [a b c d e f].
+ *
+ * Ein Punkt wird damit so abgebildet:
+ *   x' = a*x + c*y + e
+ *   y' = b*x + d*y + f
+ */
+type Matrix = [number, number, number, number, number, number];
+
+const EINHEIT: Matrix = [1, 0, 0, 1, 0, 0];
+
+/**
+ * Verkettet zwei Matrizen: erst `a`, dann `b`.
+ *
+ * PDF setzt eine neue Matrix immer **vor** die bestehende, deshalb ist die
+ * Reihenfolge hier so herum und nicht andersherum.
+ */
+function verkette(a: Matrix, b: Matrix): Matrix {
+  return [
+    a[0] * b[0] + a[1] * b[2],
+    a[0] * b[1] + a[1] * b[3],
+    a[2] * b[0] + a[3] * b[2],
+    a[2] * b[1] + a[3] * b[3],
+    a[4] * b[0] + a[5] * b[2] + b[4],
+    a[4] * b[1] + a[5] * b[3] + b[5],
+  ];
+}
+
+/** Bildet einen Punkt durch die Matrix ab. */
+function bilde(m: Matrix, x: number, y: number): { x: number; y: number } {
+  return { x: m[0] * x + m[2] * y + m[4], y: m[1] * x + m[3] * y + m[5] };
+}
+
+/** Wandelt "#979797" in drei Anteile von 0 bis 1. */
+function hexZuFarbe(wert: unknown): Farbe | undefined {
+  if (typeof wert !== 'string') return undefined;
+  const treffer = wert.trim().match(/^#?([0-9a-f]{6})$/i);
+  if (!treffer) return undefined;
+  const zahl = parseInt(treffer[1], 16);
+  return [((zahl >> 16) & 255) / 255, ((zahl >> 8) & 255) / 255, (zahl & 255) / 255];
+}
+
+export async function liesFuellflaechen(dokument: PDFDocumentProxy): Promise<Fuellflaeche[]> {
   const seite = await dokument.getPage(1);
   const befehle = await seite.getOperatorList();
   const hoehe = seite.getViewport({ scale: 1 }).height;
   const { OPS } = pdfjs;
 
-  // Die Befehlscodes innerhalb eines Teilpfades sind nicht die von pdf.js,
-  // sondern eine eigene, kurze Zählung. Das war der Stolperstein: Mit den
-  // OPS-Werten dekodiert kam kein einziges Streckenstück heraus.
   const MOVE = 0;
   const LINE = 1;
   const KURVE = 2;
 
-  const strecken: Strecke[] = [];
+  // In pdf.js 6 steht der Mal-Befehl im ersten Argument von `constructPath`.
+  // Eigene `fill`-Befehle gibt es in der Liste gar nicht mehr – danach zu
+  // suchen liefert null Flächen, obwohl der Plan voll davon ist.
+  const FUELLT = new Set<number>([
+    OPS.fill,
+    OPS.eoFill,
+    OPS.fillStroke,
+    OPS.eoFillStroke,
+    OPS.closeFillStroke,
+    OPS.closeEOFillStroke,
+  ]);
+
+  const flaechen: Fuellflaeche[] = [];
+  let farbe: Farbe = [0, 0, 0];
+  // Die Punkte in `constructPath` stehen im örtlichen System des Pfades.
+  // Erst die laufende Matrix bringt sie aufs Blatt – im Plan Dörnhagen sind
+  // das 56.153 Verschiebungen. Ohne sie liegt alles falsch und misst
+  // 45 × 38 Meter statt 65 × 43.
+  let matrix: Matrix = EINHEIT;
+  const stapel: { farbe: Farbe; matrix: Matrix }[] = [];
 
   for (let i = 0; i < befehle.fnArray.length; i++) {
-    if (befehle.fnArray[i] !== OPS.constructPath) continue;
-    const teilpfade = (befehle.argsArray[i] as unknown[])[1];
+    const befehl = befehle.fnArray[i];
+    const args = befehle.argsArray[i] as unknown[];
+
+    if (befehl === OPS.save) {
+      stapel.push({ farbe: [...farbe] as Farbe, matrix });
+      continue;
+    }
+    if (befehl === OPS.restore) {
+      const alt = stapel.pop();
+      if (alt) {
+        farbe = alt.farbe;
+        matrix = alt.matrix;
+      }
+      continue;
+    }
+    if (befehl === OPS.transform) {
+      matrix = verkette(args as unknown as Matrix, matrix);
+      continue;
+    }
+    if (befehl === OPS.setFillRGBColor || befehl === OPS.setFillGray) {
+      // pdf.js reicht die Farbe als fertige CSS-Zeichenkette durch, etwa
+      // „#979797" – nicht als Zahl und nicht als drei Anteile. Wer eine Zahl
+      // erwartet, bekommt lautlos immer Schwarz heraus, und dann liegen
+      // sämtliche Flächen des Plans scheinbar in derselben Farbe.
+      const gelesen = hexZuFarbe(args[0]);
+      if (gelesen) farbe = gelesen;
+      continue;
+    }
+    if (befehl !== OPS.constructPath) continue;
+
+    const malbefehl = args[0] as number;
+    if (!FUELLT.has(malbefehl)) continue;
+
+    const teilpfade = args[1];
     if (!Array.isArray(teilpfade)) continue;
 
     for (const roh of teilpfade as ArrayLike<number>[]) {
+      const punkte: Punkt[] = [];
       let x = 0;
       let y = 0;
       let n = 0;
       while (n < roh.length) {
         const code = roh[n++];
-        if (code === MOVE) {
+        if (code === MOVE || code === LINE) {
           x = roh[n++];
           y = roh[n++];
-        } else if (code === LINE) {
-          const nx = roh[n++];
-          const ny = roh[n++];
-          strecken.push({ von: { x, y: hoehe - y }, bis: { x: nx, y: hoehe - ny } });
-          x = nx;
-          y = ny;
+          const p = bilde(matrix, x, y);
+          punkte.push({ x: p.x, y: hoehe - p.y });
         } else if (code === KURVE) {
-          // Ein Bogen ist keine Wand. Nur der Endpunkt wird übernommen,
-          // damit eine anschließende Gerade richtig ansetzt.
           n += 4;
           x = roh[n++];
           y = roh[n++];
+          const p = bilde(matrix, x, y);
+          punkte.push({ x: p.x, y: hoehe - p.y });
         } else {
-          // Unbekannter Code: Der Teilpfad lässt sich nicht weiter deuten.
           break;
         }
       }
+      if (punkte.length >= 3) flaechen.push({ punkte, fuellung: [...farbe] as Farbe });
     }
   }
 
-  return strecken;
+  return flaechen;
 }
 
 /**

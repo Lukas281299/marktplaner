@@ -161,6 +161,8 @@ interface PlanStore {
   tauscheVorlage(vorlage: BibliothekEintrag): void;
   /** Ersetzt den Umriss des Gebäudes. */
   setzeUmriss(umriss: Punkt[]): void;
+  /** Legt die Wandkörper aus einem eingelesenen Plan ab. */
+  setzeWandkoerper(koerper: Punkt[][] | undefined): void;
 
   // ------------------------------------------- Räume, Wände und Öffnungen
   waehleSonder(auswahl: Sonderauswahl): void;
@@ -387,6 +389,13 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // Beim Wechsel ins Zeichnen die Auswahl aufheben: Sonst blieben die
     // Anfasser eines Regals sichtbar, während man am Grundriss arbeitet.
     set(werkzeug === 'auswahl' ? { werkzeug } : { werkzeug, auswahl: [], sonderauswahl: null });
+  },
+
+  setzeWandkoerper(koerper) {
+    aendere(set, get, (p) => ({
+      ...p,
+      grundflaeche: { ...p.grundflaeche, wandkoerper: koerper },
+    }));
   },
 
   setzeUmriss(umriss) {

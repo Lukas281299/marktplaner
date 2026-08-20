@@ -58,7 +58,8 @@ export function massAnKante(
 }
 
 export function Gebaeude({ grundflaeche, einheit, zoom }: Props) {
-  const { umriss, wandstaerke } = grundflaeche;
+  const { umriss, wandstaerke, wandkoerper } = grundflaeche;
+  const hatKoerper = Boolean(wandkoerper && wandkoerper.length > 0);
   if (umriss.length < 3) return null;
 
   const punkte = flach(umriss);
@@ -77,6 +78,21 @@ export function Gebaeude({ grundflaeche, einheit, zoom }: Props) {
         shadowOffsetY={4 / zoom}
       />
 
+      {/* Eingelesene Wandkörper.
+          Sie kommen aus einem CAD-Plan und tragen ihre echte Stärke mit
+          jedem Vorsprung. Wo sie liegen, ersetzen sie die gezeichnete
+          Außenwand – deshalb wird die dann nur noch blass angedeutet. */}
+      {wandkoerper?.map((koerper, i) => (
+        <Line
+          key={`wandkoerper-${i}`}
+          points={flach(koerper)}
+          closed
+          fill="#3c4650"
+          stroke="#2b3542"
+          strokeWidth={1 / zoom}
+        />
+      ))}
+
       {/* Außenwand – nach innen beschnitten */}
       <Group
         clipFunc={(ctx) => {
@@ -86,7 +102,17 @@ export function Gebaeude({ grundflaeche, einheit, zoom }: Props) {
           ctx.closePath();
         }}
       >
-        <Line points={punkte} closed stroke="#3c4650" strokeWidth={wandstaerke * 2} />
+        <Line
+          points={punkte}
+          closed
+          stroke="#3c4650"
+          strokeWidth={wandstaerke * 2}
+          // Liegen echte Wandkörper vor, ist die gezeichnete Außenwand nur
+          // noch der Rahmen um sie herum. Sie ganz wegzulassen wäre falsch:
+          // Der Umriss ist die Bezugsfläche für die Flächenberechnung, und
+          // man soll sehen, worauf sich die Quadratmeter beziehen.
+          opacity={hatKoerper ? 0.25 : 1}
+        />
       </Group>
 
       {/* Maß an jeder Wand */}

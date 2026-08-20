@@ -3,8 +3,18 @@ import { Dialog } from './Dialog';
 import { bestimmeMassstab, type MassstabBefund } from '../logik/planImport/massstab';
 import { etagenzahlen, findeGondelpaare, findeZuege, type ErkannterZug } from '../logik/planImport/felder';
 import { moebeletiketten, zuMoebel, type ErkanntesMoebel } from '../logik/planImport/moebel';
-import { lesePlan, liesStrecken, rendereSeite, type PlanBefund } from '../logik/planImport/pdfLesen';
-import { findeWaende, umschliessendesRechteck, type Wandvorschlag } from '../logik/planImport/waende';
+import { lesePlan, liesFuellflaechen, rendereSeite, type PlanBefund } from '../logik/planImport/pdfLesen';
+import {
+  farbeGleich,
+  findeWandfarbe,
+  inZentimeter,
+  mittelpunkt,
+  nurImGebaeude,
+  rahmenAlsUmriss,
+  teileEin,
+  type Wandkoerper,
+} from '../logik/planImport/wandkoerper';
+import { BIBLIOTHEK } from '../daten/bibliothek';
 import { usePlanStore } from '../zustand/planStore';
 import type { Sicherheit } from '../logik/planImport/typen';
 import type { Hintergrund } from '../typen/modell';
@@ -27,7 +37,7 @@ interface Befund {
   massstab: MassstabBefund;
   zuege: ErkannterZug[];
   moebel: ErkanntesMoebel[];
-  waende: Wandvorschlag[];
+  koerper: Wandkoerper[];
   dateiname: string;
   daten: ArrayBuffer;
 }
@@ -65,7 +75,7 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
 
       let zuege: ErkannterZug[] = [];
       let moebel: ErkanntesMoebel[] = [];
-      let waende: Wandvorschlag[] = [];
+      let koerper: Wandkoerper[] = [];
       if (plan.planart === 'vektor') {
         zuege = findeZuege(etagenzahlen(plan.texte), massstab.mmJePunkt).filter(
           (z) => z.felder.length > 1,
@@ -80,25 +90,18 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
           )
           .filter((m): m is ErkanntesMoebel => m !== null);
 
-        // Der Bereich, in dem das Gebäude liegen muss: um alle erkannten
-        // Regale herum, mit zehn Metern Luft für Wände und Nebenräume.
-        // Ohne diese Eingrenzung findet die Wandsuche nur den
-        // Zeichnungsrahmen – der ist die längste Linie auf jedem Blatt.
-        const punkte = zuege.flatMap((z) => z.felder.map((f) => f.punkt));
-        const luft = 10000 / massstab.mmJePunkt;
-        const bereich =
-          punkte.length > 0
-            ? {
-                links: Math.min(...punkte.map((p) => p.x)) - luft,
-                rechts: Math.max(...punkte.map((p) => p.x)) + luft,
-                oben: Math.min(...punkte.map((p) => p.y)) - luft,
-                unten: Math.max(...punkte.map((p) => p.y)) + luft,
-              }
-            : undefined;
-        waende = findeWaende(await liesStrecken(dokument), massstab.mmJePunkt, 3000, 80, bereich);
+        // Wände kommen aus den gefüllten Flächen, nicht aus langen Linien.
+        // Ein CAD-Plan zeichnet sie als Polygone in einer eigenen Farbe, und
+        // die findet sich von selbst.
+        const flaechen = await liesFuellflaechen(dokument);
+        const wandfarbe = findeWandfarbe(flaechen);
+        if (wandfarbe) {
+          const eigene = flaechen.filter((f) => farbeGleich(f.fuellung, wandfarbe));
+          koerper = nurImGebaeude(teileEin(eigene, massstab.mmJePunkt), 2000, massstab.mmJePunkt);
+        }
       }
 
-      setzeBefund({ plan, massstab, zuege, moebel, waende, dateiname: datei.name, daten });
+      setzeBefund({ plan, massstab, zuege, moebel, koerper, dateiname: datei.name, daten });
     } catch (e) {
       setzeFehler(e instanceof Error ? e.message : 'Das PDF ließ sich nicht lesen.');
     } finally {
@@ -136,15 +139,38 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
       store.schnappschuss();
       store.setzeHintergrund(hintergrund);
 
-      if (waendeUebernehmen && befund.waende.length > 0) {
-        const rahmen = umschliessendesRechteck(befund.waende);
-        if (rahmen) {
-          store.setzeUmriss(rahmen.map((p) => ({ x: p.x * jeCm, y: p.y * jeCm })));
-        }
-        for (const w of befund.waende) {
-          store.fuegeWandHinzu(
-            { x: w.von.x * jeCm, y: w.von.y * jeCm },
-            { x: w.bis.x * jeCm, y: w.bis.y * jeCm },
+      const baulich = befund.koerper.filter((k) => k.art !== 'fremd');
+      if (waendeUebernehmen && baulich.length > 0) {
+        const umriss = rahmenAlsUmriss(befund.koerper, befund.massstab.mmJePunkt);
+        if (umriss.length >= 3) store.setzeUmriss(umriss);
+
+        // Die Wandzüge werden so uebernommen, wie sie gezeichnet sind.
+        store.setzeWandkoerper(
+          befund.koerper
+            .filter((k) => k.art === 'wand')
+            .map((k) => inZentimeter(k.punkte, befund.massstab.mmJePunkt)),
+        );
+
+        // Stützen werden zu echten Elementen, mit ihrem echten Maß.
+        const stuetze = BIBLIOTHEK.find((v) => v.id === 'stuetze-eckig');
+        const stuetzen = befund.koerper.filter((k) => k.art === 'stuetze');
+        if (stuetze && stuetzen.length > 0) {
+          store.fuegeErkannteMoebelHinzu(
+            stuetzen.map((k) => {
+              const m = mittelpunkt(k.punkte);
+              return {
+                vorlage: stuetze,
+                x: m.x * jeCm,
+                y: m.y * jeCm,
+                breite: k.breiteMm / 10,
+                tiefe: k.hoeheMm / 10,
+                hoehe: 300,
+                drehung: 0,
+                achsmass: 0,
+                beidseitig: false,
+                beschriftung: '',
+              };
+            }),
           );
         }
       }
@@ -252,17 +278,39 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
             </p>
           </div>
 
-          {befund.plan.planart === 'vektor' && befund.waende.length > 0 && (
+          {befund.plan.planart === 'vektor' && befund.koerper.length > 0 && (
             <div className="gruppe">
-              <div className="gruppe-titel">Gefundene Wände</div>
+              <div className="gruppe-titel">Gefundener Grundriss</div>
               <div className="kennzahl">
-                <span>Lange Linien</span>
-                <span className="kennzahl-wert">{befund.waende.length}</span>
+                <span>Wandzüge</span>
+                <span className="kennzahl-wert">
+                  {befund.koerper.filter((k) => k.art === 'wand').length}
+                </span>
               </div>
               <div className="kennzahl">
-                <span>Längste</span>
+                <span>Stützen und Pfeiler</span>
                 <span className="kennzahl-wert">
-                  {(befund.waende[0].laengeMm / 1000).toFixed(2).replace('.', ',')} m
+                  {befund.koerper.filter((k) => k.art === 'stuetze').length}
+                </span>
+              </div>
+              <div className="kennzahl">
+                <span>Gebäude</span>
+                <span className="kennzahl-wert">
+                  {(() => {
+                    const u = rahmenAlsUmriss(befund.koerper, befund.massstab.mmJePunkt);
+                    if (u.length < 3) return '–';
+                    const xs = u.map((p) => p.x);
+                    const ys = u.map((p) => p.y);
+                    const b = (Math.max(...xs) - Math.min(...xs)) / 100;
+                    const h = (Math.max(...ys) - Math.min(...ys)) / 100;
+                    return `${b.toFixed(2).replace('.', ',')} × ${h.toFixed(2).replace('.', ',')} m`;
+                  })()}
+                </span>
+              </div>
+              <div className="kennzahl">
+                <span>In der Wandfarbe, aber kein Bauteil</span>
+                <span className="kennzahl-wert">
+                  {befund.koerper.filter((k) => k.art === 'fremd').length}
                 </span>
               </div>
               <label className="schalter" style={{ marginTop: 8 }}>
@@ -271,14 +319,15 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
                   checked={waendeUebernehmen}
                   onChange={(e) => setzeWaendeUebernehmen(e.target.checked)}
                 />
-                <span>Wände und Gebäudeumriss übernehmen</span>
+                <span>Grundriss und Stützen übernehmen</span>
               </label>
               <p className="hinweis" style={{ marginTop: 4 }}>
-                Eine Wand trägt im Plan keine Beschriftung – erkannt wird sie
-                allein an ihrer Länge. Deshalb sind hier Vorschläge, keine
-                Gewissheiten: Was zu viel ist, löscht sich schneller weg, als
-                es sich zeichnen ließe. Der Umriss wird als Rechteck um alle
-                Wände gelegt und muss meist noch zurechtgezogen werden.
+                Die Wandzüge werden so übernommen, wie sie gezeichnet sind – mit
+                jedem Vorsprung und ihrer echten Stärke. Als Grundfläche wird ein
+                Rechteck darum gelegt; die wirkliche Form steht in den Wandzügen.
+                Ein massiver Block in der Wandfarbe ist meist ein Möbel und wird
+                weggelassen, aber Stütze und kleines Möbel lassen sich am Umriss
+                allein nicht immer unterscheiden.
               </p>
             </div>
           )}

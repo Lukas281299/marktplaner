@@ -377,12 +377,28 @@ hat — geändert wird noch nichts:
 |---|---|
 | **Planart** | *CAD-Plan* heißt: Der Plan lässt sich auswerten. *Bildplan* heißt: Er ist ein Scan und taugt nur als Vorlage zum Darüberzeichnen. |
 | **Maßstab** | Wird aus den Maßketten des Plans zurückgerechnet, nicht aus dem Schriftfeld geglaubt. Steht dort etwas anderes, gewinnt die Zeichnung — und der Dialog sagt es. |
-| **Gefundene Wände** | Lange Linien im Bereich des Marktes. Vorschläge, keine Gewissheiten. |
+| **Gefundener Grundriss** | Wandzüge und Stützen, aus den gefüllten Flächen des Plans. Dazu die Gebäudemaße. |
 | **Gefundene Regale** | Züge, Felder und wie viele davon Gondeln sind, dazu die Einschätzung sicher / wahrscheinlich / unsicher. |
 
 Darunter steht **Was zu prüfen ist** — jede Unsicherheit einzeln, mit Grund.
 Ein Regal mit falscher Tiefe sieht im Plan richtig aus und fällt erst auf,
 wenn danach bestellt wird. Deshalb wird nichts verschwiegen.
+
+### Wie der Grundriss gefunden wird
+
+Ein CAD-Plan zeichnet Wände nicht als Linien, sondern als **gefüllte Flächen
+in einer eigenen Farbe** — im Plan Dörnhagen ein Grau von `#696969`. Diese
+Farbe sucht das Programm selbst: Es ist die, deren Flächen zusammen den
+größten Teil des Blattes umspannen und dabei ringförmig sind. Möbel sind
+massiv, Wände sind dünne Ringe um viel Luft.
+
+Übernommen werden die Wandzüge **so, wie sie gezeichnet sind** — mit jedem
+Vorsprung, jeder Nische und ihrer echten Stärke. Kleine massive Blöcke werden
+zu **Stützen** mit ihrem echten Maß.
+
+Als Grundfläche wird ein Rechteck um alles gelegt. Die wirkliche Form steht in
+den Wandzügen; das Rechteck ist nur die Bezugsfläche, mit der die
+Quadratmeter gerechnet werden.
 
 ### Wie die Regale gefunden werden
 
@@ -553,16 +569,18 @@ eine mit 500er Boden eine im Achsmaß 1000. Kopfgondeln gibt es gerade und rund
 
 ## 16. Was noch nicht geht
 
-**Der Gebäudeumriss aus dem PDF ist nur ein Rechteck.** Beim Einlesen wird ein
-Rahmen um alle erkannten Wände gelegt. Einen krummen Umriss nachzuzeichnen,
-der auch bei Lücken stimmt, ist eine eigene Wissenschaft — ein Rechteck ist
-ehrlich falsch und in zwei Zügen zurechtgezogen, ein halb geratener Umriss
-sähe richtig aus und wäre es nicht.
+**Der Gebäudeumriss ist ein Rechteck um alle Wandzüge.** Die Wandzüge selbst
+sind exakt — sie kommen unverändert aus dem Plan. Sie zu einer einzigen
+Umrisslinie zu verschmelzen ginge nur, wenn man jedes Polygon vorher um ein
+paar Millimeter aufbliese: Ein CAD-Plan zeichnet jeden Wandzug einzeln, und
+die stoßen kantengenau aneinander, ohne sich zu überlappen.
 
-**Wände werden allein an ihrer Länge erkannt.** Eine Wand trägt im Plan keine
-Beschriftung. Was länger als drei Meter ist, kommt als Vorschlag — darunter
-sind auch Möbelkanten und Maßlinien. Wegzulöschen geht schneller, als zu
-zeichnen.
+**Stütze oder kleines Möbel — das ist nicht immer zu trennen.** Im Plan
+Dörnhagen steht ein Obst-und-Gemüse-Tisch von 891 × 931 mm neben einer echten
+Stütze von 925 × 960 mm, beide massiv, beide im selben Grau. Das Programm
+nutzt als Hinweis, dass Möbel in Serie stehen und Stützen nicht — fünf gleiche
+Blöcke sind fünf Tische. Ganz sicher ist das nicht, deshalb steht im Befund,
+wie viele Flächen als „kein Bauteil" aussortiert wurden.
 
 **Eigene Vorlagen speichern.** Das Datenmodell kann eigene Vorlagen, und der
 Abgleich überträgt sie. Es fehlt der Knopf, mit dem man ein platziertes

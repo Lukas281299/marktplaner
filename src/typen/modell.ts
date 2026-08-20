@@ -380,6 +380,17 @@ export interface Grundflaeche {
   umriss: Punkt[];
   /** Stärke der Außenwand in cm. */
   wandstaerke: number;
+  /**
+   * Wandkörper aus einem eingelesenen Plan, in cm.
+   *
+   * Ein CAD-Plan zeichnet Wände nicht als Linie mit Stärke, sondern als
+   * gefüllte Polygone – mit jedem Vorsprung, jeder Nische, jeder Schräge.
+   * Genau so werden sie hier abgelegt und gezeichnet.
+   *
+   * Der Umriss daneben bleibt der Rahmen, mit dem die Flächenrechnung
+   * arbeitet. Diese Polygone sind die Wirklichkeit darin.
+   */
+  wandkoerper?: Punkt[][];
 }
 
 /** Einstellungen, die das Zeichnen und die Anzeige betreffen. */
