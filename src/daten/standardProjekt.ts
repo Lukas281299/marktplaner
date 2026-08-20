@@ -47,6 +47,7 @@ export function neuesProjekt(
     },
     ebenen: STANDARD_EBENEN.map((e) => ({ ...e })),
     raeume: [],
+    verkaufsflaechen: [],
     waende: [],
     oeffnungen: [],
     elemente: [],

@@ -56,6 +56,8 @@ export function wandleProjekt(roh: unknown): Projekt {
     // Fassung 4
     gruppen: projekt?.gruppen ?? [],
     masslinien: projekt?.masslinien ?? [],
+    // Fassung 6: nichts eingezeichnet heißt „weiter rechnen wie bisher".
+    verkaufsflaechen: projekt?.verkaufsflaechen ?? [],
     elemente: (projekt?.elemente ?? []).map(wandleElement),
   };
 }

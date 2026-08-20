@@ -115,6 +115,14 @@ export const SymbolRaum = () => (
   </Zeichnung>
 );
 
+/** Ein markierter Bereich: schräger Umriss mit Schraffur – wie im Plan. */
+export const SymbolVerkaufsflaeche = () => (
+  <Zeichnung>
+    <path d="M4 6h9l7 5v7H4z" />
+    <path d="M6 15l4-4M10 16l6-6M15 17l4-4" strokeWidth={1} />
+  </Zeichnung>
+);
+
 export const SymbolMassband = () => (
   <Zeichnung>
     <path d="M3 9h18v6H3z" />

@@ -91,6 +91,14 @@ export function useTastatur(): void {
         case 'Delete':
         case 'Backspace':
           e.preventDefault();
+          // Beim Zeichnen gehört Rückschritt zur Zeichnung: Dort nimmt er die
+          // letzte gesetzte Ecke zurück (siehe `Zeichenflaeche`). Ohne diese
+          // Ausnahme liefe beides gleichzeitig – und weil eine gerade fertig
+          // gezeichnete Verkaufsfläche ausgewählt bleibt, würde das Zurück-
+          // nehmen einer Ecke die Fläche davor löschen.
+          if (store.werkzeug === 'grundrissZeichnen' || store.werkzeug === 'verkaufsflaeche') {
+            return;
+          }
           // Räume, Wände und Öffnungen liegen in einer eigenen Auswahl –
           // sonst löschte Entf hier nichts, obwohl sichtbar etwas markiert ist.
           if (store.sonderauswahl) store.loescheSonderauswahl();

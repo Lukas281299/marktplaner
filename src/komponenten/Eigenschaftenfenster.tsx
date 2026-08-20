@@ -4,7 +4,7 @@ import { WARENGRUPPEN } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { masslaenge } from '../logik/messen';
-import { aussenmasse, istRechteck, rahmen, rechteck } from '../logik/polygon';
+import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel } from '../logik/waende';
 import type {
   Grundform,
@@ -15,6 +15,7 @@ import type {
   PlanElement,
   Raum,
   Raumart,
+  Verkaufsflaeche,
   Wand,
 } from '../typen/modell';
 import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
@@ -73,6 +74,10 @@ export function Eigenschaftenfenster() {
     sonderauswahl?.art === 'masslinie'
       ? projekt.masslinien.find((m) => m.id === sonderauswahl.id)
       : undefined;
+  const verkauf =
+    sonderauswahl?.art === 'verkaufsflaeche'
+      ? projekt.verkaufsflaechen.find((v) => v.id === sonderauswahl.id)
+      : undefined;
 
   const titel = raum
     ? 'Raum'
@@ -82,11 +87,13 @@ export function Eigenschaftenfenster() {
         ? 'Öffnung'
         : mass
           ? 'Maß'
-          : ausgewaehlte.length === 0
-            ? 'Projekt'
-            : ausgewaehlte.length === 1
-              ? 'Element'
-              : `${ausgewaehlte.length} Elemente`;
+          : verkauf
+            ? 'Verkaufsfläche'
+            : ausgewaehlte.length === 0
+              ? 'Projekt'
+              : ausgewaehlte.length === 1
+                ? 'Element'
+                : `${ausgewaehlte.length} Elemente`;
 
   return (
     <aside className="spalte spalte-rechts">
@@ -100,6 +107,8 @@ export function Eigenschaftenfenster() {
           <OeffnungEigenschaften oeffnung={oeffnung} />
         ) : mass ? (
           <MassEigenschaften mass={mass} />
+        ) : verkauf ? (
+          <VerkaufsflaecheEigenschaften flaeche={verkauf} />
         ) : ausgewaehlte.length === 0 ? (
           <ProjektEigenschaften />
         ) : (
@@ -483,6 +492,90 @@ function RaumEigenschaften({ raum }: { raum: Raum }) {
         <p className="hinweis">
           Zum Verschieben den Raum auf dem Plan ziehen. Die Regale darin bleiben stehen – sie
           gehören nicht zum Raum, sondern liegen nur darauf.
+        </p>
+      </div>
+    </>
+  );
+}
+
+// ===========================================================================
+//  Eigenschaften einer markierten Verkaufsfläche
+// ===========================================================================
+
+function VerkaufsflaecheEigenschaften({ flaeche: markierung }: { flaeche: Verkaufsflaeche }) {
+  const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
+  const anzahl = usePlanStore((s) => s.projekt.verkaufsflaechen.length);
+  const aendere = usePlanStore((s) => s.aendereVerkaufsflaeche);
+  const beiStart = () => usePlanStore.getState().schnappschuss();
+
+  const setze = (werte: Partial<Verkaufsflaeche>) => aendere(markierung.id, werte);
+  const kasten = rahmen(markierung.umriss);
+
+  return (
+    <>
+      <div className="gruppe">
+        <div className="feld-zeile einspaltig">
+          <Textfeld
+            label="Name"
+            wert={markierung.name}
+            beiStart={beiStart}
+            aendern={(name) => setze({ name })}
+          />
+        </div>
+        <p className="hinweis" style={{ marginTop: 0 }}>
+          {anzahl === 1
+            ? 'Diese Fläche ist die Verkaufsfläche des Marktes. Die Übersicht rechnet ab jetzt mit ihr statt mit den Räumen.'
+            : `Eine von ${anzahl} Teilflächen. Die Verkaufsfläche ist ihre Summe – wo zwei sich überlappen, zählt die Überschneidung nur einmal.`}
+        </p>
+      </div>
+
+      <div className="gruppe">
+        <div className="gruppe-titel">Darstellung</div>
+        <div className="feld-zeile">
+          <Farbfeld
+            label="Farbe"
+            wert={markierung.farbe}
+            beiStart={beiStart}
+            aendern={(farbe) => setze({ farbe })}
+          />
+        </div>
+        <Schalter
+          label="Name und Fläche anzeigen"
+          wert={markierung.beschriftungSichtbar}
+          aendern={(beschriftungSichtbar) => setze({ beschriftungSichtbar })}
+        />
+        <Schalter
+          label="Gegen Verschieben sperren"
+          wert={markierung.gesperrt}
+          aendern={(gesperrt) => setze({ gesperrt })}
+        />
+      </div>
+
+      <div className="gruppe">
+        <div className="gruppe-titel">Maße</div>
+        <div className="kennzahl">
+          <span>Fläche</span>
+          <span className="kennzahl-wert">{formatiereFlaeche(flaeche(markierung.umriss))}</span>
+        </div>
+        <div className="kennzahl">
+          <span>Umgrenzung</span>
+          <span className="kennzahl-wert">
+            {formatiereLaenge(kasten.rechts - kasten.links, einheit)} ×{' '}
+            {formatiereLaenge(kasten.unten - kasten.oben, einheit)}
+          </span>
+        </div>
+        <div className="kennzahl">
+          <span>Ecken</span>
+          <span className="kennzahl-wert">{markierung.umriss.length}</span>
+        </div>
+      </div>
+
+      <SonderFuss gesperrt={markierung.gesperrt} was="Fläche" />
+
+      <div className="gruppe">
+        <p className="hinweis">
+          Zum Verschieben die Fläche auf dem Plan ziehen. Wird die letzte Teilfläche gelöscht,
+          rechnet die Übersicht wieder aus den Räumen: Innenfläche minus Nebenräume.
         </p>
       </div>
     </>
@@ -1170,7 +1263,7 @@ function ProjektEigenschaften() {
           <span>Innenfläche (ohne Außenwand)</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.netto)}</span>
         </div>
-        {flaechen.nebenflaeche > 0 && (
+        {flaechen.nebenflaeche > 0 && !flaechen.verkaufsflaecheMarkiert && (
           <div className="kennzahl">
             <span>Nebenflächen (Lager, Kühlung …)</span>
             <span className="kennzahl-wert">− {formatiereFlaeche(flaechen.nebenflaeche)}</span>
@@ -1179,6 +1272,9 @@ function ProjektEigenschaften() {
         <div className="kennzahl">
           <span>
             <strong>Verkaufsfläche</strong>
+            {flaechen.verkaufsflaecheMarkiert && (
+              <span className="kategorie-anzahl"> · eingezeichnet</span>
+            )}
           </span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.verkaufsflaeche)}</span>
         </div>
@@ -1186,6 +1282,12 @@ function ProjektEigenschaften() {
           <span>Belegt durch Elemente</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.belegt)}</span>
         </div>
+        {flaechen.verkaufsflaecheMarkiert && flaechen.belegtInVerkauf < flaechen.belegt && (
+          <div className="kennzahl">
+            <span>Davon auf der Verkaufsfläche</span>
+            <span className="kennzahl-wert">{formatiereFlaeche(flaechen.belegtInVerkauf)}</span>
+          </div>
+        )}
         <div className="kennzahl">
           <span>Freie Verkaufsfläche</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.frei)}</span>
@@ -1196,6 +1298,36 @@ function ProjektEigenschaften() {
             {regalmeter.toLocaleString('de-DE', { maximumFractionDigits: 1 })} lfm
           </span>
         </div>
+
+        {flaechen.verkaufsflaechen.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div className="gruppe-titel">
+              {flaechen.verkaufsflaechen.length === 1
+                ? 'Eingezeichnete Verkaufsfläche'
+                : `Eingezeichnete Teilflächen (${flaechen.verkaufsflaechen.length})`}
+            </div>
+            {flaechen.verkaufsflaechen.map((teil) => (
+              <div className="kennzahl" key={teil.id}>
+                <span
+                  style={{ cursor: 'pointer' }}
+                  onClick={() =>
+                    usePlanStore.getState().waehleSonder({ art: 'verkaufsflaeche', id: teil.id })
+                  }
+                  title="Diese Teilfläche auswählen"
+                >
+                  {teil.name}
+                </span>
+                <span className="kennzahl-wert">{formatiereFlaeche(teil.flaeche)}</span>
+              </div>
+            ))}
+            {flaechen.verkaufsflaechen.length > 1 && (
+              <p className="hinweis" style={{ marginTop: 6 }}>
+                Die Verkaufsfläche oben ist nicht immer die Summe dieser Zeilen: Überlappen sich
+                zwei Teilflächen, zählt die Überschneidung dort nur einmal.
+              </p>
+            )}
+          </div>
+        )}
 
         {flaechen.raeume.length > 0 && (
           <div style={{ marginTop: 10 }}>

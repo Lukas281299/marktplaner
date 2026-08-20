@@ -128,6 +128,31 @@ describe('beschädigte Dateien', () => {
   });
 });
 
+describe('Fassung 6: eingezeichnete Verkaufsflächen', () => {
+  it('gibt einer alten Planung eine leere Liste', () => {
+    // Leer ist die richtige Bedeutung: In einer alten Planung ist nichts
+    // eingezeichnet, also bleibt es bei der gerechneten Verkaufsfläche.
+    expect(wandleProjekt(alteFassung()).verkaufsflaechen).toEqual([]);
+  });
+
+  it('lässt vorhandene Flächen stehen', () => {
+    const flaeche = {
+      id: 'verkaufsflaeche-1',
+      name: 'Vorkasse',
+      umriss: [
+        { x: 0, y: 0 },
+        { x: 500, y: 0 },
+        { x: 500, y: 400 },
+      ],
+      farbe: '#2f9e44',
+      beschriftungSichtbar: true,
+      gesperrt: false,
+    };
+    const neu = wandleProjekt(alteFassung({ verkaufsflaechen: [flaeche] }));
+    expect(neu.verkaufsflaechen).toEqual([flaeche]);
+  });
+});
+
 describe('neue Fassung', () => {
   it('lässt eine bereits aktuelle Planung unverändert', () => {
     const aktuell = {

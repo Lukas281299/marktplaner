@@ -24,6 +24,7 @@ import {
   SymbolRaum,
   SymbolTuer,
   SymbolUmriss,
+  SymbolVerkaufsflaeche,
   SymbolWand,
   SymbolZeiger,
   SymbolDrehenLinks,
@@ -360,6 +361,15 @@ export function Werkzeugleiste() {
             title="Tür, Durchgang oder Tor in eine Wand setzen – auf die Wand klicken"
           >
             <SymbolTuer /> Tür / Durchgang
+          </button>
+          <button
+            className={`knopf${werkzeug === 'verkaufsflaeche' ? ' aktiv' : ''}`}
+            onClick={() =>
+              store().setzeWerkzeug(werkzeug === 'verkaufsflaeche' ? 'auswahl' : 'verkaufsflaeche')
+            }
+            title="Verkaufsfläche markieren: Ecken setzen, ziehen ergibt einen Bogen, Klick auf den Anfang schließt. Mehrere Teilflächen möglich."
+          >
+            <SymbolVerkaufsflaeche /> Verkaufsfläche
           </button>
 
           <span className="trenner" />

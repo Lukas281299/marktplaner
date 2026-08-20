@@ -172,6 +172,10 @@ Ein Rechteck aufziehen. Danach rechts einstellen:
 Die Art entscheidet, ob der Raum als **Verkaufsfläche** zählt. Ein Lager oder
 Kühlraum wird in der Flächenübersicht als Nebenfläche abgezogen.
 
+Wer die Verkaufsfläche lieber selbst festlegt, statt sie aus den Räumen
+rechnen zu lassen, zeichnet sie ein — siehe
+[Die Verkaufsfläche einzeichnen](#die-verkaufsfläche-einzeichnen).
+
 ### Innenwand
 
 Von einem Punkt zum anderen ziehen, ohne gleich einen ganzen Raum abzutrennen.
@@ -388,13 +392,61 @@ Ohne Auswahl rechnet das Programm unten rechts durchgehend mit:
 | **Gebäude (Außenmaß)** | die ganze Grundfläche einschließlich Außenwand |
 | **Innenfläche** | dasselbe ohne die Außenwand |
 | **Nebenflächen** | Lager, Kühlräume, Technik — alles, was nicht Verkauf ist |
-| **Verkaufsfläche** | Innenfläche minus Nebenflächen |
+| **Verkaufsfläche** | Innenfläche minus Nebenflächen — oder das, was eingezeichnet ist |
 | **Belegt durch Elemente** | die Standfläche aller Möbel |
 | **Freie Verkaufsfläche** | was davon übrig bleibt |
 | **Regalmeter** | die laufenden Meter Regal, bei Gondeln beide Seiten |
 
 Darunter steht die Fläche jedes einzelnen Raums — ein Klick darauf wählt den
 Raum aus. Und darunter die belegte Fläche je Abteilung.
+
+### Die Verkaufsfläche einzeichnen
+
+Normalerweise **rechnet** das Programm die Verkaufsfläche aus: Innenfläche
+minus alles, was als Nebenraum abgetrennt ist. Das trifft es meistens, aber
+nicht immer — die Vorkassenzone gehört nicht dazu, ein Windfang auch nicht,
+und eine Fläche aus dem Mietvertrag folgt ohnehin einer eigenen Linie.
+
+Deshalb lässt sie sich stattdessen **einzeichnen**. Werkzeug
+**Verkaufsfläche** in der zweiten Zeile der Werkzeugleiste:
+
+| Aktion | Bedienung |
+|---|---|
+| Ecke setzen | klicken |
+| Bogen statt Kante | von der letzten Ecke aus ziehen statt klicken |
+| Fläche schließen | auf die erste Ecke klicken, oder <kbd>Enter</kbd> |
+| Eine Ecke zurück | <kbd>Rückschritt</kbd> |
+| Werkzeug weglegen | <kbd>Esc</kbd> |
+
+Der Umriss darf ein **beliebiger Polygonzug** sein, mit Bögen wie beim freien
+Grundriss. Nach dem Schließen bleibt das Werkzeug an, damit sich die nächste
+Teilfläche direkt anschließt — **beliebig viele Teilflächen** sind möglich.
+
+Sobald auch nur eine Fläche eingezeichnet ist, gilt das Gezeichnete. Die
+Übersicht schreibt dann **· eingezeichnet** hinter die Verkaufsfläche und
+listet jede Teilfläche einzeln auf; ein Klick darauf wählt sie aus. Die
+Nebenflächen werden weiter ausgewiesen, greifen aber nicht mehr ein — wer
+selbst einzeichnet, will nicht, dass ihm daneben noch etwas abgezogen wird.
+
+Zwei Punkte, die man kennen sollte:
+
+- **Überlappungen zählen nur einmal.** Zwei Teilflächen von je 300 m², die
+  sich auf 150 m² überschneiden, ergeben 450 m² und nicht 600. Die Einzelwerte
+  in der Liste stehen trotzdem so da, wie jede Fläche gezeichnet ist — sonst
+  wäre die Liste nicht mehr nachvollziehbar.
+- **Belegt wird am Mittelpunkt entschieden.** Für die freie Verkaufsfläche
+  zählt nur, was mit seinem Mittelpunkt auf einer markierten Fläche steht.
+  Ein Regal im Lager rechnet die Verkaufsfläche also nicht mehr klein.
+
+Eine markierte Fläche liegt **über** dem Boden und den Räumen, aber **unter**
+der Einrichtung: Sie überzieht den Raum darunter, verdeckt aber kein Regal.
+Gezeichnet wird sie durchscheinend und schraffiert — eine deckende Fläche
+würde man für einen Raum halten. Sie gehört zur Ebene **Räume**; wer die Ebene
+ausblendet, blendet auch die Markierung aus.
+
+Verschieben: die Fläche auf dem Plan ziehen. Rechts lassen sich Name, Farbe,
+Beschriftung und die Sperre einstellen. Wird die letzte Teilfläche gelöscht,
+rechnet die Übersicht wieder wie zuvor.
 
 ---
 
@@ -646,3 +698,8 @@ Vorlage ersetzen*.
 
 **Smokytheke.** Der Zigarettenschrank über dem Kassenband fehlt noch als
 eigenes Symbol.
+
+**Einzelne Ecken einer Verkaufsfläche nachziehen.** Eine eingezeichnete
+Verkaufsfläche lässt sich als Ganzes verschieben, aber ihre Ecken noch nicht
+einzeln ziehen — das kann bisher nur der Gebäudeumriss. Wer die Linie ändern
+will, zeichnet die Teilfläche neu.

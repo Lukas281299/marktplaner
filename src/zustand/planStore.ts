@@ -3,7 +3,7 @@ import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
 import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
-import { raumart } from '../daten/raumarten';
+import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
 import { setzeFavoriten as speichereFavoriten } from '../speicher/projektArchiv';
 import type {
@@ -19,6 +19,7 @@ import type {
   Punkt,
   Raum,
   Raumart,
+  Verkaufsflaeche,
   Wand,
 } from '../typen/modell';
 
@@ -68,7 +69,8 @@ export type Werkzeug =
   | 'wand'
   | 'oeffnung'
   | 'messen'
-  | 'grundrissZeichnen';
+  | 'grundrissZeichnen'
+  | 'verkaufsflaeche';
 
 /**
  * Was außer Elementen noch ausgewählt sein kann.
@@ -77,7 +79,10 @@ export type Werkzeug =
  * zeigt immer nur eines davon, und drei getrennte Felder wären drei Stellen,
  * an denen man das Aufräumen vergessen kann.
  */
-export type Sonderauswahl = { art: 'raum' | 'wand' | 'oeffnung' | 'masslinie'; id: string } | null;
+export type Sonderauswahl = {
+  art: 'raum' | 'wand' | 'oeffnung' | 'masslinie' | 'verkaufsflaeche';
+  id: string;
+} | null;
 
 interface PlanStore {
   // ------------------------------------------------------------------ Daten
@@ -188,6 +193,11 @@ interface PlanStore {
   fuegeRaumHinzu(umriss: Punkt[], art?: Raumart): string;
   aendereRaum(id: string, werte: Partial<Raum>, mitHistorie?: boolean): void;
   verschiebeRaum(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
+
+  /** Zeichnet eine weitere Teilfläche der Verkaufsfläche ein. */
+  fuegeVerkaufsflaecheHinzu(umriss: Punkt[]): string;
+  aendereVerkaufsflaeche(id: string, werte: Partial<Verkaufsflaeche>, mitHistorie?: boolean): void;
+  verschiebeVerkaufsflaeche(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
 
   fuegeWandHinzu(von: Punkt, bis: Punkt, staerke?: number): string;
   aendereWand(id: string, werte: Partial<Wand>, mitHistorie?: boolean): void;
@@ -457,7 +467,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           ? projekt.waende.find((w) => w.id === id)?.gesperrt
           : art === 'oeffnung'
             ? projekt.oeffnungen.find((o) => o.id === id)?.gesperrt
-            : projekt.masslinien.find((m) => m.id === id)?.gesperrt;
+            : art === 'verkaufsflaeche'
+              ? projekt.verkaufsflaechen.find((v) => v.id === id)?.gesperrt
+              : projekt.masslinien.find((m) => m.id === id)?.gesperrt;
     if (gesperrt) return;
 
     aendere(set, get, (p) => ({
@@ -466,6 +478,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       waende: art === 'wand' ? p.waende.filter((w) => w.id !== id) : p.waende,
       oeffnungen: art === 'oeffnung' ? p.oeffnungen.filter((o) => o.id !== id) : p.oeffnungen,
       masslinien: art === 'masslinie' ? p.masslinien.filter((m) => m.id !== id) : p.masslinien,
+      verkaufsflaechen:
+        art === 'verkaufsflaeche'
+          ? p.verkaufsflaechen.filter((v) => v.id !== id)
+          : p.verkaufsflaechen,
     }));
     set({ sonderauswahl: null });
   },
@@ -507,6 +523,49 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       ...p,
       raeume: p.raeume.map((r) =>
         r.id === id && !r.gesperrt ? { ...r, umriss: verschiebe(r.umriss, dx, dy) } : r,
+      ),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  // -------------------------------------------------------- Verkaufsfläche
+  fuegeVerkaufsflaecheHinzu(umriss) {
+    const id = neueId('verkaufsflaeche');
+    aendere(set, get, (p) => ({
+      ...p,
+      verkaufsflaechen: [
+        ...p.verkaufsflaechen,
+        {
+          id,
+          // Durchnummeriert statt „Neue Fläche": Wer drei Teilflächen
+          // einzeichnet, findet sie in der Übersicht sonst nicht auseinander.
+          name: `Verkaufsfläche ${p.verkaufsflaechen.length + 1}`,
+          umriss: imUhrzeigersinn(umriss),
+          farbe: VERKAUFSFLAECHE_FARBE,
+          beschriftungSichtbar: true,
+          gesperrt: false,
+        },
+      ],
+    }));
+    set({ sonderauswahl: { art: 'verkaufsflaeche', id }, auswahl: [] });
+    return id;
+  },
+
+  aendereVerkaufsflaeche(id, werte, mitHistorie = true) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      verkaufsflaechen: p.verkaufsflaechen.map((v) => (v.id === id ? { ...v, ...werte } : v)),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  verschiebeVerkaufsflaeche(id, dx, dy, mitHistorie = false) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      verkaufsflaechen: p.verkaufsflaechen.map((v) =>
+        v.id === id && !v.gesperrt ? { ...v, umriss: verschiebe(v.umriss, dx, dy) } : v,
       ),
     });
     if (mitHistorie) aendere(set, get, wandeln);

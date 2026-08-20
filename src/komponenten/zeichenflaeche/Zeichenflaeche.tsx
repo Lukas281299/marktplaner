@@ -20,7 +20,7 @@ import { rahmen as umrissRahmen, rechteckAusEcken, vereinige, ziehAb } from '../
 import { punktEinfuegen, punktEntfernen, punktVerschieben } from '../../logik/umrissBearbeiten';
 import { alleWandachsen, fangbereich, findeWand, richteWandAus } from '../../logik/waende';
 import type { Punkt } from '../../typen/modell';
-import { usePlanStore } from '../../zustand/planStore';
+import { usePlanStore, type Werkzeug } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Gebaeude } from './Gebaeude';
@@ -28,6 +28,7 @@ import { Planvorlage } from './Planvorlage';
 import { Masslinien } from './Masslinien';
 import { Oeffnungen } from './Oeffnungen';
 import { Raeume } from './Raeume';
+import { Verkaufsflaechen } from './Verkaufsflaechen';
 import { Raster } from './Raster';
 import { UmrissBearbeitung } from './UmrissBearbeitung';
 import { Waende } from './Waende';
@@ -35,6 +36,18 @@ import { Waende } from './Waende';
 /** Grenzen für den Zoom: 1 Bildpunkt pro 50 cm bis 4 Bildpunkte pro cm. */
 const ZOOM_MIN = 0.02;
 const ZOOM_MAX = 4;
+
+/**
+ * Werkzeuge, die einen freien Polygonzug zeichnen.
+ *
+ * Grundriss und Verkaufsfläche werden auf genau dieselbe Weise gezeichnet –
+ * Ecken setzen, ziehen ergibt einen Bogen, Klick auf den Anfang schließt.
+ * Nur was am Ende daraus wird, unterscheidet sich; das entscheidet
+ * `schliesseZug`.
+ */
+function zeichnetZug(werkzeug: Werkzeug): boolean {
+  return werkzeug === 'grundrissZeichnen' || werkzeug === 'verkaufsflaeche';
+}
 
 /**
  * Die Planungsfläche.
@@ -114,18 +127,39 @@ export function Zeichenflaeche() {
   }, [zeichenzug]);
 
   /**
-   * Aus dem gezeichneten Zug wird die Grundfläche.
+   * Aus dem gezeichneten Zug wird eine Fläche.
    *
-   * Danach schaltet das Werkzeug zurück aufs Auswählen: Der Grundriss ist
+   * Welche, hängt am Werkzeug – gezeichnet wird für beide gleich. Beim
+   * Grundriss schaltet es danach zurück aufs Auswählen: Der Grundriss ist
    * fertig, und alles Weitere – Räume, Regale – läuft wieder ganz normal.
+   *
+   * Bei der Verkaufsfläche bleibt das Werkzeug an. Teilflächen kommen selten
+   * allein, und nach jeder einzelnen das Werkzeug neu zu greifen wäre die
+   * Sorte Kleinarbeit, die einem den Abend verdirbt.
    */
   const schliesseZug = useCallback((zug: Punkt[]) => {
     const sauber = entdoppele(zug);
+    const store = usePlanStore.getState();
+    const verkauf = store.werkzeug === 'verkaufsflaeche';
+
     if (!taugtAlsUmriss(sauber)) {
-      setMeldung('Zu wenige Ecken – ein Grundriss braucht mindestens drei.');
+      setMeldung(
+        verkauf
+          ? 'Zu wenige Ecken – eine Teilfläche braucht mindestens drei.'
+          : 'Zu wenige Ecken – ein Grundriss braucht mindestens drei.',
+      );
       return;
     }
-    const store = usePlanStore.getState();
+
+    if (verkauf) {
+      store.fuegeVerkaufsflaecheHinzu(sauber);
+      setZugMaus(null);
+      setMeldung(
+        `Verkaufsfläche mit ${sauber.length} Ecken markiert. Nächste Teilfläche zeichnen oder Esc.`,
+      );
+      return;
+    }
+
     store.schnappschuss();
     store.setzeUmriss(sauber);
     store.setzeWerkzeug('auswahl');
@@ -207,7 +241,7 @@ export function Zeichenflaeche() {
 
   // ------------------------------------------- Tasten beim Grundrisszeichnen
   useEffect(() => {
-    if (werkzeug !== 'grundrissZeichnen') {
+    if (!zeichnetZug(werkzeug)) {
       // Werkzeug gewechselt: angefangenen Zug wegräumen.
       if (zeichenzugRef.current.length > 0) setZeichenzug([]);
       return;
@@ -216,17 +250,26 @@ export function Zeichenflaeche() {
       const ziel = e.target as HTMLElement | null;
       if (ziel && /^(INPUT|TEXTAREA|SELECT)$/.test(ziel.tagName)) return;
 
+      // Die Ref wird überall mitgeschrieben, nicht nur vom Effekt: Der
+      // Mausdruck liest sie unmittelbar, und zwischen Tastendruck und
+      // Neuzeichnen kann ein Klick liegen.
+      const setzeZug = (zug: Punkt[]) => {
+        zeichenzugRef.current = zug;
+        setZeichenzug(zug);
+      };
+
       if (e.key === 'Enter') {
         e.preventDefault();
-        schliesseZug(zeichenzugRef.current);
-        setZeichenzug([]);
+        const zug = zeichenzugRef.current;
+        setzeZug([]);
+        schliesseZug(zug);
       } else if (e.key === 'Backspace' || e.key === 'Delete') {
         // Eine Ecke zurück. Beim Zeichnen von Hand verklickt man sich, und
         // dafür jedes Mal von vorn anzufangen wäre unzumutbar.
         e.preventDefault();
-        setZeichenzug((zug) => zug.slice(0, -1));
+        setzeZug(zeichenzugRef.current.slice(0, -1));
       } else if (e.key === 'Escape') {
-        setZeichenzug([]);
+        setzeZug([]);
         setZugMaus(null);
       }
     };
@@ -344,7 +387,7 @@ export function Zeichenflaeche() {
     // wird aus der letzten Kante ein Bogen, der der Maus folgt – so wie man
     // es von Zeichenprogrammen kennt. Ob es ein Klick oder ein Ziehen war,
     // entscheidet sich erst beim Loslassen.
-    if (store.werkzeug === 'grundrissZeichnen') {
+    if (zeichnetZug(store.werkzeug)) {
       const p = aufRaster(planPunkt(e.evt.clientX, e.evt.clientY));
       bogenRef.current = { von: p, gezogen: false };
       return;
@@ -376,7 +419,7 @@ export function Zeichenflaeche() {
   useEffect(() => {
     const bewegen = (ev: MouseEvent) => {
       // Grundriss zeichnen: Vorschau der nächsten Kante bzw. des Bogens.
-      if (usePlanStore.getState().werkzeug === 'grundrissZeichnen') {
+      if (zeichnetZug(usePlanStore.getState().werkzeug)) {
         const p = aufRaster(planPunkt(ev.clientX, ev.clientY));
         setZugMaus(p);
         const bogen = bogenRef.current;
@@ -437,26 +480,39 @@ export function Zeichenflaeche() {
       const bogen = bogenRef.current;
       if (bogen) {
         bogenRef.current = null;
-        setZeichenzug((zug) => {
-          // Auf den ersten Punkt geklickt? Dann ist der Umriss geschlossen.
-          if (zug.length >= 3) {
-            const erster = zug[0];
-            const nah = 12 / usePlanStore.getState().ansicht.zoom;
-            if (Math.hypot(bogen.von.x - erster.x, bogen.von.y - erster.y) < nah) {
-              schliesseZug(zug);
-              return [];
-            }
+        // Gerechnet wird auf der Ref, nicht in einem `setZeichenzug`-Updater.
+        // Der Grund ist hart erkauft: React ruft Updater in der Entwicklung
+        // absichtlich zweimal auf, um unsaubere Seiteneffekte aufzudecken.
+        // Lag der Abschluss darin, entstand jede Fläche doppelt – beim
+        // Grundriss fiel das nie auf, weil derselbe Umriss zweimal gesetzt
+        // gleich aussieht.
+        //
+        // Die Ref wird gleich mitgeschrieben statt erst vom Effekt: Zwei
+        // Klicks können schneller kommen, als React neu zeichnet.
+        const zug = zeichenzugRef.current;
+
+        // Auf den ersten Punkt geklickt? Dann ist die Fläche geschlossen.
+        if (zug.length >= 3) {
+          const erster = zug[0];
+          const nah = 12 / usePlanStore.getState().ansicht.zoom;
+          if (Math.hypot(bogen.von.x - erster.x, bogen.von.y - erster.y) < nah) {
+            zeichenzugRef.current = [];
+            setZeichenzug([]);
+            schliesseZug(zug);
+            return;
           }
-          const letzter = zug[zug.length - 1];
-          if (!letzter) return [bogen.von];
-          // Gezogen heißt Bogen: Er läuft von der letzten Ecke über die
-          // Stelle, an der die Maus jetzt steht, zurück zum Startpunkt des
-          // Ziehens.
-          if (bogen.gezogen && zugMausRef.current) {
-            return [...zug, ...bogenPunkte(letzter, zugMausRef.current, bogen.von)];
-          }
-          return [...zug, bogen.von];
-        });
+        }
+
+        const letzter = zug[zug.length - 1];
+        // Gezogen heißt Bogen: Er läuft von der letzten Ecke über die Stelle,
+        // an der die Maus jetzt steht, zurück zum Startpunkt des Ziehens.
+        const naechster = !letzter
+          ? [bogen.von]
+          : bogen.gezogen && zugMausRef.current
+            ? [...zug, ...bogenPunkte(letzter, zugMausRef.current, bogen.von)]
+            : [...zug, bogen.von];
+        zeichenzugRef.current = naechster;
+        setZeichenzug(naechster);
         return;
       }
 
@@ -633,6 +689,34 @@ export function Zeichenflaeche() {
     const ecke = raum.umriss[0];
     const ziel = aufRaster(ecke);
     store.verschiebeRaum(zug.id, ziel.x - ecke.x, ziel.y - ecke.y);
+  };
+
+  // -------------------------------------------- Verkaufsfläche verschieben
+  const verkaufZugRef = useRef<{ id: string; letztesX: number; letztesY: number } | null>(null);
+
+  const verkaufZiehStart = (id: string) => {
+    usePlanStore.getState().schnappschuss();
+    verkaufZugRef.current = { id, letztesX: 0, letztesY: 0 };
+  };
+
+  const verkaufZiehen = (id: string, x: number, y: number) => {
+    const zug = verkaufZugRef.current;
+    if (!zug || zug.id !== id) return;
+    usePlanStore.getState().verschiebeVerkaufsflaeche(id, x - zug.letztesX, y - zug.letztesY);
+    zug.letztesX = x;
+    zug.letztesY = y;
+  };
+
+  const verkaufZiehEnde = () => {
+    const zug = verkaufZugRef.current;
+    verkaufZugRef.current = null;
+    if (!zug) return;
+    const store = usePlanStore.getState();
+    const flaeche = store.projekt.verkaufsflaechen.find((v) => v.id === zug.id);
+    if (!flaeche || flaeche.umriss.length === 0) return;
+    const ecke = flaeche.umriss[0];
+    const ziel = aufRaster(ecke);
+    store.verschiebeVerkaufsflaeche(zug.id, ziel.x - ecke.x, ziel.y - ecke.y);
   };
 
   // -------------------------------------------------------- Wand verschieben
@@ -1022,6 +1106,28 @@ export function Zeichenflaeche() {
           )}
         </Layer>
 
+        {/* ------------------------------------------------- Verkaufsfläche */}
+        {/* Über den Räumen, unter der Einrichtung: Die Markierung soll den
+            Raum darunter überziehen, aber die Regale nicht verdecken. */}
+        <Layer listening={raeumeSichtbar && werkzeug === 'auswahl'}>
+          {raeumeSichtbar && (
+            <Verkaufsflaechen
+              flaechen={projekt.verkaufsflaechen}
+              ausgewaehlt={
+                sonderauswahl?.art === 'verkaufsflaeche' ? sonderauswahl.id : null
+              }
+              zoom={zoom}
+              anklickbar={werkzeug === 'auswahl' && !raeumeGesperrt}
+              beiKlick={(id) =>
+                usePlanStore.getState().waehleSonder({ art: 'verkaufsflaeche', id })
+              }
+              beiZiehStart={verkaufZiehStart}
+              beiZiehen={verkaufZiehen}
+              beiZiehEnde={verkaufZiehEnde}
+            />
+          )}
+        </Layer>
+
         {/* ------------------------------------------- Wände und Öffnungen */}
         {/* Die Öffnungen liegen über allem, was Wand ist – nur so können sie
             Außenwand, Raumwand und Innenwand gleichermaßen unterbrechen. */}
@@ -1132,7 +1238,7 @@ export function Zeichenflaeche() {
           />
 
           {/* Der Grundriss, der gerade gezeichnet wird */}
-          {werkzeug === 'grundrissZeichnen' && zeichenzug.length > 0 && (
+          {zeichnetZug(werkzeug) && zeichenzug.length > 0 && (
             <>
               <Line
                 points={[
@@ -1310,8 +1416,15 @@ const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> = {
   messen: { fuellung: 'transparent', linie: '#2f3b49' },
 };
 
-/** Kurze Anleitung zum jeweils gewählten Werkzeug. */
-const WERKZEUG_TEXT: Record<string, { titel: string; hinweis: string }> = {
+/**
+ * Kurze Anleitung zum jeweils gewählten Werkzeug.
+ *
+ * Bewusst über `Werkzeug` verschlüsselt und nicht über `string`: Ein neues
+ * Werkzeug ohne Eintrag ist damit ein Übersetzungsfehler. Mit `string` war es
+ * ein Absturz beim Anklicken – die Zeichenfläche verschwand, weil hier auf
+ * `undefined.titel` zugegriffen wurde.
+ */
+const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinweis: string }> = {
   umriss: {
     titel: 'Umriss bearbeiten',
     hinweis:
@@ -1343,6 +1456,11 @@ const WERKZEUG_TEXT: Record<string, { titel: string; hinweis: string }> = {
     titel: 'Grundriss zeichnen',
     hinweis:
       'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück',
+  },
+  verkaufsflaeche: {
+    titel: 'Verkaufsfläche markieren',
+    hinweis:
+      'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · das Werkzeug bleibt an, für die nächste Teilfläche',
   },
   messen: {
     titel: 'Maß eintragen',

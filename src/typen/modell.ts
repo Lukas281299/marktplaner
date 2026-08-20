@@ -316,6 +316,31 @@ export interface Raum {
   gesperrt: boolean;
 }
 
+/**
+ * Eine markierte Teilfläche der Verkaufsfläche.
+ *
+ * Ohne Markierung rechnet das Programm die Verkaufsfläche aus: Innenfläche
+ * minus alles, was als Nebenraum abgetrennt ist. Das trifft es meistens,
+ * aber eben nicht immer – die Vorkassenzone gehört nicht dazu, ein
+ * Windfang auch nicht, und eine Fläche, die im Mietvertrag steht, folgt
+ * ohnehin einer eigenen Linie.
+ *
+ * Deshalb kann die Verkaufsfläche stattdessen **eingezeichnet** werden, in
+ * beliebig vielen Teilflächen und mit beliebigem Umriss. Sobald auch nur
+ * eine gezeichnet ist, gilt das Gezeichnete – dann rechnet niemand mehr
+ * heimlich etwas anderes aus.
+ */
+export interface Verkaufsflaeche {
+  id: string;
+  name: string;
+  /** Umriss als Polygon in cm. Mindestens drei Punkte. */
+  umriss: Punkt[];
+  farbe: string;
+  beschriftungSichtbar: boolean;
+  /** Gesperrte Flächen lassen sich nicht aus Versehen verschieben. */
+  gesperrt: boolean;
+}
+
 /** Wozu eine Innenwand dient – bestimmt nur die Darstellung. */
 export type Wandart = 'tragend' | 'trennwand' | 'leicht';
 
@@ -482,6 +507,8 @@ export interface Projekt {
   einstellungen: Einstellungen;
   ebenen: Ebene[];
   raeume: Raum[];
+  /** Eingezeichnete Verkaufsfläche – leer heißt: aus den Räumen gerechnet. */
+  verkaufsflaechen: Verkaufsflaeche[];
   /** Freistehende Innenwände, die keinen ganzen Raum abtrennen. */
   waende: Wand[];
   /** Türen, Durchgänge und Tore. */
@@ -505,9 +532,15 @@ export interface Projekt {
  *   3 – einzelne Innenwände und Öffnungen (Türen, Durchgänge)
  *   4 – Gruppen, beidseitige Regale, dauerhafte Maßlinien
  *   5 – Achsmaß am Element, Hintergrundbild aus einem Plan-PDF
+ *   6 – eingezeichnete Verkaufsflächen
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
  * ist auch die richtige Bedeutung von „nicht gesetzt".
+ *
+ * Fassung 6 füllt `verkaufsflaechen` mit einer leeren Liste. Das ist die
+ * richtige Bedeutung: In einer älteren Planung ist nichts eingezeichnet, also
+ * bleibt es bei der gerechneten Verkaufsfläche – die Kennzahl ändert sich
+ * durch das Öffnen nicht.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;

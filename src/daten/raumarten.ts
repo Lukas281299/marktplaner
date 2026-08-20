@@ -60,3 +60,13 @@ export const RAUMARTEN: Raumartinfo[] = [
 export function raumart(id: Raumart): Raumartinfo {
   return RAUMARTEN.find((a) => a.id === id) ?? RAUMARTEN[RAUMARTEN.length - 1];
 }
+
+/**
+ * Die Farbe einer eingezeichneten Verkaufsfläche.
+ *
+ * Bewusst ein kräftiges Grün und keiner der blassen Raumtöne: Eine markierte
+ * Verkaufsfläche ist keine Bodenfarbe, sondern eine Markierung über dem Plan.
+ * Gezeichnet wird sie deshalb durchscheinend und schraffiert – der Ton muss
+ * das aushalten, ohne unter der Schraffur zu verschwinden.
+ */
+export const VERKAUFSFLAECHE_FARBE = '#2f9e44';
