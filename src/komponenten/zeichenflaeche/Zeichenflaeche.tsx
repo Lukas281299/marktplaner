@@ -689,8 +689,44 @@ export function Zeichenflaeche() {
   // ----------------------------------------------------- Öffnung verschieben
   const oeffnungZiehStart = () => usePlanStore.getState().schnappschuss();
 
+  /**
+   * Eine Öffnung ziehen – sie gleitet dabei in ihrer Wand.
+   *
+   * Vorher wurde die Öffnung frei mitgeschleift und erst beim Loslassen an
+   * die nächste Wand geschnappt. Dazwischen hing sie im Nichts, und wer sie
+   * nur ein Stück weiterschieben wollte, sah sie aus der Wand fallen.
+   *
+   * Jetzt wird bei jeder Bewegung auf die nächste Wandachse gelotet: Die
+   * Tür folgt der Maus, bleibt aber auf der Wand und übernimmt deren
+   * Richtung und Stärke. Der Fangbereich ist dabei großzügiger als beim
+   * Setzen – wer eine Tür verschiebt, will sie in aller Regel in derselben
+   * Wand behalten und nicht bei jedem Zittern verlieren.
+   */
   const oeffnungZiehen = (id: string, x: number, y: number) => {
-    usePlanStore.getState().aendereOeffnung(id, { x, y }, false);
+    const store = usePlanStore.getState();
+    const achsen = alleWandachsen(
+      store.projekt.grundflaeche,
+      store.projekt.raeume,
+      store.projekt.waende,
+    );
+    const treffer = findeWand({ x, y }, achsen, fangbereich(store.ansicht.zoom) * 4);
+    if (!treffer) {
+      // Keine Wand in Reichweite: Dann lässt sich die Öffnung frei
+      // versetzen, etwa um sie in eine ganz andere Wand zu bringen.
+      store.aendereOeffnung(id, { x, y }, false);
+      return { x, y };
+    }
+    store.aendereOeffnung(
+      id,
+      {
+        x: treffer.punkt.x,
+        y: treffer.punkt.y,
+        drehung: treffer.winkel,
+        tiefe: treffer.staerke,
+      },
+      false,
+    );
+    return treffer.punkt;
   };
 
   /**

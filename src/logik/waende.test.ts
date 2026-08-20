@@ -200,3 +200,53 @@ describe('Fangbereich', () => {
     expect(fangbereich(0.1)).toBe(140);
   });
 });
+
+/**
+ * Prüfungen für das Verschieben einer Öffnung in ihrer Wand.
+ *
+ * Beim Ziehen wird die Maus auf die nächste Wandachse gelotet. Damit gleitet
+ * eine Tür an der Wand entlang, statt aus ihr herauszufallen – und sie
+ * übernimmt dabei Richtung und Stärke der Wand, in der sie landet.
+ */
+describe('Öffnung in der Wand verschieben', () => {
+  const ACHSEN = alleWandachsen(GEBAEUDE, [], []);
+
+  it('lotet einen Punkt neben der Wand auf die Wand', () => {
+    // 60 cm unterhalb der oberen Außenwand gezogen.
+    const treffer = findeWand({ x: 1600, y: 75 }, ACHSEN, fangbereich(1) * 4)!;
+    expect(treffer).toBeDefined();
+    // Die Achse der oberen Wand liegt eine halbe Wandstärke innen.
+    expect(treffer.punkt.y).toBeCloseTo(15, 6);
+    // Längs bleibt die Tür da, wo die Maus steht.
+    expect(treffer.punkt.x).toBeCloseTo(1600, 6);
+    expect(treffer.winkel).toBeCloseTo(0, 6);
+    expect(treffer.staerke).toBe(30);
+  });
+
+  it('lässt die Tür längs der Wand wandern', () => {
+    const a = findeWand({ x: 800, y: 40 }, ACHSEN, fangbereich(1) * 4)!;
+    const b = findeWand({ x: 2400, y: 40 }, ACHSEN, fangbereich(1) * 4)!;
+    expect(a.punkt.y).toBeCloseTo(b.punkt.y, 6);
+    expect(b.punkt.x - a.punkt.x).toBeCloseTo(1600, 6);
+  });
+
+  it('übernimmt die Richtung der Wand, in die sie gezogen wird', () => {
+    // An die linke Wand gezogen: dort steht die Tür senkrecht.
+    const treffer = findeWand({ x: 60, y: 1200 }, ACHSEN, fangbereich(1) * 4)!;
+    expect(treffer.punkt.x).toBeCloseTo(15, 6);
+    expect(Math.abs(treffer.winkel)).toBeCloseTo(90, 6);
+  });
+
+  it('gibt weit außerhalb nichts zurück, damit sich die Tür versetzen lässt', () => {
+    // Mitten im Raum ist keine Wand – dort bleibt die Öffnung frei liegen,
+    // damit man sie überhaupt in eine andere Wand bringen kann.
+    expect(findeWand({ x: 2000, y: 1250 }, ACHSEN, fangbereich(1) * 4)).toBeUndefined();
+  });
+
+  it('fängt beim Ziehen großzügiger als beim Setzen', () => {
+    // 80 cm neben der Wand: zum Setzen zu weit, zum Weiterschieben nicht.
+    const punkt = { x: 1600, y: 95 };
+    expect(findeWand(punkt, ACHSEN, fangbereich(1))).toBeUndefined();
+    expect(findeWand(punkt, ACHSEN, fangbereich(1) * 4)).toBeDefined();
+  });
+});

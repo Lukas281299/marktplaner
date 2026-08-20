@@ -23,7 +23,14 @@ interface Props {
   bodenfarbe: string;
   beiKlick: (id: string) => void;
   beiZiehStart: (id: string) => void;
-  beiZiehen: (id: string, x: number, y: number) => void;
+  /**
+   * Meldet die neue Lage und gibt zurück, wo die Öffnung wirklich landet.
+   *
+   * Der Rückgabewert ist nötig, weil Konva den gezogenen Knoten selbst
+   * weiterbewegt. Wird die Lage nur im Speicher berichtigt, läuft der Knoten
+   * der Maus hinterher und die Wand darunter zuckt.
+   */
+  beiZiehen: (id: string, x: number, y: number) => { x: number; y: number };
   beiZiehEnde: (id: string) => void;
 }
 
@@ -99,7 +106,10 @@ function OeffnungBild({
         beiKlick(oeffnung.id);
       }}
       onDragStart={() => beiZiehStart(oeffnung.id)}
-      onDragMove={(e) => beiZiehen(oeffnung.id, e.target.x(), e.target.y())}
+      onDragMove={(e) => {
+        const lage = beiZiehen(oeffnung.id, e.target.x(), e.target.y());
+        e.target.position(lage);
+      }}
       onDragEnd={() => beiZiehEnde(oeffnung.id)}
     >
       {/* 1. Die Wand ausstanzen */}
@@ -248,9 +258,17 @@ function Tuerblatt({
         strokeWidth={strich}
         sceneFunc={(ctx, shape) => {
           ctx.beginPath();
+          // Vom offenen Blatt bis zur geschlossenen Lage an der Wand –
+          // ein Viertelkreis, nie mehr.
+          //
+          // Die Umlaufrichtung ist hier der ganze Trick. Sie stand vorher
+          // genau falsch herum, und zwar in allen vier Fällen: Der Bogen
+          // nahm dann den langen Weg um den Kreis und schwenkte 270 Grad
+          // statt 90. Im Plan sah das aus, als brauche jede Tür den halben
+          // Gang.
           const vonWinkel = seite > 0 ? Math.PI / 2 : -Math.PI / 2;
           const bisWinkel = gespiegeltX ? Math.PI : 0;
-          ctx.arc(scharnier, 0, breite, vonWinkel, bisWinkel, seite > 0 ? gespiegeltX : !gespiegeltX);
+          ctx.arc(scharnier, 0, breite, vonWinkel, bisWinkel, (seite > 0) !== gespiegeltX);
           ctx.strokeShape(shape);
         }}
       />

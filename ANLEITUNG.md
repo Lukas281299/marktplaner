@@ -186,8 +186,14 @@ selbst. Danach rechts einstellen:
 - **Lichte Breite**
 - **Drehung** — bei einer Tür bestimmt sie, wohin der Flügel aufschlägt
 
-Türen werden mit ihrem Schwenkbogen gezeichnet. Im Plan sieht man dadurch
-sofort, wie viel Platz eine geöffnete Tür braucht.
+Türen werden mit ihrem Schwenkbogen gezeichnet — einem **Viertelkreis**, vom
+offenen Blatt bis zur geschlossenen Lage an der Wand. Im Plan sieht man
+dadurch sofort, wie viel Gang eine geöffnete Tür braucht.
+
+**Verschieben:** Eine gesetzte Öffnung lässt sich anfassen und ziehen. Sie
+gleitet dabei **in ihrer Wand** entlang und übernimmt deren Richtung und
+Stärke. Zieht man sie weit von jeder Wand weg, folgt sie frei — so bringt man
+sie in eine ganz andere Wand.
 
 ---
 
