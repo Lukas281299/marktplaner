@@ -884,14 +884,17 @@ function zeichneAusgangsfluegel(ctx: Konva.Context, b: number, t: number) {
 const TRUHENMODUL = 62.5;
 
 /**
- * Übliche Türbreite eines Tiefkühlschranks in cm.
+ * Türbreite an Kühlmöbeln und Tiefkühlschränken in cm.
  *
- * Der Katalog führt Längen von 1562, 2343, 3124 und 3898 mm mit zwei bis
- * fünf Türen – das sind rund 781 mm je Tür. Die Zahl der Türen wird daraus
- * berechnet statt gespeichert: Zieht jemand den Schrank länger, kommen Türen
- * dazu, und genau so wird er auch bestellt.
+ * Eine Tür alle 62,5 cm – dasselbe Rastermaß wie beim TRUHENMODUL. Ein
+ * 2,50-m-Möbel hat damit vier Türen. Die Zahl der Türen wird berechnet statt
+ * gespeichert: Zieht jemand den Schrank länger, kommen Türen dazu, und genau
+ * so wird er auch bestellt.
+ *
+ * Die Katalogmaße gehen auf: 937, 1250, 1875, 2500 und 3750 mm ergeben 1, 2,
+ * 3, 4 und 6 Türen.
  */
-const TUERBREITE = 78.1;
+const TUERBREITE = TRUHENMODUL;
 
 function tuerAnzahl(breite: number): number {
   return Math.max(1, Math.round(breite / TUERBREITE));
@@ -944,7 +947,7 @@ function zeichneTuerboegen(ctx: Konva.Context, b: number, t: number, anzahl: num
  * jedem offenen Bogen würde dabei ein farbiges Tortenstück. Hier stehen sie
  * deshalb zusammen und werden allein gestrichelt.
  */
-function zeichneStriche(ctx: Konva.Context, form: Grundform, b: number, t: number) {
+export function zeichneStriche(ctx: Konva.Context, form: Grundform, b: number, t: number) {
   const tueren = MIT_TUEREN.get(form);
   if (tueren !== undefined) {
     zeichneTuerboegen(ctx, b, t, tueren === 'nachBreite' ? tuerAnzahl(b) : tueren);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
-import { zeichneForm } from './ElementSymbol';
+import { zeichneForm, zeichneStriche } from './ElementSymbol';
 import { BIBLIOTHEK } from '../../daten/bibliothek';
 import type { Grundform } from '../../typen/modell';
 
@@ -97,5 +97,72 @@ describe('Symbole zeichnen', () => {
     const striche = (a: string[]) => a.filter((n) => n === 'lineTo').length;
     expect(striche(wand.aufrufe)).toBe(1);
     expect(striche(gondel.aufrufe)).toBe(2);
+  });
+});
+
+describe('Türen an Kühlmöbeln', () => {
+  /**
+   * Die Radien aller Schwenkbögen vor der Front.
+   *
+   * Ein eigener Mitschreiber statt des großen oben: Der wirft alle Werte in
+   * einen Topf, und aus dem den Radius wieder herauszurechnen hieße, die
+   * Argumentzahl jedes Zeichenbefehls nachzuhalten – eine Fehlerquelle, die
+   * mit dem Geprüften nichts zu tun hat.
+   */
+  function boegen(form: Grundform, breite: number, tiefe = 90) {
+    const radien: number[] = [];
+    const ctx = {
+      rect: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      closePath: () => {},
+      arcTo: () => {},
+      ellipse: () => {},
+      arc: (_x: number, _y: number, r: number) => radien.push(r),
+    };
+    zeichneStriche(ctx as unknown as Konva.Context, form, breite, tiefe);
+    return radien;
+  }
+
+  it('setzt alle 62,5 cm eine Tür', () => {
+    // Die Regel aus dem Markt: 2,50 m sind vier Türen.
+    expect(boegen('kuehlSchrank', 250)).toHaveLength(4);
+  });
+
+  it('macht jede Tür genau 62,5 cm breit', () => {
+    // Der Schwenkradius ist die Türbreite – daran hängt, wie viel Gang eine
+    // offene Tür braucht. Stimmt die Zahl der Türen, muss auch der Radius
+    // stimmen, sonst teilt die Zeichnung die Front falsch auf.
+    for (const radius of boegen('tkSchrank', 375)) expect(radius).toBeCloseTo(62.5, 6);
+  });
+
+  it('führt die Katalogmaße auf ganze Türen', () => {
+    // 937, 1250, 1875, 2500 und 3750 mm – die Längen aus der Bibliothek.
+    const erwartet: [number, number][] = [
+      [93.7, 1],
+      [125, 2],
+      [187.5, 3],
+      [250, 4],
+      [375, 6],
+    ];
+    for (const [breite, anzahl] of erwartet) {
+      expect(boegen('kuehlStufen', breite)).toHaveLength(anzahl);
+    }
+  });
+
+  it('lässt das offene Kühlregal ohne Türen', () => {
+    // Der Unterschied zum kuehlSchrank ist genau die Tür – sonst wären die
+    // beiden blauen Möbel im Plan nicht zu unterscheiden.
+    expect(boegen('kuehlOffen', 250)).toHaveLength(0);
+  });
+
+  it('gibt der Truhe keine Türen', () => {
+    // Eine Tiefkühlinsel hat Schiebedeckel, keine Schwenktüren.
+    expect(boegen('tkTruhe', 250)).toHaveLength(0);
+  });
+
+  it('gibt dem Türblatt genau ein Blatt, egal wie breit es ist', () => {
+    expect(boegen('tuerBlatt', 100, 12)).toHaveLength(1);
+    expect(boegen('tuerBlatt', 250, 12)).toHaveLength(1);
   });
 });

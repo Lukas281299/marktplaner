@@ -170,39 +170,15 @@ export function Elementbibliothek() {
               {offen &&
                 (() => {
                   const { ohne, gruppen } = nachGruppen(eintraege);
-                  // Die Favoriten dieser Kategorie stehen zusätzlich ganz
-                  // oben. Absichtlich zusätzlich und nicht stattdessen: Wer
-                  // eine Vorlage an ihrem gewohnten Platz sucht, soll sie
-                  // dort auch finden, egal ob sie angeheftet ist.
-                  const eigeneFavoriten = eintraege.filter((v) => favoriten.includes(v.id));
                   return (
                     <>
-                      {eigeneFavoriten.length > 0 && (
-                        <div className="vorlagen-liste favoritenblock">
-                          {eigeneFavoriten.map((vorlage) => (
-                            <Vorlage
-                              key={`fav-${vorlage.id}`}
-                              vorlage={vorlage}
-                              einheit={einheit}
-                              einfuegen={waehlen}
-                              favorit
-                            />
-                          ))}
-                        </div>
-                      )}
-
                       {ohne.length > 0 && (
-                        <div className="vorlagen-liste">
-                          {ohne.map((vorlage) => (
-                            <Vorlage
-                              key={vorlage.id}
-                              vorlage={vorlage}
-                              einheit={einheit}
-                              einfuegen={waehlen}
-                              favorit={favoriten.includes(vorlage.id)}
-                            />
-                          ))}
-                        </div>
+                        <Vorlagenliste
+                          eintraege={ohne}
+                          favoriten={favoriten}
+                          einheit={einheit}
+                          einfuegen={waehlen}
+                        />
                       )}
 
                       {gruppen.map(([name, inhalt]) => {
@@ -223,17 +199,12 @@ export function Elementbibliothek() {
                               <span className="kategorie-anzahl">{inhalt.length}</span>
                             </button>
                             {gruppeOffen && (
-                              <div className="vorlagen-liste">
-                                {inhalt.map((vorlage) => (
-                                  <Vorlage
-                                    key={vorlage.id}
-                                    vorlage={vorlage}
-                                    einheit={einheit}
-                                    einfuegen={waehlen}
-                                    favorit={favoriten.includes(vorlage.id)}
-                                  />
-                                ))}
-                              </div>
+                              <Vorlagenliste
+                                eintraege={inhalt}
+                                favoriten={favoriten}
+                                einheit={einheit}
+                                einfuegen={waehlen}
+                              />
                             )}
                           </div>
                         );
@@ -252,6 +223,59 @@ export function Elementbibliothek() {
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * Eine Vorlagenliste mit ihren Favoriten obenauf.
+ *
+ * Angeheftet wird **innerhalb der Untergruppe**, nicht am Kopf der ganzen
+ * Abteilung: Ein angehefteter 1800er gehört zu den 1800ern. Stünde er oben
+ * bei „Regale", läge er neben Vorlagen, mit denen er nichts zu tun hat, und
+ * die Höhe – das Erste, wonach man greift – wäre aus der Liste verschwunden.
+ *
+ * Die Favoriten stehen zusätzlich, nicht stattdessen: Wer eine Vorlage an
+ * ihrem gewohnten Platz sucht, findet sie dort auch weiterhin.
+ */
+function Vorlagenliste({
+  eintraege,
+  favoriten,
+  einheit,
+  einfuegen,
+}: {
+  eintraege: BibliothekEintrag[];
+  favoriten: string[];
+  einheit: Massinheit;
+  einfuegen: (vorlage: BibliothekEintrag) => void;
+}) {
+  const angeheftet = eintraege.filter((v) => favoriten.includes(v.id));
+  return (
+    <>
+      {angeheftet.length > 0 && (
+        <div className="vorlagen-liste favoritenblock">
+          {angeheftet.map((vorlage) => (
+            <Vorlage
+              key={`fav-${vorlage.id}`}
+              vorlage={vorlage}
+              einheit={einheit}
+              einfuegen={einfuegen}
+              favorit
+            />
+          ))}
+        </div>
+      )}
+      <div className="vorlagen-liste">
+        {eintraege.map((vorlage) => (
+          <Vorlage
+            key={vorlage.id}
+            vorlage={vorlage}
+            einheit={einheit}
+            einfuegen={einfuegen}
+            favorit={favoriten.includes(vorlage.id)}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 

@@ -211,9 +211,13 @@ Zwei Wege:
 ### Favoriten
 
 Jede Vorlage hat links einen **Stern**. Ein Klick darauf heftet sie oben in
-ihrer Abteilung an — mit gelbem Rand, damit erkennbar ist, dass es eine
+**ihrer Untergruppe** an — mit gelbem Rand, damit erkennbar ist, dass es eine
 Wiederholung ist. An ihrem gewohnten Platz weiter unten steht sie
 **zusätzlich** weiterhin; wer dort sucht, findet sie auch dort.
+
+Angeheftet wird in der Untergruppe, nicht am Kopf der ganzen Abteilung: Ein
+angehefteter 1800er steht oben bei den 1800ern, nicht oben bei „Regale". So
+bleibt die Höhe — das Erste, wonach man greift — der Einstieg in die Liste.
 
 Favoriten gehören zum Rechner, nicht zur Planung: Wer meist mit 1250er
 Gondeln plant, hat sie in jedem Markt oben stehen und muss sie nicht in jeder
@@ -528,7 +532,7 @@ echte Maße.
 Jede Abteilung hat außerdem ein **freies Element**, dessen Maße man beliebig
 einstellen kann.
 
-### Zwei Regeln, die man im Plan sieht
+### Drei Regeln, die man im Plan sieht
 
 **Das Achsmaß.** Jedes Regalfeld trägt ein Zeichen, an dem man seine Breite
 erkennt, ohne nachzumessen:
@@ -553,6 +557,16 @@ sie maßstäblich dar — bei der Gondel ist das der Strich in der Mitte.
 Vor eine Gondel mit 600er Boden kommt eine Kopfgondel im Achsmaß 1250, vor
 eine mit 500er Boden eine im Achsmaß 1000. Kopfgondeln gibt es gerade und rund
 (Abschluss 180°).
+
+**Die Türteilung.** An Kühlmöbeln und Tiefkühlschränken sitzt **alle 62,5 cm
+eine Tür**. Ein 2,50-m-Möbel hat damit vier Türen, ein 3,75-m-Möbel sechs. Die
+Zahl wird aus der Länge berechnet, nicht eingestellt: Zieht man den Schrank
+länger, kommen Türen dazu — und genauso wird er bestellt.
+
+Gezeichnet wird jede Tür im rechten Winkel offen, mit ihrem Schwenkbogen. Weil
+alle in dieselbe Richtung aufschlagen, sieht man auf einen Blick, wie viel Gang
+davor frei bleiben muss. Das offene Kühlregal und die Tiefkühlinsel bekommen
+keine Bögen — die haben keine Schwenktüren.
 
 ---
 
