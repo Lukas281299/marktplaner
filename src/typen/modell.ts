@@ -416,7 +416,27 @@ export interface Einstellungen {
   hilfslinienAktiv: boolean;
   /** Abstandsmaße beim Verschieben anzeigen. */
   masseAnzeigen: boolean;
+  /**
+   * Ob die Beschriftungen der Möbel auf dem Plan stehen.
+   *
+   * Drei Zustände, weil zwei nicht reichen: Jedes Element bringt eine eigene
+   * Beschriftung mit, und ein eingelesener Plan bringt Dutzende auf einmal.
+   * Ein bloßes Ein und Aus würde entweder die einzeln getroffene Wahl
+   * überschreiben oder nach einem Import nichts zeigen, obwohl die Namen
+   * alle da sind.
+   *
+   *   aus          – keine Beschriftung, der Plan bleibt frei
+   *   nachElement  – jedes Element entscheidet selbst (der Normalfall)
+   *   alle         – alles beschriften, auch was einzeln abgeschaltet ist
+   *
+   * Fehlt der Wert in einer älteren Planung, gilt `nachElement` – so
+   * ändert sich beim Öffnen nichts.
+   */
+  beschriftungen?: Beschriftungsanzeige;
 }
+
+/** Siehe `Einstellungen.beschriftungen`. */
+export type Beschriftungsanzeige = 'aus' | 'nachElement' | 'alle';
 
 /** Ein komplettes Marktprojekt – das ist genau das, was gespeichert wird. */
 /**

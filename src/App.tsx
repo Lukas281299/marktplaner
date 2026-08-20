@@ -11,6 +11,7 @@ import {
   holeZuletztGeoeffnet,
   ladeProjekt,
   listeVorlagen,
+  holeFavoriten,
   merkeZuletztGeoeffnet,
   speichereProjekt,
 } from './speicher/projektArchiv';
@@ -42,11 +43,13 @@ export default function App() {
 
     const starten = async () => {
       const vorlagen = await listeVorlagen();
+      const favoriten = await holeFavoriten();
       const letzteId = await holeZuletztGeoeffnet();
       const gespeichert = letzteId ? await ladeProjekt(letzteId) : undefined;
       if (abgebrochen) return;
 
       usePlanStore.getState().setzeEigeneVorlagen(vorlagen);
+      usePlanStore.getState().setzeFavoriten(favoriten);
       if (gespeichert) {
         usePlanStore.getState().setzeProjekt(gespeichert);
       } else {

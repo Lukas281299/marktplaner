@@ -1105,6 +1105,27 @@ function ProjektEigenschaften() {
         />
       </div>
 
+      {/* ------------------------------------------------- Beschriftungen */}
+      <div className="gruppe">
+        <div className="gruppe-titel">Beschriftungen</div>
+        <Auswahlfeld
+          label="Namen auf dem Plan"
+          wert={projekt.einstellungen.beschriftungen ?? 'nachElement'}
+          moeglichkeiten={[
+            { wert: 'aus', text: 'Aus – nichts beschriften' },
+            { wert: 'nachElement', text: 'Je Element – wie einzeln eingestellt' },
+            { wert: 'alle', text: 'Alle – auch einzeln abgeschaltete' },
+          ]}
+          aendern={(beschriftungen) => setzeEinstellung({ beschriftungen })}
+        />
+        <p className="hinweis" style={{ marginTop: 6 }}>
+          Ein eingelesener Plan bringt Dutzende Namen mit, die einzeln
+          abgeschaltet sind, damit der Plan lesbar bleibt. Mit „Alle" holt man
+          sie alle hervor, ohne die Einstellung an jedem Möbel anfassen zu
+          müssen.
+        </p>
+      </div>
+
       {/* ------------------------------------------------------------ Ebenen */}
       <div className="gruppe">
         <div className="gruppe-titel">Ebenen</div>

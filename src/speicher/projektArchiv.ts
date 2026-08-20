@@ -132,6 +132,27 @@ export async function holeZuletztGeoeffnetAm(): Promise<number> {
   return typeof wert === 'number' ? wert : 0;
 }
 
+// ------------------------------------------------------------- Favoriten
+
+/**
+ * Die als Favorit markierten Vorlagen.
+ *
+ * Bewusst nicht im Projekt, sondern am Gerät: Favoriten sind eine
+ * Arbeitsgewohnheit, keine Eigenschaft einer Planung. Wer meist mit 1250er
+ * Gondeln plant, will die in jedem Markt oben stehen haben und nicht in
+ * jedem neu anhaken.
+ */
+export async function holeFavoriten(): Promise<string[]> {
+  const datenbank = await db();
+  const wert = await datenbank.get('einstellungen', 'favoriten');
+  return Array.isArray(wert) ? wert.filter((v): v is string => typeof v === 'string') : [];
+}
+
+export async function setzeFavoriten(ids: string[]): Promise<void> {
+  const datenbank = await db();
+  await datenbank.put('einstellungen', ids, 'favoriten');
+}
+
 // ---------------------------------------------------------------- Grabsteine
 
 export async function listeGraeber(): Promise<Grabstein[]> {

@@ -5,7 +5,7 @@ import { formatiereLaenge } from '../logik/masse';
 import { rahmen } from '../logik/polygon';
 import type { BibliothekEintrag, KategorieId, Massinheit } from '../typen/modell';
 import { usePlanStore } from '../zustand/planStore';
-import { SymbolPfeilAb, SymbolPfeilAuf, SymbolSuche } from './Symbole';
+import { SymbolPfeilAb, SymbolPfeilAuf, SymbolStern, SymbolSuche } from './Symbole';
 
 /**
  * Die Elementbibliothek auf der linken Seite.
@@ -16,6 +16,7 @@ import { SymbolPfeilAb, SymbolPfeilAuf, SymbolSuche } from './Symbole';
 export function Elementbibliothek() {
   const eigeneVorlagen = usePlanStore((s) => s.eigeneVorlagen);
   const tauschModus = usePlanStore((s) => s.tauschModus);
+  const favoriten = usePlanStore((s) => s.favoriten);
   const auswahl = usePlanStore((s) => s.auswahl);
   const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
   const [suche, setSuche] = useState('');
@@ -169,8 +170,27 @@ export function Elementbibliothek() {
               {offen &&
                 (() => {
                   const { ohne, gruppen } = nachGruppen(eintraege);
+                  // Die Favoriten dieser Kategorie stehen zusätzlich ganz
+                  // oben. Absichtlich zusätzlich und nicht stattdessen: Wer
+                  // eine Vorlage an ihrem gewohnten Platz sucht, soll sie
+                  // dort auch finden, egal ob sie angeheftet ist.
+                  const eigeneFavoriten = eintraege.filter((v) => favoriten.includes(v.id));
                   return (
                     <>
+                      {eigeneFavoriten.length > 0 && (
+                        <div className="vorlagen-liste favoritenblock">
+                          {eigeneFavoriten.map((vorlage) => (
+                            <Vorlage
+                              key={`fav-${vorlage.id}`}
+                              vorlage={vorlage}
+                              einheit={einheit}
+                              einfuegen={waehlen}
+                              favorit
+                            />
+                          ))}
+                        </div>
+                      )}
+
                       {ohne.length > 0 && (
                         <div className="vorlagen-liste">
                           {ohne.map((vorlage) => (
@@ -179,6 +199,7 @@ export function Elementbibliothek() {
                               vorlage={vorlage}
                               einheit={einheit}
                               einfuegen={waehlen}
+                              favorit={favoriten.includes(vorlage.id)}
                             />
                           ))}
                         </div>
@@ -209,6 +230,7 @@ export function Elementbibliothek() {
                                     vorlage={vorlage}
                                     einheit={einheit}
                                     einfuegen={waehlen}
+                                    favorit={favoriten.includes(vorlage.id)}
                                   />
                                 ))}
                               </div>
@@ -238,10 +260,12 @@ function Vorlage({
   vorlage,
   einheit,
   einfuegen,
+  favorit = false,
 }: {
   vorlage: BibliothekEintrag;
   einheit: Massinheit;
   einfuegen: (vorlage: BibliothekEintrag) => void;
+  favorit?: boolean;
 }) {
   return (
     <div
@@ -258,6 +282,20 @@ function Vorlage({
       }}
       onClick={() => einfuegen(vorlage)}
     >
+      <button
+        className={`sternknopf${favorit ? ' aktiv' : ''}`}
+        title={favorit ? 'Aus den Favoriten nehmen' : 'Als Favorit oben anheften'}
+        aria-pressed={favorit}
+        onClick={(e) => {
+          // Der Stern sitzt in der Zeile, die selbst einfügt. Ohne das
+          // Anhalten würde ein Klick auf den Stern zusätzlich ein Element
+          // auf den Plan setzen.
+          e.stopPropagation();
+          usePlanStore.getState().schalteFavorit(vorlage.id);
+        }}
+      >
+        <SymbolStern gefuellt={favorit} />
+      </button>
       <span
         className={`vorlage-bild${
           vorlage.form === 'kreis' || vorlage.form === 'halbkreis' ? ' rund' : ''

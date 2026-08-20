@@ -367,3 +367,22 @@ export const SymbolAusrichten = ({ art }: { art: string }) => {
   };
   return <Zeichnung>{linien[art]}</Zeichnung>;
 };
+
+/**
+ * Der Stern der Favoriten.
+ *
+ * `gefuellt` unterscheidet die beiden Zustände: Ein leerer Stern ist ein
+ * Angebot, ein gelber eine Auszeichnung. Beide brauchen dieselbe Kontur,
+ * sonst springt die Zeile beim Anklicken.
+ */
+export const SymbolStern = ({ gefuellt = false }: { gefuellt?: boolean }) => (
+  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+    <path
+      d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"
+      fill={gefuellt ? '#f2b90c' : 'none'}
+      stroke={gefuellt ? '#c8960a' : 'currentColor'}
+      strokeWidth="1.2"
+      strokeLinejoin="round"
+    />
+  </svg>
+);

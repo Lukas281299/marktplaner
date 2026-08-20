@@ -776,3 +776,49 @@ body {
   margin-left: auto;
   flex: none;
 }
+
+/* --------------------------------------------------------------------------
+   Favoriten in der Elementbibliothek.
+
+   Der Block oben in jeder Kategorie zeigt dieselben Vorlagen noch einmal,
+   die weiter unten an ihrem gewohnten Platz stehen. Damit das nicht wie ein
+   Versehen aussieht, bekommt er einen gelben Rand – er ist erkennbar eine
+   Wiederholung und keine zweite Vorlage.
+   -------------------------------------------------------------------------- */
+.favoritenblock {
+  border-left: 2px solid #f2b90c;
+  background: color-mix(in srgb, #f2b90c 8%, transparent);
+}
+
+.sternknopf {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-right: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--rand-stark);
+  cursor: pointer;
+}
+
+/* Ungesetzte Sterne bleiben blass, bis man die Zeile berührt - sonst wäre
+   die Liste voll grauer Sterne und der gesetzte ginge darin unter. */
+.sternknopf:not(.aktiv) {
+  opacity: 0;
+}
+
+.vorlage:hover .sternknopf,
+.sternknopf.aktiv,
+.sternknopf:focus-visible {
+  opacity: 1;
+}
+
+.sternknopf:hover {
+  background: var(--flaeche-3);
+  color: var(--text-schwach);
+}

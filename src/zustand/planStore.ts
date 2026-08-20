@@ -5,6 +5,7 @@ import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
 import { raumart } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
+import { setzeFavoriten as speichereFavoriten } from '../speicher/projektArchiv';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -96,6 +97,15 @@ interface PlanStore {
   zwischenablage: PlanElement[];
   /** Selbst angelegte Bibliotheksvorlagen. */
   eigeneVorlagen: BibliothekEintrag[];
+  /**
+   * Kennungen der als Favorit markierten Vorlagen.
+   *
+   * Gehört zum Gerät, nicht zur Planung – siehe `holeFavoriten`. Deshalb
+   * steht es hier neben dem Projekt und nicht darin, und deshalb läuft es
+   * auch nicht über die Historie: Einen Favoriten zu setzen ist keine
+   * Änderung am Plan.
+   */
+  favoriten: string[];
   ansicht: Ansicht;
   /** Erst `true`, wenn aus der Datenbank geladen wurde. */
   geladen: boolean;
@@ -117,6 +127,9 @@ interface PlanStore {
   // --------------------------------------------------------------- Projekt
   setzeProjekt(projekt: Projekt, alsGeladen?: boolean): void;
   setzeEigeneVorlagen(vorlagen: BibliothekEintrag[]): void;
+  setzeFavoriten(ids: string[]): void;
+  /** Markiert eine Vorlage als Favorit oder nimmt die Markierung zurück. */
+  schalteFavorit(vorlageId: string): void;
   benenneProjektUm(name: string): void;
   setzeGrundflaeche(werte: Partial<Grundflaeche>): void;
   /**
@@ -242,6 +255,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   tauschModus: false,
   zwischenablage: [],
   eigeneVorlagen: [],
+  favoriten: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
   geladenerStand: null,
@@ -263,6 +277,19 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       zukunft: [],
       geladen: alsGeladen,
     });
+  },
+
+  setzeFavoriten(ids) {
+    set({ favoriten: ids });
+  },
+
+  schalteFavorit(vorlageId) {
+    const jetzt = get().favoriten;
+    const neu = jetzt.includes(vorlageId)
+      ? jetzt.filter((id) => id !== vorlageId)
+      : [...jetzt, vorlageId];
+    set({ favoriten: neu });
+    void speichereFavoriten(neu);
   },
 
   setzeEigeneVorlagen(vorlagen) {

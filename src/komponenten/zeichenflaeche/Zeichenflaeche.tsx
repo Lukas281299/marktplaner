@@ -892,6 +892,8 @@ export function Zeichenflaeche() {
 
   const einheit = projekt.einstellungen.anzeigeEinheit;
   const zoom = ansicht.zoom;
+  // Fehlt die Einstellung in einer älteren Planung, bleibt alles wie bisher.
+  const beschriftungen = projekt.einstellungen.beschriftungen ?? 'nachElement';
 
   /**
    * Wie groß die Anfasser sein dürfen.
@@ -1036,9 +1038,15 @@ export function Zeichenflaeche() {
               beiZiehEnde={beiZiehEnde}
             />
           ))}
-          {sichtbareElemente.map((el) => (
-            <ElementBeschriftung key={`text-${el.id}`} element={el} zoom={zoom} />
-          ))}
+          {beschriftungen !== 'aus' &&
+            sichtbareElemente.map((el) => (
+              <ElementBeschriftung
+                key={`text-${el.id}`}
+                element={el}
+                zoom={zoom}
+                erzwungen={beschriftungen === 'alle'}
+              />
+            ))}
         </Layer>
 
         {/* ------------------------------------------------------ Maßlinien */}

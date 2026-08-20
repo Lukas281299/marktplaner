@@ -202,6 +202,17 @@ Zwei Wege:
 - **Klicken**: eine Vorlage anklicken. Das Element wird in der Mitte der
   Ansicht eingefügt.
 
+### Favoriten
+
+Jede Vorlage hat links einen **Stern**. Ein Klick darauf heftet sie oben in
+ihrer Abteilung an — mit gelbem Rand, damit erkennbar ist, dass es eine
+Wiederholung ist. An ihrem gewohnten Platz weiter unten steht sie
+**zusätzlich** weiterhin; wer dort sucht, findet sie auch dort.
+
+Favoriten gehören zum Rechner, nicht zur Planung: Wer meist mit 1250er
+Gondeln plant, hat sie in jedem Markt oben stehen und muss sie nicht in jeder
+Planung neu anhaken.
+
 ### Auswählen
 
 | Aktion | Bedienung |
@@ -240,6 +251,21 @@ Rechts unter *Raster & Einrasten*:
 - **Hilfslinien an Wänden und Nachbarn** — beim Verschieben erscheinen Linien,
   sobald ein Element mit einer Wand oder einem Nachbarn fluchtet
 - **Abstände beim Verschieben anzeigen** — blendet die Maße zu den Nachbarn ein
+
+### Beschriftungen auf dem Plan
+
+Unter *Beschriftungen* steht **Namen auf dem Plan** mit drei Stellungen:
+
+| Stellung | Wirkung |
+|---|---|
+| **Aus** | keine Beschriftung, der Plan bleibt frei |
+| **Je Element** | jedes Möbel entscheidet selbst — der Normalfall |
+| **Alle** | alles beschriften, auch was einzeln abgeschaltet ist |
+
+Drei Stellungen und nicht zwei, weil jedes Element eine eigene Beschriftung
+mitbringt. Ein eingelesener Plan bringt Dutzende Namen auf einmal, die einzeln
+abgeschaltet sind, damit der Plan lesbar bleibt. Mit **Alle** holt man sie
+hervor, ohne sie an jedem Möbel einzeln anfassen zu müssen.
 
 ---
 

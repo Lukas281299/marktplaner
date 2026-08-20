@@ -1141,8 +1141,17 @@ export function ElementSymbol({
  * Sie ist bewusst ein eigenes Objekt: So bleibt die Schrift beim Vergrößern
  * des Elements immer gleich groß und wird nicht mitgedehnt.
  */
-export function ElementBeschriftung({ element, zoom }: { element: PlanElement; zoom: number }) {
-  if (!element.beschriftungSichtbar || !element.beschriftung.trim()) return null;
+export function ElementBeschriftung({
+  element,
+  zoom,
+  erzwungen = false,
+}: {
+  element: PlanElement;
+  zoom: number;
+  /** Anzeigen, auch wenn am Element selbst abgeschaltet – siehe `Einstellungen.beschriftungen`. */
+  erzwungen?: boolean;
+}) {
+  if ((!element.beschriftungSichtbar && !erzwungen) || !element.beschriftung.trim()) return null;
 
   const schrift = element.schriftgroesse / zoom;
   // Zu kleine Schrift auf dem Bildschirm ist unleserlich – dann lieber weglassen.
