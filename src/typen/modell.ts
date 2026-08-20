@@ -104,7 +104,10 @@ export type Grundform =
   | 'rauchabzug'
   | 'bodenablauf'
   | 'anschlussStrom'
-  | 'anschlussWasser';
+  | 'anschlussWasser'
+  // Ein freier Umriss. Kommt aus einem eingelesenen Plan: Eine T- oder
+  // kreuzförmige Stütze lässt sich durch kein Rechteck ersetzen.
+  | 'umriss';
 
 /** Ein Eintrag in der Elementbibliothek (die "Vorlage" links im Fenster). */
 export interface BibliothekEintrag {
@@ -232,6 +235,15 @@ export interface PlanElement {
    * Fehlt der Wert, steht das Möbel auf seiner ganzen Tiefe.
    */
   korpustiefe?: number;
+  /**
+   * Der eigene Umriss des Elements, in cm und relativ zum Mittelpunkt.
+   *
+   * Nur bei der Form `umriss` gesetzt. Gedacht für Bauteile aus einem
+   * eingelesenen Plan: Eine kreuzförmige Stütze hat eine Bounding-Box von
+   * 975 × 1400 mm, ist aber nur 300 mm stark. Sie als Rechteck zu setzen
+   * wäre um ein Vielfaches zu groß – also wird der Umriss mitgenommen.
+   */
+  polygon?: Punkt[];
   /**
    * Achsmaß eines Regalfelds in cm – siehe `BibliothekEintrag.achsmass`.
    *

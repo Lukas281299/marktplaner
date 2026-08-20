@@ -10,6 +10,7 @@ import {
   inZentimeter,
   mittelpunkt,
   nurImGebaeude,
+  zentrierterUmriss,
   rahmenAlsUmriss,
   teileEin,
   type Wandkoerper,
@@ -169,6 +170,11 @@ export function PlanImportDialog({ schliessen }: { schliessen: () => void }) {
                 achsmass: 0,
                 beidseitig: false,
                 beschriftung: '',
+                // Der echte Umriss statt eines Rechtecks. Eine kreuzförmige
+                // Stütze misst als Bounding-Box 975 × 1400 mm, ist aber nur
+                // 300 mm stark – als Rechteck gesetzt wäre sie ein Klotz.
+                form: 'umriss' as const,
+                polygon: zentrierterUmriss(k.punkte, befund.massstab.mmJePunkt),
               };
             }),
           );

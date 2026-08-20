@@ -52,10 +52,42 @@ export interface Wandkoerper {
  * ist ein Klick zum Löschen, eine übersehene Wand ein Loch im Grundriss.
  */
 const RING_GRENZE = 0.35;
-const STUETZE_MAX_MM = 1000;
 const WINZIG_MM = 200;
-/** Ab dieser Kantenlänge zählt eine Serie gleicher Größen als Möbel. */
-const SERIEN_GRENZE_MM = 700;
+
+/**
+ * Bis zu dieser Stärke gilt ein massiver Block als Mauerwerk.
+ *
+ * Das ist der verlässlichste Wert der ganzen Einteilung, weil er aus dem
+ * Bauwesen kommt und nicht geschätzt ist: Wände und Pfeiler sind in diesem
+ * Plan 240 bis 300 mm stark. Alles, was dünner als 350 mm ist, ist Mauerwerk
+ * – ein Regal gibt es in dieser Tiefe nicht.
+ */
+const MAUER_MAX_MM = 350;
+
+/** In diesem Raster werden Größen verglichen, um Serien zu finden. */
+const SERIEN_RASTER_MM = 100;
+
+/**
+ * Ab wann eine Wiederholung als Serie zählt.
+ *
+ * Bei einem großen Block genügen zwei gleiche: So groß baut niemand zwei
+ * Stützen. Bei einem schmalen Block braucht es drei – zwei gleiche schmale
+ * Pfeiler sind der Normalfall, und im Plan stehen tatsächlich zwei
+ * kreuzförmige Stützen von 445 × 820 mm nebeneinander. Nur bei den
+ * Aktions-Kopfregalen von 820 × 473 mm sind es drei, und die fallen damit
+ * heraus.
+ */
+const SERIE_SCHMAL_MM = 600;
+
+/**
+ * Größte Kante, die ein einzeln stehender massiver Block noch haben darf,
+ * um als Stütze durchzugehen.
+ *
+ * Im Plan Dörnhagen sind das ein kreuzförmiger Pfeiler von 975 × 1400 mm und
+ * zwei Mauervorsprünge von 1705 × 550 mm. Wer hier zu knapp abschneidet,
+ * verliert genau die – Möbel dieser Größe fängt ohnehin die Serienregel ab.
+ */
+const STUETZE_MAX_MM = 1800;
 
 /** Fläche eines Polygons nach der Trapezformel, immer positiv. */
 export function polygonflaeche(punkte: Punkt[]): number {
@@ -133,16 +165,15 @@ export function teileEin(flaechen: Fuellflaeche[], mmJePunkt: number): Wandkoerp
 
   // Wie oft dieselbe Groesse vorkommt.
   //
-  // Das ist das einzige verlässliche Merkmal, um ein Möbel von einer Stütze
-  // zu unterscheiden, wenn beide massiv und ungefähr gleich groß sind: Im
-  // Plan Dörnhagen steht ein Obst-und-Gemüse-Tisch von 891 × 931 mm neben
-  // einer echten Stütze von 925 × 960 mm. Geometrisch sind die nicht zu
-  // trennen – aber Möbel stehen in Serie, Stützen nicht. Fünf Tische zu
-  // 1244 × 790 sind fünf Tische; fünf gleiche Stützen wären ein Zufall.
+  // Möbel stehen in Serie, Bauteile nicht. Im Plan Dörnhagen gibt es den
+  // Obst-und-Gemüse-Tisch von 1244 × 790 mm neunmal und den von 1429 × 1429
+  // sechsmal – eine Stütze kommt in genau dieser Größe kein zweites Mal
+  // vor. Das ist der einzige Weg, ein massives Möbel von einer massiven
+  // Stütze zu trennen, wenn beide gleich groß sind.
   const wieOft = new Map<string, number>();
   const groessenschluessel = (b: number, h: number) => {
     const [klein, gross] = b <= h ? [b, h] : [h, b];
-    return `${Math.round(klein / 50)}x${Math.round(gross / 50)}`;
+    return `${Math.round(klein / SERIEN_RASTER_MM)}x${Math.round(gross / SERIEN_RASTER_MM)}`;
   };
   for (const f of flaechen) {
     if (f.punkte.length < 3) continue;
@@ -177,18 +208,25 @@ export function teileEin(flaechen: Fuellflaeche[], mmJePunkt: number): Wandkoerp
       art = 'wand';
       sicherheit = fuellgrad < 0.2 ? 'sicher' : 'wahrscheinlich';
       begruendung = `Ringförmig, füllt nur ${Math.round(fuellgrad * 100)} % der Bounding-Box`;
-    } else if (breiteMm <= STUETZE_MAX_MM && hoeheMm <= STUETZE_MAX_MM) {
+    } else if (Math.min(breiteMm, hoeheMm) <= MAUER_MAX_MM) {
+      // Dünner als jedes Regal: Das ist ein Mauervorsprung oder ein Pfeiler.
+      art = 'stuetze';
+      sicherheit = 'sicher';
+      begruendung = `${Math.round(Math.min(breiteMm, hoeheMm))} mm stark – so dünn ist nur Mauerwerk`;
+    } else if (
+      (wieOft.get(groessenschluessel(breiteMm, hoeheMm)) ?? 1) >=
+      (Math.min(breiteMm, hoeheMm) < SERIE_SCHMAL_MM ? 3 : 2)
+    ) {
       const gleiche = wieOft.get(groessenschluessel(breiteMm, hoeheMm)) ?? 1;
-      const gross = Math.max(breiteMm, hoeheMm) > SERIEN_GRENZE_MM;
-      if (gleiche >= 2 && gross) {
-        art = 'fremd';
-        sicherheit = 'wahrscheinlich';
-        begruendung = `${gleiche}× dieselbe Größe ${Math.round(breiteMm)} × ${Math.round(hoeheMm)} mm – Möbel stehen in Serie, Stützen nicht`;
-      } else {
-        art = 'stuetze';
-        sicherheit = gross ? 'wahrscheinlich' : 'sicher';
-        begruendung = `Massiv und klein (${Math.round(breiteMm)} × ${Math.round(hoeheMm)} mm) – Stütze oder Pfeiler`;
-      }
+      art = 'fremd';
+      sicherheit = 'wahrscheinlich';
+      begruendung = `${gleiche}× dieselbe Größe ${Math.round(breiteMm)} × ${Math.round(hoeheMm)} mm – Möbel stehen in Serie, Bauteile nicht`;
+    } else if (breiteMm <= STUETZE_MAX_MM && hoeheMm <= STUETZE_MAX_MM) {
+      // Massiv, einmalig und noch in Stützengröße. Die größte echte
+      // Stütze im Plan ist kreuzförmig und misst 975 × 1400 mm.
+      art = 'stuetze';
+      sicherheit = 'wahrscheinlich';
+      begruendung = `Massiv, einmalig, ${Math.round(breiteMm)} × ${Math.round(hoeheMm)} mm – vermutlich eine Stütze`;
     } else {
       // Massiv und groß: In der Wandfarbe gezeichnet, aber kein Bauteil.
       art = 'fremd';
@@ -280,4 +318,20 @@ export function inZentimeter(punkte: Punkt[], mmJePunkt: number): Punkt[] {
 export function mittelpunkt(punkte: Punkt[]): Punkt {
   const r = rahmenVon(punkte);
   return { x: (r.links + r.rechts) / 2, y: (r.oben + r.unten) / 2 };
+}
+
+/**
+ * Der Umriss eines Körpers, in cm und um seinen Mittelpunkt zentriert.
+ *
+ * So braucht ein Element ihn: Position und Drehung stehen am Element, der
+ * Umriss beschreibt nur die Form drumherum. Die Bounding-Box als Ersatz
+ * wäre bei einer kreuzförmigen Stütze um ein Vielfaches zu groß – genau
+ * das war der Fehler in der ersten Fassung.
+ */
+export function zentrierterUmriss(punkte: Punkt[], mmJePunkt: number): Punkt[] {
+  const jeCm = mmJePunkt / 10;
+  const r = rahmenVon(punkte);
+  const mx = (r.links + r.rechts) / 2;
+  const my = (r.oben + r.unten) / 2;
+  return punkte.map((p) => ({ x: (p.x - mx) * jeCm, y: (p.y - my) * jeCm }));
 }

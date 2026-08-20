@@ -7,6 +7,7 @@ import {
   polygonflaeche,
   teileEin,
   rahmenAlsUmriss,
+  zentrierterUmriss,
   type Fuellflaeche,
 } from './wandkoerper';
 import { mmJePunkt } from './massstab';
@@ -104,11 +105,60 @@ describe('Einteilung der grauen Flächen', () => {
     expect(teileEin([block(0, 0, 240, 240)], JE_PUNKT)[0].art).toBe('stuetze');
   });
 
-  it('hält einen Obst-und-Gemüse-Tisch für kein Bauteil', () => {
-    // Im echten Plan sind 24 der 66 grauen Flächen solche Tische.
+  it('nimmt jeden Block, der dünner als 350 mm ist, als Mauerwerk', () => {
+    // Die verlässlichste Regel der ganzen Einteilung: In diesem Plan sind
+    // Wände und Pfeiler 240 bis 300 mm stark, und ein Regal gibt es in
+    // dieser Tiefe nicht.
+    for (const [b, h] of [[300, 929], [255, 690], [801, 300], [300, 800]]) {
+      const [k] = teileEin([block(0, 0, b, h)], JE_PUNKT);
+      expect(k.art).toBe('stuetze');
+      expect(k.sicherheit).toBe('sicher');
+    }
+  });
+
+  it('hält ein 820 × 473 großes Kopfregal für kein Bauteil', () => {
+    // Vier davon stehen im Plan an den Gondelenden. Sie sind massiv wie eine
+    // Stütze, aber mit 473 mm zu dick für Mauerwerk – und sie wiederholen
+    // sich.
+    const koerper = teileEin(
+      [block(0, 0, 820, 473), block(3000, 0, 820, 480), block(6000, 0, 820, 473)],
+      JE_PUNKT,
+    );
+    expect(koerper.every((k) => k.art === 'fremd')).toBe(true);
+    expect(koerper[0].begruendung).toContain('Serie');
+  });
+
+  it('lässt eine einzelne große Stütze durch', () => {
+    // 925 × 960 mm, kreuzförmig, kommt genau einmal vor – das ist eine
+    // echte Stütze und darf nicht als Möbel durchfallen.
+    const [k] = teileEin([block(0, 0, 925, 960)], JE_PUNKT);
+    expect(k.art).toBe('stuetze');
+  });
+
+  it('zählt zwei gleich große Pfeiler nicht als Serie', () => {
+    // Zwei 300 × 300er Pfeiler sind zwei Pfeiler. Die Serienregel greift
+    // erst oberhalb der Mauerstärke.
+    const koerper = teileEin([block(0, 0, 300, 300), block(5000, 0, 300, 300)], JE_PUNKT);
+    expect(koerper.every((k) => k.art === 'stuetze')).toBe(true);
+  });
+
+  it('hält die Reihe der Obst-und-Gemüse-Tische für kein Bauteil', () => {
+    // Im echten Plan steht dieser Tisch neunmal. Genau die Wiederholung
+    // verrät ihn – einzeln wäre er von einer Stütze nicht zu trennen.
+    const tische = Array.from({ length: 9 }, (_, i) => block(i * 3000, 0, 1244, 790));
+    const koerper = teileEin(tische, JE_PUNKT);
+    expect(koerper.every((k) => k.art === 'fremd')).toBe(true);
+    expect(koerper[0].begruendung).toContain('Serie');
+  });
+
+  it('gibt zu, wenn ein einzelner Block nicht zu deuten ist', () => {
+    // Ein Tisch von 1244 × 790 mm und eine Stütze von 975 × 1400 mm sind
+    // beide massiv und in derselben Farbe gezeichnet. Steht der Tisch nur
+    // einmal im Plan, hilft auch die Wiederholung nicht mehr. Dann wird er
+    // zur Stütze erklärt – aber ausdrücklich nur als Vermutung.
     const [k] = teileEin([block(0, 0, 1244, 790)], JE_PUNKT);
-    expect(k.art).toBe('fremd');
-    expect(k.begruendung).toContain('Möbel in der Wandfarbe');
+    expect(k.art).toBe('stuetze');
+    expect(k.sicherheit).toBe('wahrscheinlich');
   });
 
   it('wirft Bruchstücke aus der Legende weg', () => {
@@ -125,7 +175,9 @@ describe('Einteilung der grauen Flächen', () => {
         block(20000, 10000, 300, 300),
         block(22000, 10000, 300, 500),
         block(3000, 3000, 1244, 790),
+        block(9000, 3000, 1244, 790),
         block(30000, 20000, 1429, 1429),
+        block(34000, 20000, 1429, 1429),
         block(60000, 60000, 103, 125),
       ],
       JE_PUNKT,
@@ -133,7 +185,8 @@ describe('Einteilung der grauen Flächen', () => {
     const zaehle = (art: string) => koerper.filter((k) => k.art === art).length;
     expect(zaehle('wand')).toBe(2);
     expect(zaehle('stuetze')).toBe(2);
-    expect(zaehle('fremd')).toBe(3);
+    // Vier Möbel in Serie und ein Bruchstück aus der Legende.
+    expect(zaehle('fremd')).toBe(5);
   });
 });
 
@@ -167,7 +220,12 @@ describe('Wandfarbe finden', () => {
 describe('Rahmen als Umriss', () => {
   it('legt ein Rechteck um alle baulichen Körper', () => {
     const koerper = teileEin(
-      [ring(0, 0, 40000, 25000, 300), block(50000, 30000, 300, 300), block(3000, 3000, 1244, 790)],
+      [
+        ring(0, 0, 40000, 25000, 300),
+        block(50000, 30000, 300, 300),
+        block(3000, 3000, 1244, 790),
+        block(9000, 3000, 1244, 790),
+      ],
       JE_PUNKT,
     );
     const umriss = rahmenAlsUmriss(koerper, JE_PUNKT);
@@ -180,7 +238,10 @@ describe('Rahmen als Umriss', () => {
   });
 
   it('gibt ohne bauliche Körper nichts zurück', () => {
-    expect(rahmenAlsUmriss(teileEin([block(0, 0, 1244, 790)], JE_PUNKT), JE_PUNKT)).toEqual([]);
+    // Zwei gleiche Tische: eine Serie, also Möbel – und damit bleibt für
+    // den Umriss nichts übrig.
+    const moebel = [block(0, 0, 1244, 790), block(3000, 0, 1244, 790)];
+    expect(rahmenAlsUmriss(teileEin(moebel, JE_PUNKT), JE_PUNKT)).toEqual([]);
   });
 });
 
@@ -197,6 +258,37 @@ describe('Was außerhalb liegt', () => {
     );
     const drin = nurImGebaeude(koerper, 2000, JE_PUNKT);
     expect(drin).toHaveLength(2);
+  });
+});
+
+describe('Zentrierter Umriss', () => {
+  it('legt den Umriss um den Nullpunkt', () => {
+    const p = zentrierterUmriss(
+      [mm(1000, 2000), mm(1300, 2000), mm(1300, 2400), mm(1000, 2400)],
+      JE_PUNKT,
+    );
+    const xs = p.map((q) => q.x);
+    const ys = p.map((q) => q.y);
+    expect(Math.min(...xs)).toBeCloseTo(-15, 6);
+    expect(Math.max(...xs)).toBeCloseTo(15, 6);
+    expect(Math.min(...ys)).toBeCloseTo(-20, 6);
+    expect(Math.max(...ys)).toBeCloseTo(20, 6);
+  });
+
+  it('behält die Form eines kreuzförmigen Querschnitts', () => {
+    // Ein Kreuz mit 300 mm Stegbreite in einer Bounding-Box von 900 × 900.
+    // Als Rechteck gesetzt wäre die Stütze neunmal so groß.
+    const kreuz = [
+      mm(300, 0), mm(600, 0), mm(600, 300), mm(900, 300), mm(900, 600),
+      mm(600, 600), mm(600, 900), mm(300, 900), mm(300, 600), mm(0, 600),
+      mm(0, 300), mm(300, 300),
+    ];
+    const p = zentrierterUmriss(kreuz, JE_PUNKT);
+    expect(p).toHaveLength(12);
+    // Die Fläche bleibt die des Kreuzes, nicht die der Bounding-Box.
+    // Fünf Felder zu 30 × 30 cm ergeben 4500 cm², die Bounding-Box hätte
+    // 8100 cm².
+    expect(polygonflaeche(p)).toBeCloseTo(4500, 0);
   });
 });
 

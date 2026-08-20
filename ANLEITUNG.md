@@ -393,8 +393,19 @@ größten Teil des Blattes umspannen und dabei ringförmig sind. Möbel sind
 massiv, Wände sind dünne Ringe um viel Luft.
 
 Übernommen werden die Wandzüge **so, wie sie gezeichnet sind** — mit jedem
-Vorsprung, jeder Nische und ihrer echten Stärke. Kleine massive Blöcke werden
-zu **Stützen** mit ihrem echten Maß.
+Vorsprung, jeder Nische und ihrer echten Stärke. Stützen ebenso: Eine
+kreuzförmige Stütze von 975 × 1400 mm füllt ihre Bounding-Box nur zu 46 %,
+und genau diese Form wird übernommen, nicht das Rechteck darum.
+
+Ein Möbel von einer Stütze zu unterscheiden gelingt über drei Merkmale:
+
+- **Dünner als 350 mm** ist immer Mauerwerk. In diesem Plan sind Wände und
+  Pfeiler 240 bis 300 mm stark, und ein Regal gibt es in dieser Tiefe nicht.
+- **Was sich wiederholt, ist ein Möbel.** Der Obst-und-Gemüse-Tisch steht
+  neunmal im Plan, eine Stütze kommt in genau ihrer Größe kein zweites Mal vor.
+  Bei schmalen Blöcken zählt erst die dritte Wiederholung — zwei gleiche
+  Pfeiler nebeneinander sind der Normalfall.
+- **Größer als 1,80 m** und massiv ist kein Bauteil mehr.
 
 Als Grundfläche wird ein Rechteck um alles gelegt. Die wirkliche Form steht in
 den Wandzügen; das Rechteck ist nur die Bezugsfläche, mit der die
@@ -575,12 +586,12 @@ Umrisslinie zu verschmelzen ginge nur, wenn man jedes Polygon vorher um ein
 paar Millimeter aufbliese: Ein CAD-Plan zeichnet jeden Wandzug einzeln, und
 die stoßen kantengenau aneinander, ohne sich zu überlappen.
 
-**Stütze oder kleines Möbel — das ist nicht immer zu trennen.** Im Plan
-Dörnhagen steht ein Obst-und-Gemüse-Tisch von 891 × 931 mm neben einer echten
-Stütze von 925 × 960 mm, beide massiv, beide im selben Grau. Das Programm
-nutzt als Hinweis, dass Möbel in Serie stehen und Stützen nicht — fünf gleiche
-Blöcke sind fünf Tische. Ganz sicher ist das nicht, deshalb steht im Befund,
-wie viele Flächen als „kein Bauteil" aussortiert wurden.
+**Ein einzelnes Möbel in der Wandfarbe ist nicht zu erkennen.** Steht ein Tisch
+nur ein einziges Mal im Plan, hilft auch die Wiederholung nicht mehr — dann
+sieht er aus wie eine Stütze und wird als solche übernommen. Am Plan Dörnhagen
+gemessen: von 66 grauen Flächen werden 65 richtig eingeordnet, ein
+Aktions-Kopfregal von 820 × 370 mm kommt fälschlich als Stütze mit. Deshalb
+steht im Befund, wie viele Flächen aussortiert wurden.
 
 **Eigene Vorlagen speichern.** Das Datenmodell kann eigene Vorlagen, und der
 Abgleich überträgt sie. Es fehlt der Knopf, mit dem man ein platziertes

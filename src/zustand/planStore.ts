@@ -138,6 +138,9 @@ interface PlanStore {
       achsmass: number;
       beidseitig: boolean;
       beschriftung: string;
+      /** Eigener Umriss, zentriert – siehe `PlanElement.polygon`. */
+      polygon?: Punkt[];
+      form?: PlanElement['form'];
     }[],
   ): void;
   /** Einen eingelesenen Plan als Vorlage einlegen oder mit `undefined` entfernen. */
@@ -292,7 +295,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         tiefe: m.tiefe,
         hoehe: m.hoehe,
         drehung: m.drehung,
-        form: m.vorlage.form,
+        form: m.form ?? m.vorlage.form,
+        polygon: m.polygon,
         farbe: m.vorlage.farbe,
         stufen: m.vorlage.stufen,
         korpustiefe: m.vorlage.korpustiefe,

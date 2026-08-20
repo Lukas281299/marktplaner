@@ -756,6 +756,13 @@ export function zeichneForm(
       break;
     }
 
+    case 'umriss':
+      // Der Umriss wird im zweiten Durchgang gezeichnet, weil er die Punkte
+      // des Elements braucht und nicht nur seine Maße. Hier bleibt nichts zu
+      // tun – ein Rechteck wäre falsch, gerade bei einer kreuzförmigen
+      // Stütze.
+      break;
+
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);
@@ -1082,6 +1089,14 @@ export function ElementSymbol({
         // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
         //    Linienfarbe des Elements.
         ctx.beginPath();
+        if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
+          // Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der
+          // linken oberen Ecke, deshalb die halbe Größe dazu.
+          const p0 = element.polygon[0];
+          ctx.moveTo(p0.x + b / 2, p0.y + t / 2);
+          for (const p of element.polygon.slice(1)) ctx.lineTo(p.x + b / 2, p.y + t / 2);
+          ctx.closePath();
+        }
         zeichneForm(ctx, element.form, b, t, Boolean(element.beidseitig), element.achsmass ?? 0);
         zeichneAchsmass(ctx, element.form, element.breite, b, t);
         ctx.fillStrokeShape(shape);
