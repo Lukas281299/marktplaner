@@ -66,7 +66,8 @@ export type Werkzeug =
   | 'raum'
   | 'wand'
   | 'oeffnung'
-  | 'messen';
+  | 'messen'
+  | 'grundrissZeichnen';
 
 /**
  * Was außer Elementen noch ausgewählt sein kann.

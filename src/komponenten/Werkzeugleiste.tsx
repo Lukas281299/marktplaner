@@ -309,6 +309,16 @@ export function Werkzeugleiste() {
           >
             <SymbolUmriss /> Umriss
           </button>
+
+          <button
+            className={`knopf${werkzeug === 'grundrissZeichnen' ? ' aktiv' : ''}`}
+            onClick={() =>
+              store().setzeWerkzeug(werkzeug === 'grundrissZeichnen' ? 'auswahl' : 'grundrissZeichnen')
+            }
+            title="Einen Grundriss frei zeichnen: Ecken setzen, ziehen ergibt einen Bogen"
+          >
+            <SymbolUmriss /> Frei zeichnen
+          </button>
           <button
             className={`knopf${werkzeug === 'flaecheAnfuegen' ? ' aktiv' : ''}`}
             onClick={() =>

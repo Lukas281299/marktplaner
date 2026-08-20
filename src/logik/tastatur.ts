@@ -10,6 +10,25 @@ import { usePlanStore } from '../zustand/planStore';
  * komplett heraus – sonst würde z. B. "s" beim Schreiben eines Namens das
  * Einrasten umschalten.
  */
+/** Wie weit eine Taste die Ansicht schiebt, in Bildschirmpunkten. */
+const SCHRITT = 70;
+
+/**
+ * Verschiebt den Ausschnitt.
+ *
+ * Gerechnet wird in Bildschirmpunkten und nicht in Planmaßen: Ein Druck soll
+ * die Ansicht immer gleich weit rücken, egal wie weit hineingezoomt ist.
+ * Mit Umschalt geht es in größeren Sprüngen über den Plan.
+ */
+function schiebeAnsicht(dx: number, dy: number, gross: boolean) {
+  const store = usePlanStore.getState();
+  const weite = SCHRITT * (gross ? 4 : 1);
+  store.setzeAnsicht({
+    x: store.ansicht.x + dx * weite,
+    y: store.ansicht.y + dy * weite,
+  });
+}
+
 export function useTastatur(): void {
   useEffect(() => {
     const beiTaste = (e: KeyboardEvent) => {
@@ -93,8 +112,11 @@ export function useTastatur(): void {
             rasterSichtbar: !store.projekt.einstellungen.rasterSichtbar,
           });
           return;
-        case 's':
-        case 'S':
+        case 'e':
+        case 'E':
+          // Einrasten lag früher auf S. Das musste weichen, als W A S D zum
+          // Bewegen im Plan dazukam – eine Navigationstaste kann nicht
+          // nebenbei eine Einstellung umschalten.
           store.setzeEinstellung({
             amRasterEinrasten: !store.projekt.einstellungen.amRasterEinrasten,
           });
@@ -105,11 +127,41 @@ export function useTastatur(): void {
           // es weg, damit man nicht erst Escape suchen muss.
           store.setzeWerkzeug(store.werkzeug === 'messen' ? 'auswahl' : 'messen');
           return;
+        // ------------------------------------------------ Im Plan bewegen
+        case 'w':
+        case 'W':
+        case 'a':
+        case 'A':
+        case 's':
+        case 'S':
+        case 'd':
+        case 'D': {
+          e.preventDefault();
+          const richtung = e.key.toLowerCase();
+          schiebeAnsicht(
+            richtung === 'a' ? 1 : richtung === 'd' ? -1 : 0,
+            richtung === 'w' ? 1 : richtung === 's' ? -1 : 0,
+            e.shiftKey,
+          );
+          return;
+        }
+
         case 'ArrowLeft':
         case 'ArrowRight':
         case 'ArrowUp':
         case 'ArrowDown': {
-          if (store.auswahl.length === 0) return;
+          // Ist etwas ausgewählt, verschieben die Pfeiltasten die Auswahl.
+          // Ist nichts ausgewählt, gibt es nichts zu verschieben – dann
+          // bewegen sie die Ansicht, genau wie W A S D.
+          if (store.auswahl.length === 0) {
+            e.preventDefault();
+            schiebeAnsicht(
+              e.key === 'ArrowLeft' ? 1 : e.key === 'ArrowRight' ? -1 : 0,
+              e.key === 'ArrowUp' ? 1 : e.key === 'ArrowDown' ? -1 : 0,
+              e.shiftKey,
+            );
+            return;
+          }
           e.preventDefault();
           // Ohne Zusatztaste um eine Rasterweite, mit Alt um genau 1 cm,
           // mit Umschalt um das Zehnfache.

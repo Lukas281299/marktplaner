@@ -4,6 +4,7 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 
 import { findeVorlage } from '../../daten/bibliothek';
+import { bogenPunkte, entdoppele, taugtAlsUmriss } from '../../logik/bogen';
 import { buehneSteuerung } from '../../logik/buehne';
 import {
   berechneAbstaende,
@@ -84,6 +85,53 @@ export function Zeichenflaeche() {
   const [meldung, setMeldung] = useState('');
   /** Vorschau beim Ziehen einer Innenwand – ein Rechteck passt hier nicht. */
   const [wandZug, setWandZug] = useState<{ von: Punkt; bis: Punkt } | null>(null);
+  /**
+   * Der Grundriss, der gerade von Hand gezeichnet wird.
+   *
+   * `punkte` sind die schon gesetzten Ecken, `maus` die Stelle, an der die
+   * Maus gerade steht, und `bogenVon` der Punkt, ab dem gerade ein Bogen
+   * gezogen wird. Solange gezeichnet wird, steht davon noch nichts im
+   * Projekt – erst der Abschluss macht daraus eine Grundfläche.
+   */
+  const [zeichenzug, setZeichenzug] = useState<Punkt[]>([]);
+  const [zugMaus, setZugMaus] = useState<Punkt | null>(null);
+  const zeichenzugRef = useRef<Punkt[]>([]);
+  const bogenRef = useRef<{ von: Punkt; gezogen: boolean } | null>(null);
+  /**
+   * Die Mausposition noch einmal als Ref.
+   *
+   * Die Ereignisse für Bewegen und Loslassen hängen am Fenster und werden
+   * nur einmal eingerichtet. Sie sehen deshalb immer den Zustand von damals –
+   * über die Ref kommen sie an den aktuellen Wert.
+   */
+  const zugMausRef = useRef<Punkt | null>(null);
+
+  useEffect(() => {
+    zugMausRef.current = zugMaus;
+  }, [zugMaus]);
+  useEffect(() => {
+    zeichenzugRef.current = zeichenzug;
+  }, [zeichenzug]);
+
+  /**
+   * Aus dem gezeichneten Zug wird die Grundfläche.
+   *
+   * Danach schaltet das Werkzeug zurück aufs Auswählen: Der Grundriss ist
+   * fertig, und alles Weitere – Räume, Regale – läuft wieder ganz normal.
+   */
+  const schliesseZug = useCallback((zug: Punkt[]) => {
+    const sauber = entdoppele(zug);
+    if (!taugtAlsUmriss(sauber)) {
+      setMeldung('Zu wenige Ecken – ein Grundriss braucht mindestens drei.');
+      return;
+    }
+    const store = usePlanStore.getState();
+    store.schnappschuss();
+    store.setzeUmriss(sauber);
+    store.setzeWerkzeug('auswahl');
+    setZugMaus(null);
+    setMeldung(`Grundriss mit ${sauber.length} Ecken übernommen.`);
+  }, []);
 
   // ------------------------------------------------------ Größe des Bereichs
   useLayoutEffect(() => {
@@ -156,6 +204,35 @@ export function Zeichenflaeche() {
     projektIdRef.current = projekt.id;
     einpassen();
   }, [projekt.id, groesse.breite, groesse.hoehe, einpassen]);
+
+  // ------------------------------------------- Tasten beim Grundrisszeichnen
+  useEffect(() => {
+    if (werkzeug !== 'grundrissZeichnen') {
+      // Werkzeug gewechselt: angefangenen Zug wegräumen.
+      if (zeichenzugRef.current.length > 0) setZeichenzug([]);
+      return;
+    }
+    const taste = (e: KeyboardEvent) => {
+      const ziel = e.target as HTMLElement | null;
+      if (ziel && /^(INPUT|TEXTAREA|SELECT)$/.test(ziel.tagName)) return;
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        schliesseZug(zeichenzugRef.current);
+        setZeichenzug([]);
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        // Eine Ecke zurück. Beim Zeichnen von Hand verklickt man sich, und
+        // dafür jedes Mal von vorn anzufangen wäre unzumutbar.
+        e.preventDefault();
+        setZeichenzug((zug) => zug.slice(0, -1));
+      } else if (e.key === 'Escape') {
+        setZeichenzug([]);
+        setZugMaus(null);
+      }
+    };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, [werkzeug, schliesseZug]);
 
   // --------------------------------------------------------- Leertaste (Hand)
   useEffect(() => {
@@ -239,8 +316,18 @@ export function Zeichenflaeche() {
     const buehne = buehneRef.current;
     if (!buehne) return;
 
-    // Mittlere Maustaste oder Leertaste + linke Taste: Ansicht verschieben.
-    if (e.evt.button === 1 || (e.evt.button === 0 && leertasteRef.current)) {
+    // Ansicht verschieben: rechte Maustaste, mittlere Maustaste oder
+    // Leertaste mit linker Taste.
+    //
+    // Die rechte Taste ist der bequemste Weg, weil man sie überall drücken
+    // kann – auch mitten auf einem Regal. Deshalb wird sie hier oben
+    // abgefangen, bevor irgendetwas ausgewählt wird; das Kontextmenü des
+    // Browsers ist auf der Zeichenfläche ohnehin unterdrückt.
+    if (
+      e.evt.button === 1 ||
+      e.evt.button === 2 ||
+      (e.evt.button === 0 && leertasteRef.current)
+    ) {
       e.evt.preventDefault();
       const a = usePlanStore.getState().ansicht;
       schiebeRef.current = { mausX: e.evt.clientX, mausY: e.evt.clientY, x: a.x, y: a.y };
@@ -250,6 +337,18 @@ export function Zeichenflaeche() {
     if (e.evt.button !== 0) return;
 
     const store = usePlanStore.getState();
+
+    // ------------------------------------------------ Grundriss zeichnen
+    //
+    // Ein Klick setzt eine Ecke. Zieht man dagegen mit gedrückter Taste,
+    // wird aus der letzten Kante ein Bogen, der der Maus folgt – so wie man
+    // es von Zeichenprogrammen kennt. Ob es ein Klick oder ein Ziehen war,
+    // entscheidet sich erst beim Loslassen.
+    if (store.werkzeug === 'grundrissZeichnen') {
+      const p = aufRaster(planPunkt(e.evt.clientX, e.evt.clientY));
+      bogenRef.current = { von: p, gezogen: false };
+      return;
+    }
 
     // Beim Zeichnen am Grundriss wird immer aufgezogen – auch wenn die Maus
     // dabei über einem Regal startet.
@@ -276,6 +375,20 @@ export function Zeichenflaeche() {
   // auch dann sauber endet, wenn die Maus die Zeichenfläche verlässt.
   useEffect(() => {
     const bewegen = (ev: MouseEvent) => {
+      // Grundriss zeichnen: Vorschau der nächsten Kante bzw. des Bogens.
+      if (usePlanStore.getState().werkzeug === 'grundrissZeichnen') {
+        const p = aufRaster(planPunkt(ev.clientX, ev.clientY));
+        setZugMaus(p);
+        const bogen = bogenRef.current;
+        if (bogen && !bogen.gezogen) {
+          // Erst ab einer echten Bewegung gilt es als Ziehen. Sonst würde
+          // jedes Zittern der Hand aus einem Klick einen Bogen machen.
+          const weg = Math.hypot(p.x - bogen.von.x, p.y - bogen.von.y);
+          if (weg > 8 / usePlanStore.getState().ansicht.zoom) bogen.gezogen = true;
+        }
+        return;
+      }
+
       // Ansicht verschieben
       const schieben = schiebeRef.current;
       if (schieben) {
@@ -320,6 +433,33 @@ export function Zeichenflaeche() {
     };
 
     const loslassen = () => {
+      // ------------------------------------------------ Grundriss zeichnen
+      const bogen = bogenRef.current;
+      if (bogen) {
+        bogenRef.current = null;
+        setZeichenzug((zug) => {
+          // Auf den ersten Punkt geklickt? Dann ist der Umriss geschlossen.
+          if (zug.length >= 3) {
+            const erster = zug[0];
+            const nah = 12 / usePlanStore.getState().ansicht.zoom;
+            if (Math.hypot(bogen.von.x - erster.x, bogen.von.y - erster.y) < nah) {
+              schliesseZug(zug);
+              return [];
+            }
+          }
+          const letzter = zug[zug.length - 1];
+          if (!letzter) return [bogen.von];
+          // Gezogen heißt Bogen: Er läuft von der letzten Ecke über die
+          // Stelle, an der die Maus jetzt steht, zurück zum Startpunkt des
+          // Ziehens.
+          if (bogen.gezogen && zugMausRef.current) {
+            return [...zug, ...bogenPunkte(letzter, zugMausRef.current, bogen.von)];
+          }
+          return [...zug, bogen.von];
+        });
+        return;
+      }
+
       if (schiebeRef.current) {
         schiebeRef.current = null;
         setZeiger(leertasteRef.current ? 'grab' : 'default');
@@ -947,6 +1087,37 @@ export function Zeichenflaeche() {
             }}
           />
 
+          {/* Der Grundriss, der gerade gezeichnet wird */}
+          {werkzeug === 'grundrissZeichnen' && zeichenzug.length > 0 && (
+            <>
+              <Line
+                points={[
+                  ...zeichenzug.flatMap((p) => [p.x, p.y]),
+                  ...(zugMaus ? [zugMaus.x, zugMaus.y] : []),
+                ]}
+                stroke="#0a84ff"
+                strokeWidth={1.6 / zoom}
+                listening={false}
+                closed={false}
+              />
+              {/* Die gesetzten Ecken. Die erste ist größer: Auf sie klickt
+                  man, um den Umriss zu schließen. */}
+              {zeichenzug.map((p, i) => (
+                <Rect
+                  key={`ecke-${i}`}
+                  x={p.x - (i === 0 ? 6 : 3.5) / zoom}
+                  y={p.y - (i === 0 ? 6 : 3.5) / zoom}
+                  width={(i === 0 ? 12 : 7) / zoom}
+                  height={(i === 0 ? 12 : 7) / zoom}
+                  fill={i === 0 ? '#ffffff' : '#0a84ff'}
+                  stroke="#0a84ff"
+                  strokeWidth={1.4 / zoom}
+                  listening={false}
+                />
+              ))}
+            </>
+          )}
+
           {/* Hilfslinien beim Ausrichten */}
           {hilfslinien.map((linie, i) => (
             <Line
@@ -1123,6 +1294,11 @@ const WERKZEUG_TEXT: Record<string, { titel: string; hinweis: string }> = {
     titel: 'Tür oder Durchgang setzen',
     hinweis:
       'Auf eine Wand klicken – die Öffnung übernimmt Richtung und Wandstärke von selbst. Art und Breite danach rechts einstellen.',
+  },
+  grundrissZeichnen: {
+    titel: 'Grundriss zeichnen',
+    hinweis:
+      'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück',
   },
   messen: {
     titel: 'Maß eintragen',

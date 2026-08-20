@@ -3,6 +3,7 @@ import { neuesProjekt } from '../daten/standardProjekt';
 import { Dialog } from './Dialog';
 import { anzeigeInCm } from '../logik/masse';
 import {
+  benenneProjektUm,
   kopiereProjekt,
   ladeProjekt,
   listeProjekte,
@@ -25,6 +26,7 @@ export function NeuesProjektDialog({ schliessen }: { schliessen: () => void }) {
   // Eingabe in Metern – das ist beim Anlegen am anschaulichsten.
   const [breite, setBreite] = useState(40);
   const [laenge, setLaenge] = useState(25);
+  const [selbstZeichnen, setSelbstZeichnen] = useState(false);
 
   const anlegen = async () => {
     const projekt = neuesProjekt(
@@ -34,6 +36,10 @@ export function NeuesProjektDialog({ schliessen }: { schliessen: () => void }) {
     );
     await speichereProjekt(projekt);
     usePlanStore.getState().setzeProjekt(projekt);
+    // Wer den Grundriss selbst zeichnen will, soll nicht erst das vorgegebene
+    // Rechteck wegräumen müssen. Das Werkzeug steht deshalb gleich bereit;
+    // der erste gezeichnete Umriss ersetzt das Rechteck ohnehin.
+    if (selbstZeichnen) usePlanStore.getState().setzeWerkzeug('grundrissZeichnen');
     schliessen();
   };
 
@@ -92,6 +98,20 @@ export function NeuesProjektDialog({ schliessen }: { schliessen: () => void }) {
         Die Maße lassen sich später jederzeit ändern – rechts im Eigenschaftenfenster, wenn nichts
         ausgewählt ist.
       </p>
+    
+      <label className="schalter" style={{ marginTop: 4 }}>
+        <input
+          type="checkbox"
+          checked={selbstZeichnen}
+          onChange={(e) => setSelbstZeichnen(e.target.checked)}
+        />
+        <span>Grundriss selbst zeichnen</span>
+      </label>
+      <p className="hinweis" style={{ marginTop: 4 }}>
+        Dann geht es gleich mit dem Zeichenwerkzeug los: Ecken klicken, ziehen
+        ergibt einen Bogen, Enter schließt den Umriss. Die Maße oben dienen
+        dabei nur als Startgröße für das Raster.
+      </p>
     </Dialog>
   );
 }
@@ -122,6 +142,18 @@ export function ProjekteDialog({ schliessen }: { schliessen: () => void }) {
     await neuLaden();
   };
 
+  const umbenennen = async (info: ProjektInfo) => {
+    const name = window.prompt('Neuer Name der Planung:', info.name);
+    if (name === null) return;
+    const neu = await benenneProjektUm(info.id, name);
+    // Ist es die geoeffnete Planung, muss auch der Bildschirm nachziehen -
+    // sonst steht oben links noch der alte Name.
+    if (neu && info.id === usePlanStore.getState().projekt.id) {
+      usePlanStore.getState().benenneProjektUm(neu.name);
+    }
+    await neuLaden();
+  };
+
   const kopieren = async (id: string) => {
     await kopiereProjekt(id);
     await neuLaden();
@@ -129,7 +161,7 @@ export function ProjekteDialog({ schliessen }: { schliessen: () => void }) {
 
   return (
     <Dialog
-      titel="Marktplanung öffnen"
+      titel="Gespeicherte Planungen"
       schliessen={schliessen}
       fuss={
         <button className="knopf" onClick={schliessen}>
@@ -137,7 +169,12 @@ export function ProjekteDialog({ schliessen }: { schliessen: () => void }) {
         </button>
       }
     >
-      {liste.length === 0 && <p className="hinweis">Es ist noch keine Planung gespeichert.</p>}
+      {liste.length === 0 && (
+        <p className="hinweis">
+          Es ist noch keine Planung gespeichert. Jede Planung wird beim Arbeiten
+          von selbst gesichert und erscheint dann hier.
+        </p>
+      )}
       {liste.map((info) => (
         <div className="projektzeile" key={info.id}>
           <div>
@@ -158,6 +195,9 @@ export function ProjekteDialog({ schliessen }: { schliessen: () => void }) {
           <div className="knopfreihe">
             <button className="knopf" onClick={() => void oeffnen(info.id)}>
               Öffnen
+            </button>
+            <button className="knopf" onClick={() => void umbenennen(info)}>
+              Umbenennen
             </button>
             <button className="knopf" onClick={() => void kopieren(info.id)}>
               Kopie

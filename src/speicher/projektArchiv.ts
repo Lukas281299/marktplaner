@@ -80,6 +80,22 @@ export async function entferneProjektStill(id: string): Promise<void> {
 }
 
 /** Legt eine unabhängige Kopie eines Projekts an. */
+/**
+ * Benennt eine gespeicherte Planung um.
+ *
+ * Geht über `speichereProjekt`, damit der Zeitstempel und der Abgleich
+ * genauso mitgezogen werden wie bei jeder anderen Änderung. Ist die Planung
+ * gerade geöffnet, muss die Oberfläche sie zusätzlich neu laden – eine
+ * Datenbank weiß nichts davon, was auf dem Bildschirm steht.
+ */
+export async function benenneProjektUm(id: string, name: string): Promise<Projekt | undefined> {
+  const projekt = await ladeProjekt(id);
+  if (!projekt) return undefined;
+  const neu = { ...projekt, name: name.trim() || projekt.name };
+  await speichereProjekt(neu);
+  return neu;
+}
+
 export async function kopiereProjekt(id: string): Promise<Projekt | undefined> {
   const original = await ladeProjekt(id);
   if (!original) return undefined;

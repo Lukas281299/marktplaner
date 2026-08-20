@@ -61,8 +61,16 @@ Zahl der Elemente, dem Zoom und dem Stand des Abgleichs.
 | Aktion | Bedienung |
 |---|---|
 | Zoomen | Mausrad, oder die Knöpfe **−** / **+** |
-| Ansicht verschieben | **Leertaste gedrückt halten** und ziehen, oder mittlere Maustaste |
+| Greifen und schieben | **rechte Maustaste** gedrückt halten und ziehen |
+| Dasselbe mit anderer Taste | mittlere Maustaste, oder **Leertaste** halten und ziehen |
+| Schrittweise bewegen | **W A S D** |
+| Dasselbe mit den Pfeiltasten | **← ↑ → ↓**, solange nichts ausgewählt ist |
+| Vier Schritte auf einmal | **Umschalt** dazu |
 | Alles anzeigen | Knopf *Einpassen* oder **Strg + 0** |
+
+> **Achtung, geändert:** *Am Raster einrasten* lag früher auf **S**. Weil
+> **W A S D** jetzt durch den Plan bewegt, sitzt es nun auf **E**. Das Raster
+> ein- und auszublenden bleibt auf **G**.
 
 ---
 
@@ -104,6 +112,32 @@ Zeigt die Ecken des Gebäudes als blaue Punkte.
 - **Ecke ziehen** verschiebt sie.
 - **Kleiner Kreis auf einer Wand**: anklicken setzt dort eine neue Ecke.
 - **Doppelklick auf eine Ecke** entfernt sie.
+
+### Frei zeichnen
+
+Für einen Markt, den es noch nicht gibt: einen Grundriss von Grund auf auf das
+leere Raster setzen.
+
+| Aktion | Wirkung |
+|---|---|
+| **Klicken** | setzt eine Ecke |
+| **Ziehen statt klicken** | macht aus der letzten Kante einen **Bogen**, der der Maus folgt |
+| **Auf die erste Ecke klicken** | schließt den Umriss |
+| **Enter** | schließt ebenfalls |
+| **Rückschritt** | nimmt die zuletzt gesetzte Ecke zurück |
+| **Escape** | wirft den angefangenen Zug weg |
+
+Danach steht der Grundriss, und es geht ganz normal weiter — Räume abtrennen,
+Regale setzen, messen.
+
+Beim Anlegen einer neuen Planung gibt es dafür den Haken **Grundriss selbst
+zeichnen**; dann ist das Werkzeug gleich aktiv.
+
+> **Was mit Bögen passiert:** Ein Bogen wird beim Zeichnen in viele kurze
+> Strecken aufgelöst — ein Halbkreis in achtundvierzig. Sichtbar macht das
+> keinen Unterschied, und alles Weitere (Flächenberechnung, Wände, Anfügen und
+> Abziehen) rechnet damit weiter wie gewohnt. Der Preis: Hinterher lässt sich
+> ein Bogen nicht mehr als Bogen anfassen, nur noch als Kette von Ecken.
 
 ### Fläche anfügen
 
@@ -495,7 +529,11 @@ eine mit 500er Boden eine im Achsmaß 1000. Kopfgondeln gibt es gerade und rund
 | Kürzel | Wirkung |
 |---|---|
 | **G** | Raster ein- oder ausblenden |
-| **S** | Am Raster einrasten ein- oder ausschalten |
+| **E** | Am Raster einrasten ein- oder ausschalten |
+| **W A S D** | im Plan bewegen |
+| **← ↑ → ↓** | im Plan bewegen, solange nichts ausgewählt ist |
+| **Umschalt** dazu | vier Schritte auf einmal |
+| **rechte Maustaste** | Plan greifen und schieben |
 | **Strg + 0** | Ganzen Markt anzeigen |
 | **Mausrad** | Zoomen |
 | **Leertaste + Ziehen** | Ansicht verschieben |
