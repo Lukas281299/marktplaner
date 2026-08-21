@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   feldliste,
+  groesstBaubareLaenge,
   istModul,
   naechsteBaubareLaenge,
   naechstesModul,
@@ -174,5 +175,51 @@ describe('Module zählen', () => {
       { modul: 100, anzahl: 2 },
       { modul: 125, anzahl: 3 },
     ]);
+  });
+});
+
+describe('Abrunden auf ein baubares Maß', () => {
+  it('lässt eine Länge stehen, die es schon gibt', () => {
+    for (const laenge of [62.5, 125, 600, 625, 650, 700, 1000]) {
+      expect(groesstBaubareLaenge(laenge)).toBeCloseTo(laenge, 2);
+    }
+  });
+
+  it('rundet ab und nie auf', () => {
+    // Der Kern der Regel: Ein Regal, das länger würde als die Stelle, an der
+    // man losgelassen hat, ist im Markt eines zu viel.
+    for (const wunsch of [130, 199, 637, 801, 1234]) {
+      const baubar = groesstBaubareLaenge(wunsch)!;
+      expect(baubar).toBeLessThanOrEqual(wunsch);
+    }
+  });
+
+  it('trifft 130 cm auf 125', () => {
+    expect(groesstBaubareLaenge(130)).toBeCloseTo(125, 2);
+  });
+
+  it('rechnet A1333 ohne Rundungsverlust', () => {
+    // Drei Felder A1333 sind exakt 4,00 m. In Millimetern gerechnet käme
+    // 3,999 m heraus und 4,00 m gälte als nicht baubar – deshalb rechnet
+    // die Funktion in Dritteln eines Millimeters.
+    expect(groesstBaubareLaenge(400)).toBeCloseTo(400, 2);
+    expect(groesstBaubareLaenge(1200)).toBeCloseTo(1200, 2);
+  });
+
+  it('sagt Nein, wenn nicht einmal ein Feld hineinpasst', () => {
+    expect(groesstBaubareLaenge(62)).toBeNull();
+    expect(groesstBaubareLaenge(0)).toBeNull();
+  });
+
+  it('liefert immer eine Länge, die sich auch aufteilen lässt', () => {
+    // Die eigentliche Zusage: Was hier herauskommt, muss passeAn auch
+    // wirklich in Felder zerlegen können.
+    for (let wunsch = 62.5; wunsch <= 900; wunsch += 7.3) {
+      const baubar = groesstBaubareLaenge(wunsch);
+      if (baubar === null) continue;
+      const aufteilung = passeAn([100], baubar);
+      expect(aufteilung).not.toBeNull();
+      expect(aufteilung!.felder.every((f) => istModul(f))).toBe(true);
+    }
   });
 });

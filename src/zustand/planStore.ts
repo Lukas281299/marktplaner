@@ -3,6 +3,7 @@ import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
 import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
+import { feldliste, groesstBaubareLaenge, passeAn } from '../logik/feldaufteilung';
 import { kannKopfgondel, kopflage, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
@@ -807,8 +808,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         ...zug,
         felder: neueFelder,
         breite,
-        x: runde(zug.x + versatz * Math.cos(bogen)),
-        y: runde(zug.y + versatz * Math.sin(bogen)),
+        x: feinRunde(zug.x + versatz * Math.cos(bogen)),
+        y: feinRunde(zug.y + versatz * Math.sin(bogen)),
       };
       return { ...p, elemente: richteKoepfeAus(p.elemente, gewachsen) };
     });
@@ -912,12 +913,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   setzeGeometrien(werte) {
     const karte = new Map(werte.map((w) => [w.id, w]));
-    aendere(set, get, (p) => ({
-      ...p,
-      elemente: p.elemente.map((el) => {
+    aendere(set, get, (p) => {
+      const elemente = p.elemente.map((el) => {
         const neu = karte.get(el.id);
         if (!neu || el.gesperrt) return el;
-        return {
+        const gezogen: PlanElement = {
           ...el,
           x: neu.x,
           y: neu.y,
@@ -925,8 +925,19 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           tiefe: neu.tiefe,
           drehung: ((neu.drehung % 360) + 360) % 360,
         };
-      }),
-    }));
+        // Regale des wire-tech-Systems dürfen nur baubare Längen annehmen.
+        // Alles andere behält seine freie Größe – ein Kühlmöbel oder eine
+        // Freihand-Fläche kennt dieses Raster nicht.
+        return el.form === 'wt100' ? aufBaubareLaenge(el, gezogen) : gezogen;
+      });
+
+      // Köpfe nachrücken, wo ein Zug seine Länge geändert hat.
+      let ergebnis = elemente;
+      for (const el of elemente) {
+        if (el.kopfgondeln && karte.has(el.id)) ergebnis = richteKoepfeAus(ergebnis, el);
+      }
+      return { ...p, elemente: ergebnis };
+    });
   },
 
   loescheAuswahl() {
@@ -1201,13 +1212,82 @@ function richteKoepfeAus(elemente: PlanElement[], zug: PlanElement): PlanElement
       koepfe?.anfang === el.id ? 'anfang' : koepfe?.ende === el.id ? 'ende' : null;
     if (!seite) return el;
     const lage = kopflage(zug, seite);
-    return { ...el, x: runde(lage.x), y: runde(lage.y), drehung: lage.drehung };
+    return { ...el, x: feinRunde(lage.x), y: feinRunde(lage.y), drehung: lage.drehung };
   });
 }
 
 /** Summe einer Feldliste in cm, auf Zehntelmillimeter gerundet. */
 function summeFelder(felder: number[]): number {
   return Math.round(felder.reduce((s, f) => s + f, 0) * 100) / 100;
+}
+
+/**
+ * Rundet eine Koordinate auf Zehntelmillimeter statt auf einen halben
+ * Zentimeter.
+ *
+ * Sonst zerstört das Runden genau das, worum es hier geht: Ein Zug von
+ * 633,30 cm hat seinen Mittelpunkt auf 316,65 – auf halbe Zentimeter
+ * geschoben wandert seine Anfangskante um anderthalb Millimeter. Auf dem
+ * Bildschirm sieht man das nicht, in einer Flucht von zehn Zügen schon.
+ */
+function feinRunde(wert: number): number {
+  return Math.round(wert * 100) / 100;
+}
+
+/**
+ * Rundet die gezogene Länge eines Regalzugs auf ein baubares Maß **ab**.
+ *
+ * Am Griff entstehen beliebige Zwischenmaße. Ein Regal von 6,37 m gibt es
+ * aber nicht – es gibt nur Summen von Achsmaßen. Abgerundet und nicht
+ * gerundet, weil ein Regal, das länger würde als die Stelle, an der man
+ * losgelassen hat, im Markt eines zu viel ist.
+ *
+ * Heikel ist dabei die Lage: Wer rechts zieht, erwartet, dass links nichts
+ * passiert. Welche Kante stehen bleiben soll, verrät der Vergleich mit dem
+ * Zustand vor dem Ziehen – die Kante, die sich kaum bewegt hat, ist die, an
+ * der nicht gezogen wurde.
+ */
+function aufBaubareLaenge(vorher: PlanElement, gezogen: PlanElement): PlanElement {
+  const baubar = groesstBaubareLaenge(gezogen.breite);
+  if (baubar === null || Math.abs(baubar - gezogen.breite) < 0.01) return gezogen;
+
+  const alt = vorher.felder ?? feldliste(vorher.breite, vorher.achsmass);
+  const passend = passeAn(alt, baubar);
+  const felder = passend ? passend.felder : undefined;
+  const breite = felder ? summeFelder(felder) : baubar;
+
+  // Längsrichtung des Zugs, vor und nach dem Ziehen.
+  const richtung = (grad: number) => {
+    const bogen = (grad * Math.PI) / 180;
+    return { x: Math.cos(bogen), y: Math.sin(bogen) };
+  };
+  const uAlt = richtung(vorher.drehung);
+  const uNeu = richtung(gezogen.drehung);
+
+  const kante = (el: PlanElement, u: { x: number; y: number }, seite: -1 | 1) => ({
+    x: el.x + (seite * el.breite) / 2 * u.x,
+    y: el.y + (seite * el.breite) / 2 * u.y,
+  });
+
+  const linksAlt = kante(vorher, uAlt, -1);
+  const rechtsAlt = kante(vorher, uAlt, 1);
+  const linksNeu = kante(gezogen, uNeu, -1);
+  const rechtsNeu = kante(gezogen, uNeu, 1);
+
+  const linksBewegt = Math.hypot(linksNeu.x - linksAlt.x, linksNeu.y - linksAlt.y);
+  const rechtsBewegt = Math.hypot(rechtsNeu.x - rechtsAlt.x, rechtsNeu.y - rechtsAlt.y);
+
+  // Die ruhige Kante bleibt liegen, die gezogene rückt auf das baubare Maß.
+  const fest = linksBewegt <= rechtsBewegt ? linksNeu : rechtsNeu;
+  const seite = linksBewegt <= rechtsBewegt ? 1 : -1;
+
+  return {
+    ...gezogen,
+    breite,
+    felder,
+    x: feinRunde(fest.x + (seite * breite) / 2 * uNeu.x),
+    y: feinRunde(fest.y + (seite * breite) / 2 * uNeu.y),
+  };
 }
 
 function aendere(

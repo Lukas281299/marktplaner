@@ -190,6 +190,54 @@ export function passeAn(alt: number[], ziel: number): Anpassung | null {
 }
 
 /**
+ * Die Achsmaße in Dritteln eines Millimeters.
+ *
+ * Der einzige Weg, ohne Toleranz zu rechnen. A1333 ist 1333⅓ mm – in
+ * Millimetern eine krumme Zahl, in Dritteln davon glatte 4000. Drei Felder
+ * ergeben damit exakt 12 000 Drittel, also genau 4,00 m, und nicht 3,999 m
+ * wie bei jeder Rechnung in Millimetern.
+ *
+ * 1 cm sind 30 Drittelmillimeter.
+ */
+const DRITTEL = [1875, 3000, 3750, 4000];
+const JE_CM = 30;
+
+/**
+ * Die größte Länge, die sich aus Achsmaßen bauen lässt und den Wunsch nicht
+ * überschreitet.
+ *
+ * **Abgerundet, nicht gerundet.** Beim Ziehen am Griff entstehen beliebige
+ * Zwischenmaße, und ein Regal, das dabei länger würde als die Stelle, an der
+ * man losgelassen hat, wäre im Markt eines zu viel. Lieber ein Feld kürzer
+ * als eines, das nicht hineinpasst.
+ *
+ * Gerechnet wird mit dem klassischen Münzproblem: Erreichbar ist eine Länge,
+ * wenn sie sich um genau ein Achsmaß von einer erreichbaren unterscheidet.
+ * Das findet jede Kombination, auch gemischte – 1,875 m etwa als 62,5 + 125
+ * oder als drei mal 62,5.
+ */
+export function groesstBaubareLaenge(wunsch: number): number | null {
+  const ziel = Math.floor(wunsch * JE_CM + 1e-6);
+  if (ziel < DRITTEL[0]) return null;
+
+  const erreichbar = new Uint8Array(ziel + 1);
+  erreichbar[0] = 1;
+  for (let wert = DRITTEL[0]; wert <= ziel; wert++) {
+    for (const modul of DRITTEL) {
+      if (wert >= modul && erreichbar[wert - modul]) {
+        erreichbar[wert] = 1;
+        break;
+      }
+    }
+  }
+
+  for (let wert = ziel; wert >= DRITTEL[0]; wert--) {
+    if (erreichbar[wert]) return wert / JE_CM;
+  }
+  return null;
+}
+
+/**
  * Die nächstgelegene baubare Länge zu einem Wunschmaß.
  *
  * Für das Ziehen am Griff: Dort entstehen beliebige Zwischenwerte, und

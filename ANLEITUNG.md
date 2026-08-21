@@ -352,11 +352,41 @@ einzelnes Element dreht sich weiter um den eigenen Mittelpunkt.
 > Fertige Gondelzüge stehen auch direkt in der Bibliothek — unter *Regale →
 > Gondelzüge* von 2 bis 8 Feldern. Das spart das Aneinanderreihen von Hand.
 
-### Felder: Anzahl, Maß und Reihenfolge
+### Einheiten anhängen — in jeder Abteilung
 
-Ein Regalzug ist kein Balken, den man auf jedes Maß zieht. Er besteht aus
-Feldern, und jedes Feld hat eines von **vier Achsmaßen** — andere Breiten gibt
-es im System nicht:
+Möbel sind keine Balken, die man auf jedes Maß zieht. Sie bestehen aus
+Einheiten, und **jede Abteilung hat ihr eigenes Raster**. Ist ein Möbel
+ausgewählt, das eines kennt, steht rechts eine Gruppe dafür: oben die Zahl der
+Einheiten und die Gesamtlänge, darunter die Zusammensetzung, darunter jede
+Einheit einzeln — und ganz unten die Knöpfe zum Anhängen.
+
+| Abteilung | Einheit | Maße |
+|---|---|---|
+| Trockensortiment (wire tech 100) | Feld | A625 · A1000 · A1250 · A1333 |
+| Obst & Gemüse (Vitable) | Einheit | 1,00 · 1,25 · 2,00 m |
+| Normalkühlung | Möbel | 0,94 · 1,25 · 1,88 · 2,50 · 3,75 m |
+| Tiefkühlschränke | Schrank | 1,56 · 2,34 · 3,12 · 3,90 m |
+| TK-Kombigeräte | Gerät | 1,88 · 2,50 · 3,75 m |
+| TK-Truhen | Modul | 0,63 m |
+| BakeOff | Turm | 1,00 · 2,00 m |
+
+Die Maße sind nicht gewählt, sondern abgelesen: Es sind genau die Größen, die
+die Bibliothek führt — also die aus den Katalogen. Unter den Knöpfen steht,
+woher sie kommen.
+
+Ein vorhandenes Möbel wird dabei in seine Einheiten zerlegt, so wie es
+tatsächlich gebaut ist: Eine TK-Truhe von 2,50 m erscheint als **vier Module à
+0,63 m**, ein Kühlregal von 1,88 m dagegen als **ein Möbel** — das ist ein
+Gerät dieser Länge und nicht zwei kleinere.
+
+> **Ohne Raster geht es weiter frei.** Die Freihand-Vorlagen („Regal frei",
+> „Gondel frei", Flächen, Symbole) haben bewusst keine Einheiten-Gruppe. Sie
+> sind genau dafür da, dass man sich um kein Raster kümmern muss.
+
+### Felder im Trockensortiment
+
+Beim wire-tech-Regal heißen die Einheiten **Felder**, und es gibt vier
+Achsmaße — andere Breiten kennt das System nicht:
 
 | Achsmaß | Breite |
 |---|---|
@@ -365,15 +395,11 @@ es im System nicht:
 | A1250 | 1,25 m |
 | A1333 | 1,333 m |
 
-Ist ein wire-tech-Regal ausgewählt, steht rechts die Gruppe **Felder**: oben
-die Feldzahl und die Gesamtlänge, darunter die Zusammensetzung
-(„Davon A1000 5 ×"), und darunter jedes Feld einzeln.
+Zu jeder Einheit gehören drei Bedienelemente — in jeder Abteilung dieselben:
 
-Zu jedem Feld gehören vier Bedienelemente:
-
-- die **Auswahlliste** mit dem Achsmaß dieses Felds
-- **↑** und **↓** schieben das Feld im Zug nach vorn oder nach hinten
-- **×** entfernt es
+- die **Auswahlliste** mit dem Maß dieser Einheit
+- **↑** und **↓** schieben sie nach vorn oder nach hinten
+- **×** entfernt sie
 
 Darunter fügen die Knöpfe **+ A625** bis **+ A1333** hinten ein Feld an.
 
@@ -386,6 +412,21 @@ Wo das breitere Feld sitzt, bestimmst du selbst: Die Trennlinien im Plan
 sitzen genau dort, wo im Markt die Säule steht. Ein A1250 ganz vorn ergibt
 eine andere Zeichnung als eines ganz hinten — und im Markt einen anderen
 Aufbau.
+
+### Ziehen rundet ab
+
+Ein Regal lässt sich weiterhin am Anfasser in die Breite ziehen. Beim
+Loslassen **rundet es auf das nächste baubare Maß ab** — nie auf. Ziehst du
+einen Zug auf 6,37 m, wird er 6,33 m; ein Regal, das länger würde als die
+Stelle, an der du losgelassen hast, wäre im Markt eines zu viel.
+
+Die Kante, an der du **nicht** gezogen hast, bleibt dabei stehen. Und der
+Zug bekommt eine Feldaufteilung, die zur neuen Länge passt — mit so wenig
+Änderung wie möglich an dem, was schon dastand.
+
+> **Nur die normalen Regale.** Das Abrunden gilt für das wire-tech-System.
+> Alles andere — Kühlmöbel, Truhen, Obst & Gemüse, Freihand-Flächen — lässt
+> sich weiterhin auf jedes Maß ziehen.
 
 ### Kopfgondeln
 

@@ -3,13 +3,13 @@ import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { WARENGRUPPEN } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
+import { feldliste, summe } from '../logik/feldaufteilung';
 import {
-  MODULE,
-  feldliste,
-  naechstesModul,
-  summe,
-  zaehleModule,
-} from '../logik/feldaufteilung';
+  modulName,
+  modulsatzFuer,
+  zerlegeInModule,
+  type Modulsatz,
+} from '../daten/module';
 import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
 import { masslaenge } from '../logik/messen';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
@@ -519,9 +519,27 @@ function RaumEigenschaften({ raum }: { raum: Raum }) {
  * eine Breite eingestellt, sondern die Aufteilung – Zahl, Maß und
  * Reihenfolge. Die Breite ergibt sich daraus und nicht umgekehrt.
  */
-function Feldaufteilung({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
+function Feldaufteilung({
+  element,
+  satz,
+  einheit,
+}: {
+  element: PlanElement;
+  satz: Modulsatz;
+  einheit: Massinheit;
+}) {
   const store = usePlanStore.getState;
-  const felder = element.felder ?? feldliste(element.breite, element.achsmass);
+  // Ohne gespeicherte Liste wird sie erschlossen: beim Regalzug aus dem
+  // Achsmaß, sonst aus den Einheiten der Abteilung. Eine TK-Truhe von 2,50 m
+  // ist damit vier Module und kein Klotz.
+  const felder =
+    element.felder ??
+    (element.achsmass
+      ? feldliste(element.breite, element.achsmass)
+      : zerlegeInModule(element.breite, satz));
+  /** Die Länge aus diesem Satz, die dem Wert am nächsten kommt. */
+  const naechste = (wert: number) =>
+    satz.laengen.reduce((a, b) => (Math.abs(b - wert) < Math.abs(a - wert) ? b : a));
   const setze = (neu: number[]) => {
     usePlanStore.getState().schnappschuss();
     usePlanStore.getState().setzeFelder(element.id, neu);
@@ -541,21 +559,27 @@ function Feldaufteilung({ element, einheit }: { element: PlanElement; einheit: M
   return (
     <>
       <div className="gruppe">
-        <div className="gruppe-titel">Felder</div>
+        <div className="gruppe-titel">{satz.mehrzahl}</div>
 
         <div className="kennzahl">
           <span>
-            {felder.length} {felder.length === 1 ? 'Feld' : 'Felder'}
+            {felder.length} {felder.length === 1 ? satz.einheit : satz.mehrzahl}
           </span>
           <span className="kennzahl-wert">{formatiereLaenge(summe(felder), einheit)}</span>
         </div>
 
-        {zaehleModule(felder).map((eintrag) => (
-          <div className="kennzahl" key={eintrag.modul}>
-            <span>Davon A{Math.round(eintrag.modul * 10)}</span>
-            <span className="kennzahl-wert">{eintrag.anzahl} ×</span>
-          </div>
-        ))}
+        {satz.laengen
+          .map((laenge) => ({
+            laenge,
+            anzahl: felder.filter((f) => Math.abs(f - laenge) < 0.05).length,
+          }))
+          .filter((e) => e.anzahl > 0)
+          .map((eintrag) => (
+            <div className="kennzahl" key={eintrag.laenge}>
+              <span>Davon {modulName(satz, eintrag.laenge)}</span>
+              <span className="kennzahl-wert">{eintrag.anzahl} ×</span>
+            </div>
+          ))}
 
         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
           {felder.map((feld, i) => (
@@ -565,23 +589,23 @@ function Feldaufteilung({ element, einheit }: { element: PlanElement; einheit: M
               </span>
               <select
                 style={{ flex: 1 }}
-                value={String(naechstesModul(feld))}
+                value={String(naechste(feld))}
                 onChange={(e) => {
                   const neu = [...felder];
                   neu[i] = Number(e.target.value);
                   setze(neu);
                 }}
               >
-                {MODULE.map((m) => (
+                {satz.laengen.map((m) => (
                   <option key={m} value={String(m)}>
-                    A{Math.round(m * 10)} · {formatiereLaenge(m, einheit)}
+                    {modulName(satz, m)} · {formatiereLaenge(m, einheit)}
                   </option>
                 ))}
               </select>
               <button
                 className="knopf knopf-nur-symbol"
                 disabled={i === 0}
-                title="Feld nach vorn schieben"
+                title={`${satz.einheit} nach vorn schieben`}
                 onClick={() => tausche(i, -1)}
               >
                 ↑
@@ -589,7 +613,7 @@ function Feldaufteilung({ element, einheit }: { element: PlanElement; einheit: M
               <button
                 className="knopf knopf-nur-symbol"
                 disabled={i === felder.length - 1}
-                title="Feld nach hinten schieben"
+                title={`${satz.einheit} nach hinten schieben`}
                 onClick={() => tausche(i, 1)}
               >
                 ↓
@@ -597,7 +621,7 @@ function Feldaufteilung({ element, einheit }: { element: PlanElement; einheit: M
               <button
                 className="knopf knopf-nur-symbol knopf-gefahr"
                 disabled={felder.length <= 1}
-                title="Dieses Feld entfernen"
+                title={`${satz.einheit} entfernen`}
                 onClick={() => setze(felder.filter((_, j) => j !== i))}
               >
                 ×
@@ -607,22 +631,22 @@ function Feldaufteilung({ element, einheit }: { element: PlanElement; einheit: M
         </div>
 
         <div className="knopfreihe" style={{ marginTop: 8, flexWrap: 'wrap' }}>
-          {MODULE.map((m) => (
+          {satz.laengen.map((m) => (
             <button
               key={m}
               className="knopf"
-              title={`Ein Feld A${Math.round(m * 10)} hinten anfügen`}
+              title={`${satz.einheit} ${modulName(satz, m)} hinten anfügen`}
               onClick={() => setze([...felder, m])}
             >
-              + A{Math.round(m * 10)}
+              + {modulName(satz, m)}
             </button>
           ))}
         </div>
 
         <p className="hinweis" style={{ marginTop: 8 }}>
-          Nur diese vier Achsmaße gibt es im System. Die Länge des Zugs ist die
-          Summe seiner Felder — wird ein Feld breiter, wächst der Zug nach hinten,
-          sein Anfang bleibt stehen.
+          Andere Maße gibt es hier nicht: {satz.herkunft}. Die Länge ist die Summe
+          — wird eine Einheit breiter, wächst das Möbel nach hinten, sein Anfang
+          bleibt stehen.
         </p>
       </div>
 
@@ -942,8 +966,9 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           das Feld, mit dem man den zweiten Kopf setzt. */}
       {(() => {
         const zuege = ausgewaehlte.filter((el) => !el.kopfVon);
-        const zug = zuege.length === 1 && zuege[0].form === 'wt100' ? zuege[0] : null;
-        return zug ? <Feldaufteilung element={zug} einheit={einheit} /> : null;
+        if (zuege.length !== 1) return null;
+        const satz = modulsatzFuer(zuege[0].form);
+        return satz ? <Feldaufteilung element={zuege[0]} satz={satz} einheit={einheit} /> : null;
       })()}
 
       {/* ------------------------------------------------------ Darstellung */}

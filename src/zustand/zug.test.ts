@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { BIBLIOTHEK } from '../daten/bibliothek';
 import { neuesProjekt } from '../daten/standardProjekt';
 import { mitGruppen } from '../logik/gruppen';
+import { istModul, summe } from '../logik/feldaufteilung';
 import { usePlanStore } from './planStore';
 
 /**
@@ -272,5 +273,71 @@ describe('Auswahl nach dem Setzen eines Kopfs', () => {
 
     store().setzeKopfgondel(zug.id, 'ende', false);
     expect(store().auswahl).not.toContain(kopfId);
+  });
+});
+
+describe('Abrunden beim Ziehen', () => {
+  beforeEach(() => {
+    usePlanStore.getState().setzeProjekt(neuesProjekt());
+  });
+
+  /** Zieht ein Element auf eine Breite, so wie es der Anfasser tut. */
+  function ziehe(el: { id: string; x: number; y: number; tiefe: number; drehung: number }, breite: number) {
+    // Rechter Anfasser: Die linke Kante bleibt stehen, die Mitte wandert.
+    const links = el.x - (store().projekt.elemente.find((e) => e.id === el.id)!.breite) / 2;
+    store().setzeGeometrien([
+      { id: el.id, x: links + breite / 2, y: el.y, breite, tiefe: el.tiefe, drehung: el.drehung },
+    ]);
+  }
+
+  it('rundet einen Regalzug auf ein baubares Maß ab', () => {
+    const zug = legeZug('wt-zug-1000-6-600', 1000, 1000);
+    ziehe(zug, 637);
+    const neu = hole(zug.id);
+    expect(neu.breite).toBeLessThanOrEqual(637);
+    expect(neu.breite).toBeCloseTo(633.3, 1);
+  });
+
+  it('lässt die Kante stehen, an der nicht gezogen wurde', () => {
+    const zug = legeZug('wt-zug-1000-6-600', 1000, 1000);
+    const linksVorher = zug.x - zug.breite / 2;
+    ziehe(zug, 637);
+    const neu = hole(zug.id);
+    expect(neu.x - neu.breite / 2).toBeCloseTo(linksVorher, 1);
+  });
+
+  it('baut daraus eine gültige Feldliste', () => {
+    const zug = legeZug('wt-zug-1000-6-600', 1000, 1000);
+    ziehe(zug, 637);
+    const neu = hole(zug.id);
+    expect(neu.felder).toBeTruthy();
+    expect(neu.felder!.every((f) => istModul(f))).toBe(true);
+    expect(summe(neu.felder!)).toBeCloseTo(neu.breite, 1);
+  });
+
+  it('lässt ein Maß in Ruhe, das es schon gibt', () => {
+    const zug = legeZug('wt-zug-1000-6-600', 1000, 1000);
+    ziehe(zug, 625);
+    expect(hole(zug.id).breite).toBeCloseTo(625, 2);
+  });
+
+  it('rückt die Kopfgondel nach dem Ziehen nach', () => {
+    const zug = legeZug('wt-zug-1000-6-600', 1000, 1000);
+    store().setzeKopfgondel(zug.id, 'ende', true);
+    ziehe(zug, 637);
+
+    const neu = hole(zug.id);
+    const kopf = store().projekt.elemente.find((el) => el.kopfVon === zug.id)!;
+    expect(kopf.x).toBeCloseTo(neu.x + neu.breite / 2 + kopf.tiefe / 2, 1);
+  });
+
+  it('lässt alles außer Regalen frei', () => {
+    // Ausdrückliche Ansage: nur die normalen Regale. Eine Freihand-Fläche
+    // behält jedes Maß, das man ihr gibt.
+    for (const vorlagenId of ['regal-frei', 'regal-gondel-frei']) {
+      const el = legeZug(vorlagenId, 1000, 1000);
+      ziehe(el, 637);
+      expect(hole(el.id).breite).toBeCloseTo(637, 1);
+    }
   });
 });
