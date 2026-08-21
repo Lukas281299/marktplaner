@@ -3,6 +3,7 @@ import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
 import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
+import { kannKopfgondel, kopflage, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
 import { setzeFavoriten as speichereFavoriten } from '../speicher/projektArchiv';
@@ -226,6 +227,10 @@ interface PlanStore {
   // ------------------------------------------------------------- Elemente
   fuegeElementHinzu(vorlage: BibliothekEintrag, x: number, y: number): string;
   aendereElemente(ids: string[], werte: Partial<PlanElement>, mitHistorie?: boolean): void;
+  /** Setzt die Feldaufteilung eines Zugs; die Breite folgt der Summe. */
+  setzeFelder(id: string, felder: number[]): void;
+  /** Setzt oder entfernt die Kopfgondel an einem Ende eines Zugs. */
+  setzeKopfgondel(id: string, seite: Kopfseite, an: boolean): void;
   /** Setzt für mehrere Elemente gleichzeitig neue Positionen (beim Ziehen). */
   setzePositionen(werte: { id: string; x: number; y: number }[], mitHistorie?: boolean): void;
   /** Übernimmt Position, Größe und Drehung nach dem Ziehen an den Anfassern. */
@@ -786,6 +791,112 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     else set((s) => ({ projekt: wandeln(s.projekt) }));
   },
 
+  setzeFelder(id, neueFelder) {
+    aendere(set, get, (p) => {
+      const zug = p.elemente.find((el) => el.id === id);
+      if (!zug) return p;
+      const breite = summeFelder(neueFelder);
+      if (breite <= 0) return p;
+
+      // Der Zug wächst nach hinten, sein Anfang bleibt stehen. Das ist die
+      // Richtung, in der man ihn baut: Ein Feld kommt hinten dran, nicht
+      // links und rechts je ein halbes.
+      const bogen = (zug.drehung * Math.PI) / 180;
+      const versatz = (breite - zug.breite) / 2;
+      const gewachsen: PlanElement = {
+        ...zug,
+        felder: neueFelder,
+        breite,
+        x: runde(zug.x + versatz * Math.cos(bogen)),
+        y: runde(zug.y + versatz * Math.sin(bogen)),
+      };
+      return { ...p, elemente: richteKoepfeAus(p.elemente, gewachsen) };
+    });
+  },
+
+  setzeKopfgondel(id, seite, an) {
+    const zug = get().projekt.elemente.find((el) => el.id === id);
+    if (!zug || !kannKopfgondel(zug)) return;
+    const vorhanden = zug.kopfgondeln?.[seite];
+
+    // ---- abwählen: den Kopf entfernen
+    if (!an) {
+      if (!vorhanden) return;
+      aendere(set, get, (p) => ({
+        ...p,
+        elemente: p.elemente
+          .filter((el) => el.id !== vorhanden)
+          .map((el) =>
+            el.id === id
+              ? { ...el, kopfgondeln: { ...el.kopfgondeln, [seite]: undefined } }
+              : el,
+          ),
+      }));
+      set({ auswahl: get().auswahl.filter((a) => a !== vorhanden) });
+      return;
+    }
+
+    // ---- anwählen: einen Kopf anlegen, falls noch keiner da ist
+    if (vorhanden && get().projekt.elemente.some((el) => el.id === vorhanden)) return;
+
+    const masse = kopfmasse(zug.tiefe);
+    const lage = kopflage(zug, seite);
+    const kopfId = neueId('element');
+    // Beide gehören ab jetzt zusammen – dadurch wandert und dreht der Kopf
+    // mit dem Zug, ohne dass es dafür einen eigenen Mechanismus braucht.
+    const gruppeId = zug.gruppeId ?? neueId('gruppe');
+
+    const kopf: PlanElement = {
+      id: kopfId,
+      vorlageId: `wt-kopf-gerade-${Math.round(masse.achsmass * 10)}-${Math.round((masse.tiefe - 7) * 10)}`,
+      ebeneId: zug.ebeneId,
+      name: `Kopfgondel A${Math.round(masse.achsmass * 10)}`,
+      kategorie: zug.kategorie,
+      x: runde(lage.x),
+      y: runde(lage.y),
+      breite: masse.breite,
+      tiefe: masse.tiefe,
+      hoehe: zug.hoehe,
+      drehung: lage.drehung,
+      form: 'wt100',
+      farbe: zug.farbe,
+      beschriftung: '',
+      beschriftungSichtbar: false,
+      schriftgroesse: zug.schriftgroesse,
+      warengruppe: zug.warengruppe,
+      gesperrt: false,
+      reihenfolge: zug.reihenfolge,
+      achsmass: masse.achsmass,
+      gruppeId,
+      kopfVon: id,
+    };
+
+    aendere(set, get, (p) => ({
+      ...p,
+      gruppen: p.gruppen.some((g) => g.id === gruppeId)
+        ? p.gruppen
+        : [...p.gruppen, { id: gruppeId, name: zug.name, art: 'gondel' as Gruppenart }],
+      elemente: [
+        ...p.elemente.map((el) =>
+          el.id === id
+            ? { ...el, gruppeId, kopfgondeln: { ...el.kopfgondeln, [seite]: kopfId } }
+            : el,
+        ),
+        kopf,
+      ],
+    }));
+
+    // Der neue Kopf gehört ab jetzt zur Auswahl.
+    //
+    // Ohne das bliebe nach dem Anhaken nur der Zug ausgewählt – und wer
+    // direkt danach auf „drehen" drückt, ließe den frisch gesetzten Kopf
+    // stehen. Beim Klick auf dem Plan erweitert die Zeichenfläche die
+    // Auswahl von sich aus um die Gruppe; hier muss es der Speicher tun,
+    // weil die Gruppe gerade erst entstanden ist.
+    const auswahl = get().auswahl;
+    if (auswahl.includes(id)) set({ auswahl: [...new Set([...auswahl, kopfId])] });
+  },
+
   setzePositionen(werte, mitHistorie = false) {
     const karte = new Map(werte.map((w) => [w.id, w]));
     const wandeln = (p: Projekt): Projekt => ({
@@ -881,14 +992,40 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     const { auswahl } = get();
     if (auswahl.length === 0) return;
     const menge = new Set(auswahl);
-    aendere(set, get, (p) => ({
-      ...p,
-      elemente: p.elemente.map((el) =>
-        menge.has(el.id) && !el.gesperrt
-          ? { ...el, drehung: (((el.drehung + grad) % 360) + 360) % 360 }
-          : el,
-      ),
-    }));
+    aendere(set, get, (p) => {
+      const betroffen = p.elemente.filter((el) => menge.has(el.id) && !el.gesperrt);
+      if (betroffen.length === 0) return p;
+
+      // Mehrere Elemente drehen sich **gemeinsam um ihre Mitte**, nicht jedes
+      // um sich selbst. Vorher tat jedes Regal Letzteres: Ein Sechs-Meter-Zug
+      // um 90 Grad gedreht fiel dabei in einen Haufen übereinanderstehender
+      // Felder – jedes stand noch an seinem Platz, aber quer.
+      //
+      // Ein einzelnes Element dreht sich weiter um den eigenen Mittelpunkt.
+      // Da ist beides dasselbe, und der kürzere Weg ist der klarere.
+      const rahmen = betroffen.length > 1 ? gesamtUmgrenzung(betroffen) : null;
+      const mx = rahmen ? (rahmen.links + rahmen.rechts) / 2 : 0;
+      const my = rahmen ? (rahmen.oben + rahmen.unten) / 2 : 0;
+      const bogen = (grad * Math.PI) / 180;
+      const sin = Math.sin(bogen);
+      const cos = Math.cos(bogen);
+
+      return {
+        ...p,
+        elemente: p.elemente.map((el) => {
+          if (!menge.has(el.id) || el.gesperrt) return el;
+          const gedreht = { ...el, drehung: (((el.drehung + grad) % 360) + 360) % 360 };
+          if (!rahmen) return gedreht;
+          const dx = el.x - mx;
+          const dy = el.y - my;
+          return {
+            ...gedreht,
+            x: runde(mx + dx * cos - dy * sin),
+            y: runde(my + dx * sin + dy * cos),
+          };
+        }),
+      };
+    });
   },
 
   verschiebeAuswahl(dx, dy, mitHistorie = true) {
@@ -1048,6 +1185,31 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
  * Ändert das Projekt und legt vorher einen Schnappschuss für "Rückgängig" an.
  * Alle Aktionen, die Daten verändern, laufen über diese Funktion.
  */
+/**
+ * Setzt den geänderten Zug ein und rückt seine Kopfgondeln nach.
+ *
+ * Nötig, sobald sich Länge, Lage oder Drehung des Zugs ändern: Der Kopf steht
+ * in dessen Achse, und ein Zug, der um ein Feld gewachsen ist, hat seinen Kopf
+ * sonst mittendrin stehen.
+ */
+function richteKoepfeAus(elemente: PlanElement[], zug: PlanElement): PlanElement[] {
+  const koepfe = zug.kopfgondeln;
+  return elemente.map((el) => {
+    if (el.id === zug.id) return zug;
+    if (el.kopfVon !== zug.id) return el;
+    const seite: Kopfseite | null =
+      koepfe?.anfang === el.id ? 'anfang' : koepfe?.ende === el.id ? 'ende' : null;
+    if (!seite) return el;
+    const lage = kopflage(zug, seite);
+    return { ...el, x: runde(lage.x), y: runde(lage.y), drehung: lage.drehung };
+  });
+}
+
+/** Summe einer Feldliste in cm, auf Zehntelmillimeter gerundet. */
+function summeFelder(felder: number[]): number {
+  return Math.round(felder.reduce((s, f) => s + f, 0) * 100) / 100;
+}
+
 function aendere(
   set: (teil: Partial<PlanStore>) => void,
   get: () => PlanStore,

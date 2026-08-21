@@ -47,11 +47,35 @@ function schraffiere(ctx: Konva.Context, b: number, t: number, abstand: number) 
 }
 
 /**
+ * Die Feldbreiten eines Zugs, auf die gezeichnete Länge umgerechnet.
+ *
+ * Ohne Feldliste wird gleichmäßig nach Achsmaß geteilt – so wurde bis dahin
+ * jeder Zug gezeichnet, und für eine ältere Planung ist das die richtige
+ * Deutung.
+ *
+ * Mit Feldliste werden die Breiten auf die tatsächliche Länge gestreckt. Der
+ * Faktor liegt bei eins Komma nichts: Er fängt nur die Rundung des krummen
+ * A1333 ab, damit das letzte Feld nicht übersteht.
+ */
+function feldbreiten(b: number, felder: number[] | undefined, achsmass: number): number[] {
+  if (felder && felder.length > 0) {
+    const roh = felder.reduce((s, f) => s + f, 0);
+    if (roh > 0) {
+      const faktor = b / roh;
+      return felder.map((f) => f * faktor);
+    }
+  }
+  const anzahl = achsmass > 0 ? Math.max(1, Math.round(b / achsmass)) : 1;
+  return Array.from({ length: anzahl }, () => b / anzahl);
+}
+
+/**
  * Zeichnet die gewählte Grundform in ein Rechteck der Größe b × t.
  *
  * `beidseitig` ändert bei manchen Möbeln die Zeichnung: Eine Doppeltruhe hat
  * einen Steg in der Mitte, eine Einzeltruhe eine Rückwand. `achsmass` teilt
- * einen Regalzug in Felder.
+ * einen Regalzug gleichmäßig in Felder, `felder` gibt stattdessen jedes Feld
+ * einzeln vor – daran hängt ein gemischter Zug.
  */
 export function zeichneForm(
   ctx: Konva.Context,
@@ -60,6 +84,7 @@ export function zeichneForm(
   t: number,
   beidseitig = false,
   achsmass = 0,
+  felder?: number[],
 ) {
   switch (form) {
     case 'abgerundet': {
@@ -332,11 +357,22 @@ export function zeichneForm(
       // der Mitte und zählt nur einmal: 2 × 600 + 70 = 1270, nicht 1340.
       ctx.rect(0, 0, b, t);
 
-      const felder = achsmass > 0 ? Math.max(1, Math.round(b / achsmass)) : 1;
-      const je = b / felder;
-      for (let i = 1; i < felder; i++) {
-        ctx.moveTo(i * je, 0);
-        ctx.lineTo(i * je, t);
+      // Die Felder einzeln, mit ihren eigenen Maßen. Ein gemischter Zug –
+      // fünf Felder A1000 und eines A1250 – muss auch so aussehen: Die
+      // Trennlinie sitzt dort, wo im Markt die Säule steht, und das
+      // Achsmaß-Zeichen richtet sich nach der Breite des jeweiligen Felds.
+      //
+      // Die Breiten werden auf die gezeichnete Länge umgerechnet. Beim
+      // krummen A1333 summieren sich sonst Zehntelmillimeter bis ans Ende
+      // des Zugs, und das letzte Feld stünde sichtbar über.
+      const liste = feldbreiten(b, felder, achsmass);
+      let x = 0;
+      for (let i = 0; i < liste.length; i++) {
+        if (i > 0) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, t);
+        }
+        x += liste[i];
       }
 
       const zone = Math.min(TOTE_ZONE, t / 2);
@@ -352,17 +388,18 @@ export function zeichneForm(
 
       // Das Achsmaß-Zeichen steht in jedem Feld, nicht einmal über den
       // ganzen Zug: Ein 6-m-Zug aus 1,25er Feldern hat fünf Diagonalen.
-      const zeichen = achsmassZeichen(je);
-      if (zeichen !== 'keins') {
-        for (let i = 0; i < felder; i++) {
-          const links = i * je;
+      let links = 0;
+      for (const feld of liste) {
+        const zeichen = achsmassZeichen(feld);
+        if (zeichen !== 'keins') {
           ctx.moveTo(links, t);
-          ctx.lineTo(links + je, 0);
+          ctx.lineTo(links + feld, 0);
           if (zeichen === 'kreuz') {
             ctx.moveTo(links, 0);
-            ctx.lineTo(links + je, t);
+            ctx.lineTo(links + feld, t);
           }
         }
+        links += feld;
       }
       break;
     }
@@ -1100,7 +1137,15 @@ export function ElementSymbol({
           for (const p of element.polygon.slice(1)) ctx.lineTo(p.x + b / 2, p.y + t / 2);
           ctx.closePath();
         }
-        zeichneForm(ctx, element.form, b, t, Boolean(element.beidseitig), element.achsmass ?? 0);
+        zeichneForm(
+          ctx,
+          element.form,
+          b,
+          t,
+          Boolean(element.beidseitig),
+          element.achsmass ?? 0,
+          element.felder,
+        );
         zeichneAchsmass(ctx, element.form, element.breite, b, t);
         ctx.fillStrokeShape(shape);
 

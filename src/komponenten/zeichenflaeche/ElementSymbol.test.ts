@@ -166,3 +166,46 @@ describe('Türen an Kühlmöbeln', () => {
     expect(boegen('tuerBlatt', 250, 12)).toHaveLength(1);
   });
 });
+
+describe('Gemischter Regalzug', () => {
+  /** Die x-Stellen, an denen der Zug senkrecht geteilt wird. */
+  function trennlinien(breite: number, felder?: number[], achsmass = 100) {
+    const { ctx, aufrufe, punkte } = mitschreiber();
+    zeichneForm(ctx, 'wt100', breite, 127, true, achsmass, felder);
+    const stellen: number[] = [];
+    let zeiger = 0;
+    for (let i = 0; i < aufrufe.length; i++) {
+      const name = aufrufe[i];
+      if (name === 'moveTo' && aufrufe[i + 1] === 'lineTo') {
+        const [x1, y1] = [punkte[zeiger], punkte[zeiger + 1]];
+        const [x2, y2] = [punkte[zeiger + 2], punkte[zeiger + 3]];
+        // Senkrecht und über die ganze Tiefe: das ist eine Feldgrenze.
+        if (Math.abs(x1 - x2) < 0.01 && Math.abs(y1) < 0.01 && Math.abs(y2 - 127) < 0.01) {
+          stellen.push(Math.round(x1 * 100) / 100);
+        }
+      }
+      zeiger += { arc: 6, arcTo: 5, rect: 4, ellipse: 4, moveTo: 2, lineTo: 2, closePath: 0 }[
+        name as 'arc'
+      ];
+    }
+    return stellen;
+  }
+
+  it('setzt die Feldgrenzen dorthin, wo die Säule steht', () => {
+    // Fünf Felder A1000 und eines A1250: Die Grenzen liegen bei 100, 200,
+    // 300, 400 und 500 – nicht bei gleichmäßigen Sechsteln von 6,25 m.
+    expect(trennlinien(625, [100, 100, 100, 100, 100, 125])).toEqual([100, 200, 300, 400, 500]);
+  });
+
+  it('setzt das breite Feld dorthin, wo es in der Liste steht', () => {
+    // Genau darum geht es bei der Position: Steht das A1250 vorn, sitzt die
+    // erste Grenze bei 125 und nicht bei 100.
+    expect(trennlinien(625, [125, 100, 100, 100, 100, 100])).toEqual([125, 225, 325, 425, 525]);
+  });
+
+  it('teilt ohne Feldliste weiter gleichmäßig', () => {
+    // So wurde bis dahin jeder Zug gezeichnet – eine ältere Planung darf
+    // sich durch das Öffnen nicht verändern.
+    expect(trennlinien(600, undefined, 100)).toEqual([100, 200, 300, 400, 500]);
+  });
+});

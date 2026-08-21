@@ -3,12 +3,21 @@ import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { WARENGRUPPEN } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
+import {
+  MODULE,
+  feldliste,
+  naechstesModul,
+  summe,
+  zaehleModule,
+} from '../logik/feldaufteilung';
+import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
 import { masslaenge } from '../logik/messen';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel } from '../logik/waende';
 import type {
   Grundform,
   KategorieId,
+  Massinheit,
   Masslinie,
   Oeffnung,
   Oeffnungsart,
@@ -499,6 +508,160 @@ function RaumEigenschaften({ raum }: { raum: Raum }) {
 }
 
 // ===========================================================================
+//  Feldaufteilung und Kopfgondeln eines Regalzugs
+// ===========================================================================
+
+/**
+ * Der Zug, Feld für Feld.
+ *
+ * Ein Regalzug ist kein Balken, den man auf jedes Maß zieht: Er besteht aus
+ * Feldern, und jedes hat eines von vier Achsmaßen. Deshalb wird hier nicht
+ * eine Breite eingestellt, sondern die Aufteilung – Zahl, Maß und
+ * Reihenfolge. Die Breite ergibt sich daraus und nicht umgekehrt.
+ */
+function Feldaufteilung({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
+  const store = usePlanStore.getState;
+  const felder = element.felder ?? feldliste(element.breite, element.achsmass);
+  const setze = (neu: number[]) => {
+    usePlanStore.getState().schnappschuss();
+    usePlanStore.getState().setzeFelder(element.id, neu);
+  };
+
+  const tausche = (i: number, richtung: -1 | 1) => {
+    const ziel = i + richtung;
+    if (ziel < 0 || ziel >= felder.length) return;
+    const neu = [...felder];
+    [neu[i], neu[ziel]] = [neu[ziel], neu[i]];
+    setze(neu);
+  };
+
+  const koepfeMoeglich = kannKopfgondel(element);
+  const masse = koepfeMoeglich ? kopfmasse(element.tiefe) : null;
+
+  return (
+    <>
+      <div className="gruppe">
+        <div className="gruppe-titel">Felder</div>
+
+        <div className="kennzahl">
+          <span>
+            {felder.length} {felder.length === 1 ? 'Feld' : 'Felder'}
+          </span>
+          <span className="kennzahl-wert">{formatiereLaenge(summe(felder), einheit)}</span>
+        </div>
+
+        {zaehleModule(felder).map((eintrag) => (
+          <div className="kennzahl" key={eintrag.modul}>
+            <span>Davon A{Math.round(eintrag.modul * 10)}</span>
+            <span className="kennzahl-wert">{eintrag.anzahl} ×</span>
+          </div>
+        ))}
+
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {felder.map((feld, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span className="kategorie-anzahl" style={{ minWidth: 22 }}>
+                {i + 1}.
+              </span>
+              <select
+                style={{ flex: 1 }}
+                value={String(naechstesModul(feld))}
+                onChange={(e) => {
+                  const neu = [...felder];
+                  neu[i] = Number(e.target.value);
+                  setze(neu);
+                }}
+              >
+                {MODULE.map((m) => (
+                  <option key={m} value={String(m)}>
+                    A{Math.round(m * 10)} · {formatiereLaenge(m, einheit)}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="knopf knopf-nur-symbol"
+                disabled={i === 0}
+                title="Feld nach vorn schieben"
+                onClick={() => tausche(i, -1)}
+              >
+                ↑
+              </button>
+              <button
+                className="knopf knopf-nur-symbol"
+                disabled={i === felder.length - 1}
+                title="Feld nach hinten schieben"
+                onClick={() => tausche(i, 1)}
+              >
+                ↓
+              </button>
+              <button
+                className="knopf knopf-nur-symbol knopf-gefahr"
+                disabled={felder.length <= 1}
+                title="Dieses Feld entfernen"
+                onClick={() => setze(felder.filter((_, j) => j !== i))}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="knopfreihe" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+          {MODULE.map((m) => (
+            <button
+              key={m}
+              className="knopf"
+              title={`Ein Feld A${Math.round(m * 10)} hinten anfügen`}
+              onClick={() => setze([...felder, m])}
+            >
+              + A{Math.round(m * 10)}
+            </button>
+          ))}
+        </div>
+
+        <p className="hinweis" style={{ marginTop: 8 }}>
+          Nur diese vier Achsmaße gibt es im System. Die Länge des Zugs ist die
+          Summe seiner Felder — wird ein Feld breiter, wächst der Zug nach hinten,
+          sein Anfang bleibt stehen.
+        </p>
+      </div>
+
+      {koepfeMoeglich && masse && (
+        <div className="gruppe">
+          <div className="gruppe-titel">Kopfgondeln</div>
+          <Schalter
+            label="Am Anfang"
+            wert={Boolean(element.kopfgondeln?.anfang)}
+            aendern={(an) => {
+              usePlanStore.getState().schnappschuss();
+              store().setzeKopfgondel(element.id, 'anfang', an);
+            }}
+          />
+          <Schalter
+            label="Am Ende"
+            wert={Boolean(element.kopfgondeln?.ende)}
+            aendern={(an) => {
+              usePlanStore.getState().schnappschuss();
+              store().setzeKopfgondel(element.id, 'ende', an);
+            }}
+          />
+          <p className="hinweis" style={{ marginTop: 6 }}>
+            Vor diese Gondel gehört eine <strong>A{Math.round(masse.achsmass * 10)}</strong> mit{' '}
+            {formatiereLaenge(masse.tiefe, einheit)} Tiefe — so tief wie eine Gondelseite. Das Maß
+            ergibt sich aus der Gondeltiefe und ist nicht einstellbar.
+          </p>
+          <p className="hinweis">
+            Der Kopf ist ein eigenes Möbel und zählt in den Regalmetern mit. Er gehört zur Gruppe
+            des Zugs: Verschieben und Drehen nehmen ihn mit. Eine von Hand gesetzte Kopfgondel
+            bewegt sich genauso mit, sobald du sie mit dem Zug gruppierst (Strg+G).
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ===========================================================================
 //  Eigenschaften einer markierten Verkaufsfläche
 // ===========================================================================
 
@@ -771,6 +934,17 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           </div>
         </div>
       </div>
+
+      {/* Felder und Kopfgondeln gehören zum Zug, nicht zu seinen Köpfen.
+          Deshalb wird der Zug aus der Auswahl herausgesucht statt schlicht
+          das erste Element genommen: Sobald ein Kopf gesetzt ist, sind Zug
+          und Kopf gemeinsam ausgewählt – und ohne diesen Griff verschwände
+          das Feld, mit dem man den zweiten Kopf setzt. */}
+      {(() => {
+        const zuege = ausgewaehlte.filter((el) => !el.kopfVon);
+        const zug = zuege.length === 1 && zuege[0].form === 'wt100' ? zuege[0] : null;
+        return zug ? <Feldaufteilung element={zug} einheit={einheit} /> : null;
+      })()}
 
       {/* ------------------------------------------------------ Darstellung */}
       <div className="gruppe">

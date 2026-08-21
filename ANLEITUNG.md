@@ -345,8 +345,73 @@ schon überwiegend stehen. Aus drei Feldern von 1,25 m wird ein Zug von genau
 Mehrere Regale auswählen und **Strg + G** drücken. Danach bewegt ein Klick auf
 eines der Regale die ganze Gruppe. **Strg + Umschalt + G** löst sie wieder auf.
 
+Gedreht wird eine Gruppe **als Ganzes um ihre gemeinsame Mitte** — der Zug
+kippt hochkant, statt dass jedes Feld sich an Ort und Stelle quer stellt. Ein
+einzelnes Element dreht sich weiter um den eigenen Mittelpunkt.
+
 > Fertige Gondelzüge stehen auch direkt in der Bibliothek — unter *Regale →
 > Gondelzüge* von 2 bis 8 Feldern. Das spart das Aneinanderreihen von Hand.
+
+### Felder: Anzahl, Maß und Reihenfolge
+
+Ein Regalzug ist kein Balken, den man auf jedes Maß zieht. Er besteht aus
+Feldern, und jedes Feld hat eines von **vier Achsmaßen** — andere Breiten gibt
+es im System nicht:
+
+| Achsmaß | Breite |
+|---|---|
+| A625 | 0,625 m |
+| A1000 | 1,00 m |
+| A1250 | 1,25 m |
+| A1333 | 1,333 m |
+
+Ist ein wire-tech-Regal ausgewählt, steht rechts die Gruppe **Felder**: oben
+die Feldzahl und die Gesamtlänge, darunter die Zusammensetzung
+(„Davon A1000 5 ×"), und darunter jedes Feld einzeln.
+
+Zu jedem Feld gehören vier Bedienelemente:
+
+- die **Auswahlliste** mit dem Achsmaß dieses Felds
+- **↑** und **↓** schieben das Feld im Zug nach vorn oder nach hinten
+- **×** entfernt es
+
+Darunter fügen die Knöpfe **+ A625** bis **+ A1333** hinten ein Feld an.
+
+**Die Länge ist die Summe der Felder**, nicht umgekehrt. Setzt du an einem
+6,00-m-Zug aus sechs A1000-Feldern eines auf A1250, wird der Zug 6,25 m lang.
+Zwei davon ergeben 6,50 m. Der Zug wächst dabei **nach hinten** — sein Anfang
+bleibt stehen, damit er nicht aus seiner Flucht wandert.
+
+Wo das breitere Feld sitzt, bestimmst du selbst: Die Trennlinien im Plan
+sitzen genau dort, wo im Markt die Säule steht. Ein A1250 ganz vorn ergibt
+eine andere Zeichnung als eines ganz hinten — und im Markt einen anderen
+Aufbau.
+
+### Kopfgondeln
+
+Bei einer beidseitigen Gondel steht rechts zusätzlich **Kopfgondeln** mit zwei
+Schaltern: **Am Anfang** und **Am Ende**. Jede Seite lässt sich einzeln
+an- und abwählen.
+
+Das Maß ergibt sich aus der Gondel und ist nicht einstellbar:
+
+| Gondel | Kopfgondel |
+|---|---|
+| 600er Boden (2 × 600 + 70 = 1270 tief) | **A1250**, 670 tief |
+| 500er Boden (2 × 500 + 70 = 1070 tief) | **A1000**, 570 tief |
+
+Die Tiefe ist immer die **einer Gondelseite** — die Kopfgondel ist ein
+einseitiges Regal und steht vor dem Kopf, nicht um ihn herum.
+
+Ein so gesetzter Kopf ist ein **eigenes Möbel**: Er zählt in den Regalmetern
+mit, hat eine Warengruppe und lässt sich einzeln anfassen. Er gehört zur
+Gruppe des Zugs — Verschieben und Drehen nehmen ihn mit, und beim Verlängern
+des Zugs rückt er nach.
+
+**Von Hand angebaute Kopfgondeln** gehen weiter: Die Bibliothek führt sie
+unter *Regale → Kopfgondeln*, gerade und rund. Damit auch sie mitwandern,
+markierst du Zug und Kopf zusammen und drückst **Strg + G**. Danach verhalten
+sie sich genau wie die angehakten.
 
 ---
 

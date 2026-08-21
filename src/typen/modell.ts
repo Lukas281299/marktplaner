@@ -252,6 +252,44 @@ export interface PlanElement {
    * fünf Diagonalen, nicht eine über die ganze Länge.
    */
   achsmass?: number;
+  /**
+   * Die einzelnen Felder eines Zugs, von links nach rechts, in cm.
+   *
+   * Ein Regalzug muss nicht aus lauter gleichen Feldern bestehen: Ein
+   * 6,25-m-Zug ist fünf Felder A1000 und eines A1250 – ein Feld von 6,25 m
+   * gibt es nicht. Zulässig sind nur die vier Achsmaße des Systems, siehe
+   * `logik/feldaufteilung.ts`.
+   *
+   * Ist nichts gesetzt, gilt weiter das alte Bild: gleichmäßige Teilung nach
+   * `achsmass`. Das ist die richtige Deutung für ältere Planungen, denn genau
+   * so wurden sie gezeichnet. `achsmass` bleibt daneben stehen und sagt, mit
+   * welchem Maß ein neues Feld angelegt wird.
+   *
+   * Die Summe der Felder ist die Breite. Wer eines ändert, ändert die Breite
+   * mit – anders herum ergäbe es keinen Sinn, weil ein Zug nicht mehr Platz
+   * hat als seine Felder.
+   */
+  felder?: number[];
+  /**
+   * Kopfgondeln an den beiden Enden eines Zugs.
+   *
+   * Gespeichert werden die Kennungen der Elemente, die als Kopf davorstehen –
+   * nicht ein bloßes Ja/Nein. Eine Kopfgondel ist ein eigenes Möbel: Sie
+   * zählt in den Regalmetern mit, hat eine Warengruppe und lässt sich einzeln
+   * anfassen. Ein gezeichnetes Anhängsel wäre nichts davon.
+   *
+   * `anfang` ist das Ende in Richtung des Zugbeginns (links im ungedrehten
+   * Zustand), `ende` das andere.
+   */
+  kopfgondeln?: { anfang?: string; ende?: string };
+  /**
+   * Zu welchem Zug dieses Element als Kopfgondel gehört.
+   *
+   * Die Gegenrichtung zu `kopfgondeln`. Beides zu führen ist Absicht: Die
+   * Rückrichtung erlaubt es, beim Verschieben eines Kopfes sofort zu sehen,
+   * dass er an einem Zug hängt – ohne alle Elemente danach zu durchsuchen.
+   */
+  kopfVon?: string;
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */
