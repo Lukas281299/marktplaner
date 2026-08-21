@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
-import { zeichneForm, zeichneStriche } from './ElementSymbol';
+import { einheitenNaehte, zeichneForm, zeichneStriche } from './ElementSymbol';
 import { BIBLIOTHEK } from '../../daten/bibliothek';
-import type { Grundform } from '../../typen/modell';
+import type { Grundform, PlanElement } from '../../typen/modell';
 
 /**
  * Prüfungen für die Zeichenfunktion der Symbole.
@@ -207,5 +207,57 @@ describe('Gemischter Regalzug', () => {
     // So wurde bis dahin jeder Zug gezeichnet – eine ältere Planung darf
     // sich durch das Öffnen nicht verändern.
     expect(trennlinien(600, undefined, 100)).toEqual([100, 200, 300, 400, 500]);
+  });
+});
+
+describe('Trennung zwischen Einheiten', () => {
+  /**
+   * Die x-Stellen, an denen ein Element über die ganze Tiefe geteilt wird.
+   *
+   * Gerufen wird die echte Funktion aus der Zeichnung, nicht eine Kopie
+   * ihrer Rechnung – sonst prüfte der Test sich selbst. Die Zeichenbreite
+   * ist gleich der Planbreite, damit die Werte direkt ablesbar sind.
+   */
+  function naehte(el: Partial<PlanElement> & { form: Grundform; breite: number }) {
+    const element = {
+      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'regale',
+      x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
+      beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+      ...el,
+    } as PlanElement;
+    return einheitenNaehte(element, element.breite).map((x) => Math.round(x * 100) / 100);
+  }
+
+  it('trennt zwei angehängte Kühlregale', () => {
+    // Genau der Fall: ein 1,25-m-Möbel, ein weiteres drangehängt. Der Plan
+    // muss zeigen, dass es zwei sind und nicht ein langes.
+    expect(naehte({ form: 'kuehlSchrank', breite: 250, felder: [125, 125] })).toEqual([125]);
+  });
+
+  it('trennt drei Einheiten in Obst und Gemüse', () => {
+    expect(naehte({ form: 'vitable', breite: 350, felder: [125, 125, 100] })).toEqual([125, 250]);
+  });
+
+  it('lässt ein einzelnes Möbel ungeteilt', () => {
+    // Ein Kühlregal von 1,88 m ist ein Gerät dieser Länge – da gehört
+    // keine Naht hinein.
+    expect(naehte({ form: 'kuehlSchrank', breite: 187.5 })).toEqual([]);
+  });
+
+  it('teilt eine Truhe in ihre Module', () => {
+    expect(naehte({ form: 'tkTruhe', breite: 250 })).toEqual([62.5, 125, 187.5]);
+  });
+
+  it('mischt sich beim Regalzug nicht ein', () => {
+    // Das Trockensortiment zeichnet seine Feldgrenzen selbst – käme hier
+    // noch eine Naht dazu, läge sie doppelt auf derselben Linie.
+    expect(naehte({ form: 'wt100', breite: 625, felder: [100, 100, 100, 100, 100, 125] }))
+      .toEqual([]);
+  });
+
+  it('gibt Formen ohne Raster keine Naht', () => {
+    // Die Freihand-Formen kennen kein Raster – da gibt es nichts zu trennen.
+    expect(naehte({ form: 'regal', breite: 400 })).toEqual([]);
+    expect(naehte({ form: 'rechteck', breite: 400 })).toEqual([]);
   });
 });

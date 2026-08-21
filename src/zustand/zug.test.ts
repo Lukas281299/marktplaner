@@ -341,3 +341,91 @@ describe('Abrunden beim Ziehen', () => {
     }
   });
 });
+
+describe('Der Kopf bleibt am Zug', () => {
+  beforeEach(() => {
+    usePlanStore.getState().setzeProjekt(neuesProjekt());
+  });
+
+  /** Abstand und Winkel zwischen Zug und seinem Kopf. */
+  function verhaeltnis(zugId: string) {
+    const zug = hole(zugId);
+    const kopf = store().projekt.elemente.find((el) => el.kopfVon === zugId)!;
+    return {
+      abstand: Math.hypot(kopf.x - zug.x, kopf.y - zug.y),
+      winkel: kopf.drehung,
+      zugWinkel: zug.drehung,
+    };
+  }
+
+  /** Ein Zug mit krummer Länge – dort tut jedes Runden weh. */
+  function krummerZug() {
+    const zug = legeZug('wt-zug-1000-6-600', 1000, 1000);
+    store().setzeFelder(zug.id, [133.3, 133.3, 133.3, 125, 100]);
+    store().setzeKopfgondel(zug.id, 'ende', true);
+    return zug.id;
+  }
+
+  it('bleibt beim Verschieben des Zugs am Platz', () => {
+    const id = krummerZug();
+    const vorher = verhaeltnis(id);
+    const zug = hole(id);
+
+    // So verschiebt die Zeichenfläche: gleiche Verschiebung für alle.
+    const ids = mitGruppen(store().projekt.elemente, [id]);
+    store().setzePositionen(
+      ids.map((elId) => {
+        const el = hole(elId);
+        return { id: elId, x: el.x + 37.3, y: el.y - 12.7 };
+      }),
+    );
+
+    expect(hole(id).x).toBeCloseTo(zug.x + 37.3, 2);
+    expect(verhaeltnis(id).abstand).toBeCloseTo(vorher.abstand, 3);
+  });
+
+  it('folgt auch, wenn nur der Zug bewegt wird', () => {
+    // Der eigentliche Ausbruch: Wird der Zug ohne seinen Kopf verschoben –
+    // per Alt-Klick, per Ausrichten, per Tastatur –, blieb der Kopf stehen.
+    const id = krummerZug();
+    const vorher = verhaeltnis(id);
+    const zug = hole(id);
+
+    store().setzePositionen([{ id, x: zug.x + 200, y: zug.y + 150 }]);
+
+    const nachher = verhaeltnis(id);
+    expect(nachher.abstand).toBeCloseTo(vorher.abstand, 3);
+    const kopf = store().projekt.elemente.find((el) => el.kopfVon === id)!;
+    expect(kopf.x).toBeCloseTo(zug.x + 200 + hole(id).breite / 2 + kopf.tiefe / 2, 2);
+  });
+
+  it('folgt der Tastatur', () => {
+    const id = krummerZug();
+    const vorher = verhaeltnis(id);
+    store().waehleAus([id]);
+    store().verschiebeAuswahl(25, -40);
+    expect(verhaeltnis(id).abstand).toBeCloseTo(vorher.abstand, 3);
+  });
+
+  it('folgt dem Ausrichten', () => {
+    const id = krummerZug();
+    const vorher = verhaeltnis(id);
+    // Ein zweites Möbel dazu, sonst richtet sich nichts aus.
+    const anderes = legeZug('wt-gondel-1000-600-1800', 400, 400);
+    store().waehleAus([id, anderes.id]);
+    store().richteAus('oben');
+    expect(verhaeltnis(id).abstand).toBeCloseTo(vorher.abstand, 3);
+  });
+
+  it('hält den Abstand auch nach vielen Verschiebungen', () => {
+    // Ein Fehler von Zehntelmillimetern je Zug summiert sich sonst zu einer
+    // sichtbaren Lücke – genau so fällt so etwas im Alltag auf.
+    const id = krummerZug();
+    const vorher = verhaeltnis(id);
+    for (let i = 0; i < 50; i++) {
+      const zug = hole(id);
+      store().setzePositionen([{ id, x: zug.x + 0.7, y: zug.y + 0.3 }]);
+    }
+    expect(verhaeltnis(id).abstand).toBeCloseTo(vorher.abstand, 3);
+  });
+});

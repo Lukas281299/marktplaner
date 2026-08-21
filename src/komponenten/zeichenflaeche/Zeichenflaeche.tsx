@@ -901,12 +901,19 @@ export function Zeichenflaeche() {
     knoten.position({ x: zielX, y: zielY });
 
     // 3. Die gleiche Verschiebung auf alle ausgewählten Elemente übertragen
+    //
+    // Bewusst **ohne** Runden: Das angefasste Element steht schon auf dem
+    // eingerasteten Wert, und jeder Mitreisende behält seinen Abstand dazu
+    // auf den Millimeter. Wurde hier jede Lage einzeln auf halbe Zentimeter
+    // gerastet, rutschten die Teile einer Gruppe gegeneinander – bei einem
+    // Zug von 633,30 cm liegt der Kopf 350,15 cm entfernt, und beide landen
+    // beim Runden auf verschiedenen Rasterpunkten.
     const dx = zielX - start.x;
     const dy = zielY - start.y;
     const neuePositionen = [...daten.start.entries()].map(([elId, pos]) => ({
       id: elId,
-      x: runde(pos.x + dx),
-      y: runde(pos.y + dy),
+      x: pos.x + dx,
+      y: pos.y + dy,
     }));
     store.setzePositionen(neuePositionen);
 

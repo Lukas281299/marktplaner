@@ -853,8 +853,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       ebeneId: zug.ebeneId,
       name: `Kopfgondel A${Math.round(masse.achsmass * 10)}`,
       kategorie: zug.kategorie,
-      x: runde(lage.x),
-      y: runde(lage.y),
+      // Feinrundung wie überall am Zug: Ein Kopf, der beim Anlegen auf
+      // halbe Zentimeter gerastet wird, sitzt von Anfang an einen
+      // Millimeter daneben.
+      x: feinRunde(lage.x),
+      y: feinRunde(lage.y),
       breite: masse.breite,
       tiefe: masse.tiefe,
       hoehe: zug.hoehe,
@@ -902,10 +905,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     const karte = new Map(werte.map((w) => [w.id, w]));
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
-      elemente: p.elemente.map((el) => {
-        const neu = karte.get(el.id);
-        return neu && !el.gesperrt ? { ...el, x: neu.x, y: neu.y } : el;
-      }),
+      elemente: mitAusgerichtetenKoepfen(
+        p.elemente.map((el) => {
+          const neu = karte.get(el.id);
+          return neu && !el.gesperrt ? { ...el, x: neu.x, y: neu.y } : el;
+        }),
+      ),
     });
     if (mitHistorie) aendere(set, get, wandeln);
     else set((s) => ({ projekt: wandeln(s.projekt) }));
@@ -1023,18 +1028,20 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
       return {
         ...p,
-        elemente: p.elemente.map((el) => {
-          if (!menge.has(el.id) || el.gesperrt) return el;
-          const gedreht = { ...el, drehung: (((el.drehung + grad) % 360) + 360) % 360 };
-          if (!rahmen) return gedreht;
-          const dx = el.x - mx;
-          const dy = el.y - my;
-          return {
-            ...gedreht,
-            x: runde(mx + dx * cos - dy * sin),
-            y: runde(my + dx * sin + dy * cos),
-          };
-        }),
+        elemente: mitAusgerichtetenKoepfen(
+          p.elemente.map((el) => {
+            if (!menge.has(el.id) || el.gesperrt) return el;
+            const gedreht = { ...el, drehung: (((el.drehung + grad) % 360) + 360) % 360 };
+            if (!rahmen) return gedreht;
+            const dx = el.x - mx;
+            const dy = el.y - my;
+            return {
+              ...gedreht,
+              x: feinRunde(mx + dx * cos - dy * sin),
+              y: feinRunde(my + dx * sin + dy * cos),
+            };
+          }),
+        ),
       };
     });
   },
@@ -1045,8 +1052,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     const menge = new Set(auswahl);
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
-      elemente: p.elemente.map((el) =>
-        menge.has(el.id) && !el.gesperrt ? { ...el, x: el.x + dx, y: el.y + dy } : el,
+      elemente: mitAusgerichtetenKoepfen(
+        p.elemente.map((el) =>
+          menge.has(el.id) && !el.gesperrt ? { ...el, x: el.x + dx, y: el.y + dy } : el,
+        ),
       ),
     });
     if (mitHistorie) aendere(set, get, wandeln);
@@ -1099,26 +1108,29 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
     aendere(set, get, (p) => ({
       ...p,
-      elemente: p.elemente.map((el) => {
-        if (!auswahl.includes(el.id) || el.gesperrt) return el;
-        const eigen = umgrenzung(el);
-        const halbeBreite = (eigen.rechts - eigen.links) / 2;
-        const halbeTiefe = (eigen.unten - eigen.oben) / 2;
-        switch (art) {
-          case 'links':
-            return { ...el, x: rahmen.links + halbeBreite };
-          case 'rechts':
-            return { ...el, x: rahmen.rechts - halbeBreite };
-          case 'mitteWaagerecht':
-            return { ...el, x: (rahmen.links + rahmen.rechts) / 2 };
-          case 'oben':
-            return { ...el, y: rahmen.oben + halbeTiefe };
-          case 'unten':
-            return { ...el, y: rahmen.unten - halbeTiefe };
-          case 'mitteSenkrecht':
-            return { ...el, y: (rahmen.oben + rahmen.unten) / 2 };
-        }
-      }),
+      // Auch hier gilt: Ein Kopf steht dort, wo sein Zug ihn hinstellt.
+      elemente: mitAusgerichtetenKoepfen(
+        p.elemente.map((el) => {
+          if (!auswahl.includes(el.id) || el.gesperrt) return el;
+          const eigen = umgrenzung(el);
+          const halbeBreite = (eigen.rechts - eigen.links) / 2;
+          const halbeTiefe = (eigen.unten - eigen.oben) / 2;
+          switch (art) {
+            case 'links':
+              return { ...el, x: rahmen.links + halbeBreite };
+            case 'rechts':
+              return { ...el, x: rahmen.rechts - halbeBreite };
+            case 'mitteWaagerecht':
+              return { ...el, x: (rahmen.links + rahmen.rechts) / 2 };
+            case 'oben':
+              return { ...el, y: rahmen.oben + halbeTiefe };
+            case 'unten':
+              return { ...el, y: rahmen.unten - halbeTiefe };
+            case 'mitteSenkrecht':
+              return { ...el, y: (rahmen.oben + rahmen.unten) / 2 };
+          }
+        }),
+      ),
     }));
   },
 
@@ -1212,6 +1224,48 @@ function richteKoepfeAus(elemente: PlanElement[], zug: PlanElement): PlanElement
       koepfe?.anfang === el.id ? 'anfang' : koepfe?.ende === el.id ? 'ende' : null;
     if (!seite) return el;
     const lage = kopflage(zug, seite);
+    return { ...el, x: feinRunde(lage.x), y: feinRunde(lage.y), drehung: lage.drehung };
+  });
+}
+
+/**
+ * Setzt **jede** Kopfgondel auf die Stelle, die ihr Zug ihr vorgibt.
+ *
+ * Die Lage eines Kopfes wird abgeleitet und nicht mitgeführt. Das ist der
+ * Unterschied zwischen „bewegt sich meistens mit" und „sitzt". Mitführen
+ * hieße, an jeder Stelle daran zu denken, die etwas an einem Zug verändert –
+ * Ziehen, Tastatur, Ausrichten, Drehen, Verlängern –, und eine davon
+ * vergisst man. Genau so brachen Köpfe aus.
+ *
+ * Läuft über alle Elemente und ist damit O(n). Bei Plänen dieser Größe
+ * fällt das nicht ins Gewicht, und die Zusage ist es wert.
+ */
+function mitAusgerichtetenKoepfen(elemente: PlanElement[]): PlanElement[] {
+  const zuege = new Map<string, PlanElement>();
+  for (const el of elemente) if (el.kopfgondeln) zuege.set(el.id, el);
+  if (zuege.size === 0) return elemente;
+
+  return elemente.map((el) => {
+    if (!el.kopfVon) return el;
+    const zug = zuege.get(el.kopfVon);
+    if (!zug) return el;
+    const seite: Kopfseite | null =
+      zug.kopfgondeln?.anfang === el.id
+        ? 'anfang'
+        : zug.kopfgondeln?.ende === el.id
+          ? 'ende'
+          : null;
+    if (!seite) return el;
+    const lage = kopflage(zug, seite);
+    // Unverändert lassen, was schon sitzt – sonst entstünde bei jedem
+    // Zeichendurchlauf ein neues Objekt und React zeichnete unnötig neu.
+    if (
+      Math.abs(el.x - lage.x) < 0.005 &&
+      Math.abs(el.y - lage.y) < 0.005 &&
+      el.drehung === lage.drehung
+    ) {
+      return el;
+    }
     return { ...el, x: feinRunde(lage.x), y: feinRunde(lage.y), drehung: lage.drehung };
   });
 }

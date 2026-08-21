@@ -379,6 +379,11 @@ tatsächlich gebaut ist: Eine TK-Truhe von 2,50 m erscheint als **vier Module à
 0,63 m**, ein Kühlregal von 1,88 m dagegen als **ein Möbel** — das ist ein
 Gerät dieser Länge und nicht zwei kleinere.
 
+Wo zwei Einheiten aneinanderstoßen, zieht der Plan eine **Trennlinie über die
+ganze Tiefe** — genau wie bei den Feldern eines Regalzugs. Zwei
+aneinandergehängte 1,25-m-Kühlregale bleiben dadurch als zwei Möbel erkennbar
+und sehen nicht aus wie ein langes.
+
 > **Ohne Raster geht es weiter frei.** Die Freihand-Vorlagen („Regal frei",
 > „Gondel frei", Flächen, Symbole) haben bewusst keine Einheiten-Gruppe. Sie
 > sind genau dafür da, dass man sich um kein Raster kümmern muss.
@@ -445,9 +450,13 @@ Die Tiefe ist immer die **einer Gondelseite** — die Kopfgondel ist ein
 einseitiges Regal und steht vor dem Kopf, nicht um ihn herum.
 
 Ein so gesetzter Kopf ist ein **eigenes Möbel**: Er zählt in den Regalmetern
-mit, hat eine Warengruppe und lässt sich einzeln anfassen. Er gehört zur
-Gruppe des Zugs — Verschieben und Drehen nehmen ihn mit, und beim Verlängern
-des Zugs rückt er nach.
+mit, hat eine Warengruppe und lässt sich einzeln anfassen.
+
+**Seine Lage bestimmt der Zug.** Der Kopf wird nicht mitgeschoben, sondern bei
+jeder Änderung neu aus dem Zug abgeleitet — beim Verschieben, Drehen,
+Ausrichten und Verlängern. Er kann dadurch nicht ausbrechen, auch nicht, wenn
+der Zug einmal ohne ihn bewegt wird. Wer den Kopf woanders haben will, nimmt
+den Haken weg und setzt eine Kopfgondel von Hand.
 
 **Von Hand angebaute Kopfgondeln** gehen weiter: Die Bibliothek führt sie
 unter *Regale → Kopfgondeln*, gerade und rund. Damit auch sie mitwandern,

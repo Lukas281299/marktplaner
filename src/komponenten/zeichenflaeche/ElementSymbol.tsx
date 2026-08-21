@@ -1,6 +1,7 @@
 import { Shape, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { modulsatzFuer, zerlegeInModule } from '../../daten/module';
 import { achsmassZeichen } from '../../logik/achsmass';
 import type { Grundform, PlanElement } from '../../typen/modell';
 
@@ -67,6 +68,38 @@ function feldbreiten(b: number, felder: number[] | undefined, achsmass: number):
   }
   const anzahl = achsmass > 0 ? Math.max(1, Math.round(b / achsmass)) : 1;
   return Array.from({ length: anzahl }, () => b / anzahl);
+}
+
+/**
+ * Die Nahtstellen zwischen den Einheiten eines Möbels, im Zeichenmaß.
+ *
+ * Zwei aneinandergehängte Kühlregale sind zwei Möbel und kein langes.
+ * Ohne diese Linie sieht der Plan an der Stelle aus wie ein Stück, und beim
+ * Bestellen fällt der Unterschied erst auf, wenn es zu spät ist.
+ *
+ * Das Trockensortiment fehlt hier mit Absicht: Es zeichnet seine Feldgrenzen
+ * schon selbst, und genau so sollen die übrigen Abteilungen auch aussehen.
+ */
+export function einheitenNaehte(element: PlanElement, b: number): number[] {
+  if (element.form === 'wt100') return [];
+  const satz = modulsatzFuer(element.form);
+  if (!satz) return [];
+
+  const teile = element.felder ?? zerlegeInModule(element.breite, satz);
+  if (teile.length < 2) return [];
+  const roh = teile.reduce((summe, teil) => summe + teil, 0);
+  if (roh <= 0) return [];
+
+  // Auf die gezeichnete Länge umrechnen – dieselbe Streckung wie bei den
+  // Feldern des Regalzugs.
+  const faktor = b / roh;
+  const naehte: number[] = [];
+  let x = 0;
+  for (const teil of teile.slice(0, -1)) {
+    x += teil * faktor;
+    naehte.push(x);
+  }
+  return naehte;
 }
 
 /**
@@ -1146,6 +1179,12 @@ export function ElementSymbol({
           element.achsmass ?? 0,
           element.felder,
         );
+        // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
+        // die ganze Tiefe – so wie beim Regalzug.
+        for (const x of einheitenNaehte(element, b)) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, t);
+        }
         zeichneAchsmass(ctx, element.form, element.breite, b, t);
         ctx.fillStrokeShape(shape);
 
