@@ -533,6 +533,7 @@ export interface Projekt {
  *   4 – Gruppen, beidseitige Regale, dauerhafte Maßlinien
  *   5 – Achsmaß am Element, Hintergrundbild aus einem Plan-PDF
  *   6 – eingezeichnete Verkaufsflächen
+ *   7 – eigene Ebene für die Verkaufsfläche
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -542,5 +543,9 @@ export interface Projekt {
  * richtige Bedeutung: In einer älteren Planung ist nichts eingezeichnet, also
  * bleibt es bei der gerechneten Verkaufsfläche – die Kennzahl ändert sich
  * durch das Öffnen nicht.
+ *
+ * Fassung 7 trägt fehlende Standardebenen nach. Ohne diesen Schritt hätte
+ * eine ältere Planung die Ebene „Verkaufsfläche" nicht, und was auf ihr
+ * liegt, wäre unsichtbar – ohne Schalter, mit dem man es zurückholt.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;

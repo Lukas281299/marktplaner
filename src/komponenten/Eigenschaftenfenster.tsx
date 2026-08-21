@@ -1223,7 +1223,14 @@ function ProjektEigenschaften() {
       <div className="gruppe">
         <div className="gruppe-titel">Ebenen</div>
         {projekt.ebenen.map((ebene) => {
-          const anzahl = projekt.elemente.filter((el) => el.ebeneId === ebene.id).length;
+          // Auf der Verkaufsflächen-Ebene liegen keine Möbel, sondern die
+          // eingezeichneten Teilflächen. Stünde dort stur die Zahl der
+          // Elemente, zeigte die Ebene immer eine Null – und sähe leer aus,
+          // obwohl etwas darauf liegt.
+          const anzahl =
+            ebene.id === 'verkaufsflaeche'
+              ? projekt.verkaufsflaechen.length
+              : projekt.elemente.filter((el) => el.ebeneId === ebene.id).length;
           return (
             <div
               key={ebene.id}

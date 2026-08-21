@@ -370,8 +370,10 @@ Ein zweiter Druck auf **M** legt das Maßband wieder weg.
 
 ## 9. Ebenen
 
-Rechts unter *Ebenen* stehen fünf Ebenen: Gebäude & Wände, Räume, Einrichtung,
-Beschriftungen und Laufwege. Dahinter steht, wie viele Elemente darauf liegen.
+Rechts unter *Ebenen* stehen sechs Ebenen: Gebäude & Wände, Räume,
+Verkaufsfläche, Einrichtung, Beschriftungen und Laufwege. Dahinter steht, wie
+viele Elemente darauf liegen — bei *Verkaufsfläche* die Zahl der
+eingezeichneten Teilflächen.
 
 Zu jeder Ebene gibt es zwei Knöpfe:
 
@@ -379,7 +381,16 @@ Zu jeder Ebene gibt es zwei Knöpfe:
 - **Schloss** — Ebene sperren, dann lässt sich nichts darauf verschieben
 
 Das ist nützlich, wenn man die Einrichtung umstellt und das Gebäude dabei in
-Ruhe lassen will.
+Ruhe lassen will. Genauso für die eingezeichnete Verkaufsfläche: Auge zu, und
+der Plan ist frei von der Markierung, ohne dass etwas gelöscht wird.
+
+**Ausblenden ändert keine Zahl.** Eine ausgeblendete Ebene ist nur unsichtbar,
+nicht weg — die Flächenübersicht rechnet weiter mit ihr. Das gilt für Räume
+wie für die Verkaufsfläche.
+
+Eine Planung, die vor dieser Fassung angelegt wurde, bekommt fehlende Ebenen
+beim Öffnen nachgetragen. Was du dort eingestellt hattest, bleibt: Eine
+ausgeblendete Ebene wird nicht wieder eingeblendet.
 
 ---
 
@@ -441,8 +452,12 @@ Zwei Punkte, die man kennen sollte:
 Eine markierte Fläche liegt **über** dem Boden und den Räumen, aber **unter**
 der Einrichtung: Sie überzieht den Raum darunter, verdeckt aber kein Regal.
 Gezeichnet wird sie durchscheinend und schraffiert — eine deckende Fläche
-würde man für einen Raum halten. Sie gehört zur Ebene **Räume**; wer die Ebene
-ausblendet, blendet auch die Markierung aus.
+würde man für einen Raum halten.
+
+**Ein- und ausblenden** über die eigene Ebene *Verkaufsfläche* (siehe
+[Ebenen](#9-ebenen)): Auge zu, und der Plan ist frei von der Markierung. Die
+Quadratmeter in der Übersicht bleiben dabei stehen — ausgeblendet heißt
+unsichtbar, nicht gelöscht.
 
 Verschieben: die Fläche auf dem Plan ziehen. Rechts lassen sich Name, Farbe,
 Beschriftung und die Sperre einstellen. Wird die letzte Teilfläche gelöscht,

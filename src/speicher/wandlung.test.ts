@@ -65,7 +65,51 @@ describe('Grundfläche', () => {
     expect(neu.name).toBe('Markt Nord');
     expect(neu.erstelltAm).toBe(1000);
     expect(neu.elemente).toHaveLength(1);
-    expect(neu.ebenen).toHaveLength(1);
+    // Die eine vorhandene Ebene bleibt – die fehlenden kommen dazu, siehe
+    // „Fassung 7".
+    expect(neu.ebenen.map((e) => e.id)).toContain('einrichtung');
+  });
+});
+
+describe('Fassung 7: fehlende Standardebenen', () => {
+  it('trägt jede fehlende Standardebene nach', () => {
+    // Ohne diesen Schritt hätte eine ältere Planung keine Ebene
+    // „Verkaufsfläche" – was darauf liegt, wäre unsichtbar, und es gäbe
+    // keinen Schalter, um es zurückzuholen.
+    const neu = wandleProjekt(alteFassung());
+    expect(neu.ebenen.map((e) => e.id)).toEqual([
+      'gebaeude',
+      'raeume',
+      'verkaufsflaeche',
+      'einrichtung',
+      'beschriftung',
+      'laufwege',
+    ]);
+  });
+
+  it('lässt die Einstellungen vorhandener Ebenen in Ruhe', () => {
+    // Wer „Räume" ausgeblendet hatte, bekommt sie nicht durchs Öffnen
+    // wieder eingeblendet.
+    const neu = wandleProjekt(
+      alteFassung({
+        ebenen: [
+          { id: 'raeume', name: 'Meine Räume', sichtbar: false, gesperrt: true },
+          { id: 'einrichtung', name: 'Einrichtung', sichtbar: true, gesperrt: false },
+        ],
+      }),
+    );
+    const raeume = neu.ebenen.find((e) => e.id === 'raeume')!;
+    expect(raeume).toEqual({ id: 'raeume', name: 'Meine Räume', sichtbar: false, gesperrt: true });
+  });
+
+  it('wirft eine unbekannte Ebene nicht weg', () => {
+    const neu = wandleProjekt(
+      alteFassung({
+        ebenen: [{ id: 'eigene-1', name: 'Bauabschnitt 2', sichtbar: true, gesperrt: false }],
+      }),
+    );
+    expect(neu.ebenen.map((e) => e.id)).toContain('eigene-1');
+    expect(neu.ebenen.map((e) => e.id)).toContain('verkaufsflaeche');
   });
 });
 

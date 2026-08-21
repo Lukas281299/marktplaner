@@ -1,6 +1,7 @@
+import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
 import { imUhrzeigersinn, rechteck } from '../logik/polygon';
-import { SCHEMA_VERSION, type PlanElement, type Projekt, type Raum } from '../typen/modell';
+import { SCHEMA_VERSION, type Ebene, type PlanElement, type Projekt, type Raum } from '../typen/modell';
 
 /**
  * Bringt ältere Planungen auf den aktuellen Stand des Datenmodells.
@@ -58,8 +59,30 @@ export function wandleProjekt(roh: unknown): Projekt {
     masslinien: projekt?.masslinien ?? [],
     // Fassung 6: nichts eingezeichnet heißt „weiter rechnen wie bisher".
     verkaufsflaechen: projekt?.verkaufsflaechen ?? [],
+    // Fassung 7
+    ebenen: ergaenzeEbenen(projekt?.ebenen),
     elemente: (projekt?.elemente ?? []).map(wandleElement),
   };
+}
+
+/**
+ * Trägt fehlende Standardebenen nach, an ihrer angestammten Stelle.
+ *
+ * Eine Ebene, die es im Programm gibt, aber nicht in der geöffneten Planung,
+ * ist die schlimmste Sorte Fehler: Was auf ihr liegt, wird unsichtbar, und es
+ * gibt keinen Schalter, mit dem man es zurückholt. Genau das wäre mit der
+ * Ebene „Verkaufsfläche" passiert.
+ *
+ * Vorhandene Ebenen behalten ihre Einstellungen – wer „Räume" ausgeblendet
+ * hatte, bekommt sie nicht durchs Öffnen wieder eingeblendet. Eigene Ebenen,
+ * die es im Programm nicht gibt, bleiben am Ende stehen statt wegzufallen.
+ */
+function ergaenzeEbenen(vorhanden: Ebene[] | undefined): Ebene[] {
+  const alte = new Map((vorhanden ?? []).map((e) => [e.id, e]));
+  const standard = STANDARD_EBENEN.map((e) => alte.get(e.id) ?? { ...e });
+  const bekannt = new Set(STANDARD_EBENEN.map((e) => e.id));
+  const eigene = (vorhanden ?? []).filter((e) => !bekannt.has(e.id));
+  return [...standard, ...eigene];
 }
 
 /**

@@ -1006,6 +1006,9 @@ export function Zeichenflaeche() {
   // und sperren wie alles andere auch.
   const raeumeSichtbar = sichtbareEbenen.has('raeume');
   const raeumeGesperrt = gesperrteEbenen.has('raeume');
+
+  const verkaufSichtbar = sichtbareEbenen.has('verkaufsflaeche');
+  const verkaufGesperrt = gesperrteEbenen.has('verkaufsflaeche');
   // Innenwände und Öffnungen gehören zum Gebäude.
   const gebaeudeSichtbar = sichtbareEbenen.has('gebaeude');
   const gebaeudeGesperrt = gesperrteEbenen.has('gebaeude');
@@ -1109,15 +1112,15 @@ export function Zeichenflaeche() {
         {/* ------------------------------------------------- Verkaufsfläche */}
         {/* Über den Räumen, unter der Einrichtung: Die Markierung soll den
             Raum darunter überziehen, aber die Regale nicht verdecken. */}
-        <Layer listening={raeumeSichtbar && werkzeug === 'auswahl'}>
-          {raeumeSichtbar && (
+        <Layer listening={verkaufSichtbar && werkzeug === 'auswahl'}>
+          {verkaufSichtbar && (
             <Verkaufsflaechen
               flaechen={projekt.verkaufsflaechen}
               ausgewaehlt={
                 sonderauswahl?.art === 'verkaufsflaeche' ? sonderauswahl.id : null
               }
               zoom={zoom}
-              anklickbar={werkzeug === 'auswahl' && !raeumeGesperrt}
+              anklickbar={werkzeug === 'auswahl' && !verkaufGesperrt}
               beiKlick={(id) =>
                 usePlanStore.getState().waehleSonder({ art: 'verkaufsflaeche', id })
               }

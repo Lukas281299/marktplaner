@@ -9,6 +9,7 @@ import { SCHEMA_VERSION, type Ebene, type Projekt } from '../typen/modell';
 export const STANDARD_EBENEN: Ebene[] = [
   { id: 'gebaeude', name: 'Gebäude & Wände', sichtbar: true, gesperrt: false },
   { id: 'raeume', name: 'Räume', sichtbar: true, gesperrt: false },
+  { id: 'verkaufsflaeche', name: 'Verkaufsfläche', sichtbar: true, gesperrt: false },
   { id: 'einrichtung', name: 'Einrichtung', sichtbar: true, gesperrt: false },
   { id: 'beschriftung', name: 'Beschriftungen', sichtbar: true, gesperrt: false },
   { id: 'laufwege', name: 'Laufwege', sichtbar: true, gesperrt: false },
