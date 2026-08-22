@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
 import {
   einheitenNaehte,
+  zeichenAbschnitte,
   zeichneAchsmass,
   zeichneForm,
   zeichneFuehrungsrohr,
@@ -502,5 +503,61 @@ describe('Diagonale je 1,25 m', () => {
     // A625 und A1333 tragen ein Kreuz. Die neue Regel kommt nur dort zum
     // Zug, wo es bisher gar kein Zeichen gab – sie nimmt keines weg.
     expect(diagonalen({ form: 'vitable', breite: 62.5 }).gegendiagonalen).toEqual([62.5]);
+  });
+});
+
+describe('Naht und Diagonale sagen dasselbe', () => {
+  /** Baut ein Element zum Prüfen. */
+  const moebel = (el: Partial<PlanElement> & { form: Grundform; breite: number }) =>
+    ({
+      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'kuehlung',
+      x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
+      beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+      ...el,
+    }) as PlanElement;
+
+  it('trennt eine fertige 2,50-m-Vorlage in der Mitte', () => {
+    // Genau der gemeldete Widerspruch: Die Diagonale teilte das Möbel in
+    // zwei, die Trennlinie fehlte.
+    expect(einheitenNaehte(moebel({ form: 'kuehlSchrank', breite: 250 }), 250)).toEqual([125]);
+  });
+
+  it('trennt 3,75 m in drei', () => {
+    expect(einheitenNaehte(moebel({ form: 'kuehlSchrank', breite: 375 }), 375)).toEqual([125, 250]);
+  });
+
+  it('trennt auch die Bedientheke', () => {
+    expect(einheitenNaehte(moebel({ form: 'blinkTheke', breite: 250 }), 250)).toEqual([125]);
+  });
+
+  it('setzt so viele Abschnitte wie Nähte plus eins', () => {
+    // Die Zusage, um die es geht: Beide lesen dieselbe Teilung. Ginge das
+    // auseinander, sähe man Diagonalen ohne Trennlinie dazwischen.
+    const faelle: [Grundform, number, number[] | undefined][] = [
+      ['kuehlSchrank', 250, undefined],
+      ['kuehlSchrank', 375, undefined],
+      ['kuehlSchrank', 187.5, undefined],
+      ['kuehlSchrank', 93.7, undefined],
+      ['kuehlSchrank', 343.7, [125, 125, 93.7]],
+      ['blinkTheke', 312.5, undefined],
+      ['blinkSelf', 250, [125, 125]],
+      ['tkTruhe', 250, undefined],
+      ['vitable', 200, undefined],
+      ['tkSchrank', 156.2, undefined],
+    ];
+    for (const [form, breite, felder] of faelle) {
+      const el = moebel({ form, breite, felder });
+      const abschnitte = zeichenAbschnitte(el);
+      const naehte = einheitenNaehte(el, breite);
+      expect(naehte).toHaveLength(abschnitte.length - 1);
+      // Und die Summe der Abschnitte ist die Breite.
+      expect(abschnitte.reduce((s, a) => s + a, 0)).toBeCloseTo(breite, 3);
+    }
+  });
+
+  it('hält den Regalzug heraus', () => {
+    // Der zeichnet seine Feldgrenzen selbst – eine zweite Naht läge
+    // doppelt darauf.
+    expect(einheitenNaehte(moebel({ form: 'wt100', breite: 625, felder: [125, 125, 125, 125, 125] }), 625)).toEqual([]);
   });
 });

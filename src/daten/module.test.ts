@@ -141,3 +141,20 @@ describe('Breite in Einheiten zerlegen', () => {
     }
   });
 });
+
+describe('Bedientheken', () => {
+  it('kennt die Kataloglängen der Bedienung', () => {
+    for (const form of ['blinkTheke', 'blinkSelf', 'blinkSv'] as Grundform[]) {
+      const satz = modulsatzFuer(form)!;
+      expect(satz.laengen).toEqual(breitenZuForm(form));
+    }
+  });
+
+  it('lässt jede Bedientheke sauber zerlegen', () => {
+    const satz = modulsatzFuer('blinkTheke')!;
+    for (const breite of breitenZuForm('blinkTheke')) {
+      const teile = zerlegeInModule(breite, satz);
+      expect(teile.reduce((a, b) => a + b, 0)).toBeCloseTo(breite, 1);
+    }
+  });
+});

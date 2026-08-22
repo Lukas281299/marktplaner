@@ -125,10 +125,47 @@ export function einheitenTeile(element: PlanElement): number[] {
   return element.felder ?? zerlegeInModule(element.breite, satz);
 }
 
-export function einheitenNaehte(element: PlanElement, b: number): number[] {
+/**
+ * Die Abschnitte, in die ein Möbel im Plan zerfällt – in Planmaß.
+ *
+ * **Die eine Wahrheit für Naht und Achsmaß-Zeichen.** Beide müssen dieselbe
+ * Teilung sehen, sonst zeigt der Plan zwei Diagonalen und keine Trennlinie
+ * dazwischen – genau der Widerspruch, den ein Möbel von 2,50 m zuletzt
+ * hatte.
+ *
+ * Zwei Schritte führen dorthin: erst die Einheiten, aus denen das Möbel
+ * besteht; dann jede Einheit, die selbst ein Vielfaches von 1,25 m ist, noch
+ * einmal geteilt – ein Kühlregal von 2,50 m ist eine Vorlage und trotzdem
+ * zweimal 1,25 m.
+ */
+export function zeichenAbschnitte(element: PlanElement): number[] {
   const teile = einheitenTeile(element);
-  if (teile.length < 2) return [];
-  const roh = teile.reduce((summe, teil) => summe + teil, 0);
+  const einheiten = teile.length > 0 ? teile : [element.breite];
+
+  const abschnitte: number[] = [];
+  for (const einheit of einheiten) {
+    if (achsmassZeichen(einheit) !== 'keins') {
+      // Ein eigenes Achsmaß wird nicht weiter zerlegt.
+      abschnitte.push(einheit);
+      continue;
+    }
+    const zahl = diagonalAbschnitte(einheit);
+    if (zahl > 1) {
+      for (let i = 0; i < zahl; i++) abschnitte.push(einheit / zahl);
+    } else {
+      abschnitte.push(einheit);
+    }
+  }
+  return abschnitte;
+}
+
+export function einheitenNaehte(element: PlanElement, b: number): number[] {
+  // Der Regalzug zeichnet seine Feldgrenzen selbst.
+  if (element.form === 'wt100' || !modulsatzFuer(element.form)) return [];
+
+  const abschnitte = zeichenAbschnitte(element);
+  if (abschnitte.length < 2) return [];
+  const roh = abschnitte.reduce((summe, teil) => summe + teil, 0);
   if (roh <= 0) return [];
 
   // Auf die gezeichnete Länge umrechnen – dieselbe Streckung wie bei den
@@ -136,7 +173,7 @@ export function einheitenNaehte(element: PlanElement, b: number): number[] {
   const faktor = b / roh;
   const naehte: number[] = [];
   let x = 0;
-  for (const teil of teile.slice(0, -1)) {
+  for (const teil of abschnitte.slice(0, -1)) {
     x += teil * faktor;
     naehte.push(x);
   }
@@ -1130,6 +1167,11 @@ const MIT_ACHSMASS = new Set<Grundform>([
   'tkSchrank',
   'tkKombi',
   'tkTruhe',
+  // Bedientheken. Auch dort baut man aus Modulen, und auch dort liest man
+  // die Breite am Zeichen ab.
+  'blinkTheke',
+  'blinkSelf',
+  'blinkSv',
 ]);
 
 /**
@@ -1166,17 +1208,15 @@ function diagonalAbschnitte(breite: number): number {
 export function zeichneAchsmass(ctx: Konva.Context, element: PlanElement, b: number, t: number) {
   if (!MIT_ACHSMASS.has(element.form)) return;
 
-  const teile = einheitenTeile(element);
-  const roh = teile.reduce((summe, teil) => summe + teil, 0);
-  // Ohne Raster bleibt es beim ganzen Möbel als einer Einheit.
-  const breiten = teile.length > 0 && roh > 0 ? teile : [element.breite];
-  const faktor = teile.length > 0 && roh > 0 ? b / roh : b / Math.max(element.breite, 0.001);
+  const abschnitte = zeichenAbschnitte(element);
+  const roh = abschnitte.reduce((summe, teil) => summe + teil, 0);
+  if (roh <= 0) return;
+  const faktor = b / roh;
 
   let x = 0;
-  for (const breite of breiten) {
+  for (const breite of abschnitte) {
     const weite = breite * faktor;
     const zeichen = achsmassZeichen(breite);
-
     if (zeichen !== 'keins') {
       // Von unten links nach oben rechts – y zeigt auf dem Bildschirm nach
       // unten.
@@ -1185,17 +1225,6 @@ export function zeichneAchsmass(ctx: Konva.Context, element: PlanElement, b: num
       if (zeichen === 'kreuz') {
         ctx.moveTo(x, 0);
         ctx.lineTo(x + weite, t);
-      }
-    } else {
-      // Kein eigenes Achsmaß, aber vielleicht ein Vielfaches von 1,25 m:
-      // Dann wird die Einheit unterteilt und jeder Abschnitt bekommt seine
-      // Diagonale. So trägt ein Kühlregal von 2,50 m zwei, ohne dass man
-      // es aus zwei Vorlagen zusammensetzen müsste.
-      const abschnitte = diagonalAbschnitte(breite);
-      const je = weite / Math.max(1, abschnitte);
-      for (let i = 0; i < abschnitte; i++) {
-        ctx.moveTo(x + i * je, t);
-        ctx.lineTo(x + (i + 1) * je, 0);
       }
     }
     x += weite;

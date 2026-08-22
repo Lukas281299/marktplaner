@@ -364,6 +364,7 @@ Einheit einzeln — und ganz unten die Knöpfe zum Anhängen.
 |---|---|---|
 | Trockensortiment (wire tech 100) | Feld | A625 · A1000 · A1250 · A1333 |
 | Obst & Gemüse (Vitable) | Einheit | 1,00 · 1,25 · 2,00 m |
+| Bedientheken (Blink) | Modul | 0,94 · 1,25 · 1,88 · 2,50 · 3,13 · 3,75 m |
 | Normalkühlung | Möbel | 0,94 · 1,25 · 1,88 · 2,50 · 3,75 m |
 | Tiefkühlschränke | Schrank | 1,56 · 2,34 · 3,12 · 3,90 m |
 | TK-Kombigeräte | Gerät | 1,88 · 2,50 · 3,75 m |
@@ -384,14 +385,20 @@ ganze Tiefe** — genau wie bei den Feldern eines Regalzugs. Zwei
 aneinandergehängte 1,25-m-Kühlregale bleiben dadurch als zwei Möbel erkennbar
 und sehen nicht aus wie ein langes.
 
+Dasselbe gilt für ein Möbel, das als **eine** Vorlage kommt, aber ein
+Vielfaches von 1,25 m misst: Ein Kühlregal von 2,50 m bekommt seine Trennlinie
+in der Mitte, eines von 3,75 m zwei. Trennlinie und Achsmaß-Zeichen lesen
+dieselbe Teilung — es kann nicht vorkommen, dass zwei Diagonalen dastehen und
+die Linie dazwischen fehlt.
+
 Auch das **Achsmaß-Zeichen** gehört zur einzelnen Einheit, nicht zum Möbel:
 Ein Obst-und-Gemüse-Tisch von 1,25 m trägt seine Diagonale, und hängt man
 einen zweiten an, sind es zwei Diagonalen. Aus der Gesamtbreite gerechnet
 käme 2,50 m heraus — ein Maß, zu dem kein Zeichen gehört, und die Diagonale
 verschwände genau dann, wenn man sie am nötigsten braucht.
 
-**Die Diagonale kommt alle 1,25 m — in jeder Abteilung.** Auch Kühlmöbel und
-Tiefkühlgeräte tragen sie; ein Kühlregal von 1,25 m ist genauso ein A1250 wie
+**Die Diagonale kommt alle 1,25 m — in jeder Abteilung.** Auch Kühlmöbel,
+Tiefkühlgeräte und Bedientheken tragen sie; ein Kühlregal von 1,25 m ist genauso ein A1250 wie
 ein Regalfeld, und im Plan liest man die Breite am selben Zeichen ab.
 
 Ein Möbel, dessen Länge ein **Vielfaches von 1,25 m** ist, wird dafür

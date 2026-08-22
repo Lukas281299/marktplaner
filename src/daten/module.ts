@@ -85,6 +85,17 @@ const SAETZE: { formen: Grundform[]; satz: Modulsatz }[] = [
     },
   },
   {
+    // Bedientheken (Blink). Dieselben Längen wie die Kühlung, dazu die
+    // 3,13 m – die Bedienung baut man ohnehin aus Modulen zusammen.
+    formen: ['blinkTheke', 'blinkSelf', 'blinkSv'],
+    satz: {
+      einheit: 'Modul',
+      mehrzahl: 'Module',
+      laengen: [93.7, 125, 187.5, 250, 312.5, 375],
+      herkunft: 'Kataloglängen Blink · Katalog 2026 Seite 32/33',
+    },
+  },
+  {
     // Tiefkühlinseln bestehen aus Modulen à 625 mm – so steht es am Möbel.
     formen: ['tkTruhe'],
     satz: {
