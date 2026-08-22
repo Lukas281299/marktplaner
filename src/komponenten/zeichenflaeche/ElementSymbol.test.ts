@@ -255,8 +255,11 @@ describe('Trennung zwischen Einheiten', () => {
     expect(naehte({ form: 'kuehlSchrank', breite: 187.5 })).toEqual([]);
   });
 
-  it('teilt eine Truhe in ihre Module', () => {
-    expect(naehte({ form: 'tkTruhe', breite: 250 })).toEqual([62.5, 125, 187.5]);
+  it('überlässt der Truhe ihre eigene Teilung', () => {
+    // Die Tiefkühlinsel zeichnet ihre Module à 625 mm selbst. Eine zweite
+    // Naht läge auf denselben Koordinaten – der Strich würde dadurch nur
+    // schwerer, ohne etwas zu zeigen.
+    expect(naehte({ form: 'tkTruhe', breite: 250 })).toEqual([]);
   });
 
   it('mischt sich beim Regalzug nicht ein', () => {
@@ -541,7 +544,6 @@ describe('Naht und Diagonale sagen dasselbe', () => {
       ['kuehlSchrank', 343.7, [125, 125, 93.7]],
       ['blinkTheke', 312.5, undefined],
       ['blinkSelf', 250, [125, 125]],
-      ['tkTruhe', 250, undefined],
       ['vitable', 200, undefined],
       ['tkSchrank', 156.2, undefined],
     ];

@@ -54,7 +54,13 @@ Grundfläche, Raster, Ebenen und die Flächenübersicht. Ist ein Element
 ausgewählt, stehen dort seine Maße und Einstellungen.
 
 **Unten die Statusleiste** mit der Mausposition in Planmaßen, dem Maßstab, der
-Zahl der Elemente, dem Zoom und dem Stand des Abgleichs.
+Zahl der Elemente, dem Zoom und dem Stand des Abgleichs. Ganz rechts steht
+**Stand** mit Datum und Uhrzeit — der Zeitpunkt, zu dem die geöffnete Fassung
+gebaut wurde.
+
+> Das ist die Antwort auf „sehe ich schon die neue Fassung?". Browser halten
+> Programmdateien gern fest. Stimmt der Stand nicht mit dem überein, was
+> erwartet wird, hilft ein hartes Neuladen: **Strg + F5**.
 
 ### Ansicht bewegen
 

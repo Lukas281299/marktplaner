@@ -160,8 +160,11 @@ export function zeichenAbschnitte(element: PlanElement): number[] {
 }
 
 export function einheitenNaehte(element: PlanElement, b: number): number[] {
-  // Der Regalzug zeichnet seine Feldgrenzen selbst.
-  if (element.form === 'wt100' || !modulsatzFuer(element.form)) return [];
+  // Regalzug und Tiefkühlinsel zeichnen ihre Teilung selbst – beim Zug die
+  // Feldgrenzen, bei der Truhe die Module à 625 mm. Eine zweite Naht läge
+  // dort auf denselben Koordinaten und macht den Strich nur schwerer.
+  if (element.form === 'wt100' || element.form === 'tkTruhe') return [];
+  if (!modulsatzFuer(element.form)) return [];
 
   const abschnitte = zeichenAbschnitte(element);
   if (abschnitte.length < 2) return [];

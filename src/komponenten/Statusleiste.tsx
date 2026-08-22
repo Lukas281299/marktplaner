@@ -40,9 +40,20 @@ export function Statusleiste() {
             {abgleichText(syncZustand, letzterAbgleich)}
           </span>
         )}
+        {/* Woher man weiss, ob man den neuen Stand sieht. */}
+        <span title={`Diese Fassung wurde gebaut am ${bauzeit()}`} style={{ opacity: 0.55 }}>
+          Stand {bauzeit()}
+        </span>
       </span>
     </footer>
   );
+}
+
+/** Der Bauzeitpunkt, kurz und lesbar. */
+function bauzeit(): string {
+  const zeit = new Date(__BAUZEIT__);
+  if (Number.isNaN(zeit.getTime())) return 'unbekannt';
+  return zeit.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
 }
 
 /** Kurzer Stand des Abgleichs für die Statusleiste. */

@@ -17,4 +17,15 @@ export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: command === 'build' ? '/marktplaner/' : '/',
   server: { port: 5180 },
+  /**
+   * Der Zeitpunkt, zu dem diese Fassung gebaut wurde.
+   *
+   * Steht unten rechts in der Statusleiste. Klingt nach Kleinigkeit, ist aber
+   * die Antwort auf eine Frage, die sonst jedes Mal Zeit kostet: Sieht man
+   * gerade den neuen Stand oder einen zwischengespeicherten alten? Ohne diese
+   * Angabe lässt sich das von außen nicht unterscheiden.
+   */
+  define: {
+    __BAUZEIT__: JSON.stringify(new Date().toISOString()),
+  },
 }));
