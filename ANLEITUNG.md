@@ -439,6 +439,25 @@ Zug bekommt eine Feldaufteilung, die zur neuen Länge passt — mit so wenig
 > Alles andere — Kühlmöbel, Truhen, Obst & Gemüse, Freihand-Flächen — lässt
 > sich weiterhin auf jedes Maß ziehen.
 
+### Führungsrohr
+
+Die Anschlagschiene, an der ein Einkaufswagen entlangfährt, ohne ins Regal zu
+stoßen. Bei einem ausgewählten wire-tech-Regal steht rechts unter *Felder* der
+Schalter **Führungsrohr vorn**.
+
+Das Rohr sitzt unten vor dem Grundboden und steht **5 cm** vor der Front — ein
+40-mm-Rohr mit 1 cm Luft. Bei einer Gondel läuft es auf **beiden** Seiten.
+
+Zwei Dinge dazu:
+
+- **Das Maß ist an einem Foto abgemessen, nicht aus dem Katalog.** An einem
+  Regal bekannter Tiefe (670 mm) ergab sich ein Rohr von 3,7 cm, das 1,2 cm
+  vor der Front sitzt; gerundet auf 40 mm Rohr und 10 mm Luft. Steht im
+  Workbook etwas anderes, ist es eine Zahl im Programm und schnell geändert.
+- **Die Tiefe des Regals ändert sich nicht.** Ein Rohr davor macht das Regal
+  nicht tiefer; es steht im Gang. In der belegten Fläche taucht es deshalb
+  nicht auf — im Plan sieht man es aber, und darum geht es beim Gang.
+
 ### Ecken: das 45°-Element
 
 Wo ein Zug um eine Ecke geht, sitzt am Ende jedes Zuges ein **45°-Eckstück**.

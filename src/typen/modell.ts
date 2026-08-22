@@ -300,6 +300,16 @@ export interface PlanElement {
    * dann schaut die Front zur Wand statt in den Gang.
    */
   gespiegelt?: boolean;
+  /**
+   * Führungsrohr vor dem untersten Boden.
+   *
+   * Die Anschlagschiene, an der ein Einkaufswagen entlangfährt, ohne ins
+   * Regal zu stoßen. Sie sitzt unten vor dem Grundboden und steht ein Stück
+   * vor – siehe `ROHR_ABSTAND` und `ROHR_DURCHMESSER`.
+   *
+   * Bei einer Gondel läuft sie auf beiden Seiten, sonst nur vorn.
+   */
+  fuehrungsrohr?: boolean;
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */

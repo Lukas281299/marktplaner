@@ -11,7 +11,7 @@ import {
   type Modulsatz,
 } from '../daten/module';
 import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
-import { SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
+import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel } from '../logik/waende';
@@ -630,6 +630,25 @@ function Feldaufteilung({
             </div>
           ))}
         </div>
+
+        {element.form === 'wt100' && (
+          <>
+            <Schalter
+              label="Führungsrohr vorn"
+              wert={Boolean(element.fuehrungsrohr)}
+              aendern={(fuehrungsrohr) => {
+                usePlanStore.getState().schnappschuss();
+                usePlanStore.getState().aendereElemente([element.id], { fuehrungsrohr });
+              }}
+            />
+            <p className="hinweis" style={{ marginTop: 4, marginBottom: 10 }}>
+              Die Anschlagschiene für Einkaufswagen, unten vor dem Grundboden. Sie steht{' '}
+              {formatiereLaenge(ROHR_UEBERSTAND, einheit)} vor der Front — bei einer Gondel auf
+              beiden Seiten. Das Maß ist an einem Foto abgemessen, nicht aus dem Katalog; die
+              Tiefe des Regals ändert sich dadurch nicht.
+            </p>
+          </>
+        )}
 
         <div className="knopfreihe" style={{ marginTop: 8, flexWrap: 'wrap' }}>
           {satz.laengen.map((m) => (

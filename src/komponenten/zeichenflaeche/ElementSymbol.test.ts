@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
-import { einheitenNaehte, zeichneAchsmass, zeichneForm, zeichneStriche } from './ElementSymbol';
+import {
+  einheitenNaehte,
+  zeichneAchsmass,
+  zeichneForm,
+  zeichneFuehrungsrohr,
+  zeichneStriche,
+} from './ElementSymbol';
 import { BIBLIOTHEK } from '../../daten/bibliothek';
 import type { Grundform, PlanElement } from '../../typen/modell';
 
@@ -397,5 +403,55 @@ describe('45-Grad-Eckstück', () => {
     const p = ecken(160, 100);
     expect(p.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))).toBe(true);
     expect(p[2][1]).toBe(0);
+  });
+});
+
+describe('Führungsrohr', () => {
+  /** Die Rechtecke, die ein Element zeichnet, mit ihrer Lage. */
+  function rechtecke(el: Partial<PlanElement> & { form: Grundform }) {
+    const element = {
+      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'regale',
+      x: 0, y: 0, breite: 250, tiefe: 67, drehung: 0, farbe: '#888', beschriftung: '',
+      beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+      ...el,
+    } as PlanElement;
+    const kaesten: number[][] = [];
+    const ctx = {
+      closePath: () => {}, arc: () => {}, arcTo: () => {}, ellipse: () => {},
+      moveTo: () => {}, lineTo: () => {},
+      rect: (x: number, y: number, b: number, t: number) => kaesten.push([x, y, b, t]),
+    } as unknown as Konva.Context;
+    zeichneFuehrungsrohr(ctx, element, element.breite, element.tiefe);
+    return kaesten;
+  }
+
+  it('zeichnet nichts, solange es nicht angehakt ist', () => {
+    expect(rechtecke({ form: 'wt100' })).toEqual([]);
+  });
+
+  it('setzt das Rohr vor die Front', () => {
+    // Ein Zentimeter Luft, dann vier Zentimeter Rohr – zusammen fünf
+    // Zentimeter Überstand, so wie am Foto gemessen.
+    expect(rechtecke({ form: 'wt100', fuehrungsrohr: true })).toEqual([[0, 68, 250, 4]]);
+  });
+
+  it('gibt der Gondel auf beiden Seiten eines', () => {
+    // An einer Gondel fährt der Wagen auf beiden Seiten entlang.
+    expect(rechtecke({ form: 'wt100', fuehrungsrohr: true, beidseitig: true })).toEqual([
+      [0, 68, 250, 4],
+      [0, -5, 250, 4],
+    ]);
+  });
+
+  it('steht über die volle Länge des Zugs', () => {
+    const [rohr] = rechtecke({ form: 'wt100', fuehrungsrohr: true, breite: 625 });
+    expect(rohr[2]).toBe(625);
+  });
+
+  it('bleibt anderen Möbeln fern', () => {
+    // Das Rohr gehört zum wire-tech-Regal. Ein Kühlmöbel oder eine
+    // Freihand-Fläche bekommt keines, auch wenn der Haken gesetzt wäre.
+    expect(rechtecke({ form: 'kuehlSchrank', fuehrungsrohr: true })).toEqual([]);
+    expect(rechtecke({ form: 'regal', fuehrungsrohr: true })).toEqual([]);
   });
 });

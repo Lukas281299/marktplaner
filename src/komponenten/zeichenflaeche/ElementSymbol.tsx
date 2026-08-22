@@ -48,6 +48,44 @@ function schraffiere(ctx: Konva.Context, b: number, t: number, abstand: number) 
 }
 
 /**
+ * Das Führungsrohr vor dem untersten Boden, in cm.
+ *
+ * Die Anschlagschiene für Einkaufswagen. Beide Maße sind **an einem Foto
+ * abgemessen**, nicht aus einem Katalog: An einem Regal bekannter Tiefe
+ * (670 mm) ergab der Maßstab 0,31 cm je Bildpunkt, und damit ein Rohr von
+ * 3,7 cm Durchmesser, das 1,2 cm vor der Front sitzt – zusammen 5,0 cm
+ * Überstand.
+ *
+ * Gerundet auf ein 40-mm-Rohr mit 10 mm Luft. Die Gegenprobe stützt den
+ * Maßstab: Die Feldbreite im selben Foto kommt auf 96,5 cm heraus und ist
+ * damit ein A1000. Sollte im Workbook ein anderes Maß stehen, sind es diese
+ * beiden Zahlen und sonst nichts.
+ */
+const ROHR_ABSTAND = 1;
+const ROHR_DURCHMESSER = 4;
+
+/** Wie weit das Rohr insgesamt vor der Front steht. */
+export const ROHR_UEBERSTAND = ROHR_ABSTAND + ROHR_DURCHMESSER;
+
+/**
+ * Zeichnet das Führungsrohr vor die Front – und bei einer Gondel vor beide.
+ *
+ * Bewusst **außerhalb** des Elementrahmens: Die Tiefe eines Regals ist die
+ * des Möbels, und ein Rohr davor macht das Regal nicht tiefer. Es steht
+ * aber im Gang, und genau deshalb muss man es sehen.
+ *
+ * Gezeichnet wird es als schmales Rechteck - von oben ist ein Rohr zwei
+ * Linien, und genau so steht es auch im Plan.
+ */
+export function zeichneFuehrungsrohr(ctx: Konva.Context, element: PlanElement, b: number, t: number) {
+  if (!element.fuehrungsrohr || element.form !== 'wt100') return;
+  ctx.rect(0, t + ROHR_ABSTAND, b, ROHR_DURCHMESSER);
+  if (element.beidseitig) {
+    ctx.rect(0, -ROHR_ABSTAND - ROHR_DURCHMESSER, b, ROHR_DURCHMESSER);
+  }
+}
+
+/**
  * Die Feldbreiten eines Zugs, auf die gezeichnete Länge umgerechnet.
  *
  * Ohne Feldliste wird gleichmäßig nach Achsmaß geteilt – so wurde bis dahin
@@ -1245,6 +1283,7 @@ export function ElementSymbol({
           ctx.lineTo(x, t);
         }
         zeichneAchsmass(ctx, element, b, t);
+        zeichneFuehrungsrohr(ctx, element, b, t);
         ctx.fillStrokeShape(shape);
 
         // 2. Die hellen Stufenkanten darüber. Sie brauchen eine eigene Farbe
