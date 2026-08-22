@@ -4,6 +4,7 @@ import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
 import { verschiebeEcke } from '../logik/elementEcken';
+import { vervielfaeltige } from '../logik/vervielfaeltigen';
 import { feldliste, groesstBaubareLaenge, passeAn } from '../logik/feldaufteilung';
 import { kannKopfgondel, kopflage, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
@@ -982,21 +983,20 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   dupliziereAuswahl() {
     const { auswahl, projekt } = get();
     if (auswahl.length === 0) return;
-    const neue: PlanElement[] = [];
-    let reihenfolge = naechsteReihenfolge(projekt.elemente);
-    for (const el of projekt.elemente) {
-      if (!auswahl.includes(el.id)) continue;
-      neue.push({
-        ...structuredClone(el),
-        id: neueId('el'),
-        // Etwas versetzt, damit die Kopie sichtbar ist.
-        x: el.x + 30,
-        y: el.y + 30,
-        gesperrt: false,
-        reihenfolge: reihenfolge++,
-      });
-    }
-    aendere(set, get, (p) => ({ ...p, elemente: [...p.elemente, ...neue] }));
+    const vorlagen = projekt.elemente.filter((el) => auswahl.includes(el.id));
+    if (vorlagen.length === 0) return;
+
+    const { elemente: neue, gruppen } = vervielfaeltige(
+      vorlagen,
+      { x: 30, y: 30 },
+      naechsteReihenfolge(projekt.elemente),
+      projekt.gruppen,
+    );
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: [...p.elemente, ...neue],
+      gruppen: [...p.gruppen, ...gruppen],
+    }));
     set({ auswahl: neue.map((e) => e.id) });
   },
 
@@ -1012,16 +1012,18 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   fuegeEin() {
     const { zwischenablage, projekt } = get();
     if (zwischenablage.length === 0) return;
-    let reihenfolge = naechsteReihenfolge(projekt.elemente);
-    const neue = zwischenablage.map((el) => ({
-      ...structuredClone(el),
-      id: neueId('el'),
-      x: el.x + 40,
-      y: el.y + 40,
-      gesperrt: false,
-      reihenfolge: reihenfolge++,
+
+    const { elemente: neue, gruppen } = vervielfaeltige(
+      zwischenablage,
+      { x: 40, y: 40 },
+      naechsteReihenfolge(projekt.elemente),
+      projekt.gruppen,
+    );
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: [...p.elemente, ...neue],
+      gruppen: [...p.gruppen, ...gruppen],
     }));
-    aendere(set, get, (p) => ({ ...p, elemente: [...p.elemente, ...neue] }));
     // Die Zwischenablage rückt mit, damit mehrfaches Einfügen nicht übereinander landet.
     set({ auswahl: neue.map((e) => e.id), zwischenablage: neue.map((e) => structuredClone(e)) });
   },

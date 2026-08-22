@@ -435,6 +435,13 @@ schlimmer als keines — man liest daran ja die Breite ab.
 > „Gondel frei", Flächen, Symbole) haben bewusst keine Einheiten-Gruppe. Sie
 > sind genau dafür da, dass man sich um kein Raster kümmern muss.
 
+> **Kopien stehen für sich.** Dupliziert man ein Regal, das zu einem Zug
+> gehört, gehört die Kopie **nicht** mehr zu diesem Zug — sonst würde ein
+> Klick auf die Kopie den ganzen alten Zug mit auswählen. Kopiert man dagegen
+> den *ganzen* Zug, bilden die Kopien wieder einen Zug, aber einen eigenen.
+> Dasselbe gilt für Kopfgondeln: Sie folgen dem kopierten Zug, wenn er
+> mitkommt, und hängen sonst an nichts.
+
 ### Felder im Trockensortiment
 
 Beim wire-tech-Regal heißen die Einheiten **Felder**, und es gibt vier
