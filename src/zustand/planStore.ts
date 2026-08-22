@@ -3,6 +3,7 @@ import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
 import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
+import { verschiebeEcke } from '../logik/elementEcken';
 import { feldliste, groesstBaubareLaenge, passeAn } from '../logik/feldaufteilung';
 import { kannKopfgondel, kopflage, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
@@ -232,6 +233,8 @@ interface PlanStore {
   setzeFelder(id: string, felder: number[]): void;
   /** Setzt oder entfernt die Kopfgondel an einem Ende eines Zugs. */
   setzeKopfgondel(id: string, seite: Kopfseite, an: boolean): void;
+  /** Zieht eine Ecke eines frei geformten Elements an eine neue Stelle. */
+  verschiebeElementEcke(id: string, index: number, ziel: Punkt, mitHistorie?: boolean): void;
   /** Setzt für mehrere Elemente gleichzeitig neue Positionen (beim Ziehen). */
   setzePositionen(werte: { id: string; x: number; y: number }[], mitHistorie?: boolean): void;
   /** Übernimmt Position, Größe und Drehung nach dem Ziehen an den Anfassern. */
@@ -770,6 +773,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           korpustiefe: vorlage.korpustiefe,
           achsmass: vorlage.achsmass,
           beidseitig: vorlage.beidseitig,
+          // Kopie, nicht die Vorlage selbst: Sonst zögen zwei Trapeze aus
+          // derselben Vorlage an denselben Punkten.
+          polygon: vorlage.polygon?.map((punkt) => ({ ...punkt })),
           beschriftung: vorlage.standardBeschriftung ?? vorlage.name,
           beschriftungSichtbar: true,
           schriftgroesse: 12,
@@ -899,6 +905,20 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // weil die Gruppe gerade erst entstanden ist.
     const auswahl = get().auswahl;
     if (auswahl.includes(id)) set({ auswahl: [...new Set([...auswahl, kopfId])] });
+  },
+
+  verschiebeElementEcke(id, index, ziel, mitHistorie = false) {
+    const element = get().projekt.elemente.find((el) => el.id === id);
+    if (!element || element.gesperrt) return;
+    const werte = verschiebeEcke(element, index, ziel);
+    if (!werte) return;
+
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      elemente: p.elemente.map((el) => (el.id === id ? { ...el, ...werte } : el)),
+    });
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set((s) => ({ projekt: wandeln(s.projekt) }));
   },
 
   setzePositionen(werte, mitHistorie = false) {

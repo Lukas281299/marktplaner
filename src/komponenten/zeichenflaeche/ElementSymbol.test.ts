@@ -63,7 +63,11 @@ describe('Symbole zeichnen', () => {
       const { ctx, punkte, aufrufe } = mitschreiber();
       zeichneForm(ctx, form, 250, 120, false);
 
-      expect(aufrufe.length).toBeGreaterThan(0);
+      // `umriss` ist die eine Form, die hier nichts zeichnet: Ihr Polygon
+      // steht am Element und wird erst im sceneFunc gezogen. Alles andere
+      // muss hier etwas hinterlassen – zeichnet eine Form gar nichts, sieht
+      // man auf dem Plan ein leeres Rechteck und sucht den Fehler woanders.
+      if (form !== 'umriss') expect(aufrufe.length).toBeGreaterThan(0);
       const kaputt = punkte.filter((wert) => !Number.isFinite(wert));
       expect(kaputt).toEqual([]);
     });

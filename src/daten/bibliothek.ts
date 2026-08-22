@@ -708,6 +708,47 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   // Ecken, Abschlüsse und Gondelköpfe. Für diese Bausteine nennt das Workbook
   // keine eigenen Maße – sie übernehmen die des geraden Möbels, an das sie
   // anschließen.
+  // Ein Trapez zum Selbstformen. Eine Ecklösung ist in jedem Markt anders
+  // zugeschnitten, und keine feste Vorlage trifft alle. Deshalb hier nur ein
+  // brauchbarer Anfang – die vier Ecken zieht man auf dem Plan zurecht.
+  {
+    id: 'vt-trapez-1200',
+    name: 'O&G Trapez frei · T1200',
+    kategorie: 'obstgemuese',
+    breite: 200,
+    tiefe: 131.7,
+    korpustiefe: 90.8,
+    hoehe: 180,
+    form: 'umriss',
+    polygon: [
+      { x: -100, y: -65.85 },
+      { x: 100, y: -65.85 },
+      { x: 60, y: 65.85 },
+      { x: -60, y: 65.85 },
+    ],
+    farbe: OG_GRUEN,
+    hinweis: 'Vier Ecken, einzeln verschiebbar. Auswählen, dann an den Punkten ziehen.',
+    gruppe: 'Ecken und Abschlüsse',
+  },
+  {
+    id: 'vt-trapez-800',
+    name: 'O&G Trapez frei · T800',
+    kategorie: 'obstgemuese',
+    breite: 150,
+    tiefe: 95.5,
+    korpustiefe: 72.6,
+    hoehe: 180,
+    form: 'umriss',
+    polygon: [
+      { x: -75, y: -47.75 },
+      { x: 75, y: -47.75 },
+      { x: 45, y: 47.75 },
+      { x: -45, y: 47.75 },
+    ],
+    farbe: OG_GRUEN,
+    hinweis: 'Vier Ecken, einzeln verschiebbar. Auswählen, dann an den Punkten ziehen.',
+    gruppe: 'Ecken und Abschlüsse',
+  },
   { id: 'vt-eck-innen-800', name: 'O&G Eck 45° · T800', kategorie: 'obstgemuese', breite: 95.5 * ECK_ANTEIL, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-eck-innen-1200', name: 'O&G Eck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7 * ECK_ANTEIL, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN, gruppe: 'Ecken und Abschlüsse' },

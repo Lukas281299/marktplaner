@@ -458,6 +458,33 @@ Zwei Dinge dazu:
   nicht tiefer; es steht im Gang. In der belegten Fläche taucht es deshalb
   nicht auf — im Plan sieht man es aber, und darum geht es beim Gang.
 
+### Trapez frei — Ecken selbst ziehen
+
+Eine Ecklösung ist in jedem Markt anders zugeschnitten, und keine feste
+Vorlage trifft alle. Deshalb gibt es unter *Obst & Gemüse → Ecken und
+Abschlüsse* das **Trapez frei** in zwei Tiefen (T800 und T1200).
+
+Es startet als Trapez — hinten breit, vorn schmaler — und wird dann von Hand
+zurechtgezogen:
+
+1. Das Möbel anklicken. An jeder Ecke erscheint ein **runder Punkt**.
+2. Einen Punkt ziehen. Nur diese Ecke wandert, die übrigen bleiben stehen.
+3. An jeder Kante steht dabei ihre **Länge** — man zieht also, bis das Maß
+   stimmt, statt hinterher nachzumessen.
+
+Die Punkte rasten am Raster ein, solange *Einrasten* an ist (Taste **E**).
+
+Rechts stehen die vier Kantenlängen noch einmal untereinander.
+
+> **Kein Ziehrahmen bei diesen Möbeln.** Solange ein frei geformtes Möbel
+> ausgewählt ist, gibt es keinen Rahmen zum Skalieren — er läge über den
+> Eckpunkten, und ein Griff in der Ecke wäre nicht mehr eindeutig. Größe und
+> Drehung stellst du rechts unter *Maße* und *Position & Drehung* ein.
+
+Das Trapez ist nicht auf vier Ecken festgelegt — die Mechanik trägt jeden
+Umriss. Ecken einfügen oder entfernen geht allerdings noch nicht; dafür
+zeichnet man das Möbel neu.
+
 ### Ecken: das 45°-Element
 
 Wo ein Zug um eine Ecke geht, sitzt am Ende jedes Zuges ein **45°-Eckstück**.

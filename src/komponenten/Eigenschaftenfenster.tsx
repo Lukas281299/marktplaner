@@ -10,6 +10,7 @@ import {
   zerlegeInModule,
   type Modulsatz,
 } from '../daten/module';
+import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -978,6 +979,27 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           </div>
         </div>
       </div>
+
+      {ausgewaehlte.length === 1 && hatEcken(erstes) && (
+        <div className="gruppe">
+          <div className="gruppe-titel">Ecken</div>
+          <p className="hinweis" style={{ marginTop: 0 }}>
+            Dieses Möbel hat einen freien Umriss. Auf dem Plan sitzt an jeder Ecke ein Punkt —
+            ziehen formt das Möbel um. Die Kantenlängen stehen dabei an den Kanten.
+          </p>
+          {kantenlaengen(erstes).map((laenge, i) => (
+            <div className="kennzahl" key={i}>
+              <span>Kante {i + 1}</span>
+              <span className="kennzahl-wert">{formatiereLaenge(laenge, einheit)}</span>
+            </div>
+          ))}
+          <p className="hinweis" style={{ marginTop: 6 }}>
+            Solange ein solches Möbel ausgewählt ist, gibt es keinen Ziehrahmen — sonst läge
+            er über den Eckpunkten. Größe und Drehung stellst du oben unter <em>Maße</em> und
+            <em> Position &amp; Drehung</em> ein.
+          </p>
+        </div>
+      )}
 
       {/* Felder und Kopfgondeln gehören zum Zug, nicht zu seinen Köpfen.
           Deshalb wird der Zug aus der Auswahl herausgesucht statt schlicht

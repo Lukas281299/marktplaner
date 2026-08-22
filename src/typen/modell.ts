@@ -152,6 +152,14 @@ export interface BibliothekEintrag {
 
   /** Wird das Möbel von beiden Seiten bestückt? */
   beidseitig?: boolean;
+  /**
+   * Startform eines frei geformten Möbels – siehe `PlanElement.polygon`.
+   *
+   * Nur bei der Form `umriss`. Eine Ecklösung ist in jedem Markt anders
+   * zugeschnitten; die Vorlage gibt einen brauchbaren Anfang vor, die Ecken
+   * zieht man danach auf dem Plan zurecht.
+   */
+  polygon?: Punkt[];
   /** Selbst angelegte Vorlage (nicht mitgeliefert). */
   eigene?: boolean;
 }

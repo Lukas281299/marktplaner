@@ -12,6 +12,7 @@ import {
   type Abstandsmass,
   type Hilfslinie,
 } from '../../logik/einrasten';
+import { hatEcken } from '../../logik/elementEcken';
 import { runde, ueberschneiden, umgrenzung } from '../../logik/geometrie';
 import { mitGruppen, mitgliederVon } from '../../logik/gruppen';
 import { formatiereLaenge } from '../../logik/masse';
@@ -23,6 +24,7 @@ import type { Punkt } from '../../typen/modell';
 import { usePlanStore, type Werkzeug } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
+import { Eckanfasser } from './Eckanfasser';
 import { Gebaeude } from './Gebaeude';
 import { Planvorlage } from './Planvorlage';
 import { Masslinien } from './Masslinien';
@@ -935,6 +937,20 @@ export function Zeichenflaeche() {
     setAbstaende([]);
   };
 
+  /**
+   * Das frei geformte Element, das gerade allein ausgewählt ist.
+   *
+   * Für dieses werden die Eckanfasser gezeigt – und dafür bleibt der
+   * Transformer weg. Beides zusammen läge übereinander, und man wüsste bei
+   * einem Griff in der Ecke nicht mehr, ob man die Ecke zieht oder die ganze
+   * Fläche skaliert. Größe und Drehung stellt man bei diesen Möbeln rechts
+   * im Eigenschaftenfenster ein.
+   */
+  const eckElement =
+    auswahl.length === 1
+      ? projekt.elemente.find((el) => el.id === auswahl[0] && hatEcken(el) && !el.gesperrt)
+      : undefined;
+
   // ------------------------------------------ Anfasser (Größe ändern, Drehen)
   useEffect(() => {
     const trafo = trafoRef.current;
@@ -946,8 +962,8 @@ export function Zeichenflaeche() {
         const el = projekt.elemente.find((e) => e.id === k.id());
         return el ? !el.gesperrt : false;
       });
-    trafo.nodes(knoten);
-  }, [auswahl, projekt.elemente]);
+    trafo.nodes(eckElement ? [] : knoten);
+  }, [auswahl, projekt.elemente, eckElement]);
 
   const beiTransformStart = () => {
     usePlanStore.getState().schnappschuss();
@@ -1052,6 +1068,7 @@ export function Zeichenflaeche() {
   // klein, wäre sein Stiel länger als das Möbel breit – dann bleibt er weg
   // und man dreht über R oder das Eigenschaftenfenster.
   const drehenMoeglich = kuerzesteKanteAufSchirm > 26;
+
 
   return (
     <div
@@ -1298,6 +1315,21 @@ export function Zeichenflaeche() {
           {abstaende.map((mass, i) => (
             <AbstandsAnzeige key={`mass-${i}`} mass={mass} zoom={zoom} einheit={einheit} />
           ))}
+
+          {/* Anfasser an den Ecken eines frei geformten Möbels */}
+          {eckElement && werkzeug === 'auswahl' && (
+            <Eckanfasser
+              element={eckElement}
+              zoom={zoom}
+              einheit={einheit}
+              einrasten={aufRaster}
+              beiZiehStart={() => usePlanStore.getState().schnappschuss()}
+              beiZiehen={(index, ziel) =>
+                usePlanStore.getState().verschiebeElementEcke(eckElement.id, index, ziel)
+              }
+              beiZiehEnde={() => {}}
+            />
+          )}
 
           {/* Anfasser zum Umformen des Grundrisses */}
           {werkzeug === 'umriss' && (
