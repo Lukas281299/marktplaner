@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { Fehlerfang } from './komponenten/Fehlerfang';
 import * as polygon from './logik/polygon';
 import { usePlanStore } from './zustand/planStore';
 import './stile/global.css';
@@ -24,6 +25,11 @@ if (import.meta.env.DEV) {
 
 createRoot(wurzel).render(
   <StrictMode>
-    <App />
+    {/* Ohne diesen Fang räumt React bei einem Fehler die ganze Oberfläche
+        ab und es bleibt eine weiße Seite – ohne Hinweis, und ohne Weg zu
+        den eigenen Planungen zurück. */}
+    <Fehlerfang>
+      <App />
+    </Fehlerfang>
   </StrictMode>,
 );

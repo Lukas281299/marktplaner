@@ -89,17 +89,35 @@ export function vereinigteFlaeche(polygone: Punkt[][]): number {
 
   const ringe = brauchbar.map((p) => [p.map((punkt): [number, number] => [punkt.x, punkt.y])]);
   const [erstes, ...weitere] = ringe;
-  const vereinigt = clipping.union(erstes, ...weitere);
 
-  let summe = 0;
-  for (const teil of vereinigt) {
-    teil.forEach((ring, index) => {
-      const punkte = ring.map((paar) => ({ x: paar[0], y: paar[1] }));
-      // Ring 0 ist der Außenrand, alles danach ist ein Loch.
-      summe += index === 0 ? flaeche(punkte) : -flaeche(punkte);
-    });
+  try {
+    const vereinigt = clipping.union(erstes, ...weitere);
+
+    let summe = 0;
+    for (const teil of vereinigt) {
+      teil.forEach((ring, index) => {
+        const punkte = ring.map((paar) => ({ x: paar[0], y: paar[1] }));
+        // Ring 0 ist der Außenrand, alles danach ist ein Loch.
+        summe += index === 0 ? flaeche(punkte) : -flaeche(punkte);
+      });
+    }
+    return Math.max(0, summe);
+  } catch (fehler) {
+    // Die Verschneidung ist der einzige Rechenschritt hier, der aussteigen
+    // kann: Eine Fläche, die sich selbst überkreuzt oder deren Punkte
+    // aufeinanderliegen, bringt die Bibliothek zum Stolpern.
+    //
+    // Das darf nicht die ganze Oberfläche mitreißen. Diese Zahl steht im
+    // Eigenschaftenfenster, das bei jedem Start aufgebaut wird – ein Fehler
+    // hier hieße: weißer Bildschirm und kein Weg mehr an die eigenen
+    // Planungen.
+    //
+    // Ersatzweise wird schlicht aufsummiert. Das zählt Überschneidungen
+    // doppelt und ist damit zu groß – aber eine Zahl, die man prüfen kann,
+    // ist besser als keine Oberfläche.
+    console.error('Marktplaner: Verkaufsflächen ließen sich nicht verschneiden', fehler);
+    return brauchbar.reduce((summe, p) => summe + flaeche(p), 0);
   }
-  return Math.max(0, summe);
 }
 
 /** Steht dieses Element auf einer der markierten Flächen? */

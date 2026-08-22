@@ -42,10 +42,23 @@ export default function App() {
     let abgebrochen = false;
 
     const starten = async () => {
-      const vorlagen = await listeVorlagen();
-      const favoriten = await holeFavoriten();
-      const letzteId = await holeZuletztGeoeffnet();
-      const gespeichert = letzteId ? await ladeProjekt(letzteId) : undefined;
+      const vorlagen = await listeVorlagen().catch(() => []);
+      const favoriten = await holeFavoriten().catch(() => []);
+
+      // Die zuletzt geöffnete Planung darf den Start nicht verhindern.
+      //
+      // Scheitert das Laden – eine beschädigte Datei, ein Umwandlungsschritt,
+      // der stolpert –, hing das Programm bisher im Ladezustand fest und man
+      // kam an keine seiner Planungen mehr heran. Jetzt fängt es sich mit
+      // einer leeren Planung; die alte bleibt liegen und steht weiter unter
+      // „Öffnen".
+      let gespeichert;
+      try {
+        const letzteId = await holeZuletztGeoeffnet();
+        gespeichert = letzteId ? await ladeProjekt(letzteId) : undefined;
+      } catch (fehler) {
+        console.error('Marktplaner: Die zuletzt geöffnete Planung ließ sich nicht laden', fehler);
+      }
       if (abgebrochen) return;
 
       usePlanStore.getState().setzeEigeneVorlagen(vorlagen);
@@ -54,7 +67,7 @@ export default function App() {
         usePlanStore.getState().setzeProjekt(gespeichert);
       } else {
         const frisch = neuesProjekt();
-        await speichereProjekt(frisch);
+        await speichereProjekt(frisch).catch(() => {});
         usePlanStore.getState().setzeProjekt(frisch);
       }
     };

@@ -822,3 +822,43 @@ body {
   background: var(--flaeche-3);
   color: var(--text-schwach);
 }
+
+/* ------------------------------------------------------------- Fehlerfang */
+/* Bewusst ohne die Variablen des Programms: Wenn der Aufbau scheitert, soll
+   diese Seite auch dann lesbar sein, wenn die Gestaltung nicht geladen hat. */
+.fehlerfang {
+  max-width: 70ch;
+  margin: 48px auto;
+  padding: 0 24px;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #1e2834;
+  line-height: 1.55;
+}
+.fehlerfang h1 {
+  font-size: 22px;
+  margin: 0 0 12px;
+}
+.fehlerfang-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 12px;
+}
+.fehlerfang-hinweis {
+  font-size: 13px;
+  color: #5d6874;
+}
+.fehlerfang-text {
+  margin-top: 20px;
+  padding: 12px;
+  background: #f4f5f7;
+  border: 1px solid #dfe3e8;
+  border-radius: 6px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 40vh;
+  overflow: auto;
+}
