@@ -11,6 +11,7 @@ import {
   type Modulsatz,
 } from '../daten/module';
 import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
+import { SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel } from '../logik/waende';
@@ -1138,6 +1139,21 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
       {/* ------------------------------------------- Gruppe und Regalmeter */}
       <div className="gruppe">
         <div className="gruppe-titel">Zusammenfassen</div>
+
+        {SPIEGELBAR.has(erstes.form) && (
+          <>
+            <Schalter
+              label="Seitenverkehrt (rechte Ausführung)"
+              wert={Boolean(erstes.gespiegelt)}
+              aendern={(gespiegelt) => setzeMitPunkt({ gespiegelt })}
+            />
+            <p className="hinweis" style={{ marginTop: 4 }}>
+              Ein 45°-Eck gibt es links und rechts. Für eine 90°-Ecke braucht es beide: eines
+              normal, eines seitenverkehrt. Über die Drehung geht das nicht — 180° vertauschen
+              zwar links und rechts, drehen aber auch die Front nach hinten.
+            </p>
+          </>
+        )}
 
         <Schalter
           label="Beidseitig bestückt (Gondel)"

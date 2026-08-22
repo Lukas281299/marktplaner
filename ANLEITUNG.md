@@ -439,6 +439,25 @@ Zug bekommt eine Feldaufteilung, die zur neuen Länge passt — mit so wenig
 > Alles andere — Kühlmöbel, Truhen, Obst & Gemüse, Freihand-Flächen — lässt
 > sich weiterhin auf jedes Maß ziehen.
 
+### Ecken: das 45°-Element
+
+Wo ein Zug um eine Ecke geht, sitzt am Ende jedes Zuges ein **45°-Eckstück**.
+Es hat am Anschluss an den Zug die volle Tiefe und ist zur Ecke hin **vorn
+schräg abgeschnitten**. Zwei davon fasen die Gangecke gemeinsam ab; die
+Außenecke hinten bleibt rechtwinklig.
+
+Das zweite Stück muss **seitenverkehrt** eingebaut werden — dafür gibt es
+rechts unter *Zusammenfassen* den Schalter **Seitenverkehrt (rechte
+Ausführung)**. Über die Drehung geht das nicht: 180° vertauschen zwar links
+und rechts, drehen aber auch die Front nach hinten.
+
+Die **Breite bestimmt die Fase**. Voreingestellt ist die halbe Möbeltiefe;
+zieht man das Stück so lang wie tief, läuft die Front auf null und es wird
+zum Dreieck — das war bis jetzt die einzige verfügbare Form und der Grund,
+warum die Ecke spitz statt gefast aussah.
+
+In der Bibliothek unter *Obst & Gemüse → Ecken und Abschlüsse*.
+
 ### Kopfgondeln
 
 Bei einer beidseitigen Gondel steht rechts zusätzlich **Kopfgondeln** mit zwei

@@ -290,6 +290,16 @@ export interface PlanElement {
    * dass er an einem Zug hängt – ohne alle Elemente danach zu durchsuchen.
    */
   kopfVon?: string;
+  /**
+   * Ist das Bauteil seitenverkehrt eingebaut?
+   *
+   * Gebraucht bei den Eckstücken: Ein 45-Grad-Eck gibt es als linke und als
+   * rechte Ausführung, und für eine 90-Grad-Ecke braucht man je eines von
+   * beiden. Über die Drehung geht das nicht – eine Drehung um 180 Grad
+   * vertauscht zwar links und rechts, dreht aber auch vorn und hinten, und
+   * dann schaut die Front zur Wand statt in den Gang.
+   */
+  gespiegelt?: boolean;
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */

@@ -331,3 +331,71 @@ describe('Achsmaß-Zeichen je Einheit', () => {
     expect(diagonalen({ form: 'regal', breite: 125 }).diagonalen).toEqual([125]);
   });
 });
+
+describe('45-Grad-Eckstück', () => {
+  /** Die Eckpunkte, die das Eckstück zeichnet. */
+  function ecken(b: number, t: number, gespiegelt = false) {
+    const { ctx, aufrufe, punkte } = mitschreiber();
+    zeichneForm(ctx, 'vitableEckInnen', b, t, false, 0, undefined, gespiegelt);
+    const p: [number, number][] = [];
+    let zeiger = 0;
+    for (const name of aufrufe) {
+      if (name === 'moveTo' || name === 'lineTo') p.push([punkte[zeiger], punkte[zeiger + 1]]);
+      zeiger += { arc: 6, arcTo: 5, rect: 4, ellipse: 4, moveTo: 2, lineTo: 2, closePath: 0 }[
+        name as 'arc'
+      ];
+    }
+    return p;
+  }
+
+  it('hat am Anschluss die volle Tiefe und läuft zur Ecke aus', () => {
+    // Länge halbe Tiefe: links volle 100, rechts noch 50.
+    expect(ecken(50, 100)).toEqual([
+      [0, 0],
+      [50, 0],
+      [50, 50],
+      [0, 100],
+    ]);
+  });
+
+  it('schneidet die Front unter genau 45 Grad', () => {
+    // Der Kern: Auf der Länge b nimmt die Tiefe um genau b ab.
+    const p = ecken(50, 100);
+    const dx = p[2][0] - p[3][0];
+    const dy = p[2][1] - p[3][1];
+    expect(Math.abs(Math.abs(dx) - Math.abs(dy))).toBeLessThan(0.001);
+  });
+
+  it('spiegelt die volle Tiefe ans andere Ende', () => {
+    expect(ecken(50, 100, true)).toEqual([
+      [0, 0],
+      [50, 0],
+      [50, 100],
+      [0, 50],
+    ]);
+  });
+
+  it('ergibt aus zwei Stücken eine durchgehende Fase', () => {
+    // Bei halber Tiefe endet das erste Stück bei der halben Tiefe – genau
+    // dort, wo das seitenverkehrte zweite anfängt. Die beiden Schrägen
+    // liegen dann auf einer Linie.
+    const eins = ecken(50, 100);
+    const zwei = ecken(50, 100, true);
+    expect(eins[2][1]).toBe(50);
+    expect(zwei[3][1]).toBe(50);
+  });
+
+  it('läuft bei voller Tiefe als Länge auf ein Dreieck aus', () => {
+    // Dann ist die Front auf null gelaufen: ein Stück fast die ganze Ecke.
+    const p = ecken(100, 100);
+    expect(p[2]).toEqual([100, 0]);
+  });
+
+  it('bleibt stehen, wenn jemand es länger als tief zieht', () => {
+    // Ohne Begrenzung entstünde eine negative Tiefe und das Polygon
+    // klappte in sich zusammen.
+    const p = ecken(160, 100);
+    expect(p.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))).toBe(true);
+    expect(p[2][1]).toBe(0);
+  });
+});

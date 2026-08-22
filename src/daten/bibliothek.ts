@@ -89,6 +89,23 @@ const VITABLE_VARIANTEN: VitableVariante[] = [
  * Korpus- und Gesamttiefe je nach tiefster Auflage und Bauart, in cm.
  * Abgelesen aus den Schnittzeichnungen im Workbook.
  */
+/**
+ * Die Länge eines 45-Grad-Eckstücks im Verhältnis zu seiner Tiefe.
+ *
+ * Das Stück hat am Anschluss an den Zug die volle Tiefe und läuft zur Ecke
+ * hin unter 45 Grad aus. Bei **halber Tiefe** treffen sich die Schrägen
+ * zweier Stücke genau auf der Diagonalen der Eckfläche: Aus zwei Teilen wird
+ * eine durchgehende Fase, und die Ecke ist lückenlos gefüllt.
+ *
+ * Das ist gerechnet, nicht geraten – aber die Breite bleibt am Element frei
+ * einstellbar. Wer eine flachere Fase will, zieht die Stücke kürzer.
+ */
+const ECK_ANTEIL = 0.5;
+
+const ECK_HINWEIS =
+  'Sitzt am Ende eines Zuges und ist vorn schräg abgeschnitten. Zwei davon ' +
+  'fasen die Ecke ab – das zweite seitenverkehrt einbauen (Schalter rechts).';
+
 function vitableTiefen(tiefsteAuflage: number, beidseitig: boolean) {
   if (beidseitig) {
     return tiefsteAuflage >= 120
@@ -691,8 +708,8 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   // Ecken, Abschlüsse und Gondelköpfe. Für diese Bausteine nennt das Workbook
   // keine eigenen Maße – sie übernehmen die des geraden Möbels, an das sie
   // anschließen.
-  { id: 'vt-eck-innen-800', name: 'O&G Inneneck 45° · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Zwei davon ergeben ein Inneneck 90°. Danach muss eine gerade Einheit folgen.', gruppe: 'Ecken und Abschlüsse' },
-  { id: 'vt-eck-innen-1200', name: 'O&G Inneneck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60], gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-eck-innen-800', name: 'O&G Eck 45° · T800', kategorie: 'obstgemuese', breite: 95.5 * ECK_ANTEIL, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-eck-innen-1200', name: 'O&G Eck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7 * ECK_ANTEIL, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN, gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges', gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-abschluss-1200', name: 'O&G Abschluss gerade · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [120, 60], gruppe: 'Ecken und Abschlüsse' },

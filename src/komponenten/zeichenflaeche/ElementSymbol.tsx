@@ -121,6 +121,7 @@ export function zeichneForm(
   beidseitig = false,
   achsmass = 0,
   felder?: number[],
+  gespiegelt = false,
 ) {
   switch (form) {
     case 'abgerundet': {
@@ -210,14 +211,36 @@ export function zeichneForm(
       break;
     }
 
-    case 'vitableEckInnen':
-      // Inneneck 45°: Die Front läuft schräg, die Rückseite bleibt gerade.
-      // Zwei davon ergeben laut Workbook ein Inneneck 90°.
-      ctx.moveTo(0, 0);
-      ctx.lineTo(b, 0);
-      ctx.lineTo(b, t);
+    case 'vitableEckInnen': {
+      // Das 45-Grad-Eckstück: hinten gerade, vorn schräg abgeschnitten.
+      //
+      // Es sitzt am Ende seines Zuges und füllt die Ecke. Am Anschluss an
+      // den Zug hat es die volle Tiefe; zur Ecke hin nimmt die Front unter
+      // 45 Grad ab. Zwei davon – eines je Zug, das zweite seitenverkehrt –
+      // fasen die Gangecke gemeinsam ab. Die Außenecke hinten bleibt
+      // rechtwinklig.
+      //
+      // Bei halber Tiefe als Länge treffen sich die beiden Schrägen genau
+      // auf der Diagonalen der Eckfläche und ergeben eine durchgehende
+      // Fase. Länger als tief kann das Stück nicht sinnvoll werden – dann
+      // ist die Front schon auf null gelaufen.
+      const rest = Math.max(0, t - b);
+      if (gespiegelt) {
+        // Volle Tiefe am rechten Ende.
+        ctx.moveTo(0, 0);
+        ctx.lineTo(b, 0);
+        ctx.lineTo(b, t);
+        ctx.lineTo(0, rest);
+      } else {
+        // Volle Tiefe am linken Ende.
+        ctx.moveTo(0, 0);
+        ctx.lineTo(b, 0);
+        ctx.lineTo(b, rest);
+        ctx.lineTo(0, t);
+      }
       ctx.closePath();
       break;
+    }
 
     case 'vitableEckAussen':
       // Außeneck 90°: füllt die Ecke, um die der Zug außen herumgeführt wird.
@@ -1044,6 +1067,15 @@ const MIT_STRICHEN = new Set<Grundform>([
  * Die Regel gilt laut Ladenbau für alle Möbel. Reine Zeichenhilfen wie Linie
  * und Pfeil bekommen es nicht – dort wäre eine Diagonale nur Verwirrung.
  */
+/**
+ * Formen, bei denen es eine linke und eine rechte Ausführung gibt.
+ *
+ * Bisher nur das 45-Grad-Eckstück. Über die Drehung ist das nicht zu
+ * ersetzen: 180 Grad vertauschen zwar links und rechts, drehen aber auch
+ * vorn und hinten – die Front schaute dann zur Wand.
+ */
+export const SPIEGELBAR = new Set<Grundform>(['vitableEckInnen']);
+
 const MIT_ACHSMASS = new Set<Grundform>([
   'rechteck',
   'abgerundet',
@@ -1204,6 +1236,7 @@ export function ElementSymbol({
           Boolean(element.beidseitig),
           element.achsmass ?? 0,
           element.felder,
+          Boolean(element.gespiegelt),
         );
         // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
         // die ganze Tiefe – so wie beim Regalzug.
