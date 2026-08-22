@@ -912,6 +912,14 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
             titel="Der Teil, der auf dem Boden steht. Kragt die Front darüber hinaus, ist die Tiefe größer. 0 = keine auskragende Front."
             aendern={(korpustiefe) => setze({ korpustiefe: korpustiefe > 0 ? korpustiefe : undefined })}
           />
+          <Massfeld
+            label="Unterster Boden"
+            cm={erstes.grundboden ?? 0}
+            einheit={einheit}
+            beiStart={beiStart}
+            titel="Tiefe des untersten Bodens – das Maß, nach dem man beim Planen als Erstes fragt. Tiefer als die Etagen darüber, flacher als das Gehäuse. 0 = nicht angegeben."
+            aendern={(grundboden) => setze({ grundboden: grundboden > 0 ? grundboden : undefined })}
+          />
           <div className="feld">
             <label>Fläche</label>
             <div style={{ padding: '5px 0', fontWeight: 600 }}>

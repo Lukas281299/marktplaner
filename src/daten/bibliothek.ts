@@ -123,55 +123,86 @@ function stufenText(stufen: number[]): string {
 }
 
 /**
- * Die Normalkühlung von WSL, Katalog 2026 Seiten 18 bis 21.
+ * Die Normalkühlung von WSL, Katalog 2026 Seiten 6 und 7.
  *
- *   Titan Remote  – Hochkühlregal, mit Glastür oder offen
- *                   T 1040 / 1215 mm, H 2100 / 2300 mm
- *   Cloud Remote  – Stufenmöbel mit Tür, halbhoch
- *                   T 991 mm, H 1500 mm
+ *   Orion Remote Doors  – Hochkühlregal mit Glastür, 8 Ausführungen
+ *   Orion Remote Open   – dasselbe offen, 8 Ausführungen
+ *   Cloud Remote        – Stufenmöbel mit Tür, halbhoch
  *
- * Angegeben ist wie bei der Tiefkühlung das äußere Maß einschließlich
- * Stoßschutz – der Platz, den das Möbel am Boden braucht. Der Korpus ist
- * jeweils 40 mm schmaler (1000 bzw. 1175, beim Cloud 951).
+ * Die acht Ausführungen sind vier Tiefen mal zwei Höhen. Der Katalog nennt
+ * sie nach diesen beiden Maßen: „Orion Doors Remote 804x2090".
+ *
+ * Angegeben ist – wie bei der Tiefkühlung – das **äußere** Maß einschließlich
+ * Stoßschutz, also der Platz am Boden. Der Korpus aus der Maßtabelle ist rund
+ * 55 mm schmaler und 85 mm niedriger; beides steht im Hinweis.
+ *
+ * Das Modell Orion FV bleibt vorerst weg.
  */
 const KUEHL_BLAU = '#4f97d4';
 const KUEHL_BLAU_DUNKEL = '#2f6ea8';
 
 const KUEHL_LAENGEN = [93.7, 125, 187.5, 250, 375];
 
-/** Die vier Baugrößen des Titan, je mit Etagen- und Sockeltiefe. */
-const TITAN_GROESSEN = [
-  { tiefe: 104, hoehe: 210, etage: 500, sockel: 625, auslage: 1560 },
-  { tiefe: 104, hoehe: 230, etage: 500, sockel: 625, auslage: 1760 },
-  { tiefe: 121.5, hoehe: 210, etage: 600, sockel: 800, auslage: 1560 },
-  { tiefe: 121.5, hoehe: 230, etage: 600, sockel: 800, auslage: 1760 },
+/**
+ * Die vier Tiefen des Orion.
+ *
+ * `aussen` ist das Maß mit Stoßschutz, so wie der Katalog das Möbel benennt;
+ * `korpus` und `etage` stehen in der Maßtabelle auf Seite 6.
+ *
+ * `grundboden` steht dort **nicht**. Die Tabelle führt nur die Etagen, und
+ * der Fließtext sagt allein „base shelf depth up to 800 mm". Die vier Werte
+ * hier stammen aus dem Markt – Lukas' Angabe – und die größte deckt sich mit
+ * den 800 mm des Katalogs. Sollte eine davon danebenliegen, ist es eine Zahl
+ * in dieser Tabelle.
+ */
+const ORION_TIEFEN = [
+  { aussen: 80.4, korpus: 750, etage: 400, grundboden: 48 },
+  { aussen: 92.5, korpus: 870, etage: 500, grundboden: 60 },
+  { aussen: 102.5, korpus: 970, etage: 550, grundboden: 70 },
+  { aussen: 112.5, korpus: 1070, etage: 600, grundboden: 80 },
+];
+
+/** Die beiden Höhen, außen und als Korpusmaß mit Auslagenhöhe. */
+const ORION_HOEHEN = [
+  { aussen: 209, korpus: 2005, auslage: 1492 },
+  { aussen: 229, korpus: 2205, auslage: 1692 },
 ];
 
 function kuehlEintraege(): BibliothekEintrag[] {
   const eintraege: BibliothekEintrag[] = [];
 
-  for (const groesse of TITAN_GROESSEN) {
-    for (const mitTuer of [true, false]) {
-      for (const laenge of KUEHL_LAENGEN) {
-        const tiefeMm = Math.round(groesse.tiefe * 10);
-        const hoeheMm = Math.round(groesse.hoehe * 10);
+  for (const tiefe of ORION_TIEFEN) {
+    for (const hoehe of ORION_HOEHEN) {
+      for (const mitTuer of [true, false]) {
+        const tiefeMm = Math.round(tiefe.aussen * 10);
+        const hoeheMm = Math.round(hoehe.aussen * 10);
         const art = mitTuer ? 'mit Tür' : 'offen';
-        eintraege.push({
-          id: `kuehl-titan-${tiefeMm}-${hoeheMm}-${mitTuer ? 'tuer' : 'offen'}-${Math.round(laenge * 10)}`,
-          name: `Kühlregal ${(laenge / 100).toFixed(2).replace('.', ',')} m · ${art}`,
-          kategorie: 'kuehlung',
-          breite: laenge,
-          tiefe: groesse.tiefe,
-          hoehe: groesse.hoehe,
-          form: mitTuer ? 'kuehlSchrank' : 'kuehlOffen',
-          farbe: KUEHL_BLAU,
-          gruppe: `${mitTuer ? 'Mit Tür' : 'Offen'} · T${tiefeMm} · H${hoeheMm}`,
-          hinweis: `Titan Remote · Auslage ${groesse.auslage} mm, Etagentiefe ${groesse.etage} mm, Sockel ${groesse.sockel} mm`,
-        });
+        const modell = `Orion ${mitTuer ? 'Doors' : 'Open'} Remote ${tiefeMm}x${hoeheMm}`;
+        for (const laenge of KUEHL_LAENGEN) {
+          eintraege.push({
+            id: `kuehl-orion-${mitTuer ? 'tuer' : 'offen'}-${tiefeMm}-${hoeheMm}-${Math.round(laenge * 10)}`,
+            name: `Kühlregal ${(laenge / 100).toFixed(2).replace('.', ',')} m · ${art}`,
+            kategorie: 'kuehlung',
+            breite: laenge,
+            tiefe: tiefe.aussen,
+            hoehe: hoehe.aussen,
+            korpustiefe: tiefe.korpus / 10,
+            grundboden: tiefe.grundboden,
+            form: mitTuer ? 'kuehlSchrank' : 'kuehlOffen',
+            farbe: KUEHL_BLAU,
+            gruppe: `${mitTuer ? 'Mit Tür' : 'Offen'} · T${tiefeMm} · H${hoeheMm}`,
+            hinweis:
+              `${modell} · unterster Boden ${tiefe.grundboden * 10} mm · ` +
+              `Etagen ${tiefe.etage} mm · Korpus ${tiefe.korpus} × ${hoehe.korpus} mm · ` +
+              `Auslage ${hoehe.auslage} mm`,
+          });
+        }
       }
     }
   }
 
+  // Das Stufenmöbel bleibt, wie es war – es steht auf einer anderen Seite
+  // des Katalogs und ist von der Umstellung nicht betroffen.
   for (const laenge of KUEHL_LAENGEN) {
     eintraege.push({
       id: `kuehl-cloud-${Math.round(laenge * 10)}`,
@@ -180,6 +211,7 @@ function kuehlEintraege(): BibliothekEintrag[] {
       breite: laenge,
       tiefe: 99.1,
       hoehe: 150,
+      grundboden: 70.5,
       form: 'kuehlStufen',
       farbe: KUEHL_BLAU_DUNKEL,
       gruppe: 'Stufenmöbel',

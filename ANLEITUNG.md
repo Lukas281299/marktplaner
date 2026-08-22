@@ -452,6 +452,38 @@ Zug bekommt eine Feldaufteilung, die zur neuen Länge passt — mit so wenig
 > Alles andere — Kühlmöbel, Truhen, Obst & Gemüse, Freihand-Flächen — lässt
 > sich weiterhin auf jedes Maß ziehen.
 
+### Die Kühlung: Orion Remote
+
+Die Normalkühlung folgt dem WSL-Katalog 2026, Seiten 6 und 7:
+
+| | |
+|---|---|
+| **Orion Remote Doors** | Hochkühlregal mit Glastür, 8 Ausführungen |
+| **Orion Remote Open** | dasselbe offen, 8 Ausführungen |
+| **Tiefen** | 804 · 925 · 1025 · 1125 mm |
+| **Höhen** | 2090 · 2290 mm |
+| **Längen** | 0,94 · 1,25 · 1,88 · 2,50 · 3,75 m |
+
+Die acht Ausführungen sind vier Tiefen mal zwei Höhen — so benennt der Katalog
+sie auch: *Orion Doors Remote 804×2090*. Jede gibt es in allen fünf Längen.
+
+Angegeben ist das **äußere** Maß einschließlich Stoßschutz, also der Platz am
+Boden. Der Korpus ist rund 55 mm schmaler und 85 mm niedriger; er steht rechts
+als *Korpustiefe* und im Hinweis der Vorlage.
+
+**Unterster Boden.** Rechts unter *Maße* steht die Tiefe des untersten Bodens —
+480 · 600 · 700 · 800 mm, der Tiefe nach zugeordnet. Das ist das Maß, nach dem
+man beim Planen als Erstes fragt: tiefer als die Etagen darüber, flacher als
+das Gehäuse.
+
+> Diese vier Werte stehen **nicht** im Katalog. Dessen Tabelle führt nur die
+> Etagen (400 / 500 / 550 / 600 mm), der Fließtext sagt allein „base shelf
+> depth up to 800 mm" — was zum größten der vier Werte passt. Sie stammen aus
+> dem Markt und lassen sich an jedem Möbel überschreiben.
+
+Das **Stufenmöbel** (Cloud Remote) bleibt unverändert. Auf das Modell *Orion
+FV* ist vorerst verzichtet.
+
 ### Führungsrohr
 
 Die Anschlagschiene, an der ein Einkaufswagen entlangfährt, ohne ins Regal zu

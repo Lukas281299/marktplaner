@@ -427,6 +427,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           farbe: vorlage.farbe,
           stufen: vorlage.stufen,
           korpustiefe: vorlage.korpustiefe,
+          grundboden: vorlage.grundboden,
           achsmass: vorlage.achsmass,
           beidseitig: vorlage.beidseitig,
         };
@@ -771,6 +772,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           farbe: vorlage.farbe,
           stufen: vorlage.stufen,
           korpustiefe: vorlage.korpustiefe,
+          grundboden: vorlage.grundboden,
           achsmass: vorlage.achsmass,
           beidseitig: vorlage.beidseitig,
           // Kopie, nicht die Vorlage selbst: Sonst zögen zwei Trapeze aus

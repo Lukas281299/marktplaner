@@ -142,6 +142,15 @@ export interface BibliothekEintrag {
   /** Tiefe des Korpus – siehe `PlanElement.korpustiefe`. */
   korpustiefe?: number;
   /**
+   * Tiefe des untersten Bodens in cm.
+   *
+   * Bei einem Kühlmöbel der Boden, auf dem die schwere Ware steht – das
+   * Maß, nach dem man beim Planen als Erstes fragt. Es ist nicht die Tiefe
+   * des Möbels und nicht die des Korpus: Der unterste Boden ist tiefer als
+   * die Etagen darüber und flacher als das Gehäuse.
+   */
+  grundboden?: number;
+  /**
    * Achsmaß eines Regalfelds in cm, z. B. 125.
    *
    * Ein Regalzug besteht aus gleich breiten Feldern. Gespeichert wird nur das
@@ -318,6 +327,15 @@ export interface PlanElement {
    * Bei einer Gondel läuft sie auf beiden Seiten, sonst nur vorn.
    */
   fuehrungsrohr?: boolean;
+  /**
+   * Tiefe des untersten Bodens in cm.
+   *
+   * Bei einem Kühlmöbel der Boden, auf dem die schwere Ware steht – das
+   * Maß, nach dem man beim Planen als Erstes fragt. Es ist nicht die Tiefe
+   * des Möbels und nicht die des Korpus: Der unterste Boden ist tiefer als
+   * die Etagen darüber und flacher als das Gehäuse.
+   */
+  grundboden?: number;
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */
