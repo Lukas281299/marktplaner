@@ -384,6 +384,12 @@ ganze Tiefe** — genau wie bei den Feldern eines Regalzugs. Zwei
 aneinandergehängte 1,25-m-Kühlregale bleiben dadurch als zwei Möbel erkennbar
 und sehen nicht aus wie ein langes.
 
+Auch das **Achsmaß-Zeichen** gehört zur einzelnen Einheit, nicht zum Möbel:
+Ein Obst-und-Gemüse-Tisch von 1,25 m trägt seine Diagonale, und hängt man
+einen zweiten an, sind es zwei Diagonalen. Aus der Gesamtbreite gerechnet
+käme 2,50 m heraus — ein Maß, zu dem kein Zeichen gehört, und die Diagonale
+verschwände genau dann, wenn man sie am nötigsten braucht.
+
 > **Ohne Raster geht es weiter frei.** Die Freihand-Vorlagen („Regal frei",
 > „Gondel frei", Flächen, Symbole) haben bewusst keine Einheiten-Gruppe. Sie
 > sind genau dafür da, dass man sich um kein Raster kümmern muss.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
-import { einheitenNaehte, zeichneForm, zeichneStriche } from './ElementSymbol';
+import { einheitenNaehte, zeichneAchsmass, zeichneForm, zeichneStriche } from './ElementSymbol';
 import { BIBLIOTHEK } from '../../daten/bibliothek';
 import type { Grundform, PlanElement } from '../../typen/modell';
 
@@ -259,5 +259,75 @@ describe('Trennung zwischen Einheiten', () => {
     // Die Freihand-Formen kennen kein Raster – da gibt es nichts zu trennen.
     expect(naehte({ form: 'regal', breite: 400 })).toEqual([]);
     expect(naehte({ form: 'rechteck', breite: 400 })).toEqual([]);
+  });
+});
+
+describe('Achsmaß-Zeichen je Einheit', () => {
+  /**
+   * Die Diagonalen und Kreuze, die ein Element zeichnet.
+   *
+   * Gemessen wird an der echten Zeichenfunktion: Eine Diagonale läuft von
+   * unten links nach oben rechts, ein Kreuz hat zusätzlich die Gegenrichtung.
+   * Zurück kommen die Spannweiten – daran erkennt man, ob je Einheit oder
+   * über das ganze Möbel gezeichnet wurde.
+   */
+  function diagonalen(el: Partial<PlanElement> & { form: Grundform; breite: number }) {
+    const element = {
+      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'obstgemuese',
+      x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
+      beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+      ...el,
+    } as PlanElement;
+    const t = 100;
+    const aufrufe: [string, number, number][] = [];
+    const ctx = {
+      rect: () => {}, closePath: () => {}, arc: () => {}, arcTo: () => {}, ellipse: () => {},
+      moveTo: (x: number, y: number) => aufrufe.push(['m', x, y]),
+      lineTo: (x: number, y: number) => aufrufe.push(['l', x, y]),
+    } as unknown as Konva.Context;
+    zeichneAchsmass(ctx, element, element.breite, t);
+
+    const auf: number[] = [];
+    const ab: number[] = [];
+    for (let i = 0; i < aufrufe.length - 1; i++) {
+      const [a, x1, y1] = aufrufe[i];
+      const [b, x2, y2] = aufrufe[i + 1];
+      if (a !== 'm' || b !== 'l') continue;
+      const weite = Math.round((x2 - x1) * 100) / 100;
+      if (Math.abs(y1 - t) < 0.01 && Math.abs(y2) < 0.01) auf.push(weite);
+      if (Math.abs(y1) < 0.01 && Math.abs(y2 - t) < 0.01) ab.push(weite);
+    }
+    return { diagonalen: auf, gegendiagonalen: ab };
+  }
+
+  it('gibt einem 1,25-m-Tisch seine Diagonale', () => {
+    expect(diagonalen({ form: 'vitable', breite: 125 }).diagonalen).toEqual([125]);
+  });
+
+  it('gibt zwei angehängten 1,25ern zwei Diagonalen', () => {
+    // Genau der gemeldete Fehler: Aus der Gesamtbreite gerechnet wären
+    // 2,50 m ein Maß ohne Zeichen – die Diagonale verschwand.
+    const ergebnis = diagonalen({ form: 'vitable', breite: 250, felder: [125, 125] });
+    expect(ergebnis.diagonalen).toEqual([125, 125]);
+  });
+
+  it('lässt 1,00-m-Einheiten ohne Zeichen', () => {
+    expect(diagonalen({ form: 'vitable', breite: 200, felder: [100, 100] }).diagonalen).toEqual([]);
+  });
+
+  it('mischt Maße richtig', () => {
+    // Ein A1000 trägt nichts, ein A1250 die Diagonale.
+    const ergebnis = diagonalen({ form: 'vitable', breite: 225, felder: [100, 125] });
+    expect(ergebnis.diagonalen).toEqual([125]);
+  });
+
+  it('zeichnet beim BakeOff-Turm nach derselben Regel', () => {
+    expect(diagonalen({ form: 'bakeoff', breite: 100 }).diagonalen).toEqual([]);
+  });
+
+  it('bleibt bei Formen ohne Raster beim ganzen Möbel', () => {
+    // Ein „Regal frei" von 1,25 m trägt weiterhin seine Diagonale, obwohl
+    // es keine Einheiten kennt.
+    expect(diagonalen({ form: 'regal', breite: 125 }).diagonalen).toEqual([125]);
   });
 });

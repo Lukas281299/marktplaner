@@ -80,12 +80,15 @@ function feldbreiten(b: number, felder: number[] | undefined, achsmass: number):
  * Das Trockensortiment fehlt hier mit Absicht: Es zeichnet seine Feldgrenzen
  * schon selbst, und genau so sollen die übrigen Abteilungen auch aussehen.
  */
-export function einheitenNaehte(element: PlanElement, b: number): number[] {
+export function einheitenTeile(element: PlanElement): number[] {
   if (element.form === 'wt100') return [];
   const satz = modulsatzFuer(element.form);
   if (!satz) return [];
+  return element.felder ?? zerlegeInModule(element.breite, satz);
+}
 
-  const teile = element.felder ?? zerlegeInModule(element.breite, satz);
+export function einheitenNaehte(element: PlanElement, b: number): number[] {
+  const teile = einheitenTeile(element);
   if (teile.length < 2) return [];
   const roh = teile.reduce((summe, teil) => summe + teil, 0);
   if (roh <= 0) return [];
@@ -1050,18 +1053,41 @@ const MIT_ACHSMASS = new Set<Grundform>([
   'vitableAbschluss',
 ]);
 
-/** Zeichnet das Achsmaß-Zeichen: Diagonale oder Kreuz, siehe `achsmass.ts`. */
-function zeichneAchsmass(ctx: Konva.Context, form: Grundform, breite: number, b: number, t: number) {
-  if (!MIT_ACHSMASS.has(form)) return;
-  const zeichen = achsmassZeichen(breite);
-  if (zeichen === 'keins') return;
+/**
+ * Zeichnet das Achsmaß-Zeichen: Diagonale oder Kreuz, siehe `achsmass.ts`.
+ *
+ * **Je Einheit, nicht je Möbel.** Ein Obst-und-Gemüse-Tisch von 1,25 m trägt
+ * seine Diagonale; hängt man einen zweiten an, sind es zwei Einheiten zu
+ * 1,25 m und damit zwei Diagonalen. Aus der Gesamtbreite gerechnet käme
+ * dagegen 2,50 m heraus – ein Maß, zu dem kein Zeichen gehört, und die
+ * Diagonale verschwände genau dann, wenn man sie am nötigsten braucht.
+ *
+ * Das ist dieselbe Regel, nach der ein Regalzug seine Felder zeichnet.
+ */
+export function zeichneAchsmass(ctx: Konva.Context, element: PlanElement, b: number, t: number) {
+  if (!MIT_ACHSMASS.has(element.form)) return;
 
-  // Von unten links nach oben rechts – y zeigt auf dem Bildschirm nach unten.
-  ctx.moveTo(0, t);
-  ctx.lineTo(b, 0);
-  if (zeichen === 'kreuz') {
-    ctx.moveTo(0, 0);
-    ctx.lineTo(b, t);
+  const teile = einheitenTeile(element);
+  const roh = teile.reduce((summe, teil) => summe + teil, 0);
+  // Ohne Raster bleibt es beim ganzen Möbel als einer Einheit.
+  const breiten = teile.length > 0 && roh > 0 ? teile : [element.breite];
+  const faktor = teile.length > 0 && roh > 0 ? b / roh : b / Math.max(element.breite, 0.001);
+
+  let x = 0;
+  for (const breite of breiten) {
+    const weite = breite * faktor;
+    const zeichen = achsmassZeichen(breite);
+    if (zeichen !== 'keins') {
+      // Von unten links nach oben rechts – y zeigt auf dem Bildschirm nach
+      // unten.
+      ctx.moveTo(x, t);
+      ctx.lineTo(x + weite, 0);
+      if (zeichen === 'kreuz') {
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + weite, t);
+      }
+    }
+    x += weite;
   }
 }
 
@@ -1185,7 +1211,7 @@ export function ElementSymbol({
           ctx.moveTo(x, 0);
           ctx.lineTo(x, t);
         }
-        zeichneAchsmass(ctx, element.form, element.breite, b, t);
+        zeichneAchsmass(ctx, element, b, t);
         ctx.fillStrokeShape(shape);
 
         // 2. Die hellen Stufenkanten darüber. Sie brauchen eine eigene Farbe
