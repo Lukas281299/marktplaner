@@ -1,3 +1,4 @@
+import { WT_GRAU, WT_GRAU_ALT } from '../daten/bibliothek';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
 import { imUhrzeigersinn, rechteck } from '../logik/polygon';
@@ -61,8 +62,25 @@ export function wandleProjekt(roh: unknown): Projekt {
     verkaufsflaechen: projekt?.verkaufsflaechen ?? [],
     // Fassung 7
     ebenen: ergaenzeEbenen(projekt?.ebenen),
-    elemente: (projekt?.elemente ?? []).map(wandleElement),
+    elemente: (projekt?.elemente ?? []).map(wandleElement).map(vereinheitlicheRegalfarbe),
   };
+}
+
+/**
+ * Fassung 8: ein Grauton für das ganze Trockensortiment.
+ *
+ * Wandregal, Gondel und Kopfgondel hatten drei Abstufungen. Der Plan sah
+ * dadurch nach drei verschiedenen Möbeln aus, wo dasselbe Regal steht.
+ *
+ * Umgefärbt wird nur, was einen der drei alten Töne trägt **und** eine
+ * wire-tech-Form hat. Wer ein Regal von Hand eingefärbt hat – etwa um eine
+ * Warengruppe hervorzuheben –, behält seine Farbe: Eine stille Änderung
+ * daran wäre schlimmer als drei Grautöne.
+ */
+function vereinheitlicheRegalfarbe(element: PlanElement): PlanElement {
+  const wireTech = element?.form === 'wt100' || element?.form === 'wt100Rund' || element?.form === 'wt100Eck';
+  if (!wireTech || !WT_GRAU_ALT.includes(element.farbe)) return element;
+  return { ...element, farbe: WT_GRAU };
 }
 
 /**

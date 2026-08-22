@@ -62,6 +62,21 @@ gebaut wurde.
 > Programmdateien gern fest. Stimmt der Stand nicht mit dem überein, was
 > erwartet wird, hilft ein hartes Neuladen: **Strg + F5**.
 
+### Beschriftungen beim Zoomen
+
+Maße, Raumnamen und Flächenangaben verhalten sich wie auf einem **gedruckten
+Plan**: Sie haben eine feste Größe *in der Zeichnung* und schrumpfen beim
+Herauszoomen mit. Sie können den Plan dadurch nie zudecken.
+
+Der Preis: In der Übersicht über den ganzen Markt werden sie zu klein zum
+Lesen und blenden sich dann aus. Ab etwa **Zoom 25 %** sind sie wieder da.
+
+Anders die **Werkzeuge**: der Abstand, der beim Ziehen eines Regals
+eingeblendet wird, die Kantenlänge an einem Eckpunkt, das Maß einer Wand, die
+gerade gezogen wird. Die behalten eine feste Größe auf dem Bildschirm — man
+schaut in dem Moment genau darauf, und sie verschwinden ohnehin wieder, sobald
+man loslässt.
+
 ### Ansicht bewegen
 
 | Aktion | Bedienung |

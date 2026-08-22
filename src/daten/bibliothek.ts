@@ -244,9 +244,26 @@ function kuehlEintraege(): BibliothekEintrag[] {
  */
 const WT_TOTE_ZONE = 7;
 
-const WT_GRAU = '#c9c5bd';
-const WT_GRAU_DUNKEL = '#b7b2a8';
-const WT_GRAU_HELL = '#d8d4cc';
+/**
+ * Die Farbe des Trockensortiments.
+ *
+ * **Ein Ton für alles**, was zum wire-tech-System gehört – Wandregal,
+ * Gondel, Zug und Kopfgondel. Vorher waren es drei Abstufungen, und der Plan
+ * sah dadurch nach drei verschiedenen Möbeln aus, wo in Wirklichkeit dasselbe
+ * Regal steht. Was ein Wandregal von einer Gondel unterscheidet, liest man an
+ * der Tiefe und am Mittelsteg ab, nicht an der Farbe.
+ */
+export const WT_GRAU = '#c9c5bd';
+
+/**
+ * Die drei Töne, die es vorher gab.
+ *
+ * Nur noch für die Umwandlung älterer Planungen da – siehe `wandlung.ts`.
+ * Ein Element, das einen davon trägt, bekommt beim Öffnen den einen Ton.
+ */
+export const WT_GRAU_ALT = ['#c9c5bd', '#b7b2a8', '#d8d4cc'];
+const WT_GRAU_DUNKEL = WT_GRAU;
+const WT_GRAU_HELL = WT_GRAU;
 
 /** Achsmaße in cm, wie sie das Workbook auf Seite 24 führt. */
 const WT_ACHSMASSE = [62.5, 80, 100, 125, 133.3];

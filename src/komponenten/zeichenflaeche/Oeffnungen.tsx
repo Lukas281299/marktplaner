@@ -1,5 +1,6 @@
 import { Group, Line, Rect, Shape, Text } from 'react-konva';
 import type { Oeffnung } from '../../typen/modell';
+import { SCHRIFT_MASS, lesbar } from '../../logik/beschriftung';
 
 /**
  * Türen, Durchgänge und Tore.
@@ -192,15 +193,15 @@ function OeffnungBild({
         />
       )}
 
-      {oeffnung.beschriftung && (
+      {oeffnung.beschriftung && lesbar(SCHRIFT_MASS, zoom) && (
         <Text
           listening={false}
           x={-halbB}
-          y={-halbT - 15 / zoom}
+          y={-halbT - SCHRIFT_MASS * 1.2}
           width={b}
           align="center"
           text={oeffnung.beschriftung}
-          fontSize={11 / zoom}
+          fontSize={SCHRIFT_MASS}
           fill="#5d6874"
         />
       )}

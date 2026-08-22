@@ -1,6 +1,7 @@
 import { Group, Line, Shape, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { SCHRIFT_FLAECHE, lesbar } from '../../logik/beschriftung';
 import { formatiereFlaeche } from '../../logik/masse';
 import { flaeche, rahmen } from '../../logik/polygon';
 import type { Verkaufsflaeche } from '../../typen/modell';
@@ -93,7 +94,7 @@ function VerkaufsflaecheBild({
 
   const punkte = flach(markierung.umriss);
   const kasten = rahmen(markierung.umriss);
-  const schrift = 14 / zoom;
+  const schrift = SCHRIFT_FLAECHE;
   const ziehbar = anklickbar && !markierung.gesperrt;
 
   const pfad = (ctx: Konva.Context) => {
@@ -171,7 +172,7 @@ function VerkaufsflaecheBild({
       )}
 
       {/* Name und Fläche */}
-      {markierung.beschriftungSichtbar && (
+      {markierung.beschriftungSichtbar && lesbar(schrift, zoom) && (
         <Text
           listening={false}
           x={kasten.links}

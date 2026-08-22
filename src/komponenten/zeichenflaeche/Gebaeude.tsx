@@ -1,5 +1,6 @@
 import { Group, Line, Text } from 'react-konva';
 import type { Grundflaeche, Massinheit, Punkt } from '../../typen/modell';
+import { SCHRIFT_MASS, lesbar } from '../../logik/beschriftung';
 import { formatiereLaenge } from '../../logik/masse';
 import { kanten, kantenVersatz } from '../../logik/polygon';
 
@@ -63,7 +64,7 @@ export function Gebaeude({ grundflaeche, einheit, zoom }: Props) {
   if (umriss.length < 3) return null;
 
   const punkte = flach(umriss);
-  const schrift = 13 / zoom;
+  const schrift = SCHRIFT_MASS;
 
   return (
     <Group listening={false}>
@@ -117,8 +118,9 @@ export function Gebaeude({ grundflaeche, einheit, zoom }: Props) {
 
       {/* Maß an jeder Wand */}
       {kanten(umriss).map((kante) => {
-        // Ganz kurze Kanten würden sich nur gegenseitig überschreiben.
-        if (kante.laenge * zoom < 34) return null;
+        // Ganz kurze Kanten würden sich nur gegenseitig überschreiben, und
+        // zu klein zum Lesen wird das Maß ohnehin weggelassen.
+        if (kante.laenge * zoom < 34 || !lesbar(schrift, zoom)) return null;
         return (
           <Text
             key={`mass-${kante.index}`}

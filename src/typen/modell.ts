@@ -618,6 +618,7 @@ export interface Projekt {
  *   5 – Achsmaß am Element, Hintergrundbild aus einem Plan-PDF
  *   6 – eingezeichnete Verkaufsflächen
  *   7 – eigene Ebene für die Verkaufsfläche
+ *   8 – ein Grauton für das ganze Trockensortiment
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -632,4 +633,10 @@ export interface Projekt {
  * eine ältere Planung die Ebene „Verkaufsfläche" nicht, und was auf ihr
  * liegt, wäre unsichtbar – ohne Schalter, mit dem man es zurückholt.
  */
-export const SCHEMA_VERSION = 7;
+/**
+ * Fassung 8 zieht die Farbe nach. Wandregal, Gondel und Kopfgondel hatten drei
+ * Grautöne; jetzt ist es einer. Bestehende Planungen bekommen ihn beim Öffnen,
+ * aber nur dort, wo noch einer der alten Töne steht – wer ein Regal von Hand
+ * eingefärbt hat, behält seine Farbe.
+ */
+export const SCHEMA_VERSION = 8;

@@ -220,3 +220,32 @@ describe('neue Fassung', () => {
     expect(zweimal.grundflaeche.umriss).toEqual(einmal.grundflaeche.umriss);
   });
 });
+
+describe('Fassung 8: ein Grauton für das Trockensortiment', () => {
+  const regal = (farbe: string, form = 'wt100') => ({
+    id: 'el', vorlageId: 'v', ebeneId: 'einrichtung', name: 'R', kategorie: 'regale',
+    x: 0, y: 0, breite: 125, tiefe: 67, drehung: 0, form, farbe,
+    beschriftung: '', beschriftungSichtbar: true, schriftgroesse: 12,
+    gesperrt: false, reihenfolge: 0, beidseitig: false,
+  });
+
+  it('färbt Wandregal und Gondel auf denselben Ton', () => {
+    const neu = wandleProjekt(alteFassung({
+      elemente: [regal('#c9c5bd'), regal('#b7b2a8'), regal('#d8d4cc')],
+    }));
+    expect([...new Set(neu.elemente.map((el) => el.farbe))]).toEqual(['#c9c5bd']);
+  });
+
+  it('lässt eine von Hand gesetzte Farbe stehen', () => {
+    // Wer ein Regal eingefärbt hat, um eine Warengruppe hervorzuheben, darf
+    // das nicht durchs Öffnen verlieren.
+    const neu = wandleProjekt(alteFassung({ elemente: [regal('#ff0000')] }));
+    expect(neu.elemente[0].farbe).toBe('#ff0000');
+  });
+
+  it('fasst nur das Trockensortiment an', () => {
+    // Ein Kühlmöbel im selben Grau bleibt, wie es ist.
+    const neu = wandleProjekt(alteFassung({ elemente: [regal('#b7b2a8', 'kuehlSchrank')] }));
+    expect(neu.elemente[0].farbe).toBe('#b7b2a8');
+  });
+});

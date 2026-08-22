@@ -1,4 +1,5 @@
 import { Group, Line, Text } from 'react-konva';
+import { SCHRIFT_MASS, lesbar } from '../../logik/beschriftung';
 import { formatiereLaenge } from '../../logik/masse';
 import { masslaenge, massWinkel, versetzteLinie } from '../../logik/messen';
 import type { Masslinie, Massinheit } from '../../typen/modell';
@@ -81,7 +82,7 @@ function MassBild({
   const linie = versetzteLinie(mass);
   const farbe = ausgewaehlt ? '#0a84ff' : '#2f3b49';
   const strich = 1.2 / zoom;
-  const schrift = 13 / zoom;
+  const schrift = SCHRIFT_MASS;
   const winkel = massWinkel(mass);
 
   // Die Schrägstriche an den Enden – 45° zur Maßlinie.
@@ -140,7 +141,9 @@ function MassBild({
       <Line points={schraeg(linie.von)} stroke={farbe} strokeWidth={strich} />
       <Line points={schraeg(linie.bis)} stroke={farbe} strokeWidth={strich} />
 
-      {/* Die Maßzahl, mittig über der Linie */}
+      {/* Die Maßzahl, mittig über der Linie. Zu klein zum Lesen wird sie
+          weggelassen – ein Fleck aus vier Bildpunkten ist keine Zahl. */}
+      {lesbar(schrift, zoom) && (
       <Text
         listening={false}
         x={mitte.x}
@@ -155,6 +158,7 @@ function MassBild({
         fill={farbe}
         fontStyle="bold"
       />
+      )}
 
       {/* Breiterer, unsichtbarer Streifen zum Anfassen */}
       <Line

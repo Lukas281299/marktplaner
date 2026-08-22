@@ -1,5 +1,6 @@
 import { Group, Line, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
+import { SCHRIFT_FLAECHE, lesbar } from '../../logik/beschriftung';
 import { raumflaeche } from '../../logik/flaechen';
 import { formatiereFlaeche } from '../../logik/masse';
 import { rahmen } from '../../logik/polygon';
@@ -79,7 +80,7 @@ function RaumBild({
 
   const punkte = flach(raum.umriss);
   const kasten = rahmen(raum.umriss);
-  const schrift = 14 / zoom;
+  const schrift = SCHRIFT_FLAECHE;
   const ziehbar = anklickbar && !raum.gesperrt;
 
   return (
@@ -130,7 +131,7 @@ function RaumBild({
       )}
 
       {/* Name und Fläche */}
-      {raum.beschriftungSichtbar && (
+      {raum.beschriftungSichtbar && lesbar(schrift, zoom) && (
         <Text
           listening={false}
           x={kasten.links}
