@@ -1121,7 +1121,36 @@ const MIT_ACHSMASS = new Set<Grundform>([
   'bakeoff',
   'vitable',
   'vitableAbschluss',
+  // Kühlung und Tiefkühlung. Ein Kühlregal von 1,25 m ist genauso ein
+  // A1250 wie ein Regalfeld, und im Plan liest man die Breite am selben
+  // Zeichen ab – da darf die Abteilung keinen Unterschied machen.
+  'kuehlSchrank',
+  'kuehlOffen',
+  'kuehlStufen',
+  'tkSchrank',
+  'tkKombi',
+  'tkTruhe',
 ]);
+
+/**
+ * Das Maß, in dem die Diagonale sich wiederholt, in cm.
+ *
+ * Ein Möbel von 2,50 m ist zweimal 1,25 und trägt zwei Diagonalen, eines
+ * von 3,75 m derer drei. Geht die Länge nicht glatt auf, bleibt es leer:
+ * 0,94 m und 1,88 m bekommen nichts, weil sie kein Vielfaches sind. Ein
+ * falsches Zeichen wäre schlimmer als keines – man liest daran ja die
+ * Breite ab.
+ */
+const DIAGONALMASS = 125;
+
+/** Wie viele volle 1,25-m-Abschnitte stecken in dieser Breite? */
+function diagonalAbschnitte(breite: number): number {
+  const zahl = breite / DIAGONALMASS;
+  const ganz = Math.round(zahl);
+  if (ganz < 1) return 0;
+  // Ein Zentimeter Spielraum, wie beim Achsmaß selbst.
+  return Math.abs(breite - ganz * DIAGONALMASS) <= 1 ? ganz : 0;
+}
 
 /**
  * Zeichnet das Achsmaß-Zeichen: Diagonale oder Kreuz, siehe `achsmass.ts`.
@@ -1147,6 +1176,7 @@ export function zeichneAchsmass(ctx: Konva.Context, element: PlanElement, b: num
   for (const breite of breiten) {
     const weite = breite * faktor;
     const zeichen = achsmassZeichen(breite);
+
     if (zeichen !== 'keins') {
       // Von unten links nach oben rechts – y zeigt auf dem Bildschirm nach
       // unten.
@@ -1155,6 +1185,17 @@ export function zeichneAchsmass(ctx: Konva.Context, element: PlanElement, b: num
       if (zeichen === 'kreuz') {
         ctx.moveTo(x, 0);
         ctx.lineTo(x + weite, t);
+      }
+    } else {
+      // Kein eigenes Achsmaß, aber vielleicht ein Vielfaches von 1,25 m:
+      // Dann wird die Einheit unterteilt und jeder Abschnitt bekommt seine
+      // Diagonale. So trägt ein Kühlregal von 2,50 m zwei, ohne dass man
+      // es aus zwei Vorlagen zusammensetzen müsste.
+      const abschnitte = diagonalAbschnitte(breite);
+      const je = weite / Math.max(1, abschnitte);
+      for (let i = 0; i < abschnitte; i++) {
+        ctx.moveTo(x + i * je, t);
+        ctx.lineTo(x + (i + 1) * je, 0);
       }
     }
     x += weite;

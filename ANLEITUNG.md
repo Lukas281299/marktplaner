@@ -390,6 +390,19 @@ einen zweiten an, sind es zwei Diagonalen. Aus der Gesamtbreite gerechnet
 käme 2,50 m heraus — ein Maß, zu dem kein Zeichen gehört, und die Diagonale
 verschwände genau dann, wenn man sie am nötigsten braucht.
 
+**Die Diagonale kommt alle 1,25 m — in jeder Abteilung.** Auch Kühlmöbel und
+Tiefkühlgeräte tragen sie; ein Kühlregal von 1,25 m ist genauso ein A1250 wie
+ein Regalfeld, und im Plan liest man die Breite am selben Zeichen ab.
+
+Ein Möbel, dessen Länge ein **Vielfaches von 1,25 m** ist, wird dafür
+unterteilt: 2,50 m bekommt zwei Diagonalen, 3,75 m derer drei — auch dann,
+wenn es als *eine* Vorlage eingefügt wurde und nicht zusammengesetzt ist.
+
+Geht die Länge nicht glatt auf, bleibt das Möbel **leer**. Das betrifft die
+krummen Kataloglängen der Kühlung: **0,94 m** und **1,88 m** tragen kein
+Zeichen, weil sie kein Vielfaches von 1,25 sind. Ein falsches Zeichen wäre
+schlimmer als keines — man liest daran ja die Breite ab.
+
 > **Ohne Raster geht es weiter frei.** Die Freihand-Vorlagen („Regal frei",
 > „Gondel frei", Flächen, Symbole) haben bewusst keine Einheiten-Gruppe. Sie
 > sind genau dafür da, dass man sich um kein Raster kümmern muss.

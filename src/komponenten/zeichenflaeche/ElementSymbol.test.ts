@@ -272,44 +272,44 @@ describe('Trennung zwischen Einheiten', () => {
   });
 });
 
-describe('Achsmaß-Zeichen je Einheit', () => {
-  /**
-   * Die Diagonalen und Kreuze, die ein Element zeichnet.
-   *
-   * Gemessen wird an der echten Zeichenfunktion: Eine Diagonale läuft von
-   * unten links nach oben rechts, ein Kreuz hat zusätzlich die Gegenrichtung.
-   * Zurück kommen die Spannweiten – daran erkennt man, ob je Einheit oder
-   * über das ganze Möbel gezeichnet wurde.
-   */
-  function diagonalen(el: Partial<PlanElement> & { form: Grundform; breite: number }) {
-    const element = {
-      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'obstgemuese',
-      x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
-      beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
-      ...el,
-    } as PlanElement;
-    const t = 100;
-    const aufrufe: [string, number, number][] = [];
-    const ctx = {
-      rect: () => {}, closePath: () => {}, arc: () => {}, arcTo: () => {}, ellipse: () => {},
-      moveTo: (x: number, y: number) => aufrufe.push(['m', x, y]),
-      lineTo: (x: number, y: number) => aufrufe.push(['l', x, y]),
-    } as unknown as Konva.Context;
-    zeichneAchsmass(ctx, element, element.breite, t);
+/**
+ * Die Diagonalen und Kreuze, die ein Element zeichnet.
+ *
+ * Gemessen wird an der echten Zeichenfunktion: Eine Diagonale läuft von
+ * unten links nach oben rechts, ein Kreuz hat zusätzlich die Gegenrichtung.
+ * Zurück kommen die Spannweiten – daran erkennt man, ob je Einheit oder
+ * über das ganze Möbel gezeichnet wurde.
+ */
+function diagonalen(el: Partial<PlanElement> & { form: Grundform; breite: number }) {
+  const element = {
+    id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'obstgemuese',
+    x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
+    beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+    ...el,
+  } as PlanElement;
+  const t = 100;
+  const aufrufe: [string, number, number][] = [];
+  const ctx = {
+    rect: () => {}, closePath: () => {}, arc: () => {}, arcTo: () => {}, ellipse: () => {},
+    moveTo: (x: number, y: number) => aufrufe.push(['m', x, y]),
+    lineTo: (x: number, y: number) => aufrufe.push(['l', x, y]),
+  } as unknown as Konva.Context;
+  zeichneAchsmass(ctx, element, element.breite, t);
 
-    const auf: number[] = [];
-    const ab: number[] = [];
-    for (let i = 0; i < aufrufe.length - 1; i++) {
-      const [a, x1, y1] = aufrufe[i];
-      const [b, x2, y2] = aufrufe[i + 1];
-      if (a !== 'm' || b !== 'l') continue;
-      const weite = Math.round((x2 - x1) * 100) / 100;
-      if (Math.abs(y1 - t) < 0.01 && Math.abs(y2) < 0.01) auf.push(weite);
-      if (Math.abs(y1) < 0.01 && Math.abs(y2 - t) < 0.01) ab.push(weite);
-    }
-    return { diagonalen: auf, gegendiagonalen: ab };
+  const auf: number[] = [];
+  const ab: number[] = [];
+  for (let i = 0; i < aufrufe.length - 1; i++) {
+    const [a, x1, y1] = aufrufe[i];
+    const [b, x2, y2] = aufrufe[i + 1];
+    if (a !== 'm' || b !== 'l') continue;
+    const weite = Math.round((x2 - x1) * 100) / 100;
+    if (Math.abs(y1 - t) < 0.01 && Math.abs(y2) < 0.01) auf.push(weite);
+    if (Math.abs(y1) < 0.01 && Math.abs(y2 - t) < 0.01) ab.push(weite);
   }
+  return { diagonalen: auf, gegendiagonalen: ab };
+}
 
+describe('Achsmaß-Zeichen je Einheit', () => {
   it('gibt einem 1,25-m-Tisch seine Diagonale', () => {
     expect(diagonalen({ form: 'vitable', breite: 125 }).diagonalen).toEqual([125]);
   });
@@ -457,5 +457,50 @@ describe('Führungsrohr', () => {
     // Freihand-Fläche bekommt keines, auch wenn der Haken gesetzt wäre.
     expect(rechtecke({ form: 'kuehlSchrank', fuehrungsrohr: true })).toEqual([]);
     expect(rechtecke({ form: 'regal', fuehrungsrohr: true })).toEqual([]);
+  });
+});
+
+describe('Diagonale je 1,25 m', () => {
+  it('gibt dem Kühlregal von 1,25 m seine Diagonale', () => {
+    // Der gemeldete Fehler: Kühlmöbel trugen gar kein Zeichen.
+    expect(diagonalen({ form: 'kuehlSchrank', breite: 125 }).diagonalen).toEqual([125]);
+  });
+
+  it('teilt ein Kühlregal von 2,50 m in zwei', () => {
+    // Es ist eine Vorlage und kein Zusammenbau – trotzdem zwei Diagonalen,
+    // denn es sind zweimal 1,25 m.
+    expect(diagonalen({ form: 'kuehlSchrank', breite: 250 }).diagonalen).toEqual([125, 125]);
+  });
+
+  it('teilt 3,75 m in drei', () => {
+    expect(diagonalen({ form: 'kuehlSchrank', breite: 375 }).diagonalen).toEqual([125, 125, 125]);
+  });
+
+  it('lässt die krummen Kataloglängen frei', () => {
+    // 0,94 m und 1,88 m sind kein Vielfaches von 1,25 – dort wäre jedes
+    // Zeichen falsch, und ein falsches ist schlimmer als keines.
+    expect(diagonalen({ form: 'kuehlSchrank', breite: 93.7 }).diagonalen).toEqual([]);
+    expect(diagonalen({ form: 'kuehlSchrank', breite: 187.5 }).diagonalen).toEqual([]);
+    expect(diagonalen({ form: 'kuehlSchrank', breite: 194 }).diagonalen).toEqual([]);
+  });
+
+  it('gilt auch für Tiefkühlung', () => {
+    expect(diagonalen({ form: 'tkKombi', breite: 250 }).diagonalen).toEqual([125, 125]);
+    // Die Kataloglängen der TK-Schränke gehen nicht auf.
+    expect(diagonalen({ form: 'tkSchrank', breite: 156.2 }).diagonalen).toEqual([]);
+  });
+
+  it('zählt bei zusammengesetzten Möbeln je Einheit', () => {
+    // Zwei angehängte 1,25er: zwei Diagonalen. Kommt ein 0,94er dazu,
+    // bleibt es bei zweien.
+    expect(
+      diagonalen({ form: 'kuehlSchrank', breite: 343.7, felder: [125, 125, 93.7] }).diagonalen,
+    ).toEqual([125, 125]);
+  });
+
+  it('lässt die Kreuze der schmalen Maße stehen', () => {
+    // A625 und A1333 tragen ein Kreuz. Die neue Regel kommt nur dort zum
+    // Zug, wo es bisher gar kein Zeichen gab – sie nimmt keines weg.
+    expect(diagonalen({ form: 'vitable', breite: 62.5 }).gegendiagonalen).toEqual([62.5]);
   });
 });
