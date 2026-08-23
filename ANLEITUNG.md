@@ -472,6 +472,41 @@ sitzen genau dort, wo im Markt die Säule steht. Ein A1250 ganz vorn ergibt
 eine andere Zeichnung als eines ganz hinten — und im Markt einen anderen
 Aufbau.
 
+### Notizen in den Feldern
+
+Auf einem Ladenbauplan trägt jedes Regalfeld seine eigenen Angaben. Genau das
+lässt sich hier eintragen — **je Feld einzeln**, und bei einer Gondel **je
+Seite getrennt**:
+
+```
+┌──────────────────┐
+│ 5+         H 1800│   links: von Hand, bis zu drei Zeilen
+│ 1K          T 600│   rechts: gerechnet, klein
+│                  │
+└──────────────────┘
+```
+
+**Links oben** schreibst du hinein, was am Regal steht. Die **erste Zeile ist
+die Zahl der Böden** (z. B. `5+`), darunter passen bis zu zwei weitere Zeilen —
+etwa `1K`, wenn Körbe verwendet werden.
+
+**Rechts oben** erscheinen automatisch **Höhe und Tiefe in Millimetern**, klein
+und in zwei Zeilen: `H 1800` und `T 600`. Die Tiefe ist dabei die
+**Bodentiefe**, nach der bestellt wird — bei einer Gondel also `T 600` und
+nicht das Stellmaß von 1270 mm.
+
+Die Eingabefelder stehen rechts unter *Felder*, direkt unter jeder Feldzeile.
+Bei einer Gondel sind es zwei nebeneinander: links die Rückseite, rechts die
+Vorderseite. Die beiden Seiten werden getrennt bestückt — fünf Böden auf der
+einen können sechs auf der anderen gegenüberstehen.
+
+> Die Notizen gehören zur Zeichnung und schrumpfen beim Herauszoomen mit. In
+> der Übersicht über den ganzen Markt sind sie deshalb nicht zu sehen; ab
+> etwa **Zoom 35 %** stehen sie da.
+
+Wird ein Zug länger oder kürzer, behalten die Notizen ihren Platz: Was im
+dritten Feld stand, steht hinterher wieder im dritten.
+
 ### Ziehen rundet ab
 
 Ein Regal lässt sich weiterhin am Anfasser in die Breite ziehen. Beim

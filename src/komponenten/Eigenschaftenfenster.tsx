@@ -11,6 +11,7 @@ import {
   type Modulsatz,
 } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
+import { NOTIZ_ZEILEN, notizFuer } from '../logik/feldnotiz';
 import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -585,7 +586,8 @@ function Feldaufteilung({
 
         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
           {felder.map((feld, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span className="kategorie-anzahl" style={{ minWidth: 22 }}>
                 {i + 1}.
               </span>
@@ -629,6 +631,37 @@ function Feldaufteilung({
                 ×
               </button>
             </div>
+
+            {/* Was in diesem Feld steht. Bei einer Gondel je Seite eigene
+                Zeilen – dort wird getrennt bestückt. */}
+            <div style={{ display: 'flex', gap: 4, paddingLeft: 26 }}>
+              {(element.beidseitig ? (['oben', 'unten'] as const) : (['unten'] as const)).map(
+                (seite) => (
+                  <textarea
+                    key={seite}
+                    rows={NOTIZ_ZEILEN}
+                    style={{ flex: 1, resize: 'vertical', fontSize: 12, lineHeight: 1.3 }}
+                    value={notizFuer(element, i)[seite] ?? ''}
+                    placeholder={
+                      element.beidseitig
+                        ? seite === 'oben'
+                          ? 'Rückseite — 5+ / 1K'
+                          : 'Vorderseite — 5+ / 1K'
+                        : 'Böden, z. B. 5+ / 1K'
+                    }
+                    title={
+                      'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
+                      'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
+                    }
+                    onFocus={() => usePlanStore.getState().schnappschuss()}
+                    onChange={(e) =>
+                      usePlanStore.getState().setzeFeldnotiz(element.id, i, seite, e.target.value)
+                    }
+                  />
+                ),
+              )}
+            </div>
+            </div>
           ))}
         </div>
 
@@ -665,6 +698,12 @@ function Feldaufteilung({
         </div>
 
         <p className="hinweis" style={{ marginTop: 8 }}>
+          In die Felder darunter schreibst du, was am Regal steht: <strong>erste Zeile die Zahl
+          der Böden</strong>, darunter bis zu zwei weitere Zeilen — etwa <em>1K</em> für Körbe.
+          Höhe und Tiefe erscheinen automatisch klein rechts im Feld.
+        </p>
+
+        <p className="hinweis">
           Andere Maße gibt es hier nicht: {satz.herkunft}. Die Länge ist die Summe
           — wird eine Einheit breiter, wächst das Möbel nach hinten, sein Anfang
           bleibt stehen.

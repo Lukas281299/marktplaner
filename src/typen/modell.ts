@@ -181,6 +181,16 @@ export interface Ebene {
   gesperrt: boolean;
 }
 
+/**
+ * Was in einem einzelnen Regalfeld steht – je Seite eigene Zeilen.
+ *
+ * Siehe `PlanElement.feldnotizen`.
+ */
+export interface Feldnotiz {
+  oben?: string;
+  unten?: string;
+}
+
 /** Ein tatsächlich auf dem Plan platziertes Element. */
 export interface PlanElement {
   id: string;
@@ -327,6 +337,22 @@ export interface PlanElement {
    * Bei einer Gondel läuft sie auf beiden Seiten, sonst nur vorn.
    */
   fuehrungsrohr?: boolean;
+  /**
+   * Notizen in den einzelnen Feldern – eine je Feld, von links nach rechts.
+   *
+   * Was im Plan an einem Regalfeld steht: wie viele Böden es hat, ob Körbe
+   * darin sind, was sonst noch wichtig ist. Im Markt liest man das am Regal
+   * ab, und im Plan soll es genauso dastehen.
+   *
+   * Bei einer Gondel hat jedes Feld **zwei** Seiten, und die werden getrennt
+   * bestückt – fünf Böden auf der einen Seite können sechs auf der anderen
+   * gegenüberstehen. `oben` und `unten` beziehen sich auf das ungedrehte
+   * Element. Bei einem einseitigen Regal wird nur `unten` benutzt.
+   *
+   * Zeilenumbrüche trennen die Zeilen; mehr als drei werden nicht gezeichnet
+   * – dann steht es sich im Feld gegenseitig im Weg.
+   */
+  feldnotizen?: Feldnotiz[];
   /**
    * Tiefe des untersten Bodens in cm.
    *

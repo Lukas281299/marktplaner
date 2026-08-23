@@ -4,6 +4,7 @@ import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
 import { verschiebeEcke } from '../logik/elementEcken';
+import { passeNotizenAn } from '../logik/feldnotiz';
 import { vervielfaeltige } from '../logik/vervielfaeltigen';
 import { feldliste, groesstBaubareLaenge, passeAn } from '../logik/feldaufteilung';
 import { kannKopfgondel, kopflage, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
@@ -13,6 +14,7 @@ import { setzeFavoriten as speichereFavoriten } from '../speicher/projektArchiv'
 import type {
   BibliothekEintrag,
   Einstellungen,
+  Feldnotiz,
   Grundflaeche,
   Gruppenart,
   Hintergrund,
@@ -232,6 +234,8 @@ interface PlanStore {
   aendereElemente(ids: string[], werte: Partial<PlanElement>, mitHistorie?: boolean): void;
   /** Setzt die Feldaufteilung eines Zugs; die Breite folgt der Summe. */
   setzeFelder(id: string, felder: number[]): void;
+  /** Schreibt eine Notiz in ein einzelnes Feld – je Seite getrennt. */
+  setzeFeldnotiz(id: string, feld: number, seite: 'oben' | 'unten', text: string): void;
   /** Setzt oder entfernt die Kopfgondel an einem Ende eines Zugs. */
   setzeKopfgondel(id: string, seite: Kopfseite, an: boolean): void;
   /** Zieht eine Ecke eines frei geformten Elements an eine neue Stelle. */
@@ -816,12 +820,34 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       const gewachsen: PlanElement = {
         ...zug,
         felder: neueFelder,
+        // Die Notizen behalten ihren Platz: Wer im dritten Feld etwas stehen
+        // hat, findet es hinterher dort wieder und nicht im zweiten.
+        feldnotizen: passeNotizenAn(zug.feldnotizen, neueFelder.length),
         breite,
         x: feinRunde(zug.x + versatz * Math.cos(bogen)),
         y: feinRunde(zug.y + versatz * Math.sin(bogen)),
       };
       return { ...p, elemente: richteKoepfeAus(p.elemente, gewachsen) };
     });
+  },
+
+  setzeFeldnotiz(id, feld, seite, text) {
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: p.elemente.map((el) => {
+        if (el.id !== id) return el;
+        const anzahl = el.felder?.length ?? 1;
+        const notizen: Feldnotiz[] = [
+          ...(passeNotizenAn(el.feldnotizen, anzahl) ??
+            Array.from({ length: anzahl }, (): Feldnotiz => ({}))),
+        ];
+        if (feld < 0 || feld >= notizen.length) return el;
+        notizen[feld] = { ...notizen[feld], [seite]: text || undefined };
+        // Steht nirgends mehr etwas, wird die Liste gar nicht mitgeschleppt.
+        const leer = notizen.every((n) => !n.oben && !n.unten);
+        return { ...el, feldnotizen: leer ? undefined : notizen };
+      }),
+    }));
   },
 
   setzeKopfgondel(id, seite, an) {

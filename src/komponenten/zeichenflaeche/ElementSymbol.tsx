@@ -3,6 +3,8 @@ import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { modulsatzFuer, zerlegeInModule } from '../../daten/module';
 import { achsmassZeichen } from '../../logik/achsmass';
+import { lesbar } from '../../logik/beschriftung';
+import { masszeilen, notizFuer, notizZeilen } from '../../logik/feldnotiz';
 import type { Grundform, PlanElement } from '../../typen/modell';
 
 /**
@@ -181,6 +183,81 @@ export function einheitenNaehte(element: PlanElement, b: number): number[] {
     naehte.push(x);
   }
   return naehte;
+}
+
+/**
+ * Schrifthöhen der Feldnotizen im Plan, in cm.
+ *
+ * Feste Größe in der Zeichnung, wie bei jeder Beschriftung, die zum Plan
+ * gehört: Beim Herauszoomen schrumpfen sie mit und blenden sich aus, statt
+ * sich übers Regal zu legen.
+ *
+ * Die Notiz ist größer als das Maß daneben – man liest sie zuerst, und das
+ * Maß steht ohnehin nur da, damit man es nicht nachschlagen muss.
+ */
+const NOTIZ_HOEHE = 22;
+const MASS_HOEHE = 14;
+
+/**
+ * Schreibt die Notizen in die Felder eines Regals.
+ *
+ * Je Feld links oben die eigenen Zeilen, rechts oben Höhe und Tiefe. Bei
+ * einer Gondel zweimal: oben die eine Seite, unten die andere – dort wird
+ * getrennt bestückt, und ein gemeinsamer Eintrag wäre schlicht falsch.
+ *
+ * Eigener Durchgang mit `fillText`, weil Text nicht in den Pfad gehört: Der
+ * wird gefüllt und gestrichelt, und aus jedem Buchstaben würde dabei ein
+ * Klecks.
+ */
+function zeichneFeldnotizen(
+  ctx: Konva.Context,
+  element: PlanElement,
+  b: number,
+  t: number,
+  zoom: number,
+) {
+  if (!lesbar(NOTIZ_HOEHE, zoom)) return;
+
+  const abschnitte = zeichenAbschnitte(element);
+  const roh = abschnitte.reduce((summe, teil) => summe + teil, 0);
+  if (roh <= 0) return;
+  const faktor = b / roh;
+
+  const masse = masszeilen(element);
+  const seiten: { notiz: (i: number) => string | undefined; oben: number; hoehe: number }[] =
+    element.beidseitig
+      ? [
+          { notiz: (i) => notizFuer(element, i).oben, oben: 0, hoehe: t / 2 },
+          { notiz: (i) => notizFuer(element, i).unten, oben: t / 2, hoehe: t / 2 },
+        ]
+      : [{ notiz: (i) => notizFuer(element, i).unten, oben: 0, hoehe: t }];
+
+  const rand = Math.min(NOTIZ_HOEHE * 0.35, b * 0.02);
+  let x = 0;
+  abschnitte.forEach((teil, i) => {
+    const weite = teil * faktor;
+    for (const seite of seiten) {
+      // Links: was von Hand darinsteht.
+      ctx.setAttr('font', `600 ${NOTIZ_HOEHE}px sans-serif`);
+      ctx.setAttr('fillStyle', 'rgba(150,26,26,0.92)');
+      ctx.setAttr('textBaseline', 'top');
+      notizZeilen(seite.notiz(i)).forEach((zeile, z) => {
+        ctx.fillText(zeile, x + rand, seite.oben + rand + z * NOTIZ_HOEHE * 1.15);
+      });
+
+      // Rechts: was das Programm ohnehin weiß.
+      if (lesbar(MASS_HOEHE, zoom) && masse.length > 0) {
+        ctx.setAttr('font', `${MASS_HOEHE}px sans-serif`);
+        ctx.setAttr('fillStyle', 'rgba(30,40,52,0.55)');
+        ctx.setAttr('textAlign', 'right');
+        masse.forEach((zeile, z) => {
+          ctx.fillText(zeile, x + weite - rand, seite.oben + rand + z * MASS_HOEHE * 1.2);
+        });
+        ctx.setAttr('textAlign', 'left');
+      }
+    }
+    x += weite;
+  });
 }
 
 /**
@@ -1385,6 +1462,12 @@ export function ElementSymbol({
           ctx.stroke();
           ctx.restore();
         }
+
+        // 4. Die Notizen in den Feldern. Text gehört nicht in den Pfad –
+        //    der wird gefüllt, und aus jedem Buchstaben würde ein Klecks.
+        ctx.save();
+        zeichneFeldnotizen(ctx, element, b, t, zoom);
+        ctx.restore();
       }}
       onMouseDown={(e) => beiMausTaste(e, element.id)}
       onDragStart={(e) => beiZiehStart(e, element.id)}
