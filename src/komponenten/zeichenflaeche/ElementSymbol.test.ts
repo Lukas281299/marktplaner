@@ -7,6 +7,7 @@ import {
   zeichneForm,
   zeichneFuehrungsrohr,
   zeichneFeldnotizen,
+  zeichneFlaechenangaben,
   zeichneStriche,
   zeichneWarengruppen,
 } from './ElementSymbol';
@@ -684,7 +685,9 @@ describe('Gondel mit zwei verschiedenen Seiten', () => {
 
 /** Eine Leinwand, die auch Text mitschreibt. */
 function schreiber() {
-  const texte: { text: string; x: number; y: number }[] = [];
+  const texte: { text: string; x: number; y: number; groesse: number }[] = [];
+  // Die zuletzt gesetzte Schrifthöhe – daran hängt, ob etwas eingepasst wurde.
+  let schriftgroesse = 0;
   const striche: [number, number, number, number][] = [];
   let letzter: [number, number] | null = null;
 
@@ -693,7 +696,9 @@ function schreiber() {
   let letzteVerschiebung: [number, number] | null = null;
 
   const ctx = {
-    setAttr: () => {},
+    setAttr: (name: string, wert: unknown) => {
+      if (name === 'font') schriftgroesse = parseFloat(String(wert));
+    },
     beginPath: () => {},
     stroke: () => {},
     save: () => {},
@@ -708,7 +713,8 @@ function schreiber() {
     },
     // Zehn Punkte je Zeichen – so misst hier die Leinwand.
     measureText: (text: string) => ({ width: text.length * 10 }),
-    fillText: (text: string, x: number, y: number) => texte.push({ text, x, y }),
+    fillText: (text: string, x: number, y: number) =>
+      texte.push({ text, x, y, groesse: schriftgroesse }),
     moveTo: (x: number, y: number) => {
       letzter = [x, y];
     },
@@ -900,5 +906,73 @@ describe('Beschriftungen bleiben lesbar', () => {
     );
     expect(wendungen.map((w) => Math.round(w.x))).toEqual([50, 150]);
     expect(wendungen.every((w) => Math.abs(w.y - TIEFE / 2) < 0.01)).toBe(true);
+  });
+});
+
+describe('Aktionsfläche beschriftet sich selbst', () => {
+  /**
+   * Die Fläche zieht man sich zurecht. Ihre drei Angaben — Name, Quadratmeter,
+   * Kantenlängen — müssen dabei lesbar bleiben, ohne bei der großen Fläche ins
+   * Plakathafte zu wachsen.
+   */
+  const flaeche = (breite: number, tiefe: number, beschriftung = 'Aktionsfläche') =>
+    ({
+      id: 'f', vorlageId: 'aktionsflaeche-frei', ebeneId: 'einrichtung', name: 'Fläche',
+      kategorie: 'aktion', x: 0, y: 0, breite, tiefe, hoehe: 0, drehung: 0,
+      form: 'aktionsflaeche', farbe: '#ffff99', beschriftung, beschriftungSichtbar: true,
+      schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+    }) as unknown as PlanElement;
+
+  const zeichne = (breite: number, tiefe: number, beschriftung?: string) => {
+    const { ctx, texte } = schreiber();
+    zeichneFlaechenangaben(ctx, flaeche(breite, tiefe, beschriftung), breite, tiefe, 1);
+    return texte;
+  };
+
+  it('schreibt Quadratmeter links, Kantenlängen rechts und den Namen in die Mitte', () => {
+    const texte = zeichne(400, 200);
+    expect(texte.map((e) => e.text)).toEqual(['8,00 m²', 'L 4000', 'B 2000', 'Aktionsfläche']);
+
+    const [qm, laenge, , name] = texte;
+    expect(qm.x).toBeLessThan(100);
+    expect(laenge.x).toBeGreaterThan(300);
+    expect(qm.y).toBeCloseTo(laenge.y, 1);
+    expect(name.x).toBeCloseTo(200, 1);
+    expect(name.y).toBeGreaterThan(50);
+    expect(name.y).toBeLessThan(150);
+  });
+
+  it('verkleinert den Namen, wenn die Fläche klein wird', () => {
+    // Sonst stünde er über den Rand hinaus oder würde abgeschnitten.
+    const gross = zeichne(400, 200).find((e) => e.text === 'Aktionsfläche')!;
+    const klein = zeichne(120, 90).find((e) => e.text === 'Aktionsfläche')!;
+    expect(klein.groesse).toBeLessThan(gross.groesse);
+    expect(klein.groesse).toBeGreaterThan(0);
+  });
+
+  it('lässt den Namen bei einer großen Fläche nicht zum Plakat werden', () => {
+    const riesig = zeichne(1200, 800).find((e) => e.text === 'Aktionsfläche')!;
+    const gross = zeichne(400, 200).find((e) => e.text === 'Aktionsfläche')!;
+    expect(riesig.groesse).toBeCloseTo(gross.groesse, 5);
+  });
+
+  it('rechnet die Fläche aus den Maßen', () => {
+    expect(zeichne(250, 250)[0].text).toBe('6,25 m²');
+    expect(zeichne(120, 90)[0].text).toBe('1,08 m²');
+  });
+
+  it('nimmt den eigenen Text, wenn die Zone einen hat', () => {
+    expect(zeichne(300, 200, 'Ostern').map((e) => e.text)).toContain('Ostern');
+  });
+
+  it('lässt die Mitte leer, wenn kein Text dasteht', () => {
+    // Die Zahlen bleiben trotzdem – sie stehen für sich.
+    expect(zeichne(300, 200, '   ').map((e) => e.text)).toEqual(['6,00 m²', 'L 3000', 'B 2000']);
+  });
+
+  it('blendet sich beim Herauszoomen aus', () => {
+    const { ctx, texte } = schreiber();
+    zeichneFlaechenangaben(ctx, flaeche(400, 200), 400, 200, 0.01);
+    expect(texte).toHaveLength(0);
   });
 });

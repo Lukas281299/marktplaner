@@ -1471,11 +1471,12 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           zuege.length === 1 ? zuege[0] : ausgewaehlte.length === 1 ? ausgewaehlte[0] : null;
         if (!ziel) return null;
         const satz = modulsatzFuer(ziel.form);
-        return satz ? (
-          <Feldaufteilung element={ziel} satz={satz} einheit={einheit} />
-        ) : (
-          <Elementbeschriftung element={ziel} />
-        );
+        if (satz) return <Feldaufteilung element={ziel} satz={satz} einheit={einheit} />;
+        // Eine Aktionsfläche hat keine Felder und trägt keine Warengruppe:
+        // Sie schreibt ihren Namen selbst in die Mitte, dazu ihre Zahlen in
+        // die Ecken. Ihren Text stellt man unter „Beschriftung" ein.
+        if (ziel.form === 'aktionsflaeche') return null;
+        return <Elementbeschriftung element={ziel} />;
       })()}
 
       {/* ------------------------------------------------------ Darstellung */}

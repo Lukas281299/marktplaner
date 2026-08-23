@@ -861,11 +861,11 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   //   Viertelpalette       600 x 400 mm   (1/4 CHEP)
 
   // ---- Flächen
-  { id: 'aktionsflaeche', name: 'Aktionsfläche 2 x 2 m', kategorie: 'aktion', breite: 200, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen', hinweis: 'Zonenmarkierung, kein Möbel' },
-  { id: 'aktionsflaeche-3x2', name: 'Aktionsfläche 3 x 2 m', kategorie: 'aktion', breite: 300, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen' },
-  { id: 'aktionsflaeche-4x2', name: 'Aktionsfläche 4 x 2 m', kategorie: 'aktion', breite: 400, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen' },
-  { id: 'aktionsflaeche-frei', name: 'Aktionsfläche frei', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen', hinweis: 'Maße frei einstellbar' },
-  { id: 'saisonflaeche', name: 'Saisonfläche', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: SAISON_TEXT, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche', name: 'Aktionsfläche 2 x 2 m', kategorie: 'aktion', breite: 200, tiefe: 200, hoehe: 0, form: 'aktionsflaeche', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen', hinweis: 'Zonenmarkierung, kein Möbel' },
+  { id: 'aktionsflaeche-3x2', name: 'Aktionsfläche 3 x 2 m', kategorie: 'aktion', breite: 300, tiefe: 200, hoehe: 0, form: 'aktionsflaeche', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche-4x2', name: 'Aktionsfläche 4 x 2 m', kategorie: 'aktion', breite: 400, tiefe: 200, hoehe: 0, form: 'aktionsflaeche', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche-frei', name: 'Aktionsfläche frei', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'aktionsflaeche', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen', hinweis: 'Maße frei einstellbar' },
+  { id: 'saisonflaeche', name: 'Saisonfläche', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'aktionsflaeche', farbe: AKTION_GELB, standardBeschriftung: SAISON_TEXT, gruppe: 'Flächen' },
 
   // ---- Paletten
   { id: 'palette-epal-quer', name: 'EPAL quer · 1,20 x 0,80 m', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: 'Europalette, lange Seite zum Gang' },

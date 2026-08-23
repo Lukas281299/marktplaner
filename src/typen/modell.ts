@@ -66,6 +66,15 @@ export type Grundform =
   | 'kuehlStufen'
   | 'palette'
   | 'drehstaender'
+  /**
+   * Eine Aktions- oder Saisonfläche: eine Zone, kein Möbel.
+   *
+   * Sie hat keine Einheiten und kein Raster — man zieht sie sich zurecht.
+   * Dafür schreibt sie sich selbst voll: ihr Name in der Mitte, ihre
+   * Quadratmeter links oben, Länge und Breite rechts oben. Alles drei passt
+   * sich der Größe an, damit es beim Ziehen lesbar bleibt.
+   */
+  | 'aktionsflaeche'
   // Gebäude und Ausstattung. Diese Symbole stehen für nichts, was man kaufen
   // kann – sie sagen, was im Raum steht, und müssen deshalb auf einen Blick
   // lesbar sein. Eine Treppe soll wie eine Treppe aussehen.
@@ -725,6 +734,7 @@ export interface Projekt {
  *   9 – jede Gondelseite mit eigener Feldeinteilung
  *  10 – „Aktionsfläche" steht in der Fläche
  *  11 – Kopfgondeln schauen in den Gang
+ *  12 – Aktionsflächen sind eine eigene Grundform
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -761,4 +771,9 @@ export interface Projekt {
  * Bis dahin zeigte ihre Front zum Zug – sichtbar wurde das erst, als Notiz
  * und Warengruppe an der Front erschienen.
  */
-export const SCHEMA_VERSION = 11;
+/**
+ * Fassung 12 macht aus den Aktionsflächen eine eigene Grundform. Vorher waren
+ * es Rechtecke wie jedes andere und trugen deshalb weder ihre Quadratmeter
+ * noch ihre Maße.
+ */
+export const SCHEMA_VERSION = 12;

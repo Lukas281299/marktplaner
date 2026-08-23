@@ -115,8 +115,9 @@ export function masszeilen(
 ): string[] {
   // Eine Palette hat keine Höhe, die jemanden interessiert – sie ist so hoch,
   // wie gestapelt wird. Was man von ihr wissen will, sind ihre beiden
-  // Grundmaße: 1200 × 800 und man weiß, welche es ist.
-  if (element.form === 'palette') {
+  // Grundmaße: 1200 × 800 und man weiß, welche es ist. Für eine Aktionsfläche
+  // gilt dasselbe: Sie ist eine Zone auf dem Boden und hat gar keine Höhe.
+  if (element.form === 'palette' || element.form === 'aktionsflaeche') {
     const laenge = Math.round(Math.max(element.breite, element.tiefe) * 10);
     const breite = Math.round(Math.min(element.breite, element.tiefe) * 10);
     if (laenge <= 0 || breite <= 0) return [];

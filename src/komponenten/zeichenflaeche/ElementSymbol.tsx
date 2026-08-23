@@ -6,6 +6,7 @@ import { achsmassZeichen } from '../../logik/achsmass';
 import { laeuftRueckwaerts, lesbar } from '../../logik/beschriftung';
 import { feldliste } from '../../logik/feldaufteilung';
 import { masszeilen, notizZeilen } from '../../logik/feldnotiz';
+import { formatiereFlaeche } from '../../logik/masse';
 import {
   felderVon,
   gleicheEinteilung,
@@ -454,6 +455,95 @@ export function zeichneWarengruppen(
       });
     }
   }
+}
+
+/**
+ * Größte und kleinste Schrift einer Aktionsfläche, in cm.
+ *
+ * Die Fläche zieht man sich zurecht — zwei Meter im Quadrat oder acht mal
+ * drei. Ihre Angaben müssen dabei lesbar bleiben, ohne bei der großen Fläche
+ * ins Plakathafte zu wachsen. Deshalb eine Spanne statt einer Zahl: Die
+ * Schrift richtet sich nach der Fläche und bleibt in diesen Grenzen.
+ */
+const FLAECHE_NAME_GROSS = 34;
+const FLAECHE_ECKE_GROSS = 14;
+
+/**
+ * Schreibt eine Aktionsfläche voll: Name, Quadratmeter, Länge und Breite.
+ *
+ * So steht es auf einem Marktplan: In der Mitte, wofür die Zone da ist, in
+ * den oberen Ecken die Zahlen, mit denen man rechnet — links die
+ * Quadratmeter, rechts die beiden Kantenlängen.
+ *
+ * Alles drei richtet sich nach der Größe der Fläche und nicht nach einer
+ * festen Zahl. Wer die Fläche kleiner zieht, soll nicht plötzlich vor einer
+ * abgeschnittenen Beschriftung stehen; wer sie groß zieht, will kein Plakat.
+ */
+export function zeichneFlaechenangaben(
+  ctx: Konva.Context,
+  element: PlanElement,
+  b: number,
+  t: number,
+  zoom: number,
+) {
+  const kurz = Math.min(b, t);
+  if (kurz <= 0) return;
+
+  // Wie breit ein Text wird, weiß nur die Leinwand.
+  const messen = (text: string, schrift: number) => {
+    ctx.setAttr('font', `${schrift}px sans-serif`);
+    return typeof ctx.measureText === 'function'
+      ? ctx.measureText(text).width
+      : text.length * schrift * 0.55;
+  };
+
+  const kopf = laeuftRueckwaerts(element.drehung);
+  const ecke = Math.min(FLAECHE_ECKE_GROSS, kurz * 0.14);
+  const rand = Math.max(ecke * 0.5, kurz * 0.04);
+
+  // ---- Die beiden oberen Ecken: links die Fläche, rechts die Kanten.
+  if (lesbar(ecke, zoom)) {
+    ctx.setAttr('font', `${ecke}px sans-serif`);
+    ctx.setAttr('fillStyle', 'rgba(30,40,52,0.62)');
+    ctx.setAttr('textBaseline', 'top');
+
+    lesbarerBlock(ctx, kopf, b / 2, t / 2, () => {
+      ctx.setAttr('textAlign', 'left');
+      ctx.fillText(formatiereFlaeche(b * t), rand, rand);
+
+      ctx.setAttr('textAlign', 'right');
+      masszeilen(element).forEach((zeile, i) => {
+        ctx.fillText(zeile, b - rand, rand + i * ecke * 1.25);
+      });
+      ctx.setAttr('textAlign', 'left');
+    });
+  }
+
+  // ---- Die Mitte: wofür die Fläche da ist.
+  const text = (element.beschriftung ?? '').trim();
+  if (!element.beschriftungSichtbar || text === '') return;
+
+  const satz = gruppensatz(
+    text,
+    b - 2 * rand,
+    Math.min(FLAECHE_NAME_GROSS, t * 0.3, b * 0.3),
+    messen,
+  );
+  if (satz.zeilen.length === 0 || !lesbar(satz.schrift, zoom)) return;
+
+  const zeilenhoehe = satz.schrift * 1.15;
+  const oben = t / 2 - (satz.zeilen.length * zeilenhoehe) / 2;
+
+  ctx.setAttr('font', `${satz.schrift}px sans-serif`);
+  ctx.setAttr('fillStyle', 'rgba(24,32,44,0.9)');
+  ctx.setAttr('textBaseline', 'top');
+  lesbarerBlock(ctx, kopf, b / 2, t / 2, () => {
+    ctx.setAttr('textAlign', 'center');
+    satz.zeilen.forEach((zeile, i) => {
+      ctx.fillText(zeile, b / 2, oben + i * zeilenhoehe);
+    });
+    ctx.setAttr('textAlign', 'left');
+  });
 }
 
 /**
@@ -1688,8 +1778,13 @@ export function ElementSymbol({
         // 4. Die Notizen in den Feldern. Text gehört nicht in den Pfad –
         //    der wird gefüllt, und aus jedem Buchstaben würde ein Klecks.
         ctx.save();
-        zeichneFeldnotizen(ctx, element, b, t, zoom);
-        zeichneWarengruppen(ctx, element, b, t, zoom);
+        if (element.form === 'aktionsflaeche') {
+          // Eine Zone hat keine Felder. Sie trägt ihre eigenen Angaben.
+          zeichneFlaechenangaben(ctx, element, b, t, zoom);
+        } else {
+          zeichneFeldnotizen(ctx, element, b, t, zoom);
+          zeichneWarengruppen(ctx, element, b, t, zoom);
+        }
         ctx.restore();
       }}
       onMouseDown={(e) => beiMausTaste(e, element.id)}
@@ -1716,6 +1811,9 @@ export function ElementBeschriftung({
   erzwungen?: boolean;
 }) {
   if ((!element.beschriftungSichtbar && !erzwungen) || !element.beschriftung.trim()) return null;
+  // Eine Aktionsfläche schreibt ihren Namen selbst – passend zu ihrer Größe
+  // und zusammen mit ihren Zahlen. Ein zweiter Text läge darüber.
+  if (element.form === 'aktionsflaeche') return null;
 
   const schrift = element.schriftgroesse / zoom;
   // Zu kleine Schrift auf dem Bildschirm ist unleserlich – dann lieber weglassen.

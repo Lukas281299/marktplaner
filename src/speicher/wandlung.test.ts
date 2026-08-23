@@ -313,6 +313,16 @@ describe('Fassung 10: „Aktionsfläche" steht in der Fläche', () => {
   const erstes = (zusatz: Record<string, unknown> = {}) =>
     wandleProjekt(alteFassung({ elemente: [flaeche(zusatz)] })).elemente[0];
 
+  it('macht aus dem Rechteck eine Fläche', () => {
+    // Fassung 12: Erst als eigene Grundform trägt sie ihre Quadratmeter und
+    // ihre Kantenlängen und passt ihre Schrift der Größe an.
+    expect(erstes().form).toBe('aktionsflaeche');
+  });
+
+  it('macht aus einem gewöhnlichen Rechteck keine Fläche', () => {
+    expect(erstes({ vorlageId: 'display' }).form).toBe('rechteck');
+  });
+
   it('kürzt den Vorlagennamen auf das eine Wort', () => {
     // „Aktionsfläche 2 x 2 m" wird in zwei Metern Breite abgeschnitten, und
     // die Maße stehen ohnehin am Element.

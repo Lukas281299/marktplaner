@@ -1020,10 +1020,27 @@ echte Maße.
 Jede Abteilung hat außerdem ein **freies Element**, dessen Maße man beliebig
 einstellen kann.
 
-In einer **Aktions- oder Saisonfläche** steht das Wort *Aktionsfläche* bzw.
-*Saisonfläche* mitten in der Fläche — so wie auf einem Marktplan. Wer die Zone
-genauer benennen will, überschreibt es unter *Beschriftung*: „Ostern",
-„Grillsaison", „Wein-Aktion".
+Eine **Aktions- oder Saisonfläche** ist eine Zone und kein Möbel: Sie hat kein
+Raster, du ziehst sie dir zurecht. Dafür beschriftet sie sich selbst:
+
+```
+┌──────────────────────────────┐
+│ 8,00 m²              L 4000  │
+│                      B 2000  │
+│         Aktionsfläche        │
+│                              │
+└──────────────────────────────┘
+```
+
+- **Mitte:** wofür die Zone da ist. Standardmäßig *Aktionsfläche* bzw.
+  *Saisonfläche*; wer sie genauer benennen will, überschreibt das unter
+  *Beschriftung* — „Ostern", „Grillsaison", „Wein-Aktion".
+- **Links oben:** die Fläche in Quadratmetern.
+- **Rechts oben:** Länge und Breite in Millimetern.
+
+**Alles drei passt sich der Größe an.** Ziehst du die Fläche kleiner, wird die
+Schrift kleiner mit; ziehst du sie groß, wächst sie bis zu einer Grenze und
+nicht weiter — sonst stünde ein Plakat im Plan. Abgeschnitten wird nie.
 
 ### Drei Regeln, die man im Plan sieht
 

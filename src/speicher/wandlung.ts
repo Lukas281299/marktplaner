@@ -79,9 +79,24 @@ export function wandleProjekt(roh: unknown): Projekt {
         .map(wandleElement)
         .map(vereinheitlicheRegalfarbe)
         .map(teileSeitenAuf)
-        .map(beschrifteAktionsflaeche),
+        .map(beschrifteAktionsflaeche)
+        .map(machZurFlaeche),
     ),
   };
+}
+
+/**
+ * Fassung 12: Aktionsflächen bekommen ihre eigene Grundform.
+ *
+ * Vorher waren sie Rechtecke wie jedes andere Möbel. Damit trugen sie weder
+ * ihre Quadratmeter noch ihre Maße, und ihr Name wurde abgeschnitten statt
+ * sich der Größe anzupassen.
+ */
+function machZurFlaeche(element: PlanElement): PlanElement {
+  const vorlage = element.vorlageId ?? '';
+  const gemeint = vorlage === 'saisonflaeche' || vorlage.startsWith('aktionsflaeche');
+  if (!gemeint || element.form !== 'rechteck') return element;
+  return { ...element, form: 'aktionsflaeche' };
 }
 
 /**
