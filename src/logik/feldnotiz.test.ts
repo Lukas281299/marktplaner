@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { bodentiefeMm, masszeilen, notizZeilen, passeNotizenAn } from './feldnotiz';
-import type { Feldnotiz } from '../typen/modell';
+import { bodentiefeMm, masszeilen, notizZeilen } from './feldnotiz';
 
 /**
  * Prüfungen für die Notizen in den Regalfeldern.
  *
- * Zwei Dinge müssen stimmen, weil beides still schiefgeht: Die Tiefe rechts
- * im Feld muss die **Bodentiefe** sein und nicht das Stellmaß — sonst steht
- * an einer Gondel T1270, wo T600 bestellt wird. Und die Notizen müssen ihren
- * Platz behalten, wenn ein Zug wächst oder schrumpft; wandern sie ein Feld
- * weiter, merkt es niemand, bis im Markt das falsche Regal steht.
+ * Die Tiefe rechts im Feld muss die **Bodentiefe** sein und nicht das
+ * Stellmaß — sonst steht an einer Gondel T1270, wo T600 bestellt wird. Wohin
+ * die Notizen beim Umbauen wandern, prüft `regalseiten.test.ts`: Dort liegen
+ * sie am Feld.
  */
 
 describe('Zeilen einer Notiz', () => {
@@ -57,40 +55,5 @@ describe('Höhe und Tiefe rechts im Feld', () => {
 
   it('erfindet bei unsinniger Tiefe nichts', () => {
     expect(masszeilen({ hoehe: 180, tiefe: 3, beidseitig: true })).toEqual(['H 1800']);
-  });
-});
-
-describe('Notizen an die Feldzahl anpassen', () => {
-  const n = (oben?: string, unten?: string): Feldnotiz => ({ oben, unten });
-
-  it('lässt jede Notiz an ihrem Platz, wenn der Zug wächst', () => {
-    // Der Kern: Wer im dritten Feld etwas stehen hat, findet es hinterher
-    // dort wieder und nicht im zweiten.
-    const alt = [n(undefined, 'A'), n(undefined, 'B'), n(undefined, 'C')];
-    const neu = passeNotizenAn(alt, 5)!;
-    expect(neu).toHaveLength(5);
-    expect(neu[2].unten).toBe('C');
-    expect(neu[3]).toEqual({});
-  });
-
-  it('schneidet ab, wenn der Zug kürzer wird', () => {
-    const neu = passeNotizenAn([n(undefined, 'A'), n(undefined, 'B'), n(undefined, 'C')], 2)!;
-    expect(neu).toHaveLength(2);
-    expect(neu.map((e) => e.unten)).toEqual(['A', 'B']);
-  });
-
-  it('schleppt keine leere Liste mit', () => {
-    // Ein Zug ohne Notizen soll auch keine Notizenliste speichern.
-    expect(passeNotizenAn([{}, {}, {}], 4)).toBeUndefined();
-    expect(passeNotizenAn(undefined, 6)).toBeUndefined();
-  });
-
-  it('behält die Liste, solange irgendwo etwas steht', () => {
-    expect(passeNotizenAn([{}, n('5+'), {}], 3)).toHaveLength(3);
-  });
-
-  it('lässt eine passende Liste unangetastet', () => {
-    const alt = [n(undefined, 'A'), n(undefined, 'B')];
-    expect(passeNotizenAn(alt, 2)).toBe(alt);
   });
 });

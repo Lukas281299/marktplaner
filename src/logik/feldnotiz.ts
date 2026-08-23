@@ -1,4 +1,4 @@
-import type { Feldnotiz, PlanElement } from '../typen/modell';
+import type { PlanElement } from '../typen/modell';
 
 /**
  * Was in einem Regalfeld steht.
@@ -71,30 +71,4 @@ export function masszeilen(
   const tiefe = bodentiefeMm(element);
   if (tiefe > 0) zeilen.push(`T ${tiefe}`);
   return zeilen;
-}
-
-/** Die Notiz eines Felds – oder eine leere, wenn es keine gibt. */
-export function notizFuer(element: PlanElement, feld: number): Feldnotiz {
-  return element.feldnotizen?.[feld] ?? {};
-}
-
-/**
- * Bringt die Notizenliste auf die Zahl der Felder.
- *
- * Wird ein Zug länger, bekommen die neuen Felder leere Notizen; wird er
- * kürzer, fallen die hinteren weg. Die vorhandenen behalten dabei ihren
- * Platz – wer im dritten Feld etwas stehen hat, findet es hinterher dort
- * wieder und nicht im zweiten.
- */
-export function passeNotizenAn(
-  notizen: Feldnotiz[] | undefined,
-  felder: number,
-): Feldnotiz[] | undefined {
-  if (!notizen && felder <= 0) return undefined;
-  const vorhanden = notizen ?? [];
-  if (vorhanden.length === felder) return notizen;
-
-  const neu = Array.from({ length: felder }, (_, i) => vorhanden[i] ?? {});
-  // Steht nirgends etwas, wird die Liste gar nicht erst mitgeschleppt.
-  return neu.some((n) => n.oben || n.unten) ? neu : undefined;
 }

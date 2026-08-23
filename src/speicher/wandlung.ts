@@ -1,8 +1,16 @@
 import { WT_GRAU, WT_GRAU_ALT } from '../daten/bibliothek';
+import { grundfelder } from '../logik/regalseiten';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
 import { imUhrzeigersinn, rechteck } from '../logik/polygon';
-import { SCHEMA_VERSION, type Ebene, type PlanElement, type Projekt, type Raum } from '../typen/modell';
+import {
+  SCHEMA_VERSION,
+  type Ebene,
+  type PlanElement,
+  type Projekt,
+  type Raum,
+  type Regalfeld,
+} from '../typen/modell';
 
 /**
  * Bringt ältere Planungen auf den aktuellen Stand des Datenmodells.
@@ -62,7 +70,40 @@ export function wandleProjekt(roh: unknown): Projekt {
     verkaufsflaechen: projekt?.verkaufsflaechen ?? [],
     // Fassung 7
     ebenen: ergaenzeEbenen(projekt?.ebenen),
-    elemente: (projekt?.elemente ?? []).map(wandleElement).map(vereinheitlicheRegalfarbe),
+    elemente: (projekt?.elemente ?? [])
+      .map(wandleElement)
+      .map(vereinheitlicheRegalfarbe)
+      .map(teileSeitenAuf),
+  };
+}
+
+/**
+ * Fassung 9: jede Gondelseite bekommt ihre eigene Feldliste.
+ *
+ * Bis dahin teilten sich beide Seiten eine Liste von Feldbreiten, und die
+ * Notizen lagen daneben in einer zweiten Liste mit `oben` und `unten`. Beides
+ * wandert jetzt zusammen ans Feld.
+ *
+ * Übernommen wird die vorhandene Einteilung unverändert auf beide Seiten –
+ * am Bild ändert sich dadurch nichts. Erst wer danach eine Seite umbaut,
+ * bekommt zwei verschiedene.
+ */
+function teileSeitenAuf(element: PlanElement): PlanElement {
+  if (element.felderUnten) return element;
+
+  const breiten = grundfelder(element);
+  if (breiten.length === 0) return element;
+
+  const seite = (welche: 'oben' | 'unten'): Regalfeld[] =>
+    breiten.map((breite, i) => {
+      const notiz = element.feldnotizen?.[i]?.[welche];
+      return notiz ? { breite, notiz } : { breite };
+    });
+
+  return {
+    ...element,
+    felderUnten: seite('unten'),
+    felderOben: element.beidseitig ? seite('oben') : undefined,
   };
 }
 

@@ -3,6 +3,7 @@ import { BIBLIOTHEK } from '../daten/bibliothek';
 import { neuesProjekt } from '../daten/standardProjekt';
 import { mitGruppen } from '../logik/gruppen';
 import { istModul, summe } from '../logik/feldaufteilung';
+import { felderVon } from '../logik/regalseiten';
 import { usePlanStore } from './planStore';
 
 /**
@@ -31,6 +32,10 @@ function legeZug(id = 'wt-zug-1000-6-600', x = 1000, y = 1000) {
 
 const hole = (id: string) => store().projekt.elemente.find((el) => el.id === id)!;
 
+/** Teilt die Vorderseite in diese Feldbreiten – die Rückseite folgt. */
+const setzeFelder = (id: string, breiten: number[]) =>
+  store().setzeSeitenfelder(id, 'unten', breiten.map((breite) => ({ breite })));
+
 describe('Feldaufteilung am Zug', () => {
   beforeEach(() => {
     usePlanStore.getState().setzeProjekt(neuesProjekt());
@@ -40,7 +45,7 @@ describe('Feldaufteilung am Zug', () => {
     const zug = legeZug();
     expect(zug.breite).toBe(600);
 
-    store().setzeFelder(zug.id, [100, 100, 100, 100, 100, 125]);
+    setzeFelder(zug.id, [100, 100, 100, 100, 100, 125]);
     expect(hole(zug.id).breite).toBeCloseTo(625, 2);
   });
 
@@ -50,14 +55,14 @@ describe('Feldaufteilung am Zug', () => {
     const zug = legeZug();
     const linkeKanteVorher = zug.x - zug.breite / 2;
 
-    store().setzeFelder(zug.id, [100, 100, 100, 100, 100, 100, 100]);
+    setzeFelder(zug.id, [100, 100, 100, 100, 100, 100, 100]);
     const neu = hole(zug.id);
     expect(neu.x - neu.breite / 2).toBeCloseTo(linkeKanteVorher, 1);
   });
 
   it('behält die Reihenfolge der Felder', () => {
     const zug = legeZug();
-    store().setzeFelder(zug.id, [125, 100, 100, 100, 100, 100]);
+    setzeFelder(zug.id, [125, 100, 100, 100, 100, 100]);
     expect(hole(zug.id).felder).toEqual([125, 100, 100, 100, 100, 100]);
   });
 });
@@ -151,7 +156,7 @@ describe('Kopfgondeln', () => {
     store().setzeKopfgondel(zug.id, 'ende', true);
     const vorher = store().projekt.elemente.find((el) => el.kopfVon === zug.id)!.x;
 
-    store().setzeFelder(zug.id, [100, 100, 100, 100, 100, 100, 100]);
+    setzeFelder(zug.id, [100, 100, 100, 100, 100, 100, 100]);
     const neu = hole(zug.id);
     const kopf = store().projekt.elemente.find((el) => el.kopfVon === zug.id)!;
 
@@ -361,7 +366,7 @@ describe('Der Kopf bleibt am Zug', () => {
   /** Ein Zug mit krummer Länge – dort tut jedes Runden weh. */
   function krummerZug() {
     const zug = legeZug('wt-zug-1000-6-600', 1000, 1000);
-    store().setzeFelder(zug.id, [133.3, 133.3, 133.3, 125, 100]);
+    setzeFelder(zug.id, [133.3, 133.3, 133.3, 125, 100]);
     store().setzeKopfgondel(zug.id, 'ende', true);
     return zug.id;
   }
@@ -427,5 +432,90 @@ describe('Der Kopf bleibt am Zug', () => {
       store().setzePositionen([{ id, x: zug.x + 0.7, y: zug.y + 0.3 }]);
     }
     expect(verhaeltnis(id).abstand).toBeCloseTo(vorher.abstand, 3);
+  });
+});
+
+describe('Nicht synchrone Gondel', () => {
+  beforeEach(() => {
+    usePlanStore.getState().setzeProjekt(neuesProjekt());
+  });
+
+  /** Die Felder einer Seite – erschlossen, solange keine eigene Liste steht. */
+  const seite = (id: string, welche: 'oben' | 'unten') => felderVon(hole(id), welche);
+
+  it('lässt die Vorderseite stehen, wenn die Rückseite umgebaut wird', () => {
+    const zug = legeZug();
+    store().setzeSeitenfelder(zug.id, 'oben', [{ breite: 125 }, { breite: 125 }]);
+
+    expect(seite(zug.id, 'oben').map((f) => f.breite)).toEqual([125, 125]);
+    expect(seite(zug.id, 'unten').map((f) => f.breite)).toEqual([100, 100, 100, 100, 100, 100]);
+  });
+
+  it('macht die längere Seite zur Breite', () => {
+    // Die kürzere endet früher. Wäre das Möbel nur so breit wie sie, läge die
+    // Ware der langen Seite im Gang.
+    const zug = legeZug();
+    store().setzeSeitenfelder(zug.id, 'oben', [{ breite: 125 }, { breite: 125 }]);
+    expect(hole(zug.id).breite).toBeCloseTo(600, 2);
+
+    store().setzeSeitenfelder(zug.id, 'unten', [{ breite: 125 }]);
+    expect(hole(zug.id).breite).toBeCloseTo(250, 2);
+  });
+
+  it('nimmt ein einzelnes Feld aus einer Seite heraus', () => {
+    const zug = legeZug();
+    const felder = seite(zug.id, 'unten').map((f, i) => (i === 2 ? { ...f, leer: true } : f));
+    store().setzeSeitenfelder(zug.id, 'unten', felder);
+
+    // Der Platz bleibt belegt – die Säule steht ja.
+    expect(hole(zug.id).breite).toBeCloseTo(600, 2);
+    expect(seite(zug.id, 'unten')[2].leer).toBe(true);
+    expect(seite(zug.id, 'oben')[2].leer).toBeUndefined();
+  });
+
+  it('verschiebt den Zug nicht, wenn nur eine Notiz geschrieben wird', () => {
+    // Eine Notiz ändert keine Länge. Wanderte der Zug dabei, verlöre man beim
+    // Beschriften die Flucht.
+    const zug = legeZug();
+    const felder = seite(zug.id, 'unten').map((f, i) => (i === 0 ? { ...f, notiz: '5+' } : f));
+    store().setzeSeitenfelder(zug.id, 'unten', felder);
+
+    expect(hole(zug.id).x).toBeCloseTo(zug.x, 3);
+    expect(hole(zug.id).breite).toBeCloseTo(zug.breite, 3);
+  });
+
+  it('zieht bei einer Doppeltruhe die andere Seite mit', () => {
+    // Dort sind die beiden Seiten ein Körper: Ein Feld, das nur vorn breiter
+    // wird, gibt es nicht.
+    const truhe = legeZug('tk-truhe-doppel-2500', 500, 500);
+    store().setzeSeitenfelder(truhe.id, 'unten', [{ breite: 62.5 }, { breite: 62.5 }]);
+
+    expect(seite(truhe.id, 'oben').map((f) => f.breite)).toEqual([62.5, 62.5]);
+    expect(hole(truhe.id).breite).toBeCloseTo(125, 2);
+  });
+
+  it('behält beim Ziehen die kürzere Rückseite', () => {
+    // Am Griff wird das Möbel länger, nicht symmetrisch: Wer eine Seite
+    // bewusst kürzer gebaut hat, verliert das nicht beim Verschieben einer
+    // Kante.
+    const zug = legeZug();
+    store().setzeSeitenfelder(zug.id, 'oben', [{ breite: 125 }, { breite: 125 }]);
+
+    const jetzt = hole(zug.id);
+    store().setzeGeometrien([
+      {
+        id: zug.id,
+        x: jetzt.x + 60,
+        y: jetzt.y,
+        breite: 720,
+        tiefe: jetzt.tiefe,
+        drehung: 0,
+      },
+    ]);
+
+    const neu = hole(zug.id);
+    expect(neu.felderOben!.map((f) => f.breite)).toEqual([125, 125]);
+    expect(summe(neu.felderUnten!.map((f) => f.breite))).toBeCloseTo(neu.breite, 1);
+    expect(neu.breite).toBeGreaterThan(600);
   });
 });

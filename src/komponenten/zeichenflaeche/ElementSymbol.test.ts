@@ -182,7 +182,15 @@ describe('Gemischter Regalzug', () => {
   /** Die x-Stellen, an denen der Zug senkrecht geteilt wird. */
   function trennlinien(breite: number, felder?: number[], achsmass = 100) {
     const { ctx, aufrufe, punkte } = mitschreiber();
-    zeichneForm(ctx, 'wt100', breite, 127, true, achsmass, felder);
+    zeichneForm(
+      ctx,
+      'wt100',
+      breite,
+      127,
+      true,
+      achsmass,
+      felder?.map((b) => ({ breite: b })),
+    );
     const stellen: number[] = [];
     let zeiger = 0;
     for (let i = 0; i < aufrufe.length; i++) {
@@ -561,5 +569,113 @@ describe('Naht und Diagonale sagen dasselbe', () => {
     // Der zeichnet seine Feldgrenzen selbst – eine zweite Naht läge
     // doppelt darauf.
     expect(einheitenNaehte(moebel({ form: 'wt100', breite: 625, felder: [125, 125, 125, 125, 125] }), 625)).toEqual([]);
+  });
+});
+
+describe('Gondel mit zwei verschiedenen Seiten', () => {
+  const TIEFE = 127;
+  const f = (...breiten: number[]) => breiten.map((breite) => ({ breite }));
+
+  /** Alle Rechtecke einer Zeichnung, in der Reihenfolge des Zeichnens. */
+  function rechtecke(
+    breite: number,
+    unten: { breite: number; leer?: boolean }[],
+    oben?: { breite: number; leer?: boolean }[],
+    beidseitig = true,
+  ) {
+    const { ctx, aufrufe, punkte } = mitschreiber();
+    zeichneForm(ctx, 'wt100', breite, TIEFE, beidseitig, 100, unten, false, oben);
+    const kaesten: { x: number; y: number; b: number; t: number }[] = [];
+    let zeiger = 0;
+    for (const name of aufrufe) {
+      if (name === 'rect') {
+        kaesten.push({
+          x: punkte[zeiger],
+          y: punkte[zeiger + 1],
+          b: punkte[zeiger + 2],
+          t: punkte[zeiger + 3],
+        });
+      }
+      zeiger += { arc: 6, arcTo: 5, rect: 4, ellipse: 4, moveTo: 2, lineTo: 2, closePath: 0 }[
+        name as 'arc'
+      ];
+    }
+    return kaesten;
+  }
+
+  it('zeichnet gleich geteilte Seiten als einen Körper', () => {
+    // Der wichtigste Fall: Solange nichts umgebaut ist, sieht der Zug aus wie
+    // eh und je – ein Umriss über die ganze Tiefe, dazu die tote Zone.
+    const kaesten = rechtecke(250, f(125, 125), f(125, 125));
+    expect(kaesten).toHaveLength(2);
+    expect(kaesten[0]).toEqual({ x: 0, y: 0, b: 250, t: TIEFE });
+  });
+
+  it('macht aus einem leeren Feld eine Lücke', () => {
+    // Zwei Körper statt einem: Wo nichts hängt, ist auch nichts gezeichnet.
+    const luecke = [{ breite: 125 }, { breite: 125, leer: true }, { breite: 125 }];
+    const kaesten = rechtecke(375, luecke, luecke);
+    const koerper = kaesten.filter((k) => k.t > 10);
+    expect(koerper).toHaveLength(4); // zwei Stücke je Seite
+    expect(koerper[0].b).toBeCloseTo(125, 2);
+    expect(koerper[1].x).toBeCloseTo(250, 2);
+  });
+
+  it('lässt die kürzere Seite früher enden', () => {
+    // Die Breite ist die längere Seite. Die kürzere Rückseite hört auf,
+    // wo sie aufhört – die Stufe muss man im Plan sehen.
+    const kaesten = rechtecke(300, f(100, 100, 100), f(100, 100));
+    const koerper = kaesten.filter((k) => k.t > 10);
+    expect(koerper).toHaveLength(2);
+    const [hinten, vorn] = koerper;
+    expect(hinten.b).toBeCloseTo(200, 2);
+    expect(vorn.b).toBeCloseTo(300, 2);
+  });
+
+  it('zieht die tote Zone über die ganze Länge', () => {
+    // Die Säulen stehen auch dort, wo eine Seite ein Feld frei lässt.
+    const kaesten = rechtecke(300, f(100, 100, 100), f(100, 100));
+    const zone = kaesten.find((k) => k.t <= 10);
+    expect(zone).toBeTruthy();
+    expect(zone!.b).toBeCloseTo(300, 2);
+  });
+
+  it('teilt verschiedene Seiten nicht mehr über die ganze Tiefe', () => {
+    // Eine Trennlinie über die volle Tiefe behauptet eine gemeinsame Säule.
+    // Wenn die Seiten sich unterscheiden, gibt es die nicht mehr.
+    const { ctx, aufrufe, punkte } = mitschreiber();
+    zeichneForm(ctx, 'wt100', 250, TIEFE, true, 100, f(125, 125), false, f(250));
+    let zeiger = 0;
+    let ueberAllesTief = 0;
+    for (let i = 0; i < aufrufe.length; i++) {
+      if (aufrufe[i] === 'moveTo' && aufrufe[i + 1] === 'lineTo') {
+        const [x1, y1] = [punkte[zeiger], punkte[zeiger + 1]];
+        const [x2, y2] = [punkte[zeiger + 2], punkte[zeiger + 3]];
+        if (Math.abs(x1 - x2) < 0.01 && Math.abs(y1) < 0.01 && Math.abs(y2 - TIEFE) < 0.01) {
+          ueberAllesTief++;
+        }
+      }
+      zeiger += { arc: 6, arcTo: 5, rect: 4, ellipse: 4, moveTo: 2, lineTo: 2, closePath: 0 }[
+        aufrufe[i] as 'arc'
+      ];
+    }
+    expect(ueberAllesTief).toBe(0);
+  });
+
+  it('zeichnet in ein leeres Feld kein Achsmaß-Zeichen', () => {
+    // Ein Zeichen behauptet ein Regal. Wo keines steht, steht auch keines.
+    const { ctx, aufrufe } = mitschreiber();
+    zeichneForm(
+      ctx,
+      'wt100',
+      250,
+      TIEFE,
+      false,
+      125,
+      [{ breite: 125 }, { breite: 125, leer: true }],
+    );
+    // Genau eine Diagonale: die des vollen Felds.
+    const striche = aufrufe.filter((n) => n === 'moveTo').length;
+    expect(striche).toBe(1);
   });
 });

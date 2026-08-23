@@ -184,11 +184,36 @@ export interface Ebene {
 /**
  * Was in einem einzelnen Regalfeld steht – je Seite eigene Zeilen.
  *
- * Siehe `PlanElement.feldnotizen`.
+ * Nur noch für die Umwandlung älterer Planungen da; die Notiz steht heute am
+ * Feld selbst, siehe `Regalfeld`.
  */
 export interface Feldnotiz {
   oben?: string;
   unten?: string;
+}
+
+/**
+ * Ein einzelnes Feld einer Regalseite.
+ *
+ * Bis Fassung 8 teilten sich die beiden Seiten einer Gondel **eine** Liste
+ * von Feldbreiten. Das trifft den Normalfall, aber nicht die Wirklichkeit:
+ * Man lässt ein Feld auf einer Seite frei, weil dort eine Säule steht, oder
+ * baut die Rückseite anders auf als die Vorderseite. Deshalb hat jede Seite
+ * jetzt ihre eigene Liste.
+ */
+export interface Regalfeld {
+  /** Achsmaß dieses Felds in cm. */
+  breite: number;
+  /**
+   * Steht hier kein Regal?
+   *
+   * Der Platz bleibt trotzdem belegt – die Säule steht ja. Gezeichnet wird
+   * die Stelle als Lücke, damit man auf dem Plan sieht, dass dort nichts
+   * hängt.
+   */
+  leer?: boolean;
+  /** Bis zu drei Zeilen, die im Feld stehen – siehe `logik/feldnotiz.ts`. */
+  notiz?: string;
 }
 
 /** Ein tatsächlich auf dem Plan platziertes Element. */
@@ -353,6 +378,25 @@ export interface PlanElement {
    * – dann steht es sich im Feld gegenseitig im Weg.
    */
   feldnotizen?: Feldnotiz[];
+  /**
+   * Die Felder der **vorderen** Seite – beim einseitigen Regal das ganze Regal.
+   *
+   * „Vorn" ist im ungedrehten Element unten, also die Seite, die vom
+   * Grundboden weg zeigt. Bei einem einseitigen wire-tech-Regal liegt die
+   * tote Zone oben, das Regal selbst unten.
+   */
+  felderUnten?: Regalfeld[];
+  /**
+   * Die Felder der **hinteren** Seite einer Gondel.
+   *
+   * Fehlt bei einseitigen Möbeln. Die beiden Seiten sind unabhängig: Sie
+   * dürfen verschieden viele Felder haben, verschieden breite, und auf jeder
+   * Seite können einzelne Felder leer bleiben.
+   *
+   * Die Breite des Möbels ist die **längere** der beiden Seiten – die kürzere
+   * endet dann früher, und man sieht die Stufe im Plan.
+   */
+  felderOben?: Regalfeld[];
   /**
    * Tiefe des untersten Bodens in cm.
    *
@@ -645,6 +689,7 @@ export interface Projekt {
  *   6 – eingezeichnete Verkaufsflächen
  *   7 – eigene Ebene für die Verkaufsfläche
  *   8 – ein Grauton für das ganze Trockensortiment
+ *   9 – jede Gondelseite mit eigener Feldeinteilung
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -665,4 +710,10 @@ export interface Projekt {
  * aber nur dort, wo noch einer der alten Töne steht – wer ein Regal von Hand
  * eingefärbt hat, behält seine Farbe.
  */
-export const SCHEMA_VERSION = 8;
+/**
+ * Fassung 9 gibt jeder Gondelseite ihre eigene Feldliste. Bis dahin teilten
+ * sich beide Seiten eine – die Umwandlung schreibt die vorhandene Einteilung
+ * einfach auf beide Seiten, samt der Notizen, die dort schon standen. Am Bild
+ * ändert sich dadurch nichts.
+ */
+export const SCHEMA_VERSION = 9;

@@ -3,15 +3,11 @@ import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { WARENGRUPPEN } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
-import { feldliste, summe } from '../logik/feldaufteilung';
-import {
-  modulName,
-  modulsatzFuer,
-  zerlegeInModule,
-  type Modulsatz,
-} from '../daten/module';
+import { summe } from '../logik/feldaufteilung';
+import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
-import { NOTIZ_ZEILEN, notizFuer } from '../logik/feldnotiz';
+import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
+import { felderVon, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -27,6 +23,7 @@ import type {
   PlanElement,
   Raum,
   Raumart,
+  Regalfeld,
   Verkaufsflaeche,
   Wand,
 } from '../typen/modell';
@@ -532,139 +529,27 @@ function Feldaufteilung({
   einheit: Massinheit;
 }) {
   const store = usePlanStore.getState;
-  // Ohne gespeicherte Liste wird sie erschlossen: beim Regalzug aus dem
-  // Achsmaß, sonst aus den Einheiten der Abteilung. Eine TK-Truhe von 2,50 m
-  // ist damit vier Module und kein Klotz.
-  const felder =
-    element.felder ??
-    (element.achsmass
-      ? feldliste(element.breite, element.achsmass)
-      : zerlegeInModule(element.breite, satz));
-  /** Die Länge aus diesem Satz, die dem Wert am nächsten kommt. */
-  const naechste = (wert: number) =>
-    satz.laengen.reduce((a, b) => (Math.abs(b - wert) < Math.abs(a - wert) ? b : a));
-  const setze = (neu: number[]) => {
-    usePlanStore.getState().schnappschuss();
-    usePlanStore.getState().setzeFelder(element.id, neu);
-  };
-
-  const tausche = (i: number, richtung: -1 | 1) => {
-    const ziel = i + richtung;
-    if (ziel < 0 || ziel >= felder.length) return;
-    const neu = [...felder];
-    [neu[i], neu[ziel]] = [neu[ziel], neu[i]];
-    setze(neu);
-  };
-
+  // Getrennt einteilen lässt sich nur der Regalzug. Bei allem anderen steht
+  // hier eine Liste, und die andere Seite übernimmt sie – siehe
+  // `logik/regalseiten.ts`.
+  const seiten: Seite[] = seitenTrennbar(element) ? ['unten', 'oben'] : ['unten'];
   const koepfeMoeglich = kannKopfgondel(element);
   const masse = koepfeMoeglich ? kopfmasse(element.tiefe) : null;
 
   return (
     <>
+      {seiten.map((seite) => (
+        <Seitenaufteilung
+          key={seite}
+          element={element}
+          satz={satz}
+          einheit={einheit}
+          seite={seite}
+          getrennt={seiten.length > 1}
+        />
+      ))}
+
       <div className="gruppe">
-        <div className="gruppe-titel">{satz.mehrzahl}</div>
-
-        <div className="kennzahl">
-          <span>
-            {felder.length} {felder.length === 1 ? satz.einheit : satz.mehrzahl}
-          </span>
-          <span className="kennzahl-wert">{formatiereLaenge(summe(felder), einheit)}</span>
-        </div>
-
-        {satz.laengen
-          .map((laenge) => ({
-            laenge,
-            anzahl: felder.filter((f) => Math.abs(f - laenge) < 0.05).length,
-          }))
-          .filter((e) => e.anzahl > 0)
-          .map((eintrag) => (
-            <div className="kennzahl" key={eintrag.laenge}>
-              <span>Davon {modulName(satz, eintrag.laenge)}</span>
-              <span className="kennzahl-wert">{eintrag.anzahl} ×</span>
-            </div>
-          ))}
-
-        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {felder.map((feld, i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span className="kategorie-anzahl" style={{ minWidth: 22 }}>
-                {i + 1}.
-              </span>
-              <select
-                style={{ flex: 1 }}
-                value={String(naechste(feld))}
-                onChange={(e) => {
-                  const neu = [...felder];
-                  neu[i] = Number(e.target.value);
-                  setze(neu);
-                }}
-              >
-                {satz.laengen.map((m) => (
-                  <option key={m} value={String(m)}>
-                    {modulName(satz, m)} · {formatiereLaenge(m, einheit)}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="knopf knopf-nur-symbol"
-                disabled={i === 0}
-                title={`${satz.einheit} nach vorn schieben`}
-                onClick={() => tausche(i, -1)}
-              >
-                ↑
-              </button>
-              <button
-                className="knopf knopf-nur-symbol"
-                disabled={i === felder.length - 1}
-                title={`${satz.einheit} nach hinten schieben`}
-                onClick={() => tausche(i, 1)}
-              >
-                ↓
-              </button>
-              <button
-                className="knopf knopf-nur-symbol knopf-gefahr"
-                disabled={felder.length <= 1}
-                title={`${satz.einheit} entfernen`}
-                onClick={() => setze(felder.filter((_, j) => j !== i))}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Was in diesem Feld steht. Bei einer Gondel je Seite eigene
-                Zeilen – dort wird getrennt bestückt. */}
-            <div style={{ display: 'flex', gap: 4, paddingLeft: 26 }}>
-              {(element.beidseitig ? (['oben', 'unten'] as const) : (['unten'] as const)).map(
-                (seite) => (
-                  <textarea
-                    key={seite}
-                    rows={NOTIZ_ZEILEN}
-                    style={{ flex: 1, resize: 'vertical', fontSize: 12, lineHeight: 1.3 }}
-                    value={notizFuer(element, i)[seite] ?? ''}
-                    placeholder={
-                      element.beidseitig
-                        ? seite === 'oben'
-                          ? 'Rückseite — 5+ / 1K'
-                          : 'Vorderseite — 5+ / 1K'
-                        : 'Böden, z. B. 5+ / 1K'
-                    }
-                    title={
-                      'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
-                      'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
-                    }
-                    onFocus={() => usePlanStore.getState().schnappschuss()}
-                    onChange={(e) =>
-                      usePlanStore.getState().setzeFeldnotiz(element.id, i, seite, e.target.value)
-                    }
-                  />
-                ),
-              )}
-            </div>
-            </div>
-          ))}
-        </div>
-
         {element.form === 'wt100' && (
           <>
             <Schalter
@@ -684,23 +569,10 @@ function Feldaufteilung({
           </>
         )}
 
-        <div className="knopfreihe" style={{ marginTop: 8, flexWrap: 'wrap' }}>
-          {satz.laengen.map((m) => (
-            <button
-              key={m}
-              className="knopf"
-              title={`${satz.einheit} ${modulName(satz, m)} hinten anfügen`}
-              onClick={() => setze([...felder, m])}
-            >
-              + {modulName(satz, m)}
-            </button>
-          ))}
-        </div>
-
-        <p className="hinweis" style={{ marginTop: 8 }}>
-          In die Felder darunter schreibst du, was am Regal steht: <strong>erste Zeile die Zahl
-          der Böden</strong>, darunter bis zu zwei weitere Zeilen — etwa <em>1K</em> für Körbe.
-          Höhe und Tiefe erscheinen automatisch klein rechts im Feld.
+        <p className="hinweis" style={{ marginTop: 0 }}>
+          In die Felder schreibst du, was am Regal steht: <strong>erste Zeile die Zahl der
+          Böden</strong>, darunter bis zu zwei weitere Zeilen — etwa <em>1K</em> für Körbe. Höhe
+          und Tiefe erscheinen automatisch klein rechts im Feld.
         </p>
 
         <p className="hinweis">
@@ -742,6 +614,230 @@ function Feldaufteilung({
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Eine Seite des Möbels, Feld für Feld.
+ *
+ * Ein Regalzug ist kein Balken, den man auf jedes Maß zieht: Er besteht aus
+ * Feldern, und jedes hat eines von vier Achsmaßen. Deshalb wird hier nicht
+ * eine Breite eingestellt, sondern die Aufteilung – Zahl, Maß, Reihenfolge
+ * und was in jedem Feld steht. Die Breite ergibt sich daraus und nicht
+ * umgekehrt.
+ *
+ * Bei einer Gondel steht dieser Block zweimal: Vorder- und Rückseite werden
+ * getrennt bestückt, und ein Feld darf auf einer Seite frei bleiben.
+ */
+function Seitenaufteilung({
+  element,
+  satz,
+  einheit,
+  seite,
+  getrennt,
+}: {
+  element: PlanElement;
+  satz: Modulsatz;
+  einheit: Massinheit;
+  seite: Seite;
+  getrennt: boolean;
+}) {
+  const felder = felderVon(element, seite);
+  /** Die Länge aus diesem Satz, die dem Wert am nächsten kommt. */
+  const naechste = (wert: number) =>
+    satz.laengen.reduce((a, b) => (Math.abs(b - wert) < Math.abs(a - wert) ? b : a));
+
+  const setze = (neu: Regalfeld[]) => {
+    usePlanStore.getState().schnappschuss();
+    usePlanStore.getState().setzeSeitenfelder(element.id, seite, neu);
+  };
+  /** Ändert ein einzelnes Feld und lässt die übrigen stehen. */
+  const aendereFeld = (i: number, werte: Partial<Regalfeld>) =>
+    setze(felder.map((feld, j) => (j === i ? { ...feld, ...werte } : feld)));
+
+  const tausche = (i: number, richtung: -1 | 1) => {
+    const ziel = i + richtung;
+    if (ziel < 0 || ziel >= felder.length) return;
+    const neu = [...felder];
+    [neu[i], neu[ziel]] = [neu[ziel], neu[i]];
+    setze(neu);
+  };
+
+  // Lücken kann nur der Regalzug: Bei einer Truhe hieße ein leeres Feld, ein
+  // Loch in die Wanne zu schneiden.
+  const luecken = element.form === 'wt100';
+  // Ohne getrennte Seiten stehen die Notizen beider Seiten nebeneinander –
+  // eine Doppeltruhe wird ja auch von zwei Seiten bestückt.
+  const notizseiten: Seite[] = !getrennt && element.beidseitig ? ['oben', 'unten'] : [seite];
+  const laenge = summe(felder.map((f) => f.breite));
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">
+        {getrennt ? (seite === 'unten' ? 'Vorderseite' : 'Rückseite') : satz.mehrzahl}
+      </div>
+
+      <div className="kennzahl">
+        <span>
+          {felder.length} {felder.length === 1 ? satz.einheit : satz.mehrzahl}
+        </span>
+        <span className="kennzahl-wert">{formatiereLaenge(laenge, einheit)}</span>
+      </div>
+
+      {satz.laengen
+        .map((modul) => ({
+          modul,
+          anzahl: felder.filter((f) => Math.abs(f.breite - modul) < 0.05).length,
+        }))
+        .filter((e) => e.anzahl > 0)
+        .map((eintrag) => (
+          <div className="kennzahl" key={eintrag.modul}>
+            <span>Davon {modulName(satz, eintrag.modul)}</span>
+            <span className="kennzahl-wert">{eintrag.anzahl} ×</span>
+          </div>
+        ))}
+
+      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {felder.map((feld, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span className="kategorie-anzahl" style={{ minWidth: 22 }}>
+                {i + 1}.
+              </span>
+              <select
+                style={{ flex: 1 }}
+                value={String(naechste(feld.breite))}
+                onChange={(e) => aendereFeld(i, { breite: Number(e.target.value) })}
+              >
+                {satz.laengen.map((m) => (
+                  <option key={m} value={String(m)}>
+                    {modulName(satz, m)} · {formatiereLaenge(m, einheit)}
+                  </option>
+                ))}
+              </select>
+              {luecken && (
+                <button
+                  className={`knopf knopf-nur-symbol${feld.leer ? ' aktiv' : ''}`}
+                  title={
+                    feld.leer
+                      ? 'Feld ist frei — hier steht kein Regal. Zum Füllen anklicken.'
+                      : 'Feld frei lassen: Der Platz bleibt belegt, das Regal fehlt.'
+                  }
+                  onClick={() => aendereFeld(i, { leer: feld.leer ? undefined : true })}
+                >
+                  {feld.leer ? '□' : '■'}
+                </button>
+              )}
+              <button
+                className="knopf knopf-nur-symbol"
+                disabled={i === 0}
+                title={`${satz.einheit} nach vorn schieben`}
+                onClick={() => tausche(i, -1)}
+              >
+                ↑
+              </button>
+              <button
+                className="knopf knopf-nur-symbol"
+                disabled={i === felder.length - 1}
+                title={`${satz.einheit} nach hinten schieben`}
+                onClick={() => tausche(i, 1)}
+              >
+                ↓
+              </button>
+              <button
+                className="knopf knopf-nur-symbol knopf-gefahr"
+                disabled={felder.length <= 1}
+                title={`${satz.einheit} entfernen`}
+                onClick={() => setze(felder.filter((_, j) => j !== i))}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Was in diesem Feld steht. */}
+            <div style={{ display: 'flex', gap: 4, paddingLeft: 26 }}>
+              {notizseiten.map((welche) => (
+                <Feldnotizfeld
+                  key={welche}
+                  element={element}
+                  seite={welche}
+                  feld={i}
+                  mehrere={notizseiten.length > 1}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="knopfreihe" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+        {satz.laengen.map((m) => (
+          <button
+            key={m}
+            className="knopf"
+            title={`${satz.einheit} ${modulName(satz, m)} hinten anfügen`}
+            onClick={() => setze([...felder, { breite: m }])}
+          >
+            + {modulName(satz, m)}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Das Textfeld für die Notiz in einem Feld.
+ *
+ * Eigene Komponente, weil sie ihre Seite selbst kennt: Bei einer Doppeltruhe
+ * stehen hier zwei nebeneinander, bei einer Gondel steht je eines in seinem
+ * eigenen Block.
+ */
+function Feldnotizfeld({
+  element,
+  seite,
+  feld,
+  mehrere,
+}: {
+  element: PlanElement;
+  seite: Seite;
+  feld: number;
+  mehrere: boolean;
+}) {
+  const felder = felderVon(element, seite);
+  const eintrag = felder[feld];
+  if (!eintrag) return null;
+
+  return (
+    <textarea
+      rows={NOTIZ_ZEILEN}
+      style={{ flex: 1, resize: 'vertical', fontSize: 12, lineHeight: 1.3 }}
+      value={eintrag.notiz ?? ''}
+      disabled={Boolean(eintrag.leer)}
+      placeholder={
+        eintrag.leer
+          ? 'frei'
+          : mehrere
+            ? seite === 'oben'
+              ? 'Rückseite — 5+ / 1K'
+              : 'Vorderseite — 5+ / 1K'
+            : 'Böden, z. B. 5+ / 1K'
+      }
+      title={
+        'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
+        'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
+      }
+      onFocus={() => usePlanStore.getState().schnappschuss()}
+      onChange={(e) =>
+        usePlanStore
+          .getState()
+          .setzeSeitenfelder(
+            element.id,
+            seite,
+            felder.map((f, j) => (j === feld ? { ...f, notiz: e.target.value || undefined } : f)),
+          )
+      }
+    />
   );
 }
 

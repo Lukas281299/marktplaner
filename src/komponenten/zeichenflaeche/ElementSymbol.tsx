@@ -1,11 +1,19 @@
 import { Shape, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { modulsatzFuer, zerlegeInModule } from '../../daten/module';
+import { modulsatzFuer } from '../../daten/module';
 import { achsmassZeichen } from '../../logik/achsmass';
 import { lesbar } from '../../logik/beschriftung';
-import { masszeilen, notizFuer, notizZeilen } from '../../logik/feldnotiz';
-import type { Grundform, PlanElement } from '../../typen/modell';
+import { feldliste } from '../../logik/feldaufteilung';
+import { masszeilen, notizZeilen } from '../../logik/feldnotiz';
+import {
+  felderVon,
+  gleicheEinteilung,
+  ohneLuecke,
+  seitenbreite,
+  vollStuecke,
+} from '../../logik/regalseiten';
+import type { Grundform, PlanElement, Regalfeld } from '../../typen/modell';
 
 /**
  * Ein einzelnes Element auf dem Plan.
@@ -88,26 +96,44 @@ export function zeichneFuehrungsrohr(ctx: Konva.Context, element: PlanElement, b
 }
 
 /**
- * Die Feldbreiten eines Zugs, auf die gezeichnete Länge umgerechnet.
+ * Ein Feld, wie es gezeichnet wird: sein Platz im Bild und seine Daten.
  *
- * Ohne Feldliste wird gleichmäßig nach Achsmaß geteilt – so wurde bis dahin
- * jeder Zug gezeichnet, und für eine ältere Planung ist das die richtige
- * Deutung.
+ * Beides wird gebraucht und darf nicht verwechselt werden: Gezeichnet wird
+ * an `x` mit der Weite `weite`, aber das Achsmaß-Zeichen richtet sich nach
+ * `feld.breite` – dem wirklichen Maß. Ein auf 1,26 gestrecktes Feld ist
+ * immer noch ein A1250 und bekommt seine Diagonale.
+ */
+interface Feldplatz {
+  x: number;
+  weite: number;
+  feld: Regalfeld;
+}
+
+/**
+ * Der Faktor, mit dem beide Seiten auf die gezeichnete Länge kommen.
  *
- * Mit Feldliste werden die Breiten auf die tatsächliche Länge gestreckt. Der
- * Faktor liegt bei eins Komma nichts: Er fängt nur die Rundung des krummen
+ * **Beide mit demselben.** Die längere Seite füllt das Bild, die kürzere
+ * endet früher – genau die Stufe, die man sehen soll. Streckte man jede
+ * Seite für sich, wäre sie verschwunden.
+ *
+ * Der Faktor liegt bei eins Komma nichts: Er fängt die Rundung des krummen
  * A1333 ab, damit das letzte Feld nicht übersteht.
  */
-function feldbreiten(b: number, felder: number[] | undefined, achsmass: number): number[] {
-  if (felder && felder.length > 0) {
-    const roh = felder.reduce((s, f) => s + f, 0);
-    if (roh > 0) {
-      const faktor = b / roh;
-      return felder.map((f) => f * faktor);
-    }
+function seitenFaktor(b: number, oben: Regalfeld[], unten: Regalfeld[]): number {
+  const roh = Math.max(seitenbreite(oben), seitenbreite(unten));
+  return roh > 0 ? b / roh : 1;
+}
+
+/** Die Felder einer Seite mit ihrem Platz im Bild. */
+function feldplaetze(felder: Regalfeld[], faktor: number): Feldplatz[] {
+  const plaetze: Feldplatz[] = [];
+  let x = 0;
+  for (const feld of felder) {
+    const weite = feld.breite * faktor;
+    plaetze.push({ x, weite, feld });
+    x += weite;
   }
-  const anzahl = achsmass > 0 ? Math.max(1, Math.round(b / achsmass)) : 1;
-  return Array.from({ length: anzahl }, () => b / anzahl);
+  return plaetze;
 }
 
 /**
@@ -124,7 +150,9 @@ export function einheitenTeile(element: PlanElement): number[] {
   if (element.form === 'wt100') return [];
   const satz = modulsatzFuer(element.form);
   if (!satz) return [];
-  return element.felder ?? zerlegeInModule(element.breite, satz);
+  // Die vordere Seite gibt die Einheiten vor. Getrennt einteilen lässt sich
+  // nur der Regalzug, und der ist hier schon abgebogen.
+  return felderVon(element, 'unten').map((feld) => feld.breite);
 }
 
 /**
@@ -218,31 +246,31 @@ function zeichneFeldnotizen(
 ) {
   if (!lesbar(NOTIZ_HOEHE, zoom)) return;
 
-  const abschnitte = zeichenAbschnitte(element);
-  const roh = abschnitte.reduce((summe, teil) => summe + teil, 0);
-  if (roh <= 0) return;
-  const faktor = b / roh;
-
+  const unten = felderVon(element, 'unten');
+  const oben = element.beidseitig ? felderVon(element, 'oben') : [];
+  const faktor = seitenFaktor(b, oben, unten);
   const masse = masszeilen(element);
-  const seiten: { notiz: (i: number) => string | undefined; oben: number; hoehe: number }[] =
-    element.beidseitig
-      ? [
-          { notiz: (i) => notizFuer(element, i).oben, oben: 0, hoehe: t / 2 },
-          { notiz: (i) => notizFuer(element, i).unten, oben: t / 2, hoehe: t / 2 },
-        ]
-      : [{ notiz: (i) => notizFuer(element, i).unten, oben: 0, hoehe: t }];
+
+  const baender = element.beidseitig
+    ? [
+        { felder: oben, von: 0 },
+        { felder: unten, von: t / 2 },
+      ]
+    : [{ felder: unten, von: 0 }];
 
   const rand = Math.min(NOTIZ_HOEHE * 0.35, b * 0.02);
-  let x = 0;
-  abschnitte.forEach((teil, i) => {
-    const weite = teil * faktor;
-    for (const seite of seiten) {
+  ctx.setAttr('textBaseline', 'top');
+
+  for (const band of baender) {
+    for (const platz of feldplaetze(band.felder, faktor)) {
+      // Wo kein Regal steht, steht auch keine Notiz.
+      if (platz.feld.leer) continue;
+
       // Links: was von Hand darinsteht.
       ctx.setAttr('font', `600 ${NOTIZ_HOEHE}px sans-serif`);
       ctx.setAttr('fillStyle', 'rgba(150,26,26,0.92)');
-      ctx.setAttr('textBaseline', 'top');
-      notizZeilen(seite.notiz(i)).forEach((zeile, z) => {
-        ctx.fillText(zeile, x + rand, seite.oben + rand + z * NOTIZ_HOEHE * 1.15);
+      notizZeilen(platz.feld.notiz).forEach((zeile, z) => {
+        ctx.fillText(zeile, platz.x + rand, band.von + rand + z * NOTIZ_HOEHE * 1.15);
       });
 
       // Rechts: was das Programm ohnehin weiß.
@@ -251,13 +279,16 @@ function zeichneFeldnotizen(
         ctx.setAttr('fillStyle', 'rgba(30,40,52,0.55)');
         ctx.setAttr('textAlign', 'right');
         masse.forEach((zeile, z) => {
-          ctx.fillText(zeile, x + weite - rand, seite.oben + rand + z * MASS_HOEHE * 1.2);
+          ctx.fillText(
+            zeile,
+            platz.x + platz.weite - rand,
+            band.von + rand + z * MASS_HOEHE * 1.2,
+          );
         });
         ctx.setAttr('textAlign', 'left');
       }
     }
-    x += weite;
-  });
+  }
 }
 
 /**
@@ -275,8 +306,9 @@ export function zeichneForm(
   t: number,
   beidseitig = false,
   achsmass = 0,
-  felder?: number[],
+  felder?: Regalfeld[],
   gespiegelt = false,
+  felderOben?: Regalfeld[],
 ) {
   switch (form) {
     case 'abgerundet': {
@@ -569,52 +601,76 @@ export function zeichneForm(
       // immer braucht. Ein Regal mit 600er Boden ist deshalb 670 tief. Bei
       // der Gondel teilen sich beide Seiten diese Zone, sie liegt dort in
       // der Mitte und zählt nur einmal: 2 × 600 + 70 = 1270, nicht 1340.
-      ctx.rect(0, 0, b, t);
-
-      // Die Felder einzeln, mit ihren eigenen Maßen. Ein gemischter Zug –
-      // fünf Felder A1000 und eines A1250 – muss auch so aussehen: Die
-      // Trennlinie sitzt dort, wo im Markt die Säule steht, und das
-      // Achsmaß-Zeichen richtet sich nach der Breite des jeweiligen Felds.
-      //
-      // Die Breiten werden auf die gezeichnete Länge umgerechnet. Beim
-      // krummen A1333 summieren sich sonst Zehntelmillimeter bis ans Ende
-      // des Zugs, und das letzte Feld stünde sichtbar über.
-      const liste = feldbreiten(b, felder, achsmass);
-      let x = 0;
-      for (let i = 0; i < liste.length; i++) {
-        if (i > 0) {
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, t);
-        }
-        x += liste[i];
-      }
-
       const zone = Math.min(TOTE_ZONE, t / 2);
-      if (beidseitig) {
-        ctx.moveTo(0, (t - zone) / 2);
-        ctx.lineTo(b, (t - zone) / 2);
-        ctx.moveTo(0, (t + zone) / 2);
-        ctx.lineTo(b, (t + zone) / 2);
-      } else {
-        ctx.moveTo(0, zone);
-        ctx.lineTo(b, zone);
-      }
+      const zoneVon = beidseitig ? (t - zone) / 2 : 0;
 
-      // Das Achsmaß-Zeichen steht in jedem Feld, nicht einmal über den
-      // ganzen Zug: Ein 6-m-Zug aus 1,25er Feldern hat fünf Diagonalen.
-      let links = 0;
-      for (const feld of liste) {
-        const zeichen = achsmassZeichen(feld);
-        if (zeichen !== 'keins') {
-          ctx.moveTo(links, t);
-          ctx.lineTo(links + feld, 0);
+      // Ohne Liste wird gleichmäßig nach Achsmaß geteilt – so wurde bis
+      // dahin jeder Zug gezeichnet, und für eine ältere Planung ist das die
+      // richtige Deutung. Ohne eigene Rückseite zeigt die Gondel auf beiden
+      // Seiten dasselbe.
+      const unten =
+        felder && felder.length > 0 ? felder : feldliste(b, achsmass).map((breite) => ({ breite }));
+      const oben = felderOben && felderOben.length > 0 ? felderOben : unten;
+      const faktor = seitenFaktor(b, oben, unten);
+
+      // Solange beide Seiten gleich eingeteilt sind, wird das Möbel als ein
+      // Körper gezeichnet: Trennlinie und Achsmaß-Zeichen laufen über die
+      // ganze Tiefe, so wie eh und je. Erst wenn die Seiten sich
+      // unterscheiden, zerfällt die Zeichnung in zwei Bänder – jedes mit
+      // seiner eigenen Teilung, weil es keine gemeinsame mehr gibt.
+      const zusammen = ohneLuecke(unten) && (!beidseitig || gleicheEinteilung(oben, unten));
+      const baender = zusammen
+        ? [{ felder: unten, von: 0, bis: t }]
+        : beidseitig
+          ? [
+              { felder: oben, von: 0, bis: zoneVon },
+              { felder: unten, von: zoneVon + zone, bis: t },
+            ]
+          : [{ felder: unten, von: zone, bis: t }];
+
+      for (const band of baender) {
+        const hoehe = band.bis - band.von;
+        if (hoehe <= 0) continue;
+
+        // Der Körper, Stück für Stück: Ein leeres Feld unterbricht ihn, und
+        // genau das soll man sehen – dort hängt nichts.
+        for (const stueck of vollStuecke(band.felder)) {
+          ctx.rect(stueck.von * faktor, band.von, (stueck.bis - stueck.von) * faktor, hoehe);
+        }
+
+        // Die Felder einzeln, mit ihren eigenen Maßen. Ein gemischter Zug –
+        // fünf Felder A1000 und eines A1250 – muss auch so aussehen: Die
+        // Trennlinie sitzt dort, wo im Markt die Säule steht.
+        //
+        // An einer Lücke bleibt der Strich weg: Dort ist schon der Rand des
+        // Stücks gezeichnet, ein zweiter läge auf denselben Koordinaten.
+        const plaetze = feldplaetze(band.felder, faktor);
+        plaetze.forEach((platz, i) => {
+          if (i === 0 || platz.feld.leer || plaetze[i - 1].feld.leer) return;
+          ctx.moveTo(platz.x, band.von);
+          ctx.lineTo(platz.x, band.bis);
+        });
+
+        // Das Achsmaß-Zeichen steht in jedem Feld, nicht einmal über den
+        // ganzen Zug: Ein 6-m-Zug aus 1,25er Feldern hat fünf Diagonalen.
+        // Es richtet sich nach der wirklichen Breite des Felds, nicht nach
+        // der gezeichneten – gestreckt wird nur für die Rundung.
+        for (const platz of plaetze) {
+          if (platz.feld.leer) continue;
+          const zeichen = achsmassZeichen(platz.feld.breite);
+          if (zeichen === 'keins') continue;
+          ctx.moveTo(platz.x, band.bis);
+          ctx.lineTo(platz.x + platz.weite, band.von);
           if (zeichen === 'kreuz') {
-            ctx.moveTo(links, 0);
-            ctx.lineTo(links + feld, t);
+            ctx.moveTo(platz.x, band.von);
+            ctx.lineTo(platz.x + platz.weite, band.bis);
           }
         }
-        links += feld;
       }
+
+      // Die tote Zone über die ganze Länge – die Säulen stehen auch dort,
+      // wo eine Seite ein Feld frei lässt.
+      ctx.rect(0, zoneVon, b, zone);
       break;
     }
 
@@ -1423,8 +1479,9 @@ export function ElementSymbol({
           t,
           Boolean(element.beidseitig),
           element.achsmass ?? 0,
-          element.felder,
+          felderVon(element, 'unten'),
           Boolean(element.gespiegelt),
+          element.beidseitig ? felderVon(element, 'oben') : undefined,
         );
         // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
         // die ganze Tiefe – so wie beim Regalzug.

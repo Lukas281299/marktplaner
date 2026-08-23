@@ -4,9 +4,16 @@ import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
 import { verschiebeEcke } from '../logik/elementEcken';
-import { passeNotizenAn } from '../logik/feldnotiz';
 import { vervielfaeltige } from '../logik/vervielfaeltigen';
-import { feldliste, groesstBaubareLaenge, passeAn } from '../logik/feldaufteilung';
+import {
+  breiteAusSeiten,
+  felderVon,
+  seitenbreite,
+  seitenTrennbar,
+  uebernehmeBreiten,
+  type Seite,
+} from '../logik/regalseiten';
+import { groesstBaubareLaenge, passeAn } from '../logik/feldaufteilung';
 import { kannKopfgondel, kopflage, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
@@ -14,7 +21,6 @@ import { setzeFavoriten as speichereFavoriten } from '../speicher/projektArchiv'
 import type {
   BibliothekEintrag,
   Einstellungen,
-  Feldnotiz,
   Grundflaeche,
   Gruppenart,
   Hintergrund,
@@ -23,6 +29,7 @@ import type {
   PlanElement,
   Projekt,
   Punkt,
+  Regalfeld,
   Raum,
   Raumart,
   Verkaufsflaeche,
@@ -233,9 +240,7 @@ interface PlanStore {
   fuegeElementHinzu(vorlage: BibliothekEintrag, x: number, y: number): string;
   aendereElemente(ids: string[], werte: Partial<PlanElement>, mitHistorie?: boolean): void;
   /** Setzt die Feldaufteilung eines Zugs; die Breite folgt der Summe. */
-  setzeFelder(id: string, felder: number[]): void;
-  /** Schreibt eine Notiz in ein einzelnes Feld – je Seite getrennt. */
-  setzeFeldnotiz(id: string, feld: number, seite: 'oben' | 'unten', text: string): void;
+  setzeSeitenfelder(id: string, seite: Seite, felder: Regalfeld[]): void;
   /** Setzt oder entfernt die Kopfgondel an einem Ende eines Zugs. */
   setzeKopfgondel(id: string, seite: Kopfseite, an: boolean): void;
   /** Zieht eine Ecke eines frei geformten Elements an eine neue Stelle. */
@@ -805,11 +810,25 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     else set((s) => ({ projekt: wandeln(s.projekt) }));
   },
 
-  setzeFelder(id, neueFelder) {
+  setzeSeitenfelder(id, seite, neueFelder) {
     aendere(set, get, (p) => {
       const zug = p.elemente.find((el) => el.id === id);
-      if (!zug) return p;
-      const breite = summeFelder(neueFelder);
+      if (!zug || neueFelder.length === 0) return p;
+
+      // Getrennt einteilen lässt sich nur der Regalzug. Bei allem anderen –
+      // einer Doppeltruhe etwa – sind die beiden Seiten ein Körper: Die
+      // andere Seite übernimmt die Einteilung und behält nur ihre Notizen.
+      const andere = seite === 'oben' ? 'unten' : 'oben';
+      const mit = seitenTrennbar(zug)
+        ? felderVon(zug, andere)
+        : uebernehmeBreiten(
+            felderVon(zug, andere),
+            neueFelder.map((f) => f.breite),
+          );
+
+      const oben = seite === 'oben' ? neueFelder : mit;
+      const unten = seite === 'unten' ? neueFelder : mit;
+      const breite = breiteAusSeiten(zug, zug.beidseitig ? oben : undefined, unten);
       if (breite <= 0) return p;
 
       // Der Zug wächst nach hinten, sein Anfang bleibt stehen. Das ist die
@@ -819,10 +838,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       const versatz = (breite - zug.breite) / 2;
       const gewachsen: PlanElement = {
         ...zug,
-        felder: neueFelder,
-        // Die Notizen behalten ihren Platz: Wer im dritten Feld etwas stehen
-        // hat, findet es hinterher dort wieder und nicht im zweiten.
-        feldnotizen: passeNotizenAn(zug.feldnotizen, neueFelder.length),
+        felderUnten: unten,
+        felderOben: zug.beidseitig ? oben : undefined,
+        // Die alte Liste bleibt als Spiegel der Vorderseite stehen. Sie kostet
+        // nichts und hält alles am Leben, was noch nach ihr greift – etwa eine
+        // Planung, die in einer älteren Fassung des Programms geöffnet wird.
+        felder: unten.map((f) => f.breite),
         breite,
         x: feinRunde(zug.x + versatz * Math.cos(bogen)),
         y: feinRunde(zug.y + versatz * Math.sin(bogen)),
@@ -830,26 +851,6 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       return { ...p, elemente: richteKoepfeAus(p.elemente, gewachsen) };
     });
   },
-
-  setzeFeldnotiz(id, feld, seite, text) {
-    aendere(set, get, (p) => ({
-      ...p,
-      elemente: p.elemente.map((el) => {
-        if (el.id !== id) return el;
-        const anzahl = el.felder?.length ?? 1;
-        const notizen: Feldnotiz[] = [
-          ...(passeNotizenAn(el.feldnotizen, anzahl) ??
-            Array.from({ length: anzahl }, (): Feldnotiz => ({}))),
-        ];
-        if (feld < 0 || feld >= notizen.length) return el;
-        notizen[feld] = { ...notizen[feld], [seite]: text || undefined };
-        // Steht nirgends mehr etwas, wird die Liste gar nicht mitgeschleppt.
-        const leer = notizen.every((n) => !n.oben && !n.unten);
-        return { ...el, feldnotizen: leer ? undefined : notizen };
-      }),
-    }));
-  },
-
   setzeKopfgondel(id, seite, an) {
     const zug = get().projekt.elemente.find((el) => el.id === id);
     if (!zug || !kannKopfgondel(zug)) return;
@@ -1320,11 +1321,6 @@ function mitAusgerichtetenKoepfen(elemente: PlanElement[]): PlanElement[] {
   });
 }
 
-/** Summe einer Feldliste in cm, auf Zehntelmillimeter gerundet. */
-function summeFelder(felder: number[]): number {
-  return Math.round(felder.reduce((s, f) => s + f, 0) * 100) / 100;
-}
-
 /**
  * Rundet eine Koordinate auf Zehntelmillimeter statt auf einen halben
  * Zentimeter.
@@ -1355,10 +1351,23 @@ function aufBaubareLaenge(vorher: PlanElement, gezogen: PlanElement): PlanElemen
   const baubar = groesstBaubareLaenge(gezogen.breite);
   if (baubar === null || Math.abs(baubar - gezogen.breite) < 0.01) return gezogen;
 
-  const alt = vorher.felder ?? feldliste(vorher.breite, vorher.achsmass);
-  const passend = passeAn(alt, baubar);
-  const felder = passend ? passend.felder : undefined;
-  const breite = felder ? summeFelder(felder) : baubar;
+  // Beide Seiten mitziehen – aber nur die, die bis an die gezogene Kante
+  // reichen. Eine Gondel, deren Rückseite ein Feld kürzer ist, behält diese
+  // Stufe: Am Griff wird das Möbel länger, nicht symmetrisch.
+  const anpassen = (felder: Regalfeld[]): Regalfeld[] => {
+    const laenge = seitenbreite(felder);
+    const kuerzer = laenge < vorher.breite - 0.01;
+    if (kuerzer && laenge <= baubar + 0.01) return felder;
+    const passend = passeAn(
+      felder.map((f) => f.breite),
+      baubar,
+    );
+    return passend ? uebernehmeBreiten(felder, passend.felder) : felder;
+  };
+
+  const unten = anpassen(felderVon(vorher, 'unten'));
+  const oben = vorher.beidseitig ? anpassen(felderVon(vorher, 'oben')) : undefined;
+  const breite = breiteAusSeiten(vorher, oben, unten);
 
   // Längsrichtung des Zugs, vor und nach dem Ziehen.
   const richtung = (grad: number) => {
@@ -1388,7 +1397,9 @@ function aufBaubareLaenge(vorher: PlanElement, gezogen: PlanElement): PlanElemen
   return {
     ...gezogen,
     breite,
-    felder,
+    felderUnten: unten,
+    felderOben: oben,
+    felder: unten.map((f) => f.breite),
     x: feinRunde(fest.x + (seite * breite) / 2 * uNeu.x),
     y: feinRunde(fest.y + (seite * breite) / 2 * uNeu.y),
   };

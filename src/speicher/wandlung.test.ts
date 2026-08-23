@@ -249,3 +249,54 @@ describe('Fassung 8: ein Grauton für das Trockensortiment', () => {
     expect(neu.elemente[0].farbe).toBe('#b7b2a8');
   });
 });
+
+describe('Fassung 9: jede Gondelseite mit eigener Feldeinteilung', () => {
+  const zug = (zusatz: Record<string, unknown> = {}) => ({
+    id: 'el', vorlageId: 'wt-zug', ebeneId: 'einrichtung', name: 'Zug', kategorie: 'regale',
+    x: 0, y: 0, breite: 500, tiefe: 127, drehung: 0, form: 'wt100', farbe: '#c9c5bd',
+    beschriftung: '', beschriftungSichtbar: true, schriftgroesse: 12,
+    gesperrt: false, reihenfolge: 0, beidseitig: true, achsmass: 100,
+    ...zusatz,
+  });
+
+  const ersterZug = (zusatz: Record<string, unknown> = {}) =>
+    wandleProjekt(alteFassung({ elemente: [zug(zusatz)] })).elemente[0];
+
+  it('schreibt die vorhandene Einteilung auf beide Seiten', () => {
+    // Am Bild darf sich nichts ändern: Wer die Planung öffnet, sieht denselben
+    // Zug wie vorher, nur eben zweimal beschrieben.
+    const el = ersterZug({ felder: [125, 100, 100] });
+    expect(el.felderUnten?.map((f) => f.breite)).toEqual([125, 100, 100]);
+    expect(el.felderOben?.map((f) => f.breite)).toEqual([125, 100, 100]);
+  });
+
+  it('erschließt die Felder aus dem Achsmaß, wenn keine gespeichert sind', () => {
+    expect(ersterZug().felderUnten).toHaveLength(5);
+  });
+
+  it('gibt einem Wandregal keine Rückseite', () => {
+    // Eine Seite, die es nicht gibt, wäre eine Liste, die nie jemand ansieht.
+    expect(ersterZug({ beidseitig: false }).felderOben).toBeUndefined();
+  });
+
+  it('nimmt die Notizen ans Feld mit, je Seite getrennt', () => {
+    const el = ersterZug({
+      felder: [100, 100],
+      feldnotizen: [{ unten: '5+' }, { oben: '4+', unten: '1K' }],
+    });
+    expect(el.felderUnten?.map((f) => f.notiz)).toEqual(['5+', '1K']);
+    expect(el.felderOben?.map((f) => f.notiz)).toEqual([undefined, '4+']);
+  });
+
+  it('wandelt nicht zweimal', () => {
+    // Sonst überschriebe der zweite Durchgang eine inzwischen von Hand
+    // geänderte Seite mit der alten gemeinsamen Liste.
+    const einmal = wandleProjekt(alteFassung({ elemente: [zug({ felder: [100, 100] })] }));
+    const umgebaut = {
+      ...einmal,
+      version: 1,
+      elemente: [{ ...einmal.elemente[0], felderOben: [{ breite: 250 }] }],
+    };
+    expect(wandleProjekt(umgebaut).elemente[0].felderOben).toEqual([{ breite: 250 }]);
+  });
+});
