@@ -873,7 +873,10 @@ describe('Beschriftungen bleiben lesbar', () => {
     expect(wende(90)).toBe(0);
     expect(wende(91)).toBe(1);
     expect(wende(269)).toBe(1);
-    expect(wende(270)).toBe(0);
+    // Bei 270° zeigt die eigene x-Achse nach oben – ein senkrechtes Möbel
+    // soll aber von oben nach unten gelesen werden, also gewendet.
+    expect(wende(270)).toBe(1);
+    expect(wende(271)).toBe(0);
     expect(wende(-170)).toBe(1);
     expect(wende(540)).toBe(1);
   });

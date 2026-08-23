@@ -36,6 +36,30 @@ export const SCHRIFT_FLAECHE = 45;
  */
 const LESBAR_AB = 7;
 
+/**
+ * Läuft dieses Möbel im Plan **von rechts nach links**?
+ *
+ * Ein Regal hat eine Richtung: Seine Felder zählen entlang der eigenen
+ * x-Achse. Wie die im Plan liegt, hängt an der Drehung — ein Zug an der
+ * unteren Wand ist um 180° gedreht, seine erste Feldkante liegt rechts.
+ *
+ * Daran hängen zwei Dinge, und beide sollen dasselbe sagen:
+ *
+ *  - **Gezählt wird von links nach rechts**, so wie man den Plan liest. Läuft
+ *    das Möbel andersherum, dreht das Eigenschaftenfenster seine Liste um.
+ *  - **Gelesen wird von links nach rechts.** Steht die Schrift sonst auf dem
+ *    Kopf, wird sie gewendet.
+ *
+ * Die Grenze liegt bei einer Vierteldrehung, dieselbe wie bei den Maßen jeder
+ * Bauzeichnung. Senkrechte Möbel laufen dadurch immer von oben nach unten:
+ * Bei 90° zeigt die eigene x-Achse nach unten, bei 270° nach oben — und dort
+ * wird gewendet.
+ */
+export function laeuftRueckwaerts(drehung: number): boolean {
+  const grad = ((drehung % 360) + 360) % 360;
+  return grad > 90 && grad <= 270;
+}
+
 /** Ist eine Beschriftung dieser Planhöhe bei diesem Zoom noch zu lesen? */
 export function lesbar(planHoehe: number, zoom: number): boolean {
   return planHoehe * zoom >= LESBAR_AB;

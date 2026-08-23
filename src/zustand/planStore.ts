@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
+import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
@@ -834,8 +835,13 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       // Der Zug wächst nach hinten, sein Anfang bleibt stehen. Das ist die
       // Richtung, in der man ihn baut: Ein Feld kommt hinten dran, nicht
       // links und rechts je ein halbes.
+      //
+      // „Hinten" heißt dabei rechts im Plan, nicht rechts in der eigenen
+      // Achse. Ein Zug an der unteren Wand ist um 180° gedreht; wüchse er
+      // entlang seiner eigenen Achse, liefe er im Plan nach links davon.
       const bogen = (zug.drehung * Math.PI) / 180;
-      const versatz = (breite - zug.breite) / 2;
+      const wachsrichtung = laeuftRueckwaerts(zug.drehung) ? -1 : 1;
+      const versatz = (wachsrichtung * (breite - zug.breite)) / 2;
       const gewachsen: PlanElement = {
         ...zug,
         felderUnten: unten,

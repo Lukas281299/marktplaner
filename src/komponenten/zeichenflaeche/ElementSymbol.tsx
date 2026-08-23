@@ -3,7 +3,7 @@ import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { modulsatzFuer } from '../../daten/module';
 import { achsmassZeichen } from '../../logik/achsmass';
-import { lesbar } from '../../logik/beschriftung';
+import { laeuftRueckwaerts, lesbar } from '../../logik/beschriftung';
 import { feldliste } from '../../logik/feldaufteilung';
 import { masszeilen, notizZeilen } from '../../logik/feldnotiz';
 import {
@@ -233,18 +233,6 @@ const NOTIZ_HOEHE = 22;
 const MASS_HOEHE = 11;
 
 /**
- * Steht die Schrift dieses Möbels auf dem Kopf?
- *
- * Ab einer halben Drehung liest sich der Plan verkehrt herum. Die Grenze
- * liegt bei ±90 Grad – dieselbe Regel, nach der jede Bauzeichnung ihre Maße
- * setzt: Was mehr als eine Vierteldrehung liegt, wird gewendet.
- */
-function stehtKopf(drehung: number): boolean {
-  const grad = ((drehung % 360) + 360) % 360;
-  return grad > 90 && grad < 270;
-}
-
-/**
  * Zeichnet einen Textblock so, dass er sich lesen lässt.
  *
  * Die Beschriftung gehört zum Möbel und dreht sich mit ihm – sie bleibt an
@@ -311,7 +299,7 @@ export function zeichneFeldnotizen(
     : [{ felder: unten, von: 0 }];
 
   const rand = Math.min(NOTIZ_HOEHE * 0.35, b * 0.02);
-  const kopf = stehtKopf(element.drehung);
+  const kopf = laeuftRueckwaerts(element.drehung);
   ctx.setAttr('textBaseline', 'top');
 
   for (const band of baender) {
@@ -396,7 +384,7 @@ export function zeichneWarengruppen(
       : text.length * schrift * 0.55;
   };
 
-  const kopf = stehtKopf(element.drehung);
+  const kopf = laeuftRueckwaerts(element.drehung);
   const seiten = element.beidseitig
     ? [
         { felder: oben, vorn: false },
@@ -1733,6 +1721,12 @@ export function ElementBeschriftung({
   // Zu kleine Schrift auf dem Bildschirm ist unleserlich – dann lieber weglassen.
   if (element.schriftgroesse < 4) return null;
 
+  // Die Beschriftung dreht sich mit dem Möbel – sie gehört ja dazu. Läuft es
+  // andersherum, wird sie um die Mitte des Möbels gewendet: Sie bleibt dort
+  // stehen, wo sie steht, und liest sich wieder von links nach rechts. Ein
+  // Regal an der unteren Wand hatte seinen Namen sonst kopfüber im Plan.
+  const gewendet = laeuftRueckwaerts(element.drehung);
+
   return (
     <Text
       listening={false}
@@ -1741,7 +1735,7 @@ export function ElementBeschriftung({
       width={element.breite}
       offsetX={element.breite / 2}
       offsetY={schrift * 0.6}
-      rotation={element.drehung}
+      rotation={element.drehung + (gewendet ? 180 : 0)}
       text={element.beschriftung}
       fontSize={schrift}
       fontFamily="Segoe UI, system-ui, sans-serif"

@@ -105,8 +105,9 @@ describe('Kopfgondeln', () => {
     store().setzeKopfgondel(zug.id, 'ende', true);
     const kopf = store().projekt.elemente.find((el) => el.kopfVon === zug.id)!;
 
-    // Quer: 90 Grad zum Zug, damit die Breite über die Gondeltiefe läuft.
-    expect(kopf.drehung).toBe(90);
+    // Quer zum Zug, damit die Breite über die Gondeltiefe läuft – und mit
+    // dem Rücken am Zug, siehe `kopfgondel.test.ts`.
+    expect(kopf.drehung).toBe(270);
     // Und lückenlos davor: halbe Zuglänge plus halbe Kopftiefe.
     expect(kopf.x).toBeCloseTo(1000 + 600 / 2 + 67 / 2, 1);
     expect(kopf.y).toBeCloseTo(1000, 1);

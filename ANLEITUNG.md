@@ -738,7 +738,9 @@ Das Maß ergibt sich aus der Gondel und ist nicht einstellbar:
 | 500er Boden (2 × 500 + 70 = 1070 tief) | **A1000**, 570 tief |
 
 Die Tiefe ist immer die **einer Gondelseite** — die Kopfgondel ist ein
-einseitiges Regal und steht vor dem Kopf, nicht um ihn herum.
+einseitiges Regal und steht vor dem Kopf, nicht um ihn herum. Sie steht dabei
+**mit dem Rücken am Zug** und schaut in den Gang: Dort liegen ihre Böden, und
+dort steht auch ihre Beschriftung.
 
 **Beschriftet wird der Kopf gleich mit.** Unter jedem gesetzten Schalter steht
 sein eigenes Feld für Notiz und Warengruppe — man muss ihn dafür nicht einzeln

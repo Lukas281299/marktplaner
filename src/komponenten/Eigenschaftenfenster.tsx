@@ -4,6 +4,7 @@ import { KATEGORIEN } from '../daten/kategorien';
 import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { WARENGRUPPEN } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
+import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { summe } from '../logik/feldaufteilung';
 import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
@@ -688,6 +689,18 @@ function Seitenaufteilung({
     setze(neu);
   };
 
+  // Gezählt wird, wie man den Plan liest: von links nach rechts. Läuft das
+  // Möbel andersherum – ein Zug an der unteren Wand ist um 180° gedreht –,
+  // steht die Liste hier umgekehrt zur gespeicherten. Sonst hieße das erste
+  // Feld im Fenster das letzte im Bild.
+  const rueckwaerts = laeuftRueckwaerts(element.drehung);
+  const gezeigt = rueckwaerts ? [...felder].reverse() : felder;
+  /** Die Nummer in der gespeicherten Liste zu einer Zeile im Fenster. */
+  const stelle = (zeile: number) => (rueckwaerts ? felder.length - 1 - zeile : zeile);
+  /** Ein Feld ans Ende hängen – im Bild rechts, wo der Zug weiterwächst. */
+  const haengeAn = (breite: number) =>
+    setze(rueckwaerts ? [{ breite }, ...felder] : [...felder, { breite }]);
+
   // Lücken kann nur der Regalzug: Bei einer Truhe hieße ein leeres Feld, ein
   // Loch in die Wanne zu schneiden.
   const luecken = element.form === 'wt100';
@@ -764,11 +777,13 @@ function Seitenaufteilung({
       </div>
 
       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {felder.map((feld, i) => (
+        {gezeigt.map((feld, zeile) => {
+          const i = stelle(zeile);
+          return (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span className="kategorie-anzahl" style={{ minWidth: 22 }}>
-                {i + 1}.
+                {zeile + 1}.
               </span>
               <select
                 style={{ flex: 1 }}
@@ -796,17 +811,17 @@ function Seitenaufteilung({
               )}
               <button
                 className="knopf knopf-nur-symbol"
-                disabled={i === 0}
+                disabled={zeile === 0}
                 title={`${satz.einheit} nach vorn schieben`}
-                onClick={() => tausche(i, -1)}
+                onClick={() => tausche(i, rueckwaerts ? 1 : -1)}
               >
                 ↑
               </button>
               <button
                 className="knopf knopf-nur-symbol"
-                disabled={i === felder.length - 1}
+                disabled={zeile === felder.length - 1}
                 title={`${satz.einheit} nach hinten schieben`}
-                onClick={() => tausche(i, 1)}
+                onClick={() => tausche(i, rueckwaerts ? -1 : 1)}
               >
                 ↓
               </button>
@@ -833,7 +848,8 @@ function Seitenaufteilung({
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Das Plus steht einmal davor statt viermal auf den Knöpfen – so
@@ -848,7 +864,7 @@ function Seitenaufteilung({
             className="knopf"
             style={{ flex: 1, padding: '4px 2px' }}
             title={`${satz.einheit} ${modulName(satz, m)} hinten anfügen`}
-            onClick={() => setze([...felder, { breite: m }])}
+            onClick={() => haengeAn(m)}
           >
             {modulName(satz, m)}
           </button>
