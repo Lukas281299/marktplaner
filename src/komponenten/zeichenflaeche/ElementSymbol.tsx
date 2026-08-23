@@ -13,7 +13,12 @@ import {
   seitenbreite,
   vollStuecke,
 } from '../../logik/regalseiten';
-import { gruppenZeilen, gruppenspannen } from '../../logik/warengruppe';
+import {
+  GRUPPE_GROESSEN,
+  GRUPPE_NORMAL,
+  gruppensatz,
+  gruppenspannen,
+} from '../../logik/warengruppe';
 import type { Grundform, PlanElement, Regalfeld } from '../../typen/modell';
 
 /**
@@ -343,18 +348,11 @@ export function zeichneFeldnotizen(
   }
 }
 
-/**
- * Schrifthöhe der Warengruppen unter dem Zug, in cm.
- *
- * Größer als die Notiz im Feld: Auf einem Plan liest man zuerst, wo was
- * steht, und erst danach, wie das Regal gebaut ist. Wie jede Beschriftung,
- * die zur Zeichnung gehört, hat sie eine feste Größe im Plan und blendet
- * sich beim Herauszoomen aus.
- */
-const SCHRIFT_GRUPPE = 30;
-
 /** Abstand der Beschriftung vom Möbel, in cm. */
 const GRUPPE_ABSTAND = 7;
+
+/** Die größte einstellbare Schrift – ab hier lohnt das Zeichnen überhaupt. */
+const GRUPPE_GROESSTE = GRUPPE_GROESSEN[GRUPPE_GROESSEN.length - 1].hoehe;
 
 /**
  * Schreibt die Warengruppen unter den Zug.
@@ -377,24 +375,26 @@ export function zeichneWarengruppen(
   t: number,
   zoom: number,
 ) {
-  if (!lesbar(SCHRIFT_GRUPPE, zoom)) return;
+  if (!lesbar(GRUPPE_GROESSTE, zoom)) return;
 
   const unten = felderVon(element, 'unten');
   const oben = element.beidseitig ? felderVon(element, 'oben') : [];
   const faktor = seitenFaktor(b, oben, unten);
-  const zeilenhoehe = SCHRIFT_GRUPPE * 1.15;
 
-  ctx.setAttr('font', `${SCHRIFT_GRUPPE}px sans-serif`);
   ctx.setAttr('fillStyle', 'rgba(24,32,44,0.92)');
   ctx.setAttr('strokeStyle', 'rgba(24,32,44,0.7)');
   ctx.setAttr('lineWidth', 1.1 / zoom);
   ctx.setAttr('textBaseline', 'top');
 
-  // Wie breit ein Text wird, weiß nur die Leinwand.
-  const messen = (text: string) =>
-    typeof ctx.measureText === 'function'
+  // Wie breit ein Text wird, weiß nur die Leinwand. Die Schrift muss dafür
+  // gesetzt sein – gemessen wird in genau der Größe, in der auch gezeichnet
+  // wird, sonst passt hinterher nichts.
+  const messen = (text: string, schrift: number) => {
+    ctx.setAttr('font', `${schrift}px sans-serif`);
+    return typeof ctx.measureText === 'function'
       ? ctx.measureText(text).width
-      : text.length * SCHRIFT_GRUPPE * 0.55;
+      : text.length * schrift * 0.55;
+  };
 
   const kopf = stehtKopf(element.drehung);
   const seiten = element.beidseitig
@@ -415,9 +415,20 @@ export function zeichneWarengruppen(
       const links = erstes.x;
       const rechts = letztes.x + letztes.weite;
       const mitte = (links + rechts) / 2;
-      const zeilen = gruppenZeilen(spanne.text, rechts - links, messen);
-      if (zeilen.length === 0) continue;
 
+      // Umgebrochen und notfalls verkleinert, bis es in die Strecke passt.
+      // Ein Name, der über sein Möbel hinausragt, steht im Plan über dem
+      // Nachbarn und behauptet dort etwas Falsches.
+      const satz = gruppensatz(
+        spanne.text,
+        rechts - links,
+        spanne.schrift ?? GRUPPE_NORMAL,
+        messen,
+      );
+      const zeilen = satz.zeilen;
+      if (zeilen.length === 0 || !lesbar(satz.schrift, zoom)) continue;
+
+      const zeilenhoehe = satz.schrift * 1.15;
       const hoehe = zeilen.length * zeilenhoehe;
       const anfang = seite.vorn ? t + GRUPPE_ABSTAND : -GRUPPE_ABSTAND - hoehe;
 
@@ -425,6 +436,7 @@ export function zeichneWarengruppen(
       // Er bleibt dadurch unter seiner Seite stehen, und auf dem Bildschirm
       // sitzt die Klammer wieder neben der ersten Zeile.
       lesbarerBlock(ctx, kopf, mitte, anfang + hoehe / 2, () => {
+        ctx.setAttr('font', `${satz.schrift}px sans-serif`);
         ctx.setAttr('textAlign', 'center');
         zeilen.forEach((zeile, i) => {
           ctx.fillText(zeile, mitte, anfang + i * zeilenhoehe);
@@ -435,9 +447,9 @@ export function zeichneWarengruppen(
 
         // Die Klammer liegt auf der ersten Zeile, der Text schneidet sie frei.
         const y = anfang + zeilenhoehe / 2;
-        const arm = SCHRIFT_GRUPPE * 0.4;
-        const luft = SCHRIFT_GRUPPE * 0.35;
-        const halb = messen(zeilen[0]) / 2 + luft;
+        const arm = satz.schrift * 0.4;
+        const luft = satz.schrift * 0.35;
+        const halb = messen(zeilen[0], satz.schrift) / 2 + luft;
 
         ctx.beginPath();
         ctx.moveTo(links, y - arm);

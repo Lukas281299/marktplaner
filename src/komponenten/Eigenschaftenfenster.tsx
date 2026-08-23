@@ -9,7 +9,7 @@ import { summe } from '../logik/feldaufteilung';
 import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { felderVon, seitenTrennbar, type Seite } from '../logik/regalseiten';
-import { gruppenspannen } from '../logik/warengruppe';
+import { GRUPPE_GROESSEN, GRUPPE_NORMAL, gruppenspannen } from '../logik/warengruppe';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -1003,27 +1003,58 @@ function Feldeingaben({
             }
           />
         )}
+      </div>
 
-        {/* Wie weit die Warengruppe reicht – gleich daneben, damit die Zeile
-            nicht wächst. „×3" heißt: über drei Felder. */}
-        {!gedeckt && gruppe?.text && rest > 1 ? (
+      {/* Weite und Größe der Warengruppe – eine Zeile, und nur dort, wo eine
+          Warengruppe steht. Das ist höchstens jedes zweite, dritte Feld. */}
+      {!gedeckt && gruppe?.text ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {rest > 1 && (
+            <>
+              <span className="kategorie-anzahl">gilt für</span>
+              <select
+                style={{ fontSize: 12 }}
+                value={String(Math.min(gruppe.felder, rest))}
+                title="Über wie viele Felder die Beschriftung gilt. Sie steht trotzdem nur einmal da."
+                onChange={(e) => {
+                  usePlanStore.getState().schnappschuss();
+                  setze({
+                    warengruppe: { ...gruppe, felder: Number(e.target.value) },
+                  });
+                }}
+              >
+                {Array.from({ length: rest }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={String(n)}>
+                    {n} {n === 1 ? 'Feld' : 'Felder'}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          <span className="kategorie-anzahl" style={{ marginLeft: rest > 1 ? 6 : 0 }}>
+            Schrift
+          </span>
           <select
-            style={{ fontSize: 12, flex: 'none' }}
-            value={String(Math.min(gruppe.felder, rest))}
-            title="Über wie viele Felder die Beschriftung gilt. Sie steht trotzdem nur einmal da."
+            style={{ fontSize: 12, flex: 1, minWidth: 0 }}
+            value={String(gruppe.schrift ?? GRUPPE_NORMAL)}
+            title={
+              'Wie groß der Name im Plan steht. Über sein Möbel hinaus wächst er nie — ' +
+              'zu breit bricht er um und wird notfalls kleiner.'
+            }
             onChange={(e) => {
               usePlanStore.getState().schnappschuss();
-              setze({ warengruppe: { text: gruppe.text, felder: Number(e.target.value) } });
+              setze({ warengruppe: { ...gruppe, schrift: Number(e.target.value) } });
             }}
           >
-            {Array.from({ length: rest }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={String(n)}>
-                ×{n}
+            {GRUPPE_GROESSEN.map((g) => (
+              <option key={g.hoehe} value={String(g.hoehe)}>
+                {g.name}
               </option>
             ))}
           </select>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

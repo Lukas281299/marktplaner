@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { gruppenZeilen, gruppenspannen } from './warengruppe';
+import {
+  GRUPPE_NORMAL,
+  KLEINSTE_SCHRIFT,
+  gruppenZeilen,
+  gruppensatz,
+  gruppenspannen,
+} from './warengruppe';
 import type { Regalfeld } from '../typen/modell';
 
 /**
@@ -91,5 +97,77 @@ describe('Umbruch einer Beschriftung', () => {
       '',
       'Süßwaren',
     ]);
+  });
+});
+
+describe('Beschriftung in die Strecke einpassen', () => {
+  /** Zehn Punkte je Zeichen bei Schrifthöhe 20 – linear wie eine echte Schrift. */
+  const miss = (text: string, schrift: number) => text.length * 10 * (schrift / 20);
+
+  it('lässt eine passende Beschriftung in voller Größe', () => {
+    const satz = gruppensatz('Senf', 400, GRUPPE_NORMAL, miss);
+    expect(satz.schrift).toBe(GRUPPE_NORMAL);
+    expect(satz.zeilen).toEqual(['Senf']);
+  });
+
+  it('bricht um, bevor es verkleinert', () => {
+    // Umbrechen kostet nichts an Lesbarkeit, Verkleinern schon.
+    const satz = gruppensatz('Ketchup und Grillsoßen', 130, 20, miss);
+    expect(satz.zeilen.length).toBeGreaterThan(1);
+    expect(satz.schrift).toBe(20);
+  });
+
+  it('verkleinert ein einzelnes zu langes Wort, bis es passt', () => {
+    // „Grundnahrungsmittel" lässt sich nicht umbrechen. Statt über den
+    // Nachbarn zu ragen, wird es kleiner.
+    const breite = 100;
+    const satz = gruppensatz('Grundnahrungsmittel', breite, 20, miss);
+    expect(satz.zeilen).toEqual(['Grundnahrungsmittel']);
+    expect(satz.schrift).toBeLessThan(20);
+    expect(miss(satz.zeilen[0], satz.schrift)).toBeLessThanOrEqual(breite + 0.01);
+  });
+
+  it('hält keine Zeile breiter als ihre Strecke', () => {
+    // Die eigentliche Zusage: Was hier herauskommt, passt.
+    const faelle: [string, number][] = [
+      ['Ketchup, Grillsoßen', 300],
+      ['Wein und Spirituosen', 120],
+      ['Grundnahrungsmittel', 90],
+      ['Aktion', 40],
+      ['Molkereiprodukte\nund Käse', 150],
+    ];
+    for (const [text, breite] of faelle) {
+      const satz = gruppensatz(text, breite, GRUPPE_NORMAL, miss);
+      for (const zeile of satz.zeilen) {
+        // Passt – oder die Schrift steht schon an der Untergrenze. Weiter
+        // schrumpfen hieße, sie unlesbar zu machen.
+        const passt = miss(zeile, satz.schrift) <= breite + 0.01;
+        expect(passt || satz.schrift <= KLEINSTE_SCHRIFT + 0.01).toBe(true);
+      }
+    }
+  });
+
+  it('schrumpft nicht ins Unlesbare', () => {
+    // Ein Feld von vier Zentimetern kann keinen Namen tragen. Dann steht er
+    // lieber ein wenig über – das sieht man und kann ihn kürzen.
+    const satz = gruppensatz('Wein und Spirituosen', 4, 20, miss);
+    expect(satz.schrift).toBeGreaterThanOrEqual(KLEINSTE_SCHRIFT - 0.01);
+  });
+
+  it('passt ein langes Wort auf ein schmales Feld noch ein', () => {
+    // Der Fall, der die Untergrenze fast erreicht: 19 Zeichen auf 90 cm.
+    const satz = gruppensatz('Grundnahrungsmittel', 90, GRUPPE_NORMAL, miss);
+    expect(miss(satz.zeilen[0], satz.schrift)).toBeLessThanOrEqual(90.01);
+    expect(satz.schrift).toBeGreaterThan(KLEINSTE_SCHRIFT);
+  });
+
+  it('nimmt die eingestellte Größe als Ausgangspunkt', () => {
+    expect(gruppensatz('Senf', 400, 14, miss).schrift).toBe(14);
+    expect(gruppensatz('Senf', 400, 28, miss).schrift).toBe(28);
+  });
+
+  it('kommt mit einer Strecke ohne Breite zurecht', () => {
+    // Kann beim Zeichnen vorkommen, bevor die Größe steht.
+    expect(gruppensatz('Senf', 0, 20, miss).schrift).toBe(20);
   });
 });

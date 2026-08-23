@@ -32,6 +32,11 @@ describe('Zeilen einer Notiz', () => {
   });
 });
 
+/** Ein Möbel mit den paar Angaben, die für die Maßzeile zählen. */
+const moebel = (werte: Partial<Parameters<typeof masszeilen>[0]>) =>
+  ({ form: 'rechteck', breite: 125, tiefe: 67, hoehe: 180, beidseitig: false, ...werte }) as
+    Parameters<typeof masszeilen>[0];
+
 describe('Höhe und Tiefe rechts im Feld', () => {
   it('nennt die Bodentiefe einer Gondel, nicht das Stellmaß', () => {
     // 2 × 600 + 70 tote Zone = 1270 tief. Bestellt wird T600.
@@ -44,16 +49,33 @@ describe('Höhe und Tiefe rechts im Feld', () => {
   });
 
   it('schreibt beide Zeilen in Millimetern', () => {
-    expect(masszeilen({ hoehe: 180, tiefe: 127, beidseitig: true })).toEqual(['H 1800', 'T 600']);
+    expect(masszeilen(moebel({ hoehe: 180, tiefe: 127, beidseitig: true }))).toEqual(['H 1800', 'T 600']);
   });
 
   it('lässt die Höhe weg, wenn keine bekannt ist', () => {
     // Eine Null wäre eine Behauptung.
-    expect(masszeilen({ hoehe: undefined, tiefe: 67, beidseitig: false })).toEqual(['T 600']);
-    expect(masszeilen({ hoehe: 0, tiefe: 67, beidseitig: false })).toEqual(['T 600']);
+    expect(masszeilen(moebel({ hoehe: undefined, tiefe: 67 }))).toEqual(['T 600']);
+    expect(masszeilen(moebel({ hoehe: 0, tiefe: 67 }))).toEqual(['T 600']);
+  });
+
+  it('schreibt an eine Palette Länge und Breite statt Höhe und Tiefe', () => {
+    // Eine Palette ist so hoch, wie gestapelt wird – die Zahl wäre erfunden.
+    // Ihre beiden Grundmaße sagen dagegen sofort, welche es ist.
+    expect(masszeilen(moebel({ form: 'palette', breite: 120, tiefe: 80, hoehe: 100 }))).toEqual([
+      'L 1200',
+      'B 800',
+    ]);
+  });
+
+  it('nennt bei der hochkant stehenden Palette dieselben Maße', () => {
+    // Dieselbe Palette, nur gedreht eingesetzt. Länge bleibt Länge.
+    expect(masszeilen(moebel({ form: 'palette', breite: 80, tiefe: 120, hoehe: 100 }))).toEqual([
+      'L 1200',
+      'B 800',
+    ]);
   });
 
   it('erfindet bei unsinniger Tiefe nichts', () => {
-    expect(masszeilen({ hoehe: 180, tiefe: 3, beidseitig: true })).toEqual(['H 1800']);
+    expect(masszeilen(moebel({ hoehe: 180, tiefe: 3, beidseitig: true }))).toEqual(['H 1800']);
   });
 });

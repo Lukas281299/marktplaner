@@ -495,6 +495,11 @@ und in zwei Zeilen: `H 1800` und `T 600`. Die Tiefe ist dabei die
 **Bodentiefe**, nach der bestellt wird — bei einer Gondel also `T 600` und
 nicht das Stellmaß von 1270 mm.
 
+An einer **Palette** stehen dort stattdessen **Länge und Breite**: `L 1200`
+und `B 800`. Eine Palette ist so hoch, wie gestapelt wird — die Höhe wäre
+eine erfundene Zahl, ihre beiden Grundmaße sagen dagegen sofort, welche es
+ist.
+
 Das Eingabefeld steht rechts unter *Felder*, links neben der Warengruppe.
 Bei einer Gondel hat jede Seite ihre eigene Liste; oben schaltest du mit
 **Vorderseite** / **Rückseite** um. Auf den beiden Knöpfen steht die Länge der
@@ -566,10 +571,18 @@ Die folgenden Felder zeigen statt eines Eingabefelds den Hinweis
 *↳ Ketchup*. Zwei Beschriftungen an derselben Stelle kann es also nicht geben:
 Schreibst du mitten in eine Strecke etwas Neues, endet die vorige dort.
 
-**Zu lange Namen brechen von selbst um**, an den Wortgrenzen und passend zur
-Breite der Strecke. Ein Umbruch von Hand geht mit **Umschalt+Eingabe**. Ein
-einzelnes zu langes Wort wird nicht abgeschnitten — es steht lieber über, als
-dass aus *Grillsoßen* ein *Grillso* wird.
+**Der Name wird nie breiter als sein Möbel.** Zwei Mittel sorgen dafür, in
+dieser Reihenfolge: Er **bricht um**, an den Wortgrenzen und passend zur Breite
+der Strecke — einen Umbruch von Hand setzt du mit **Umschalt+Eingabe**. Reicht
+das nicht, weil ein einzelnes Wort zu lang ist, wird er **kleiner**, bis er
+hineinpasst. Abgeschnitten wird nie: Aus *Grillsoßen* würde *Grillso*, und das
+liest sich wie eine Angabe.
+
+Wie groß er grundsätzlich steht, stellst du daneben unter *Schrift* ein — von
+*sehr klein* bis *groß*. Das Einpassen gilt trotzdem: Auch eine große Schrift
+wird kleiner, wenn sie sonst über den Nachbarn ragen würde. Nur unterhalb von
+8 cm Schrifthöhe hört das Verkleinern auf — dann steht der Name lieber ein
+wenig über, damit du siehst, dass du ihn kürzen solltest.
 
 Bei einer Gondel hat jede Seite ihre eigenen Warengruppen: Die der
 Vorderseite stehen unter dem Möbel, die der Rückseite darüber — jeweils auf

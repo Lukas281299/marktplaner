@@ -64,8 +64,18 @@ export function bodentiefeMm(element: Pick<PlanElement, 'tiefe' | 'beidseitig'>)
  * Behauptung.
  */
 export function masszeilen(
-  element: Pick<PlanElement, 'hoehe' | 'tiefe' | 'beidseitig'>,
+  element: Pick<PlanElement, 'hoehe' | 'tiefe' | 'beidseitig' | 'form' | 'breite'>,
 ): string[] {
+  // Eine Palette hat keine Höhe, die jemanden interessiert – sie ist so hoch,
+  // wie gestapelt wird. Was man von ihr wissen will, sind ihre beiden
+  // Grundmaße: 1200 × 800 und man weiß, welche es ist.
+  if (element.form === 'palette') {
+    const laenge = Math.round(Math.max(element.breite, element.tiefe) * 10);
+    const breite = Math.round(Math.min(element.breite, element.tiefe) * 10);
+    if (laenge <= 0 || breite <= 0) return [];
+    return [`L ${laenge}`, `B ${breite}`];
+  }
+
   const zeilen: string[] = [];
   if (element.hoehe && element.hoehe > 0) zeilen.push(`H ${Math.round(element.hoehe * 10)}`);
   const tiefe = bodentiefeMm(element);

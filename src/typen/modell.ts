@@ -220,7 +220,19 @@ export interface Regalfeld {
    * Sie hängt am **ersten** Feld ihrer Strecke und gilt über `felder` Felder.
    * So steht „Ketchup" über drei laufende Meter einmal da und nicht dreimal.
    */
-  warengruppe?: { text: string; felder: number };
+  warengruppe?: {
+    text: string;
+    /** Über wie viele Felder sie gilt – dieses mitgezählt. */
+    felder: number;
+    /**
+     * Schrifthöhe in cm, falls sie von Hand eingestellt wurde.
+     *
+     * Ohne Angabe nimmt der Plan seine übliche Größe. Zu breit wird die
+     * Beschriftung dadurch nie: Sie bricht um und verkleinert sich, bis sie
+     * in ihre Strecke passt – siehe `logik/warengruppe.ts`.
+     */
+    schrift?: number;
+  };
 }
 
 /** Ein tatsächlich auf dem Plan platziertes Element. */
