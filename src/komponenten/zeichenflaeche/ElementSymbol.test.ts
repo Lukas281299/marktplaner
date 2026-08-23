@@ -7,6 +7,7 @@ import {
   zeichneForm,
   zeichneFuehrungsrohr,
   zeichneStriche,
+  zeichneWarengruppen,
 } from './ElementSymbol';
 import { BIBLIOTHEK } from '../../daten/bibliothek';
 import type { Grundform, PlanElement } from '../../typen/modell';
@@ -677,5 +678,133 @@ describe('Gondel mit zwei verschiedenen Seiten', () => {
     // Genau eine Diagonale: die des vollen Felds.
     const striche = aufrufe.filter((n) => n === 'moveTo').length;
     expect(striche).toBe(1);
+  });
+});
+
+describe('Warengruppen unter dem Zug', () => {
+  const TIEFE = 127;
+
+  /** Eine Leinwand, die auch Text mitschreibt. */
+  function schreiber() {
+    const texte: { text: string; x: number; y: number }[] = [];
+    const striche: [number, number, number, number][] = [];
+    let letzter: [number, number] | null = null;
+
+    const ctx = {
+      setAttr: () => {},
+      beginPath: () => {},
+      stroke: () => {},
+      // Zehn Punkte je Zeichen – so misst hier die Leinwand.
+      measureText: (text: string) => ({ width: text.length * 10 }),
+      fillText: (text: string, x: number, y: number) => texte.push({ text, x, y }),
+      moveTo: (x: number, y: number) => {
+        letzter = [x, y];
+      },
+      lineTo: (x: number, y: number) => {
+        if (letzter) striche.push([letzter[0], letzter[1], x, y]);
+        letzter = [x, y];
+      },
+    };
+    return { ctx: ctx as unknown as Konva.Context, texte, striche };
+  }
+
+  const bau = (el: Partial<PlanElement> & { form: Grundform; breite: number }) =>
+    ({
+      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'regale',
+      x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
+      beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+      ...el,
+    }) as PlanElement;
+
+  const zug = (felder: Record<string, unknown>[], oben?: Record<string, unknown>[]) =>
+    bau({
+      form: 'wt100',
+      breite: 500,
+      tiefe: TIEFE,
+      beidseitig: Boolean(oben),
+      achsmass: 100,
+      felderUnten: felder,
+      felderOben: oben,
+    } as unknown as Parameters<typeof bau>[0]);
+
+  const gruppe = (text: string, felder: number) => ({ breite: 100, warengruppe: { text, felder } });
+
+  it('setzt die Beschriftung mittig unter ihre Strecke', () => {
+    // „Ketchup" über die Felder 3 bis 5 steht in deren Mitte – bei 3,50 m.
+    const { ctx, texte } = schreiber();
+    zeichneWarengruppen(
+      ctx,
+      zug([
+        { breite: 100 },
+        { breite: 100 },
+        gruppe('Ketchup', 3),
+        { breite: 100 },
+        { breite: 100 },
+      ]),
+      500,
+      TIEFE,
+      1,
+    );
+    expect(texte).toHaveLength(1);
+    expect(texte[0].text).toBe('Ketchup');
+    expect(texte[0].x).toBeCloseTo(350, 1);
+    // Unter dem Möbel, nicht darin.
+    expect(texte[0].y).toBeGreaterThan(TIEFE);
+  });
+
+  it('schreibt sie einmal und nicht je Feld', () => {
+    const { ctx, texte } = schreiber();
+    zeichneWarengruppen(ctx, zug([gruppe('Ketchup', 3), { breite: 100 }, { breite: 100 }]), 300, TIEFE, 1);
+    expect(texte.filter((t) => t.text === 'Ketchup')).toHaveLength(1);
+  });
+
+  it('setzt die Rückseite über das Möbel', () => {
+    // Auf die Seite, auf der man davorsteht.
+    const { ctx, texte } = schreiber();
+    zeichneWarengruppen(
+      ctx,
+      zug([{ breite: 100 }, { breite: 100 }], [gruppe('Senf', 2), { breite: 100 }]),
+      200,
+      TIEFE,
+      1,
+    );
+    expect(texte).toHaveLength(1);
+    expect(texte[0].y).toBeLessThan(0);
+  });
+
+  it('klammert eine Strecke über mehrere Felder ein', () => {
+    // Ein Strich an jedem Ende, dazwischen eine Linie, die der Text
+    // unterbricht – sonst sieht niemand, wie weit „Ketchup" gilt.
+    const { ctx, striche } = schreiber();
+    zeichneWarengruppen(ctx, zug([gruppe('Ketchup', 3), { breite: 100 }, { breite: 100 }]), 300, TIEFE, 1);
+    const senkrecht = striche.filter((st) => Math.abs(st[0] - st[2]) < 0.01);
+    expect(senkrecht.map((st) => Math.round(st[0]))).toEqual([0, 300]);
+    const waagerecht = striche.filter((st) => Math.abs(st[1] - st[3]) < 0.01);
+    expect(waagerecht).toHaveLength(2);
+    // Die Lücke in der Mitte gehört dem Text.
+    expect(waagerecht[0][2]).toBeLessThan(150);
+    expect(waagerecht[1][0]).toBeGreaterThan(150);
+  });
+
+  it('lässt die Klammer über einem einzelnen Feld weg', () => {
+    // Dort ist nichts zu erklären, und der Plan hat genug Striche.
+    const { ctx, striche } = schreiber();
+    zeichneWarengruppen(ctx, zug([gruppe('Senf', 1), { breite: 100 }]), 200, TIEFE, 1);
+    expect(striche).toHaveLength(0);
+  });
+
+  it('bricht einen zu langen Namen um', () => {
+    const { ctx, texte } = schreiber();
+    zeichneWarengruppen(ctx, zug([gruppe('Ketchup und Grillsoßen', 1), { breite: 100 }]), 200, TIEFE, 1);
+    // Ein Feld ist 1,00 m breit, mehr als ein Wort passt hier nicht.
+    expect(texte.map((t) => t.text)).toEqual(['Ketchup', 'und', 'Grillsoßen']);
+    expect(texte[1].y).toBeGreaterThan(texte[0].y);
+  });
+
+  it('blendet sich beim Herauszoomen aus', () => {
+    // Wie jede Beschriftung, die zur Zeichnung gehört.
+    const { ctx, texte } = schreiber();
+    zeichneWarengruppen(ctx, zug([gruppe('Ketchup', 1), { breite: 100 }]), 200, TIEFE, 0.01);
+    expect(texte).toHaveLength(0);
   });
 });

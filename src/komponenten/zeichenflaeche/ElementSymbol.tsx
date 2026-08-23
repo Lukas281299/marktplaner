@@ -13,6 +13,7 @@ import {
   seitenbreite,
   vollStuecke,
 } from '../../logik/regalseiten';
+import { gruppenZeilen, gruppenspannen } from '../../logik/warengruppe';
 import type { Grundform, PlanElement, Regalfeld } from '../../typen/modell';
 
 /**
@@ -287,6 +288,113 @@ function zeichneFeldnotizen(
         });
         ctx.setAttr('textAlign', 'left');
       }
+    }
+  }
+}
+
+/**
+ * Schrifthöhe der Warengruppen unter dem Zug, in cm.
+ *
+ * Größer als die Notiz im Feld: Auf einem Plan liest man zuerst, wo was
+ * steht, und erst danach, wie das Regal gebaut ist. Wie jede Beschriftung,
+ * die zur Zeichnung gehört, hat sie eine feste Größe im Plan und blendet
+ * sich beim Herauszoomen aus.
+ */
+const SCHRIFT_GRUPPE = 30;
+
+/** Abstand der Beschriftung vom Möbel, in cm. */
+const GRUPPE_ABSTAND = 7;
+
+/**
+ * Schreibt die Warengruppen unter den Zug.
+ *
+ * Eine Beschriftung gilt über eine Strecke – „Ketchup" über drei laufende
+ * Meter –, und dann steht sie einmal da und nicht dreimal. Damit man sieht,
+ * wie weit sie reicht, bekommt sie eine Klammer: ein Strich an jedem Ende der
+ * Strecke, dazwischen eine Linie, die der Text unterbricht.
+ *
+ * Über einem einzelnen Feld bleibt die Klammer weg. Dort ist nichts zu
+ * erklären, und der Plan hat genug Striche.
+ *
+ * Bei einer Gondel steht die Beschriftung der Vorderseite unter dem Möbel,
+ * die der Rückseite darüber – auf der Seite, auf der man davorsteht.
+ */
+export function zeichneWarengruppen(
+  ctx: Konva.Context,
+  element: PlanElement,
+  b: number,
+  t: number,
+  zoom: number,
+) {
+  if (!lesbar(SCHRIFT_GRUPPE, zoom)) return;
+
+  const unten = felderVon(element, 'unten');
+  const oben = element.beidseitig ? felderVon(element, 'oben') : [];
+  const faktor = seitenFaktor(b, oben, unten);
+  const zeilenhoehe = SCHRIFT_GRUPPE * 1.15;
+
+  ctx.setAttr('font', `${SCHRIFT_GRUPPE}px sans-serif`);
+  ctx.setAttr('fillStyle', 'rgba(24,32,44,0.92)');
+  ctx.setAttr('strokeStyle', 'rgba(24,32,44,0.7)');
+  ctx.setAttr('lineWidth', 1.1 / zoom);
+  ctx.setAttr('textBaseline', 'top');
+
+  // Wie breit ein Text wird, weiß nur die Leinwand.
+  const messen = (text: string) =>
+    typeof ctx.measureText === 'function'
+      ? ctx.measureText(text).width
+      : text.length * SCHRIFT_GRUPPE * 0.55;
+
+  const seiten = element.beidseitig
+    ? [
+        { felder: oben, vorn: false },
+        { felder: unten, vorn: true },
+      ]
+    : [{ felder: unten, vorn: true }];
+
+  for (const seite of seiten) {
+    const plaetze = feldplaetze(seite.felder, faktor);
+
+    for (const spanne of gruppenspannen(seite.felder)) {
+      const erstes = plaetze[spanne.von];
+      const letztes = plaetze[spanne.bis];
+      if (!erstes || !letztes) continue;
+
+      const links = erstes.x;
+      const rechts = letztes.x + letztes.weite;
+      const mitte = (links + rechts) / 2;
+      const zeilen = gruppenZeilen(spanne.text, rechts - links, messen);
+      if (zeilen.length === 0) continue;
+
+      const hoehe = zeilen.length * zeilenhoehe;
+      const anfang = seite.vorn ? t + GRUPPE_ABSTAND : -GRUPPE_ABSTAND - hoehe;
+
+      ctx.setAttr('textAlign', 'center');
+      zeilen.forEach((zeile, i) => {
+        ctx.fillText(zeile, mitte, anfang + i * zeilenhoehe);
+      });
+      ctx.setAttr('textAlign', 'left');
+
+      if (spanne.bis <= spanne.von) continue;
+
+      // Die Klammer liegt auf der ersten Zeile, der Text schneidet sie frei.
+      const y = anfang + zeilenhoehe / 2;
+      const arm = SCHRIFT_GRUPPE * 0.4;
+      const luft = SCHRIFT_GRUPPE * 0.35;
+      const halb = messen(zeilen[0]) / 2 + luft;
+
+      ctx.beginPath();
+      ctx.moveTo(links, y - arm);
+      ctx.lineTo(links, y + arm);
+      ctx.moveTo(rechts, y - arm);
+      ctx.lineTo(rechts, y + arm);
+      if (mitte - halb > links) {
+        ctx.moveTo(links, y);
+        ctx.lineTo(mitte - halb, y);
+        ctx.moveTo(mitte + halb, y);
+        ctx.lineTo(rechts, y);
+      }
+      ctx.stroke();
     }
   }
 }
@@ -1524,6 +1632,7 @@ export function ElementSymbol({
         //    der wird gefüllt, und aus jedem Buchstaben würde ein Klecks.
         ctx.save();
         zeichneFeldnotizen(ctx, element, b, t, zoom);
+        zeichneWarengruppen(ctx, element, b, t, zoom);
         ctx.restore();
       }}
       onMouseDown={(e) => beiMausTaste(e, element.id)}

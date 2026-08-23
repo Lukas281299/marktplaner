@@ -495,10 +495,10 @@ und in zwei Zeilen: `H 1800` und `T 600`. Die Tiefe ist dabei die
 **Bodentiefe**, nach der bestellt wird — bei einer Gondel also `T 600` und
 nicht das Stellmaß von 1270 mm.
 
-Die Eingabefelder stehen rechts unter *Felder*, direkt unter jeder Feldzeile.
-Bei einer Gondel sind es zwei nebeneinander: links die Rückseite, rechts die
-Vorderseite. Die beiden Seiten werden getrennt bestückt — fünf Böden auf der
-einen können sechs auf der anderen gegenüberstehen.
+Das Eingabefeld steht rechts unter *Felder*, direkt unter jeder Feldzeile.
+Bei einer Gondel hat jede Seite ihre eigene Liste — *Vorderseite* und
+*Rückseite* stehen untereinander. Die beiden werden getrennt bestückt: fünf
+Böden auf der einen können sechs auf der anderen gegenüberstehen.
 
 > Die Notizen gehören zur Zeichnung und schrumpfen beim Herauszoomen mit. In
 > der Übersicht über den ganzen Markt sind sie deshalb nicht zu sehen; ab
@@ -506,6 +506,71 @@ einen können sechs auf der anderen gegenüberstehen.
 
 Wird ein Zug länger oder kürzer, behalten die Notizen ihren Platz: Was im
 dritten Feld stand, steht hinterher wieder im dritten.
+
+### Nicht synchrone Gondeln
+
+Eine Gondel ist **ein** Möbel mit zwei Seiten, und im Markt sind die beiden
+selten gleich. Deshalb hat jede Seite ihre eigene Liste: Bei einer
+ausgewählten Gondel stehen im Eigenschaftenfenster zwei Blöcke untereinander,
+*Vorderseite* und *Rückseite*. Was du in einem änderst, lässt den anderen in
+Ruhe.
+
+Zwei Dinge lassen sich damit bauen:
+
+**Ein Feld frei lassen.** Neben der Maßauswahl jedes Felds steht ein Knopf
+■ / □. Gedrückt bleibt das Feld leer — der Platz ist weiter belegt, die Säule
+steht ja, aber es hängt nichts darin. Im Plan erscheint an der Stelle eine
+Lücke, ohne Notiz und ohne Achsmaß-Zeichen.
+
+**Die Seiten verschieden einteilen.** Die Rückseite darf andere Maße haben als
+die Vorderseite und auch mehr oder weniger Felder. **Die Länge des Möbels ist
+dann die längere Seite** — die kürzere endet früher, und man sieht die Stufe
+im Plan.
+
+Solange beide Seiten gleich eingeteilt sind, sieht der Zug aus wie immer:
+Trennlinien und Achsmaß-Zeichen laufen über die ganze Tiefe. Erst wenn sie
+sich unterscheiden, zerfällt die Zeichnung in zwei Bänder, jedes mit seiner
+eigenen Teilung. Bestehende Pläne ändern sich dadurch nicht.
+
+> Leere Felder gibt es nur im Trockensortiment. Bei einer Truhe hieße ein
+> leeres Feld, ein Loch in die Wanne zu schneiden — dort ziehen beide Seiten
+> weiter gemeinsam.
+
+### Warengruppen unter dem Zug
+
+Unter dem Regal steht im Plan, was dort verkauft wird. Diese Beschriftung
+gehört nicht zu einem Feld, sondern zu einer **Strecke**: Bekommt Ketchup drei
+laufende Meter, soll der Name einmal dastehen und nicht dreimal.
+
+So trägst du ihn ein:
+
+1. Das **erste** Feld der Strecke suchen — bei Ketchup also den ersten der
+   drei Meter.
+2. In das Feld *Warengruppe* darunter den Namen schreiben.
+3. Rechts daneben einstellen, über **wie viele Felder** er gilt.
+
+Im Plan steht der Name dann einmal, mittig über der Strecke, mit einer
+**Klammer** an beiden Enden: ein Strich links, ein Strich rechts, dazwischen
+eine Linie, die der Text unterbricht. Über einem einzelnen Feld bleibt die
+Klammer weg — dort ist nichts zu erklären.
+
+Die folgenden Felder zeigen statt eines Eingabefelds den Hinweis *↳ gehört zu
+„Ketchup"*. Zwei Beschriftungen an derselben Stelle kann es also nicht geben:
+Schreibst du mitten in eine Strecke etwas Neues, endet die vorige dort.
+
+**Zu lange Namen brechen von selbst um**, an den Wortgrenzen und passend zur
+Breite der Strecke. Ein Umbruch von Hand geht mit **Umschalt+Eingabe**. Ein
+einzelnes zu langes Wort wird nicht abgeschnitten — es steht lieber über, als
+dass aus *Grillsoßen* ein *Grillso* wird.
+
+Bei einer Gondel hat jede Seite ihre eigenen Warengruppen: Die der
+Vorderseite stehen unter dem Möbel, die der Rückseite darüber — jeweils auf
+der Seite, auf der man davorsteht.
+
+> Auch diese Beschriftung gehört zur Zeichnung und blendet sich beim
+> Herauszoomen aus. Nicht zu verwechseln mit dem Feld *Warengruppe* weiter
+> oben im Eigenschaftenfenster: Das ist die grobe Einordnung des ganzen
+> Möbels, mit der die Übersicht die Regalmeter zusammenzählt.
 
 ### Ziehen rundet ab
 

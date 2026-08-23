@@ -8,6 +8,7 @@ import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { felderVon, seitenTrennbar, type Seite } from '../logik/regalseiten';
+import { gruppenspannen } from '../logik/warengruppe';
 import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -576,6 +577,14 @@ function Feldaufteilung({
         </p>
 
         <p className="hinweis">
+          Darunter steht die <strong>Warengruppe</strong>, die im Plan unter dem Zug erscheint.
+          Bekommt Ketchup drei laufende Meter, trägst du es ins erste Feld ein und stellst
+          daneben <em>3 Felder</em> ein: Der Name steht dann einmal da, mit einer Klammer über
+          die ganze Strecke. Zu lange Namen brechen von selbst um — mit
+          <strong> Umschalt+Eingabe</strong> brichst du selbst um.
+        </p>
+
+        <p className="hinweis">
           Andere Maße gibt es hier nicht: {satz.herkunft}. Die Länge ist die Summe
           — wird eine Einheit breiter, wächst das Möbel nach hinten, sein Anfang
           bleibt stehen.
@@ -757,7 +766,7 @@ function Seitenaufteilung({
             {/* Was in diesem Feld steht. */}
             <div style={{ display: 'flex', gap: 4, paddingLeft: 26 }}>
               {notizseiten.map((welche) => (
-                <Feldnotizfeld
+                <Feldeingaben
                   key={welche}
                   element={element}
                   seite={welche}
@@ -787,13 +796,13 @@ function Seitenaufteilung({
 }
 
 /**
- * Das Textfeld für die Notiz in einem Feld.
+ * Was in einem Feld steht: die Notiz im Regal und die Warengruppe darunter.
  *
  * Eigene Komponente, weil sie ihre Seite selbst kennt: Bei einer Doppeltruhe
- * stehen hier zwei nebeneinander, bei einer Gondel steht je eines in seinem
+ * stehen hier zwei nebeneinander, bei einer Gondel steht je eine in ihrem
  * eigenen Block.
  */
-function Feldnotizfeld({
+function Feldeingaben({
   element,
   seite,
   feld,
@@ -808,36 +817,100 @@ function Feldnotizfeld({
   const eintrag = felder[feld];
   if (!eintrag) return null;
 
+  const setze = (werte: Partial<Regalfeld>) =>
+    usePlanStore
+      .getState()
+      .setzeSeitenfelder(
+        element.id,
+        seite,
+        felder.map((f, j) => (j === feld ? { ...f, ...werte } : f)),
+      );
+
+  // Deckt eine Beschriftung von weiter vorn dieses Feld schon ab? Dann steht
+  // hier kein zweites Eingabefeld – zwei Beschriftungen an derselben Stelle
+  // wären eine Frage, die der Plan nicht beantworten kann.
+  const gedeckt = gruppenspannen(felder).find((sp) => feld > sp.von && feld <= sp.bis);
+  const gruppe = eintrag.warengruppe;
+  const rest = felder.length - feld;
+
   return (
-    <textarea
-      rows={NOTIZ_ZEILEN}
-      style={{ flex: 1, resize: 'vertical', fontSize: 12, lineHeight: 1.3 }}
-      value={eintrag.notiz ?? ''}
-      disabled={Boolean(eintrag.leer)}
-      placeholder={
-        eintrag.leer
-          ? 'frei'
-          : mehrere
-            ? seite === 'oben'
-              ? 'Rückseite — 5+ / 1K'
-              : 'Vorderseite — 5+ / 1K'
-            : 'Böden, z. B. 5+ / 1K'
-      }
-      title={
-        'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
-        'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
-      }
-      onFocus={() => usePlanStore.getState().schnappschuss()}
-      onChange={(e) =>
-        usePlanStore
-          .getState()
-          .setzeSeitenfelder(
-            element.id,
-            seite,
-            felder.map((f, j) => (j === feld ? { ...f, notiz: e.target.value || undefined } : f)),
-          )
-      }
-    />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <textarea
+        rows={NOTIZ_ZEILEN}
+        style={{ resize: 'vertical', fontSize: 12, lineHeight: 1.3 }}
+        value={eintrag.notiz ?? ''}
+        disabled={Boolean(eintrag.leer)}
+        placeholder={
+          eintrag.leer
+            ? 'frei'
+            : mehrere
+              ? seite === 'oben'
+                ? 'Rückseite — 5+ / 1K'
+                : 'Vorderseite — 5+ / 1K'
+              : 'Böden, z. B. 5+ / 1K'
+        }
+        title={
+          'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
+          'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
+        }
+        onFocus={() => usePlanStore.getState().schnappschuss()}
+        onChange={(e) => setze({ notiz: e.target.value || undefined })}
+      />
+
+      {gedeckt ? (
+        <p className="hinweis" style={{ margin: 0 }}>
+          ↳ gehört zu „{gedeckt.text.split('\n')[0]}“
+        </p>
+      ) : (
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input
+            type="text"
+            style={{ flex: 1, fontSize: 12 }}
+            value={gruppe?.text ?? ''}
+            placeholder="Warengruppe, z. B. Ketchup"
+            title={
+              'Steht unter dem Zug im Plan. Für einen Umbruch von Hand ' +
+              'Umschalt+Eingabe drücken.'
+            }
+            onFocus={() => usePlanStore.getState().schnappschuss()}
+            onKeyDown={(e) => {
+              // Umschalt+Eingabe setzt einen Umbruch – in einer Zeile geht das
+              // sonst nicht, und der Text soll ihn tragen dürfen.
+              if (e.key !== 'Enter' || !e.shiftKey) return;
+              e.preventDefault();
+              const ziel = e.currentTarget;
+              const vorn = ziel.value.slice(0, ziel.selectionStart ?? ziel.value.length);
+              const hinten = ziel.value.slice(ziel.selectionEnd ?? ziel.value.length);
+              setze({ warengruppe: { text: `${vorn}\n${hinten}`, felder: gruppe?.felder ?? 1 } });
+            }}
+            onChange={(e) =>
+              setze({
+                warengruppe: e.target.value
+                  ? { text: e.target.value, felder: gruppe?.felder ?? 1 }
+                  : undefined,
+              })
+            }
+          />
+          {gruppe?.text ? (
+            <select
+              style={{ width: 92, fontSize: 12 }}
+              value={String(Math.min(gruppe.felder, rest))}
+              title="Über wie viele Felder die Beschriftung gilt. Sie steht trotzdem nur einmal da."
+              onChange={(e) => {
+                usePlanStore.getState().schnappschuss();
+                setze({ warengruppe: { text: gruppe.text, felder: Number(e.target.value) } });
+              }}
+            >
+              {Array.from({ length: rest }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={String(n)}>
+                  {n} {n === 1 ? 'Feld' : 'Felder'}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 }
 

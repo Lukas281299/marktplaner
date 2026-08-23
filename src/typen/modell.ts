@@ -214,6 +214,13 @@ export interface Regalfeld {
   leer?: boolean;
   /** Bis zu drei Zeilen, die im Feld stehen – siehe `logik/feldnotiz.ts`. */
   notiz?: string;
+  /**
+   * Die Warengruppe, die unter dem Zug steht – siehe `logik/warengruppe.ts`.
+   *
+   * Sie hängt am **ersten** Feld ihrer Strecke und gilt über `felder` Felder.
+   * So steht „Ketchup" über drei laufende Meter einmal da und nicht dreimal.
+   */
+  warengruppe?: { text: string; felder: number };
 }
 
 /** Ein tatsächlich auf dem Plan platziertes Element. */
