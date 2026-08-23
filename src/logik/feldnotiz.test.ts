@@ -38,14 +38,39 @@ const moebel = (werte: Partial<Parameters<typeof masszeilen>[0]>) =>
     Parameters<typeof masszeilen>[0];
 
 describe('Höhe und Tiefe rechts im Feld', () => {
+  it('nimmt die Grundbodentiefe, wenn das Möbel eine hat', () => {
+    // Beim Kühlmöbel ist sie die einzig richtige Angabe: Das Gehäuse ist
+    // 925 tief, gestellt wird die Ware auf einen Boden von 600.
+    expect(
+      bodentiefeMm(moebel({ form: 'kuehlSchrank', tiefe: 92.5, grundboden: 60 })),
+    ).toBe(600);
+  });
+
+  it('zieht ein krummes Maß auf die nächste Katalogtiefe', () => {
+    // Ein eingelesener Plan misst schon mal 680 statt 670. Bestellt wird
+    // trotzdem ein 600er Boden — 610 gibt es nicht zu kaufen.
+    expect(bodentiefeMm(moebel({ form: 'wt100', tiefe: 68 }))).toBe(600);
+    expect(bodentiefeMm(moebel({ form: 'wt100', tiefe: 66 }))).toBe(600);
+  });
+
+  it('lässt ein Maß stehen, das zu keiner Katalogtiefe passt', () => {
+    // Dann stimmt etwas anderes nicht, und das soll man sehen.
+    expect(bodentiefeMm(moebel({ form: 'wt100', tiefe: 72 }))).toBe(650);
+  });
+
+  it('rundet nur beim Regalzug', () => {
+    // Eine Bedientheke hat andere Maße; dort wäre das Runden geraten.
+    expect(bodentiefeMm(moebel({ form: 'blinkTheke', tiefe: 68 }))).toBe(610);
+  });
+
   it('nennt die Bodentiefe einer Gondel, nicht das Stellmaß', () => {
     // 2 × 600 + 70 tote Zone = 1270 tief. Bestellt wird T600.
-    expect(bodentiefeMm({ tiefe: 127, beidseitig: true })).toBe(600);
+    expect(bodentiefeMm(moebel({ tiefe: 127, beidseitig: true }))).toBe(600);
   });
 
   it('nennt beim Wandregal die Tiefe ohne tote Zone', () => {
     // 600er Boden plus 70 tote Zone = 670 Stellmaß.
-    expect(bodentiefeMm({ tiefe: 67, beidseitig: false })).toBe(600);
+    expect(bodentiefeMm(moebel({ tiefe: 67 }))).toBe(600);
   });
 
   it('schreibt beide Zeilen in Millimetern', () => {

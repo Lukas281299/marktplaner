@@ -5,6 +5,7 @@ import {
   gleicheEinteilung,
   grundfelder,
   ohneLuecke,
+  seitenEinzeln,
   seitenTrennbar,
   seitenbreite,
   uebernehmeBreiten,
@@ -87,11 +88,28 @@ describe('Getrennte Seiten', () => {
     expect(breiteAusSeiten(zug({ breite: 425 }), [], [])).toBe(425);
   });
 
-  it('trennt nur beim Regalzug', () => {
-    expect(seitenTrennbar(zug())).toBe(true);
-    expect(seitenTrennbar(zug({ beidseitig: false }))).toBe(false);
+  it('bestückt nur beim Regalzug zwei Seiten einzeln', () => {
+    expect(seitenEinzeln(zug())).toBe(true);
+    expect(seitenEinzeln(zug({ beidseitig: false }))).toBe(false);
     // Eine Doppeltruhe hat zwei Seiten, aber einen Körper.
-    expect(seitenTrennbar(zug({ form: 'tkTruhe' }))).toBe(false);
+    expect(seitenEinzeln(zug({ form: 'tkTruhe' }))).toBe(false);
+  });
+
+  it('hält die Einteilung beider Seiten zusammen, bis jemand sie löst', () => {
+    // Wer einen Zug verlängert, verlängert das Möbel – nicht eine Seite
+    // davon. Erst der ausdrückliche Schalter macht sie unabhängig.
+    expect(seitenTrennbar(zug())).toBe(false);
+    expect(seitenTrennbar(zug({ seitenGetrennt: true }))).toBe(true);
+    expect(seitenTrennbar(zug({ seitenGetrennt: false }))).toBe(false);
+  });
+
+  it('lässt einer schon verschieden gebauten Gondel ihre Freiheit', () => {
+    // Sonst machte die erste Änderung an einer von Hand gebauten Gondel sie
+    // wieder gleich.
+    const ungleich = zug({ felderUnten: f(100, 100, 100), felderOben: f(125, 125) });
+    expect(seitenTrennbar(ungleich)).toBe(true);
+    // Ausdrücklich zusammengelegt gilt trotzdem der Schalter.
+    expect(seitenTrennbar({ ...ungleich, seitenGetrennt: false })).toBe(false);
   });
 });
 

@@ -443,8 +443,43 @@ describe('Nicht synchrone Gondel', () => {
   /** Die Felder einer Seite – erschlossen, solange keine eigene Liste steht. */
   const seite = (id: string, welche: 'oben' | 'unten') => felderVon(hole(id), welche);
 
-  it('lässt die Vorderseite stehen, wenn die Rückseite umgebaut wird', () => {
+  /** Ein Zug, dessen Seiten ausdrücklich getrennt eingeteilt werden dürfen. */
+  const legeGetrennten = () => {
     const zug = legeZug();
+    store().aendereElemente([zug.id], { seitenGetrennt: true });
+    return zug;
+  };
+
+  it('zieht die andere Seite mit, solange nichts anderes gesagt ist', () => {
+    // Wer einen Zug um ein Feld verlängert, verlängert das Möbel – nicht eine
+    // Seite davon.
+    const zug = legeZug();
+    const felder = seite(zug.id, 'unten');
+    store().setzeSeitenfelder(zug.id, 'unten', [...felder, { breite: 125 }]);
+
+    expect(seite(zug.id, 'unten')).toHaveLength(7);
+    expect(seite(zug.id, 'oben').map((f) => f.breite)).toEqual([
+      100, 100, 100, 100, 100, 100, 125,
+    ]);
+    expect(hole(zug.id).breite).toBeCloseTo(725, 2);
+  });
+
+  it('behält beim Mitziehen die Notizen der anderen Seite', () => {
+    // Die Einteilung gehört dem Möbel, was in den Feldern steht der Seite.
+    const zug = legeZug();
+    const hinten = seite(zug.id, 'oben').map((f, i) => (i === 1 ? { ...f, notiz: '4+' } : f));
+    store().setzeSeitenfelder(zug.id, 'oben', hinten);
+    store().setzeSeitenfelder(zug.id, 'unten', [
+      ...seite(zug.id, 'unten'),
+      { breite: 125 },
+    ]);
+
+    expect(seite(zug.id, 'oben')[1].notiz).toBe('4+');
+    expect(seite(zug.id, 'oben')).toHaveLength(7);
+  });
+
+  it('lässt die Vorderseite stehen, wenn die Seiten getrennt sind', () => {
+    const zug = legeGetrennten();
     store().setzeSeitenfelder(zug.id, 'oben', [{ breite: 125 }, { breite: 125 }]);
 
     expect(seite(zug.id, 'oben').map((f) => f.breite)).toEqual([125, 125]);
@@ -454,7 +489,7 @@ describe('Nicht synchrone Gondel', () => {
   it('macht die längere Seite zur Breite', () => {
     // Die kürzere endet früher. Wäre das Möbel nur so breit wie sie, läge die
     // Ware der langen Seite im Gang.
-    const zug = legeZug();
+    const zug = legeGetrennten();
     store().setzeSeitenfelder(zug.id, 'oben', [{ breite: 125 }, { breite: 125 }]);
     expect(hole(zug.id).breite).toBeCloseTo(600, 2);
 
@@ -498,7 +533,7 @@ describe('Nicht synchrone Gondel', () => {
     // Am Griff wird das Möbel länger, nicht symmetrisch: Wer eine Seite
     // bewusst kürzer gebaut hat, verliert das nicht beim Verschieben einer
     // Kante.
-    const zug = legeZug();
+    const zug = legeGetrennten();
     store().setzeSeitenfelder(zug.id, 'oben', [{ breite: 125 }, { breite: 125 }]);
 
     const jetzt = hole(zug.id);

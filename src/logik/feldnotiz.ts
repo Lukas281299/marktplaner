@@ -39,19 +39,56 @@ export function notizZeilen(text: string | undefined): string[] {
     .slice(0, NOTIZ_ZEILEN);
 }
 
+/** Die Bodentiefen, die es im wire-tech-System gibt, in cm. */
+const WT_BOEDEN = [30, 40, 50, 60, 70, 80];
+
+/**
+ * Wie weit ein gemessenes Maß von einer Katalogtiefe abweichen darf, in cm.
+ *
+ * Zwei Zentimeter. Ein Regal, das im eingelesenen Plan 680 tief steht, ist ein
+ * 600er Boden — 680 gibt es nicht zu kaufen. Was weiter danebenliegt, wird
+ * unverändert angezeigt: Dann stimmt etwas anderes nicht, und das soll man
+ * sehen statt es weggerundet zu bekommen.
+ */
+const TIEFEN_SPIEL = 2;
+
 /**
  * Die Tiefe **einer Regalseite** in Millimetern.
  *
  * Die Tiefe am Element ist das Stellmaß mitsamt toter Zone, bei einer Gondel
  * für beide Seiten zusammen. Auf dem Plan steht aber die Bodentiefe, nach der
  * man bestellt: bei 2 × 600 + 70 tote Zone steht dort T600 und nicht T1270.
+ *
+ * Drei Wege dorthin, in dieser Reihenfolge:
+ *
+ *  1. Steht am Möbel eine **Grundbodentiefe**, gilt die. Beim Kühlmöbel ist
+ *     das die einzig richtige Angabe — dort hat das Gehäuse mit dem Boden,
+ *     auf dem die Ware steht, wenig zu tun.
+ *  2. Sonst Stellmaß minus tote Zone, bei der Gondel geteilt durch zwei.
+ *  3. Beim Regalzug wird das Ergebnis auf die nächste **Katalogtiefe**
+ *     gezogen, wenn es nah genug dran liegt. Ein Zug aus einem eingelesenen
+ *     Plan misst schon mal 680 statt 670 — bestellt wird trotzdem ein 600er
+ *     Boden, und genau das soll dastehen.
  */
-export function bodentiefeMm(element: Pick<PlanElement, 'tiefe' | 'beidseitig'>): number {
+export function bodentiefeMm(
+  element: Pick<PlanElement, 'tiefe' | 'beidseitig' | 'form' | 'grundboden'>,
+): number {
+  if (element.grundboden && element.grundboden > 0) return Math.round(element.grundboden * 10);
+
   const TOTE_ZONE = 7;
-  const jeSeite = element.beidseitig
-    ? (element.tiefe - TOTE_ZONE) / 2
-    : element.tiefe - TOTE_ZONE;
-  return Math.round(Math.max(0, jeSeite) * 10);
+  const jeSeite = Math.max(
+    0,
+    element.beidseitig ? (element.tiefe - TOTE_ZONE) / 2 : element.tiefe - TOTE_ZONE,
+  );
+
+  if (element.form === 'wt100' || element.form === 'wt100Rund' || element.form === 'wt100Eck') {
+    const naechster = WT_BOEDEN.reduce((a, b) =>
+      Math.abs(b - jeSeite) < Math.abs(a - jeSeite) ? b : a,
+    );
+    if (Math.abs(naechster - jeSeite) <= TIEFEN_SPIEL) return naechster * 10;
+  }
+
+  return Math.round(jeSeite * 10);
 }
 
 /**
@@ -64,7 +101,7 @@ export function bodentiefeMm(element: Pick<PlanElement, 'tiefe' | 'beidseitig'>)
  * Behauptung.
  */
 export function masszeilen(
-  element: Pick<PlanElement, 'hoehe' | 'tiefe' | 'beidseitig' | 'form' | 'breite'>,
+  element: Pick<PlanElement, 'hoehe' | 'tiefe' | 'beidseitig' | 'form' | 'breite' | 'grundboden'>,
 ): string[] {
   // Eine Palette hat keine Höhe, die jemanden interessiert – sie ist so hoch,
   // wie gestapelt wird. Was man von ihr wissen will, sind ihre beiden

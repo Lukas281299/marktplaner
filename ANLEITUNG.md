@@ -495,6 +495,13 @@ und in zwei Zeilen: `H 1800` und `T 600`. Die Tiefe ist dabei die
 **Bodentiefe**, nach der bestellt wird — bei einer Gondel also `T 600` und
 nicht das Stellmaß von 1270 mm.
 
+Steht am Möbel eine eigene **Grundbodentiefe** (bei den Kühlmöbeln), gilt die.
+Und bei einem Regalzug wird ein krummes Maß auf die nächste Katalogtiefe
+gezogen: Ein Zug, der aus einem eingelesenen Plan mit 680 mm Stellmaß
+hereinkommt, zeigt `T 600` — 610 gibt es nicht zu kaufen. Liegt das Maß weiter
+als 2 cm daneben, bleibt es stehen; dann stimmt etwas anderes nicht, und das
+soll man sehen.
+
 An einer **Palette** stehen dort stattdessen **Länge und Breite**: `L 1200`
 und `B 800`. Eine Palette ist so hoch, wie gestapelt wird — die Höhe wäre
 eine erfundene Zahl, ihre beiden Grundmaße sagen dagegen sofort, welche es
@@ -523,9 +530,21 @@ dritten Feld stand, steht hinterher wieder im dritten.
 ### Nicht synchrone Gondeln
 
 Eine Gondel ist **ein** Möbel mit zwei Seiten, und im Markt sind die beiden
-selten gleich. Deshalb hat jede Seite ihre eigene Liste: Oben im Block
+selten gleich. Jede Seite hat deshalb ihre eigene Liste: Oben im Block
 *Felder* schaltest du mit **Vorderseite** / **Rückseite** zwischen ihnen um.
-Was du in einer änderst, lässt die andere in Ruhe.
+
+**Normalerweise laufen beide im Gleichschritt.** Wer einen Zug um ein Feld
+verlängert, verlängert das Möbel — nicht eine Seite davon. Ein Feld anzufügen,
+zu entfernen oder auf ein anderes Maß zu setzen gilt deshalb für beide Seiten.
+
+Was *in* den Feldern steht, gehört trotzdem immer der einzelnen Seite: Notizen,
+Warengruppen und leere Felder. Fünf Böden auf der einen können sechs auf der
+anderen gegenüberstehen.
+
+Sollen die Seiten wirklich **verschieden eingeteilt** sein, setzt du den Haken
+**Seiten getrennt einteilen**. Ab dann geht jede ihren Weg. Nimmst du den Haken
+wieder weg, gibt die Vorderseite die Einteilung vor — ihre Notizen behalten
+beide Seiten.
 
 Zwei Dinge lassen sich damit bauen:
 

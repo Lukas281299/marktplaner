@@ -417,6 +417,20 @@ export interface PlanElement {
    */
   felderOben?: Regalfeld[];
   /**
+   * Dürfen die beiden Seiten verschieden eingeteilt sein?
+   *
+   * Normalerweise nicht: Wer einen Zug verlängert, verlängert das Möbel und
+   * nicht eine Seite davon. Beide Seiten laufen deshalb im Gleichschritt, bis
+   * das hier ausdrücklich gelöst wird.
+   *
+   * Was in den Feldern steht – Notizen, Warengruppen, leere Felder – ist
+   * davon unberührt und gehört immer der einzelnen Seite.
+   *
+   * Ohne Angabe entscheidet der Zustand: Ein Zug, dessen Seiten schon
+   * verschieden sind, behält seine Freiheit.
+   */
+  seitenGetrennt?: boolean;
+  /**
    * Tiefe des untersten Bodens in cm.
    *
    * Bei einem Kühlmöbel der Boden, auf dem die schwere Ware steht – das

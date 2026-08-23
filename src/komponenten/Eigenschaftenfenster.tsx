@@ -8,7 +8,7 @@ import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { summe } from '../logik/feldaufteilung';
 import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
-import { felderVon, seitenTrennbar, type Seite } from '../logik/regalseiten';
+import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { GRUPPE_GROESSEN, GRUPPE_NORMAL, gruppenspannen } from '../logik/warengruppe';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
@@ -534,7 +534,7 @@ function Feldaufteilung({
   // Getrennt einteilen lässt sich nur der Regalzug. Bei allem anderen steht
   // hier eine Liste, und die andere Seite übernimmt sie – siehe
   // `logik/regalseiten.ts`.
-  const seiten: Seite[] = seitenTrennbar(element) ? ['unten', 'oben'] : ['unten'];
+  const seiten: Seite[] = seitenEinzeln(element) ? ['unten', 'oben'] : ['unten'];
   // Eine Gondel hat zwei Listen, und untereinander werden daraus zwei Meter
   // Bildlaufleiste. Deshalb liegt immer nur eine offen; auf den Knöpfen steht
   // die Länge der anderen, damit man den Unterschied sieht, ohne umzuschalten.
@@ -701,7 +701,7 @@ function Seitenaufteilung({
       <div className="gruppe-titel">{satz.mehrzahl}</div>
 
       {getrennt && (
-        <div className="knopfreihe" style={{ marginBottom: 6 }}>
+        <div className="knopfreihe" style={{ marginBottom: 4 }}>
           {seiten.map((welche) => (
             <button
               key={welche}
@@ -724,6 +724,31 @@ function Seitenaufteilung({
       {/* Zusammensetzung und Länge in einer Zeile: „5 × A1000 · 1 × A1250"
           sagt dasselbe wie drei Zeilen darunter und lässt Platz für die
           Felder selbst. */}
+      {getrennt && (
+        <>
+          <Schalter
+            label="Seiten getrennt einteilen"
+            wert={seitenTrennbar(element)}
+            aendern={(seitenGetrennt) => {
+              usePlanStore.getState().schnappschuss();
+              usePlanStore.getState().aendereElemente([element.id], { seitenGetrennt });
+              // Wieder zusammengelegt heißt: Die Vorderseite gibt die
+              // Einteilung vor. Ihre Notizen behalten beide Seiten.
+              if (!seitenGetrennt) {
+                usePlanStore
+                  .getState()
+                  .setzeSeitenfelder(element.id, 'unten', felderVon(element, 'unten'));
+              }
+            }}
+          />
+          <p className="hinweis" style={{ marginTop: 2, marginBottom: 6 }}>
+            {seitenTrennbar(element)
+              ? 'Jede Seite für sich. Zusammengelegt gibt die Vorderseite die Einteilung vor.'
+              : 'Ein Feld anzufügen oder zu ändern gilt für beide Seiten. Notizen, Warengruppen und leere Felder bleiben trotzdem je Seite eigen.'}
+          </p>
+        </>
+      )}
+
       <div className="kennzahl">
         <span>
           {satz.laengen

@@ -60,14 +60,31 @@ export function seitenVon(element: PlanElement): Seite[] {
 }
 
 /**
- * Lassen sich die Seiten dieses Möbels getrennt einteilen?
+ * Hat dieses Möbel zwei Seiten, die man einzeln bestückt?
  *
- * Nur beim Regalzug. Bei einer Truhe oder einem Obsttisch sind die beiden
+ * Nur der Regalzug. Bei einer Truhe oder einem Obsttisch sind die beiden
  * Seiten ein Körper – dort ein Feld herauszunehmen hieße, ein Loch in die
  * Wanne zu schneiden.
  */
-export function seitenTrennbar(element: PlanElement): boolean {
+export function seitenEinzeln(element: PlanElement): boolean {
   return element.form === 'wt100' && Boolean(element.beidseitig);
+}
+
+/**
+ * Dürfen die beiden Seiten **verschieden eingeteilt** sein?
+ *
+ * Normalerweise nicht. Wer einen Zug um ein Feld verlängert, verlängert das
+ * Möbel – nicht eine Seite davon. Beide Seiten laufen deshalb im Gleichschritt,
+ * bis jemand das ausdrücklich löst.
+ *
+ * Ohne ausdrückliche Angabe entscheidet der Zustand: Ein Zug, dessen Seiten
+ * schon verschieden sind, behält seine Freiheit. Sonst würde die erste
+ * Änderung an einer von Hand gebauten Gondel sie wieder gleichmachen.
+ */
+export function seitenTrennbar(element: PlanElement): boolean {
+  if (!seitenEinzeln(element)) return false;
+  if (typeof element.seitenGetrennt === 'boolean') return element.seitenGetrennt;
+  return !gleicheEinteilung(felderVon(element, 'oben'), felderVon(element, 'unten'));
 }
 
 /** Summe der Feldbreiten einer Seite, auf Hundertstel gerundet. */
