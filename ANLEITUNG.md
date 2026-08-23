@@ -504,6 +504,12 @@ Böden auf der einen können sechs auf der anderen gegenüberstehen.
 > der Übersicht über den ganzen Markt sind sie deshalb nicht zu sehen; ab
 > etwa **Zoom 35 %** stehen sie da.
 
+**Gedreht wird mitgedreht — aber lesbar.** Die Beschriftung gehört zum Möbel
+und dreht sich mit ihm: Sie bleibt in ihrem Feld und unter ihrer Seite. Steht
+der Zug mehr als eine Vierteldrehung gedreht, würde sie auf dem Kopf stehen —
+dann wendet sie sich um ihre eigene Mitte und liest sich wieder von links nach
+rechts. Das gilt für die Feldnotizen wie für die Warengruppen darunter.
+
 Wird ein Zug länger oder kürzer, behalten die Notizen ihren Platz: Was im
 dritten Feld stand, steht hinterher wieder im dritten.
 

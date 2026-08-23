@@ -6,6 +6,7 @@ import {
   zeichneAchsmass,
   zeichneForm,
   zeichneFuehrungsrohr,
+  zeichneFeldnotizen,
   zeichneStriche,
   zeichneWarengruppen,
 } from './ElementSymbol';
@@ -681,40 +682,54 @@ describe('Gondel mit zwei verschiedenen Seiten', () => {
   });
 });
 
+/** Eine Leinwand, die auch Text mitschreibt. */
+function schreiber() {
+  const texte: { text: string; x: number; y: number }[] = [];
+  const striche: [number, number, number, number][] = [];
+  let letzter: [number, number] | null = null;
+
+  // Wendungen: je gewendetem Block ein Eintrag mit seinem Mittelpunkt.
+  const wendungen: { x: number; y: number; winkel: number }[] = [];
+  let letzteVerschiebung: [number, number] | null = null;
+
+  const ctx = {
+    setAttr: () => {},
+    beginPath: () => {},
+    stroke: () => {},
+    save: () => {},
+    restore: () => {},
+    translate: (x: number, y: number) => {
+      letzteVerschiebung = [x, y];
+    },
+    rotate: (winkel: number) => {
+      if (letzteVerschiebung) {
+        wendungen.push({ x: letzteVerschiebung[0], y: letzteVerschiebung[1], winkel });
+      }
+    },
+    // Zehn Punkte je Zeichen – so misst hier die Leinwand.
+    measureText: (text: string) => ({ width: text.length * 10 }),
+    fillText: (text: string, x: number, y: number) => texte.push({ text, x, y }),
+    moveTo: (x: number, y: number) => {
+      letzter = [x, y];
+    },
+    lineTo: (x: number, y: number) => {
+      if (letzter) striche.push([letzter[0], letzter[1], x, y]);
+      letzter = [x, y];
+    },
+  };
+  return { ctx: ctx as unknown as Konva.Context, texte, striche, wendungen };
+}
+
+const bau = (el: Partial<PlanElement> & { form: Grundform; breite: number }) =>
+  ({
+    id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'regale',
+    x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
+    beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
+    ...el,
+  }) as PlanElement;
+
 describe('Warengruppen unter dem Zug', () => {
   const TIEFE = 127;
-
-  /** Eine Leinwand, die auch Text mitschreibt. */
-  function schreiber() {
-    const texte: { text: string; x: number; y: number }[] = [];
-    const striche: [number, number, number, number][] = [];
-    let letzter: [number, number] | null = null;
-
-    const ctx = {
-      setAttr: () => {},
-      beginPath: () => {},
-      stroke: () => {},
-      // Zehn Punkte je Zeichen – so misst hier die Leinwand.
-      measureText: (text: string) => ({ width: text.length * 10 }),
-      fillText: (text: string, x: number, y: number) => texte.push({ text, x, y }),
-      moveTo: (x: number, y: number) => {
-        letzter = [x, y];
-      },
-      lineTo: (x: number, y: number) => {
-        if (letzter) striche.push([letzter[0], letzter[1], x, y]);
-        letzter = [x, y];
-      },
-    };
-    return { ctx: ctx as unknown as Konva.Context, texte, striche };
-  }
-
-  const bau = (el: Partial<PlanElement> & { form: Grundform; breite: number }) =>
-    ({
-      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'regale',
-      x: 0, y: 0, tiefe: 100, drehung: 0, farbe: '#888', beschriftung: '',
-      beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 0,
-      ...el,
-    }) as PlanElement;
 
   const zug = (felder: Record<string, unknown>[], oben?: Record<string, unknown>[]) =>
     bau({
@@ -806,5 +821,78 @@ describe('Warengruppen unter dem Zug', () => {
     const { ctx, texte } = schreiber();
     zeichneWarengruppen(ctx, zug([gruppe('Ketchup', 1), { breite: 100 }]), 200, TIEFE, 0.01);
     expect(texte).toHaveLength(0);
+  });
+});
+
+describe('Beschriftungen bleiben lesbar', () => {
+  const TIEFE = 127;
+
+  /**
+   * Die Beschriftung gehört zum Möbel und dreht sich mit ihm – sie bleibt
+   * unter der Seite, zu der sie gehört. Lesen können muss man sie trotzdem:
+   * Ab einer halben Drehung stünde sie sonst auf dem Kopf.
+   */
+  const zug = (drehung: number, felder: Record<string, unknown>[]) =>
+    ({
+      id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'regale',
+      x: 0, y: 0, breite: 200, tiefe: TIEFE, hoehe: 180, drehung, farbe: '#888',
+      beschriftung: '', beschriftungSichtbar: false, schriftgroesse: 12,
+      gesperrt: false, reihenfolge: 0, form: 'wt100', achsmass: 100,
+      felderUnten: felder,
+    }) as unknown as PlanElement;
+
+  const gruppe = [{ breite: 100, warengruppe: { text: 'Senf', felder: 2 } }, { breite: 100 }];
+
+  it('lässt aufrechte Schrift in Ruhe', () => {
+    const { ctx, wendungen } = schreiber();
+    zeichneWarengruppen(ctx, zug(0, gruppe), 200, TIEFE, 1);
+    expect(wendungen).toHaveLength(0);
+  });
+
+  it('wendet die Beschriftung bei einer halben Drehung', () => {
+    const { ctx, wendungen, texte } = schreiber();
+    zeichneWarengruppen(ctx, zug(180, gruppe), 200, TIEFE, 1);
+    expect(wendungen).toHaveLength(1);
+    expect(wendungen[0].winkel).toBeCloseTo(Math.PI, 5);
+    // Um die eigene Mitte: waagerecht die Mitte der Strecke …
+    expect(wendungen[0].x).toBeCloseTo(100, 1);
+    // … senkrecht unterhalb des Möbels, wo der Block steht.
+    expect(wendungen[0].y).toBeGreaterThan(TIEFE);
+    // Der Text steht dabei unverändert an seinem Platz.
+    expect(texte[0].x).toBeCloseTo(100, 1);
+  });
+
+  it('wendet erst jenseits der Vierteldrehung', () => {
+    // Dieselbe Grenze, nach der jede Bauzeichnung ihre Maße setzt.
+    const wende = (grad: number) => {
+      const { ctx, wendungen } = schreiber();
+      zeichneWarengruppen(ctx, zug(grad, gruppe), 200, TIEFE, 1);
+      return wendungen.length;
+    };
+    expect(wende(89)).toBe(0);
+    expect(wende(90)).toBe(0);
+    expect(wende(91)).toBe(1);
+    expect(wende(269)).toBe(1);
+    expect(wende(270)).toBe(0);
+    expect(wende(-170)).toBe(1);
+    expect(wende(540)).toBe(1);
+  });
+
+  it('wendet auch die Notizen, um die Mitte ihres Felds', () => {
+    // Um die Mitte des Felds und nicht des Möbels: Die Notiz bleibt in ihrem
+    // Feld und steht auf dem Bildschirm wieder links oben.
+    const { ctx, wendungen } = schreiber();
+    zeichneFeldnotizen(
+      ctx,
+      zug(180, [
+        { breite: 100, notiz: '5+' },
+        { breite: 100, notiz: '4+' },
+      ]),
+      200,
+      TIEFE,
+      1,
+    );
+    expect(wendungen.map((w) => Math.round(w.x))).toEqual([50, 150]);
+    expect(wendungen.every((w) => Math.abs(w.y - TIEFE / 2) < 0.01)).toBe(true);
   });
 });

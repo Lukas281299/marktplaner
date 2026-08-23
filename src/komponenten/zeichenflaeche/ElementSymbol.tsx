@@ -228,6 +228,51 @@ const NOTIZ_HOEHE = 22;
 const MASS_HOEHE = 14;
 
 /**
+ * Steht die Schrift dieses Möbels auf dem Kopf?
+ *
+ * Ab einer halben Drehung liest sich der Plan verkehrt herum. Die Grenze
+ * liegt bei ±90 Grad – dieselbe Regel, nach der jede Bauzeichnung ihre Maße
+ * setzt: Was mehr als eine Vierteldrehung liegt, wird gewendet.
+ */
+function stehtKopf(drehung: number): boolean {
+  const grad = ((drehung % 360) + 360) % 360;
+  return grad > 90 && grad < 270;
+}
+
+/**
+ * Zeichnet einen Textblock so, dass er sich lesen lässt.
+ *
+ * Die Beschriftung gehört zum Möbel und dreht sich mit ihm – sie bleibt an
+ * ihrem Platz, auch wenn der Zug quer oder verkehrt herum steht. Nur lesen
+ * können muss man sie: Steht sie auf dem Kopf, wird der ganze Block um seine
+ * **eigene Mitte** gewendet.
+ *
+ * Um die eigene Mitte, nicht um die des Möbels: So bleibt der Block genau
+ * dort, wo er hingehört – die Notiz in ihrem Feld, die Warengruppe unter
+ * ihrer Seite. Und weil sich dabei alles am Mittelpunkt spiegelt, stimmt auch
+ * die Reihenfolge der Zeilen wieder: Die erste steht auf dem Bildschirm
+ * oben.
+ */
+function lesbarerBlock(
+  ctx: Konva.Context,
+  kopf: boolean,
+  mx: number,
+  my: number,
+  zeichnen: () => void,
+) {
+  if (!kopf) {
+    zeichnen();
+    return;
+  }
+  ctx.save();
+  ctx.translate(mx, my);
+  ctx.rotate(Math.PI);
+  ctx.translate(-mx, -my);
+  zeichnen();
+  ctx.restore();
+}
+
+/**
  * Schreibt die Notizen in die Felder eines Regals.
  *
  * Je Feld links oben die eigenen Zeilen, rechts oben Höhe und Tiefe. Bei
@@ -238,7 +283,7 @@ const MASS_HOEHE = 14;
  * wird gefüllt und gestrichelt, und aus jedem Buchstaben würde dabei ein
  * Klecks.
  */
-function zeichneFeldnotizen(
+export function zeichneFeldnotizen(
   ctx: Konva.Context,
   element: PlanElement,
   b: number,
@@ -252,6 +297,7 @@ function zeichneFeldnotizen(
   const faktor = seitenFaktor(b, oben, unten);
   const masse = masszeilen(element);
 
+  const hoehe = element.beidseitig ? t / 2 : t;
   const baender = element.beidseitig
     ? [
         { felder: oben, von: 0 },
@@ -260,6 +306,7 @@ function zeichneFeldnotizen(
     : [{ felder: unten, von: 0 }];
 
   const rand = Math.min(NOTIZ_HOEHE * 0.35, b * 0.02);
+  const kopf = stehtKopf(element.drehung);
   ctx.setAttr('textBaseline', 'top');
 
   for (const band of baender) {
@@ -267,27 +314,31 @@ function zeichneFeldnotizen(
       // Wo kein Regal steht, steht auch keine Notiz.
       if (platz.feld.leer) continue;
 
-      // Links: was von Hand darinsteht.
-      ctx.setAttr('font', `600 ${NOTIZ_HOEHE}px sans-serif`);
-      ctx.setAttr('fillStyle', 'rgba(150,26,26,0.92)');
-      notizZeilen(platz.feld.notiz).forEach((zeile, z) => {
-        ctx.fillText(zeile, platz.x + rand, band.von + rand + z * NOTIZ_HOEHE * 1.15);
-      });
-
-      // Rechts: was das Programm ohnehin weiß.
-      if (lesbar(MASS_HOEHE, zoom) && masse.length > 0) {
-        ctx.setAttr('font', `${MASS_HOEHE}px sans-serif`);
-        ctx.setAttr('fillStyle', 'rgba(30,40,52,0.55)');
-        ctx.setAttr('textAlign', 'right');
-        masse.forEach((zeile, z) => {
-          ctx.fillText(
-            zeile,
-            platz.x + platz.weite - rand,
-            band.von + rand + z * MASS_HOEHE * 1.2,
-          );
+      // Gewendet wird um die Mitte des Felds: Die Notiz bleibt dadurch in
+      // ihrem Feld und steht auf dem Bildschirm wieder links oben.
+      lesbarerBlock(ctx, kopf, platz.x + platz.weite / 2, band.von + hoehe / 2, () => {
+        // Links: was von Hand darinsteht.
+        ctx.setAttr('font', `600 ${NOTIZ_HOEHE}px sans-serif`);
+        ctx.setAttr('fillStyle', 'rgba(150,26,26,0.92)');
+        notizZeilen(platz.feld.notiz).forEach((zeile, z) => {
+          ctx.fillText(zeile, platz.x + rand, band.von + rand + z * NOTIZ_HOEHE * 1.15);
         });
-        ctx.setAttr('textAlign', 'left');
-      }
+
+        // Rechts: was das Programm ohnehin weiß.
+        if (lesbar(MASS_HOEHE, zoom) && masse.length > 0) {
+          ctx.setAttr('font', `${MASS_HOEHE}px sans-serif`);
+          ctx.setAttr('fillStyle', 'rgba(30,40,52,0.55)');
+          ctx.setAttr('textAlign', 'right');
+          masse.forEach((zeile, z) => {
+            ctx.fillText(
+              zeile,
+              platz.x + platz.weite - rand,
+              band.von + rand + z * MASS_HOEHE * 1.2,
+            );
+          });
+          ctx.setAttr('textAlign', 'left');
+        }
+      });
     }
   }
 }
@@ -345,6 +396,7 @@ export function zeichneWarengruppen(
       ? ctx.measureText(text).width
       : text.length * SCHRIFT_GRUPPE * 0.55;
 
+  const kopf = stehtKopf(element.drehung);
   const seiten = element.beidseitig
     ? [
         { felder: oben, vorn: false },
@@ -369,32 +421,37 @@ export function zeichneWarengruppen(
       const hoehe = zeilen.length * zeilenhoehe;
       const anfang = seite.vorn ? t + GRUPPE_ABSTAND : -GRUPPE_ABSTAND - hoehe;
 
-      ctx.setAttr('textAlign', 'center');
-      zeilen.forEach((zeile, i) => {
-        ctx.fillText(zeile, mitte, anfang + i * zeilenhoehe);
+      // Gewendet wird um die Mitte des ganzen Blocks, Klammer eingeschlossen:
+      // Er bleibt dadurch unter seiner Seite stehen, und auf dem Bildschirm
+      // sitzt die Klammer wieder neben der ersten Zeile.
+      lesbarerBlock(ctx, kopf, mitte, anfang + hoehe / 2, () => {
+        ctx.setAttr('textAlign', 'center');
+        zeilen.forEach((zeile, i) => {
+          ctx.fillText(zeile, mitte, anfang + i * zeilenhoehe);
+        });
+        ctx.setAttr('textAlign', 'left');
+
+        if (spanne.bis <= spanne.von) return;
+
+        // Die Klammer liegt auf der ersten Zeile, der Text schneidet sie frei.
+        const y = anfang + zeilenhoehe / 2;
+        const arm = SCHRIFT_GRUPPE * 0.4;
+        const luft = SCHRIFT_GRUPPE * 0.35;
+        const halb = messen(zeilen[0]) / 2 + luft;
+
+        ctx.beginPath();
+        ctx.moveTo(links, y - arm);
+        ctx.lineTo(links, y + arm);
+        ctx.moveTo(rechts, y - arm);
+        ctx.lineTo(rechts, y + arm);
+        if (mitte - halb > links) {
+          ctx.moveTo(links, y);
+          ctx.lineTo(mitte - halb, y);
+          ctx.moveTo(mitte + halb, y);
+          ctx.lineTo(rechts, y);
+        }
+        ctx.stroke();
       });
-      ctx.setAttr('textAlign', 'left');
-
-      if (spanne.bis <= spanne.von) continue;
-
-      // Die Klammer liegt auf der ersten Zeile, der Text schneidet sie frei.
-      const y = anfang + zeilenhoehe / 2;
-      const arm = SCHRIFT_GRUPPE * 0.4;
-      const luft = SCHRIFT_GRUPPE * 0.35;
-      const halb = messen(zeilen[0]) / 2 + luft;
-
-      ctx.beginPath();
-      ctx.moveTo(links, y - arm);
-      ctx.lineTo(links, y + arm);
-      ctx.moveTo(rechts, y - arm);
-      ctx.lineTo(rechts, y + arm);
-      if (mitte - halb > links) {
-        ctx.moveTo(links, y);
-        ctx.lineTo(mitte - halb, y);
-        ctx.moveTo(mitte + halb, y);
-        ctx.lineTo(rechts, y);
-      }
-      ctx.stroke();
     }
   }
 }
