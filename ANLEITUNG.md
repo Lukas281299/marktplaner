@@ -706,6 +706,11 @@ Das Maß ergibt sich aus der Gondel und ist nicht einstellbar:
 Die Tiefe ist immer die **einer Gondelseite** — die Kopfgondel ist ein
 einseitiges Regal und steht vor dem Kopf, nicht um ihn herum.
 
+**Beschriftet wird der Kopf gleich mit.** Unter jedem gesetzten Schalter steht
+sein eigenes Feld für Notiz und Warengruppe — man muss ihn dafür nicht einzeln
+anfassen. Wer ihn doch allein auswählen will, hält beim Klicken **Alt**
+gedrückt; sonst springt die ganze Gruppe an.
+
 Ein so gesetzter Kopf ist ein **eigenes Möbel**: Er zählt in den Regalmetern
 mit, hat eine Warengruppe und lässt sich einzeln anfassen.
 

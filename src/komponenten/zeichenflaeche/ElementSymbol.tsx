@@ -225,7 +225,7 @@ export function einheitenNaehte(element: PlanElement, b: number): number[] {
  * Maß steht ohnehin nur da, damit man es nicht nachschlagen muss.
  */
 const NOTIZ_HOEHE = 22;
-const MASS_HOEHE = 14;
+const MASS_HOEHE = 11;
 
 /**
  * Steht die Schrift dieses Möbels auf dem Kopf?

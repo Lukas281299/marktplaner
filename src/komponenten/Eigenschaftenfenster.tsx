@@ -9,7 +9,7 @@ import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { felderVon, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { gruppenspannen } from '../logik/warengruppe';
-import { kannKopfgondel, kopfmasse } from '../logik/kopfgondel';
+import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
@@ -610,6 +610,9 @@ function Feldaufteilung({
               store().setzeKopfgondel(element.id, 'ende', an);
             }}
           />
+          <Kopfbeschriftung element={element} seite="anfang" />
+          <Kopfbeschriftung element={element} seite="ende" />
+
           <p className="hinweis" style={{ marginTop: 6 }}>
             Vor diese Gondel gehört eine <strong>A{Math.round(masse.achsmass * 10)}</strong> mit{' '}
             {formatiereLaenge(masse.tiefe, einheit)} Tiefe — so tief wie eine Gondelseite. Das Maß
@@ -796,6 +799,32 @@ function Seitenaufteilung({
 }
 
 /**
+ * Die Beschriftung einer Kopfgondel, gleich beim Schalter dafür.
+ *
+ * Der Kopf ist ein eigenes Möbel und ließe sich auch einzeln auswählen –
+ * mit Alt+Klick, weil er sonst mit dem Zug zusammen anspringt. Nur denkt
+ * daran niemand, wenn er gerade die Gondel beschriftet. Deshalb steht sein
+ * Feld hier, direkt unter dem Schalter, mit dem er gesetzt wurde.
+ */
+function Kopfbeschriftung({ element, seite }: { element: PlanElement; seite: Kopfseite }) {
+  const id = element.kopfgondeln?.[seite];
+  const kopf = usePlanStore((s) => s.projekt.elemente.find((el) => el.id === id));
+  if (!kopf) return null;
+
+  return (
+    <div style={{ marginTop: 4, marginBottom: 8 }}>
+      <div className="kennzahl" style={{ marginBottom: 3 }}>
+        <span>Kopf {seite === 'anfang' ? 'am Anfang' : 'am Ende'}</span>
+        <span className="kennzahl-wert">{kopf.name}</span>
+      </div>
+      <div style={{ display: 'flex' }}>
+        <Feldeingaben element={kopf} seite="unten" feld={0} mehrere={false} />
+      </div>
+    </div>
+  );
+}
+
+/**
  * Was in einem Feld steht: die Notiz im Regal und die Warengruppe darunter.
  *
  * Eigene Komponente, weil sie ihre Seite selbst kennt: Bei einer Doppeltruhe
@@ -891,7 +920,7 @@ function Feldeingaben({
               })
             }
           />
-          {gruppe?.text ? (
+          {gruppe?.text && rest > 1 ? (
             <select
               style={{ width: 92, fontSize: 12 }}
               value={String(Math.min(gruppe.felder, rest))}
@@ -1221,12 +1250,17 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           Deshalb wird der Zug aus der Auswahl herausgesucht statt schlicht
           das erste Element genommen: Sobald ein Kopf gesetzt ist, sind Zug
           und Kopf gemeinsam ausgewählt – und ohne diesen Griff verschwände
-          das Feld, mit dem man den zweiten Kopf setzt. */}
+          das Feld, mit dem man den zweiten Kopf setzt.
+
+          Ist der Kopf aber allein ausgewählt (Alt+Klick), gehört das Fenster
+          ihm: Er ist ein eigenes Möbel und trägt seine eigene Beschriftung. */}
       {(() => {
         const zuege = ausgewaehlte.filter((el) => !el.kopfVon);
-        if (zuege.length !== 1) return null;
-        const satz = modulsatzFuer(zuege[0].form);
-        return satz ? <Feldaufteilung element={zuege[0]} satz={satz} einheit={einheit} /> : null;
+        const ziel =
+          zuege.length === 1 ? zuege[0] : ausgewaehlte.length === 1 ? ausgewaehlte[0] : null;
+        if (!ziel) return null;
+        const satz = modulsatzFuer(ziel.form);
+        return satz ? <Feldaufteilung element={ziel} satz={satz} einheit={einheit} /> : null;
       })()}
 
       {/* ------------------------------------------------------ Darstellung */}
