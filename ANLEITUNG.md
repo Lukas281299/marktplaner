@@ -495,10 +495,12 @@ und in zwei Zeilen: `H 1800` und `T 600`. Die Tiefe ist dabei die
 **Bodentiefe**, nach der bestellt wird — bei einer Gondel also `T 600` und
 nicht das Stellmaß von 1270 mm.
 
-Das Eingabefeld steht rechts unter *Felder*, direkt unter jeder Feldzeile.
-Bei einer Gondel hat jede Seite ihre eigene Liste — *Vorderseite* und
-*Rückseite* stehen untereinander. Die beiden werden getrennt bestückt: fünf
-Böden auf der einen können sechs auf der anderen gegenüberstehen.
+Das Eingabefeld steht rechts unter *Felder*, links neben der Warengruppe.
+Bei einer Gondel hat jede Seite ihre eigene Liste; oben schaltest du mit
+**Vorderseite** / **Rückseite** um. Auf den beiden Knöpfen steht die Länge der
+jeweiligen Seite — den Unterschied siehst du also, ohne umzuschalten. Beide
+Seiten werden getrennt bestückt: fünf Böden auf der einen können sechs auf der
+anderen gegenüberstehen.
 
 > Die Notizen gehören zur Zeichnung und schrumpfen beim Herauszoomen mit. In
 > der Übersicht über den ganzen Markt sind sie deshalb nicht zu sehen; ab
@@ -516,10 +518,9 @@ dritten Feld stand, steht hinterher wieder im dritten.
 ### Nicht synchrone Gondeln
 
 Eine Gondel ist **ein** Möbel mit zwei Seiten, und im Markt sind die beiden
-selten gleich. Deshalb hat jede Seite ihre eigene Liste: Bei einer
-ausgewählten Gondel stehen im Eigenschaftenfenster zwei Blöcke untereinander,
-*Vorderseite* und *Rückseite*. Was du in einem änderst, lässt den anderen in
-Ruhe.
+selten gleich. Deshalb hat jede Seite ihre eigene Liste: Oben im Block
+*Felder* schaltest du mit **Vorderseite** / **Rückseite** zwischen ihnen um.
+Was du in einer änderst, lässt die andere in Ruhe.
 
 Zwei Dinge lassen sich damit bauen:
 
@@ -553,15 +554,16 @@ So trägst du ihn ein:
 1. Das **erste** Feld der Strecke suchen — bei Ketchup also den ersten der
    drei Meter.
 2. In das Feld *Warengruppe* darunter den Namen schreiben.
-3. Rechts daneben einstellen, über **wie viele Felder** er gilt.
+3. Im kleinen Kästchen daneben einstellen, über **wie viele Felder** er gilt
+   — **×3** heißt: über drei Felder.
 
 Im Plan steht der Name dann einmal, mittig über der Strecke, mit einer
 **Klammer** an beiden Enden: ein Strich links, ein Strich rechts, dazwischen
 eine Linie, die der Text unterbricht. Über einem einzelnen Feld bleibt die
 Klammer weg — dort ist nichts zu erklären.
 
-Die folgenden Felder zeigen statt eines Eingabefelds den Hinweis *↳ gehört zu
-„Ketchup"*. Zwei Beschriftungen an derselben Stelle kann es also nicht geben:
+Die folgenden Felder zeigen statt eines Eingabefelds den Hinweis
+*↳ Ketchup*. Zwei Beschriftungen an derselben Stelle kann es also nicht geben:
 Schreibst du mitten in eine Strecke etwas Neues, endet die vorige dort.
 
 **Zu lange Namen brechen von selbst um**, an den Wortgrenzen und passend zur

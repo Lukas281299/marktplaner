@@ -584,6 +584,32 @@ body {
   line-height: 1.6;
 }
 
+/*
+ * Eine Erklärung, die man einmal liest und danach nicht mehr braucht.
+ *
+ * Zugeklappt ist sie eine Zeile, aufgeklappt steht alles da. Ohne das wuchs
+ * das Eigenschaftenfenster einer Gondel auf drei Bildschirmhöhen, und das
+ * meiste davon war Fließtext, den man beim zehnten Mal überscrollt.
+ */
+details.erklaerung {
+  margin: 6px 0 2px;
+}
+
+details.erklaerung > summary {
+  cursor: pointer;
+  color: var(--text-schwach);
+  padding: 2px 0;
+  user-select: none;
+}
+
+details.erklaerung > summary:hover {
+  color: var(--text);
+}
+
+details.erklaerung[open] > summary {
+  margin-bottom: 4px;
+}
+
 .kennzahl {
   display: flex;
   justify-content: space-between;

@@ -1,3 +1,5 @@
+import { useState, type ReactNode } from 'react';
+import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { KATEGORIEN } from '../daten/kategorien';
 import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { WARENGRUPPEN } from '../daten/warengruppen';
@@ -6,7 +8,6 @@ import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { summe } from '../logik/feldaufteilung';
 import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
-import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { felderVon, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { gruppenspannen } from '../logik/warengruppe';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
@@ -534,21 +535,24 @@ function Feldaufteilung({
   // hier eine Liste, und die andere Seite übernimmt sie – siehe
   // `logik/regalseiten.ts`.
   const seiten: Seite[] = seitenTrennbar(element) ? ['unten', 'oben'] : ['unten'];
+  // Eine Gondel hat zwei Listen, und untereinander werden daraus zwei Meter
+  // Bildlaufleiste. Deshalb liegt immer nur eine offen; auf den Knöpfen steht
+  // die Länge der anderen, damit man den Unterschied sieht, ohne umzuschalten.
+  const [gewaehlt, waehle] = useState<Seite>('unten');
+  const seite = seiten.includes(gewaehlt) ? gewaehlt : 'unten';
   const koepfeMoeglich = kannKopfgondel(element);
   const masse = koepfeMoeglich ? kopfmasse(element.tiefe) : null;
 
   return (
     <>
-      {seiten.map((seite) => (
-        <Seitenaufteilung
-          key={seite}
-          element={element}
-          satz={satz}
-          einheit={einheit}
-          seite={seite}
-          getrennt={seiten.length > 1}
-        />
-      ))}
+      <Seitenaufteilung
+        element={element}
+        satz={satz}
+        einheit={einheit}
+        seite={seite}
+        seiten={seiten}
+        waehle={waehle}
+      />
 
       <div className="gruppe">
         {element.form === 'wt100' && (
@@ -561,34 +565,38 @@ function Feldaufteilung({
                 usePlanStore.getState().aendereElemente([element.id], { fuehrungsrohr });
               }}
             />
-            <p className="hinweis" style={{ marginTop: 4, marginBottom: 10 }}>
-              Die Anschlagschiene für Einkaufswagen, unten vor dem Grundboden. Sie steht{' '}
-              {formatiereLaenge(ROHR_UEBERSTAND, einheit)} vor der Front — bei einer Gondel auf
-              beiden Seiten. Das Maß ist an einem Foto abgemessen, nicht aus dem Katalog; die
-              Tiefe des Regals ändert sich dadurch nicht.
-            </p>
           </>
         )}
 
-        <p className="hinweis" style={{ marginTop: 0 }}>
-          In die Felder schreibst du, was am Regal steht: <strong>erste Zeile die Zahl der
-          Böden</strong>, darunter bis zu zwei weitere Zeilen — etwa <em>1K</em> für Körbe. Höhe
-          und Tiefe erscheinen automatisch klein rechts im Feld.
-        </p>
+        <Erklaerung titel="Was in die Felder gehört">
+          {element.form === 'wt100' && (
+            <p className="hinweis">
+              Das <strong>Führungsrohr</strong> ist die Anschlagschiene für Einkaufswagen, unten
+              vor dem Grundboden. Sie steht {formatiereLaenge(ROHR_UEBERSTAND, einheit)} vor der
+              Front — bei einer Gondel auf beiden Seiten. Das Maß ist an einem Foto abgemessen,
+              nicht aus dem Katalog; die Tiefe des Regals ändert sich dadurch nicht.
+            </p>
+          )}
 
-        <p className="hinweis">
-          Darunter steht die <strong>Warengruppe</strong>, die im Plan unter dem Zug erscheint.
-          Bekommt Ketchup drei laufende Meter, trägst du es ins erste Feld ein und stellst
-          daneben <em>3 Felder</em> ein: Der Name steht dann einmal da, mit einer Klammer über
-          die ganze Strecke. Zu lange Namen brechen von selbst um — mit
-          <strong> Umschalt+Eingabe</strong> brichst du selbst um.
-        </p>
+          <p className="hinweis">
+            Ins linke Feld schreibst du, was am Regal steht: <strong>erste Zeile die Zahl der
+            Böden</strong>, darunter bis zu zwei weitere Zeilen — etwa <em>1K</em> für Körbe.
+            Höhe und Tiefe erscheinen automatisch klein rechts im Feld.
+          </p>
 
-        <p className="hinweis">
-          Andere Maße gibt es hier nicht: {satz.herkunft}. Die Länge ist die Summe
-          — wird eine Einheit breiter, wächst das Möbel nach hinten, sein Anfang
-          bleibt stehen.
-        </p>
+          <p className="hinweis">
+            Rechts daneben steht die <strong>Warengruppe</strong>, die im Plan unter dem Zug
+            erscheint. Bekommt Ketchup drei laufende Meter, trägst du es ins erste Feld ein und
+            stellst daneben <em>×3</em> ein: Der Name steht dann einmal da, mit einer Klammer
+            über die ganze Strecke. Zu lange Namen brechen von selbst um — mit
+            <strong> Umschalt+Eingabe</strong> brichst du selbst um.
+          </p>
+
+          <p className="hinweis">
+            Andere Maße gibt es hier nicht: {satz.herkunft}. Die Länge ist die Summe — wird eine
+            Einheit breiter, wächst das Möbel nach hinten, sein Anfang bleibt stehen.
+          </p>
+        </Erklaerung>
       </div>
 
       {koepfeMoeglich && masse && (
@@ -613,16 +621,18 @@ function Feldaufteilung({
           <Kopfbeschriftung element={element} seite="anfang" />
           <Kopfbeschriftung element={element} seite="ende" />
 
-          <p className="hinweis" style={{ marginTop: 6 }}>
-            Vor diese Gondel gehört eine <strong>A{Math.round(masse.achsmass * 10)}</strong> mit{' '}
-            {formatiereLaenge(masse.tiefe, einheit)} Tiefe — so tief wie eine Gondelseite. Das Maß
-            ergibt sich aus der Gondeltiefe und ist nicht einstellbar.
-          </p>
-          <p className="hinweis">
-            Der Kopf ist ein eigenes Möbel und zählt in den Regalmetern mit. Er gehört zur Gruppe
-            des Zugs: Verschieben und Drehen nehmen ihn mit. Eine von Hand gesetzte Kopfgondel
-            bewegt sich genauso mit, sobald du sie mit dem Zug gruppierst (Strg+G).
-          </p>
+          <Erklaerung titel="Was für ein Möbel das ist">
+            <p className="hinweis">
+              Vor diese Gondel gehört eine <strong>A{Math.round(masse.achsmass * 10)}</strong> mit{' '}
+              {formatiereLaenge(masse.tiefe, einheit)} Tiefe — so tief wie eine Gondelseite. Das
+              Maß ergibt sich aus der Gondeltiefe und ist nicht einstellbar.
+            </p>
+            <p className="hinweis">
+              Der Kopf ist ein eigenes Möbel und zählt in den Regalmetern mit. Er gehört zur
+              Gruppe des Zugs: Verschieben und Drehen nehmen ihn mit. Eine von Hand gesetzte
+              Kopfgondel bewegt sich genauso mit, sobald du sie mit dem Zug gruppierst (Strg+G).
+            </p>
+          </Erklaerung>
         </div>
       )}
     </>
@@ -646,14 +656,17 @@ function Seitenaufteilung({
   satz,
   einheit,
   seite,
-  getrennt,
+  seiten,
+  waehle,
 }: {
   element: PlanElement;
   satz: Modulsatz;
   einheit: Massinheit;
   seite: Seite;
-  getrennt: boolean;
+  seiten: Seite[];
+  waehle: (seite: Seite) => void;
 }) {
+  const getrennt = seiten.length > 1;
   const felder = felderVon(element, seite);
   /** Die Länge aus diesem Satz, die dem Wert am nächsten kommt. */
   const naechste = (wert: number) =>
@@ -685,33 +698,49 @@ function Seitenaufteilung({
 
   return (
     <div className="gruppe">
-      <div className="gruppe-titel">
-        {getrennt ? (seite === 'unten' ? 'Vorderseite' : 'Rückseite') : satz.mehrzahl}
-      </div>
+      <div className="gruppe-titel">{satz.mehrzahl}</div>
 
+      {getrennt && (
+        <div className="knopfreihe" style={{ marginBottom: 6 }}>
+          {seiten.map((welche) => (
+            <button
+              key={welche}
+              className={`knopf${welche === seite ? ' aktiv' : ''}`}
+              style={{ flex: 1 }}
+              title={
+                welche === 'unten'
+                  ? 'Die Seite, unter der die Warengruppen stehen'
+                  : 'Die andere Seite der Gondel'
+              }
+              onClick={() => waehle(welche)}
+            >
+              {welche === 'unten' ? 'Vorderseite' : 'Rückseite'} ·{' '}
+              {formatiereLaenge(summe(felderVon(element, welche).map((f) => f.breite)), einheit)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Zusammensetzung und Länge in einer Zeile: „5 × A1000 · 1 × A1250"
+          sagt dasselbe wie drei Zeilen darunter und lässt Platz für die
+          Felder selbst. */}
       <div className="kennzahl">
         <span>
-          {felder.length} {felder.length === 1 ? satz.einheit : satz.mehrzahl}
+          {satz.laengen
+            .map((modul) => ({
+              modul,
+              anzahl: felder.filter((f) => Math.abs(f.breite - modul) < 0.05).length,
+            }))
+            .filter((e) => e.anzahl > 0)
+            .map((e) => `${e.anzahl} × ${modulName(satz, e.modul)}`)
+            .join(' · ')}
         </span>
         <span className="kennzahl-wert">{formatiereLaenge(laenge, einheit)}</span>
       </div>
 
-      {satz.laengen
-        .map((modul) => ({
-          modul,
-          anzahl: felder.filter((f) => Math.abs(f.breite - modul) < 0.05).length,
-        }))
-        .filter((e) => e.anzahl > 0)
-        .map((eintrag) => (
-          <div className="kennzahl" key={eintrag.modul}>
-            <span>Davon {modulName(satz, eintrag.modul)}</span>
-            <span className="kennzahl-wert">{eintrag.anzahl} ×</span>
-          </div>
-        ))}
-
-      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 7 }}>
         {felder.map((feld, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span className="kategorie-anzahl" style={{ minWidth: 22 }}>
                 {i + 1}.
@@ -767,7 +796,7 @@ function Seitenaufteilung({
             </div>
 
             {/* Was in diesem Feld steht. */}
-            <div style={{ display: 'flex', gap: 4, paddingLeft: 26 }}>
+            <div style={{ display: 'flex', gap: 4, paddingLeft: 26, alignItems: 'flex-start' }}>
               {notizseiten.map((welche) => (
                 <Feldeingaben
                   key={welche}
@@ -782,19 +811,41 @@ function Seitenaufteilung({
         ))}
       </div>
 
-      <div className="knopfreihe" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+      {/* Das Plus steht einmal davor statt viermal auf den Knöpfen – so
+          passen alle Maße in eine Reihe. */}
+      <div className="knopfreihe" style={{ marginTop: 8, alignItems: 'center' }}>
+        <span className="kategorie-anzahl" style={{ minWidth: 12 }}>
+          +
+        </span>
         {satz.laengen.map((m) => (
           <button
             key={m}
             className="knopf"
+            style={{ flex: 1, padding: '4px 2px' }}
             title={`${satz.einheit} ${modulName(satz, m)} hinten anfügen`}
             onClick={() => setze([...felder, { breite: m }])}
           >
-            + {modulName(satz, m)}
+            {modulName(satz, m)}
           </button>
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Ein längerer Hinweis, den man einmal liest und danach nicht mehr braucht.
+ *
+ * Zugeklappt ist er eine Zeile. Die Erklärungen sind gut und sollen bleiben –
+ * aber wer zum zwanzigsten Mal eine Gondel einteilt, will sie nicht jedes Mal
+ * wegscrollen müssen.
+ */
+function Erklaerung({ titel = 'Wie das gemeint ist', children }: { titel?: string; children: ReactNode }) {
+  return (
+    <details className="erklaerung">
+      <summary className="hinweis">{titel}</summary>
+      {children}
+    </details>
   );
 }
 
@@ -864,39 +915,70 @@ function Feldeingaben({
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <textarea
-        rows={NOTIZ_ZEILEN}
-        style={{ resize: 'vertical', fontSize: 12, lineHeight: 1.3 }}
-        value={eintrag.notiz ?? ''}
-        disabled={Boolean(eintrag.leer)}
-        placeholder={
-          eintrag.leer
-            ? 'frei'
-            : mehrere
-              ? seite === 'oben'
-                ? 'Rückseite — 5+ / 1K'
-                : 'Vorderseite — 5+ / 1K'
-              : 'Böden, z. B. 5+ / 1K'
-        }
-        title={
-          'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
-          'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
-        }
-        onFocus={() => usePlanStore.getState().schnappschuss()}
-        onChange={(e) => setze({ notiz: e.target.value || undefined })}
-      />
+      {/* Notiz und Warengruppe nebeneinander: Untereinander wurde aus einem
+          Zug von sechs Feldern eine Bildlaufleiste ohne Ende. Stehen zwei
+          Seiten nebeneinander – bei einer Doppeltruhe –, ist dafür kein Platz,
+          dann rücken sie wieder untereinander. */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: mehrere ? 'column' : 'row',
+          alignItems: mehrere ? 'stretch' : 'flex-start',
+          gap: 4,
+        }}
+      >
+        <textarea
+          // So hoch, wie die Notiz Zeilen hat – nicht höher. Ein Zug aus
+          // sechs Feldern hatte sonst allein hier ein halbes Fenster.
+          rows={Math.min(NOTIZ_ZEILEN, Math.max(1, (eintrag.notiz ?? '').split('\n').length))}
+          style={{
+            width: mehrere ? undefined : 78,
+            resize: 'vertical',
+            fontSize: 12,
+            lineHeight: 1.3,
+          }}
+          value={eintrag.notiz ?? ''}
+          disabled={Boolean(eintrag.leer)}
+          placeholder={
+            eintrag.leer
+              ? 'frei'
+              : mehrere
+                ? seite === 'oben'
+                  ? 'Rückseite — 5+ / 1K'
+                  : 'Vorderseite — 5+ / 1K'
+                : '5+\n1K'
+          }
+          title={
+            'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
+            'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
+          }
+          onFocus={() => usePlanStore.getState().schnappschuss()}
+          onChange={(e) => setze({ notiz: e.target.value || undefined })}
+        />
 
-      {gedeckt ? (
-        <p className="hinweis" style={{ margin: 0 }}>
-          ↳ gehört zu „{gedeckt.text.split('\n')[0]}“
-        </p>
-      ) : (
-        <div style={{ display: 'flex', gap: 4 }}>
+        {gedeckt ? (
+          // Einzeilig und abgeschnitten: Der Hinweis sagt nur, wozu das Feld
+          // gehört. Zwei Zeilen dafür wären an sechs Feldern ein halbes Fenster.
+          <p
+            className="hinweis"
+            style={{
+              margin: '4px 0 0',
+              flex: 1,
+              minWidth: 0,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={`Dieses Feld gehört zur Beschriftung „${gedeckt.text.replace('\n', ' ')}“`}
+          >
+            ↳ {gedeckt.text.replace('\n', ' ')}
+          </p>
+        ) : (
           <input
             type="text"
-            style={{ flex: 1, fontSize: 12 }}
+            style={{ flex: 1, fontSize: 12, minWidth: 0 }}
             value={gruppe?.text ?? ''}
-            placeholder="Warengruppe, z. B. Ketchup"
+            placeholder="Warengruppe"
             title={
               'Steht unter dem Zug im Plan. Für einen Umbruch von Hand ' +
               'Umschalt+Eingabe drücken.'
@@ -920,25 +1002,28 @@ function Feldeingaben({
               })
             }
           />
-          {gruppe?.text && rest > 1 ? (
-            <select
-              style={{ width: 92, fontSize: 12 }}
-              value={String(Math.min(gruppe.felder, rest))}
-              title="Über wie viele Felder die Beschriftung gilt. Sie steht trotzdem nur einmal da."
-              onChange={(e) => {
-                usePlanStore.getState().schnappschuss();
-                setze({ warengruppe: { text: gruppe.text, felder: Number(e.target.value) } });
-              }}
-            >
-              {Array.from({ length: rest }, (_, i) => i + 1).map((n) => (
-                <option key={n} value={String(n)}>
-                  {n} {n === 1 ? 'Feld' : 'Felder'}
-                </option>
-              ))}
-            </select>
-          ) : null}
-        </div>
-      )}
+        )}
+
+        {/* Wie weit die Warengruppe reicht – gleich daneben, damit die Zeile
+            nicht wächst. „×3" heißt: über drei Felder. */}
+        {!gedeckt && gruppe?.text && rest > 1 ? (
+          <select
+            style={{ fontSize: 12, flex: 'none' }}
+            value={String(Math.min(gruppe.felder, rest))}
+            title="Über wie viele Felder die Beschriftung gilt. Sie steht trotzdem nur einmal da."
+            onChange={(e) => {
+              usePlanStore.getState().schnappschuss();
+              setze({ warengruppe: { text: gruppe.text, felder: Number(e.target.value) } });
+            }}
+          >
+            {Array.from({ length: rest }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={String(n)}>
+                ×{n}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
     </div>
   );
 }
