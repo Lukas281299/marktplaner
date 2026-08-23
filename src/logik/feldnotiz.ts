@@ -64,6 +64,9 @@ const TIEFEN_SPIEL = 2;
  *  1. Steht am Möbel eine **Grundbodentiefe**, gilt die. Beim Kühlmöbel ist
  *     das die einzig richtige Angabe — dort hat das Gehäuse mit dem Boden,
  *     auf dem die Ware steht, wenig zu tun.
+ *  1a. Bei einem **gestuften** Möbel — den Obst- und Gemüsetischen — ist es
+ *     die **unterste Auflage**. Nach ihr heißt das Möbel im Katalog: Ein
+ *     Vitable T800 hat 800 unten und 600 und 400 darüber, ist aber 955 tief.
  *  2. Sonst Stellmaß minus tote Zone, bei der Gondel geteilt durch zwei.
  *  3. Beim Regalzug wird das Ergebnis auf die nächste **Katalogtiefe**
  *     gezogen, wenn es nah genug dran liegt. Ein Zug aus einem eingelesenen
@@ -71,9 +74,13 @@ const TIEFEN_SPIEL = 2;
  *     Boden, und genau das soll dastehen.
  */
 export function bodentiefeMm(
-  element: Pick<PlanElement, 'tiefe' | 'beidseitig' | 'form' | 'grundboden'>,
+  element: Pick<PlanElement, 'tiefe' | 'beidseitig' | 'form' | 'grundboden' | 'stufen'>,
 ): number {
   if (element.grundboden && element.grundboden > 0) return Math.round(element.grundboden * 10);
+
+  // Die unterste Auflage ist die tiefste – nach ihr heißt das Möbel.
+  const tiefste = element.stufen?.length ? Math.max(...element.stufen) : 0;
+  if (tiefste > 0) return Math.round(tiefste * 10);
 
   const TOTE_ZONE = 7;
   const jeSeite = Math.max(
@@ -101,7 +108,10 @@ export function bodentiefeMm(
  * Behauptung.
  */
 export function masszeilen(
-  element: Pick<PlanElement, 'hoehe' | 'tiefe' | 'beidseitig' | 'form' | 'breite' | 'grundboden'>,
+  element: Pick<
+    PlanElement,
+    'hoehe' | 'tiefe' | 'beidseitig' | 'form' | 'breite' | 'grundboden' | 'stufen'
+  >,
 ): string[] {
   // Eine Palette hat keine Höhe, die jemanden interessiert – sie ist so hoch,
   // wie gestapelt wird. Was man von ihr wissen will, sind ihre beiden

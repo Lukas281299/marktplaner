@@ -496,6 +496,9 @@ und in zwei Zeilen: `H 1800` und `T 600`. Die Tiefe ist dabei die
 nicht das Stellmaß von 1270 mm.
 
 Steht am Möbel eine eigene **Grundbodentiefe** (bei den Kühlmöbeln), gilt die.
+Bei einem **gestuften** Möbel — den Obst- und Gemüsetischen — ist es die
+unterste Auflage: Ein Vitable T800 ist 955 tief und heißt trotzdem T800, denn
+darauf steht die Ware.
 Und bei einem Regalzug wird ein krummes Maß auf die nächste Katalogtiefe
 gezogen: Ein Zug, der aus einem eingelesenen Plan mit 680 mm Stellmaß
 hereinkommt, zeigt `T 600` — 610 gibt es nicht zu kaufen. Liegt das Maß weiter
@@ -506,6 +509,11 @@ An einer **Palette** stehen dort stattdessen **Länge und Breite**: `L 1200`
 und `B 800`. Eine Palette ist so hoch, wie gestapelt wird — die Höhe wäre
 eine erfundene Zahl, ihre beiden Grundmaße sagen dagegen sofort, welche es
 ist.
+
+Möbel **ohne Einheiten** — der runde Kopf, die Ecken, das freie Trapez, eine
+Palette, ein Drehständer — haben statt der Felderliste die Gruppe *Notiz und
+Warengruppe*: Sie sind für die Zeichnung genau ein Feld, und beschriften lassen
+sie sich genauso.
 
 Das Eingabefeld steht rechts unter *Felder*, links neben der Warengruppe.
 Bei einer Gondel hat jede Seite ihre eigene Liste; oben schaltest du mit

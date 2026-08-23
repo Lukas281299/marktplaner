@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { modulsatzFuer } from '../daten/module';
 import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
 import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { feinRunde, gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
@@ -835,7 +836,16 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
       const oben = seite === 'oben' ? neueFelder : mit;
       const unten = seite === 'unten' ? neueFelder : mit;
-      const breite = breiteAusSeiten(zug, zug.beidseitig ? oben : undefined, unten);
+
+      // Ein Möbel ohne Einheiten – ein runder Kopf, eine Ecke, eine Palette –
+      // hat keine Feldsumme, aus der sich seine Breite ergäbe. Dort ist das
+      // eine Feld nur der Platz für Notiz und Warengruppe, und die Breite
+      // bleibt, wie sie eingestellt ist. Sonst zöge das Schreiben einer Notiz
+      // das Möbel auf ein Maß von vorhin zurück.
+      const nachFeldern = Boolean(modulsatzFuer(zug.form) || zug.achsmass);
+      const breite = nachFeldern
+        ? breiteAusSeiten(zug, zug.beidseitig ? oben : undefined, unten)
+        : zug.breite;
       if (breite <= 0) return p;
 
       // Der Zug wächst nach hinten, sein Anfang bleibt stehen. Das ist die

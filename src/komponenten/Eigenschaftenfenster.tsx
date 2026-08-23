@@ -892,6 +892,51 @@ function Erklaerung({ titel = 'Wie das gemeint ist', children }: { titel?: strin
 }
 
 /**
+ * Notiz und Warengruppe für ein Möbel ohne Einheiten.
+ *
+ * Ein runder Kopf, eine Ecke, eine Palette, ein Drehständer: Die bestehen
+ * nicht aus Feldern, die man einteilen könnte, und hatten deshalb gar kein
+ * Eingabefeld. Beschriften will man sie trotzdem — im Plan steht auch über
+ * einer Kopfgondel, was dort liegt.
+ *
+ * Für die Zeichnung ist ein solches Möbel genau **ein** Feld; gezeichnet
+ * wurde die Beschriftung also längst, man kam nur nicht heran.
+ */
+function Elementbeschriftung({ element }: { element: PlanElement }) {
+  const seiten: Seite[] = element.beidseitig ? ['oben', 'unten'] : ['unten'];
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Notiz und Warengruppe</div>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+        {seiten.map((seite) => (
+          <Feldeingaben
+            key={seite}
+            element={element}
+            seite={seite}
+            feld={0}
+            zeile={0}
+            mehrere={seiten.length > 1}
+          />
+        ))}
+      </div>
+      <Erklaerung titel="Was hier hingehört">
+        <p className="hinweis">
+          Links steht, was am Möbel steht: <strong>erste Zeile die Zahl der Böden</strong>,
+          darunter bis zu zwei weitere Zeilen. Rechts die <strong>Warengruppe</strong>, die
+          im Plan unter dem Möbel erscheint — bei einem beidseitigen Möbel oben die
+          Rückseite, unten die Vorderseite.
+        </p>
+        <p className="hinweis">
+          Höhe und Tiefe erscheinen automatisch klein rechts im Möbel; bei einer Palette
+          stattdessen Länge und Breite.
+        </p>
+      </Erklaerung>
+    </div>
+  );
+}
+
+/**
  * Die Beschriftung einer Kopfgondel, gleich beim Schalter dafür.
  *
  * Der Kopf ist ein eigenes Möbel und ließe sich auch einzeln auswählen –
@@ -1426,7 +1471,11 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           zuege.length === 1 ? zuege[0] : ausgewaehlte.length === 1 ? ausgewaehlte[0] : null;
         if (!ziel) return null;
         const satz = modulsatzFuer(ziel.form);
-        return satz ? <Feldaufteilung element={ziel} satz={satz} einheit={einheit} /> : null;
+        return satz ? (
+          <Feldaufteilung element={ziel} satz={satz} einheit={einheit} />
+        ) : (
+          <Elementbeschriftung element={ziel} />
+        );
       })()}
 
       {/* ------------------------------------------------------ Darstellung */}

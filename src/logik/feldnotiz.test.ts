@@ -46,6 +46,20 @@ describe('Höhe und Tiefe rechts im Feld', () => {
     ).toBe(600);
   });
 
+  it('nennt bei einem gestuften Möbel die unterste Auflage', () => {
+    // Ein Vitable T800 ist 955 tief und heißt trotzdem T800: Die Ware steht
+    // auf der untersten Auflage, und nach der wird bestellt.
+    expect(
+      bodentiefeMm(moebel({ form: 'vitable', tiefe: 95.5, stufen: [80, 60, 40] })),
+    ).toBe(800);
+    // Auch beim runden Kopf, der beide Seiten trägt.
+    expect(
+      bodentiefeMm(
+        moebel({ form: 'vitableAbschlussRund', tiefe: 182.9, beidseitig: true, stufen: [80, 60, 40] }),
+      ),
+    ).toBe(800);
+  });
+
   it('zieht ein krummes Maß auf die nächste Katalogtiefe', () => {
     // Ein eingelesener Plan misst schon mal 680 statt 670. Bestellt wird
     // trotzdem ein 600er Boden — 610 gibt es nicht zu kaufen.
