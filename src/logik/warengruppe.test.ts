@@ -31,7 +31,7 @@ const felder = (...eintraege: (string | null)[]): Regalfeld[] =>
 describe('Strecke einer Beschriftung', () => {
   it('reicht über so viele Felder, wie eingestellt sind', () => {
     expect(gruppenspannen(felder('Ketchup/3', null, null))).toEqual([
-      { von: 0, bis: 2, text: 'Ketchup' },
+      { von: 0, bis: 2, anker: 0, text: 'Ketchup', schrift: undefined },
     ]);
   });
 
@@ -39,20 +39,34 @@ describe('Strecke einer Beschriftung', () => {
     // Wer Ketchup drei Felder gibt und ins zweite Senf schreibt, meint das
     // zweite als Anfang von Senf – nicht zwei Namen an derselben Stelle.
     expect(gruppenspannen(felder('Ketchup/3', 'Senf/1', null))).toEqual([
-      { von: 0, bis: 0, text: 'Ketchup' },
-      { von: 1, bis: 1, text: 'Senf' },
+      { von: 0, bis: 0, anker: 0, text: 'Ketchup', schrift: undefined },
+      { von: 1, bis: 1, anker: 1, text: 'Senf', schrift: undefined },
     ]);
   });
 
   it('endet am letzten Feld', () => {
     // Eine zu große Angabe ist kein Fehler: Der Zug wurde hinterher gekürzt.
     expect(gruppenspannen(felder('Ketchup/9', null))).toEqual([
-      { von: 0, bis: 1, text: 'Ketchup' },
+      { von: 0, bis: 1, anker: 0, text: 'Ketchup', schrift: undefined },
     ]);
   });
 
   it('deckt ohne Angabe genau ein Feld ab', () => {
-    expect(gruppenspannen(felder('Senf'))).toEqual([{ von: 0, bis: 0, text: 'Senf' }]);
+    expect(gruppenspannen(felder('Senf'))).toEqual([
+      { von: 0, bis: 0, anker: 0, text: 'Senf', schrift: undefined },
+    ]);
+
+    // Und rückwärts, wie an der unteren Wand: Die Strecke zählt weiter nach
+    // rechts im Bild – also in der gespeicherten Liste nach vorn.
+    expect(gruppenspannen(felder(null, null, 'Ketchup/3'), true)).toEqual([
+      { von: 0, bis: 2, anker: 2, text: 'Ketchup', schrift: undefined },
+    ]);
+    // Und die nächste Beschriftung schneidet auch hier ab – nur eben die,
+    // die im Bild rechts folgt.
+    expect(gruppenspannen(felder(null, 'Senf/2', 'Ketchup/2'), true)).toEqual([
+      { von: 2, bis: 2, anker: 2, text: 'Ketchup', schrift: undefined },
+      { von: 0, bis: 1, anker: 1, text: 'Senf', schrift: undefined },
+    ]);
   });
 
   it('übergeht leeren Text', () => {

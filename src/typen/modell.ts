@@ -724,6 +724,7 @@ export interface Projekt {
  *   8 – ein Grauton für das ganze Trockensortiment
  *   9 – jede Gondelseite mit eigener Feldeinteilung
  *  10 – „Aktionsfläche" steht in der Fläche
+ *  11 – Kopfgondeln schauen in den Gang
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -755,4 +756,9 @@ export interface Projekt {
  * dort der Name der Vorlage samt Maßen, und der wurde in der Fläche
  * abgeschnitten.
  */
-export const SCHEMA_VERSION = 10;
+/**
+ * Fassung 11 dreht jede Kopfgondel so, dass sie mit dem Rücken am Zug steht.
+ * Bis dahin zeigte ihre Front zum Zug – sichtbar wurde das erst, als Notiz
+ * und Warengruppe an der Front erschienen.
+ */
+export const SCHEMA_VERSION = 11;

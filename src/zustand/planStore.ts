@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { STANDARD_EBENE_ID, neuesProjekt } from '../daten/standardProjekt';
 import { laeuftRueckwaerts } from '../logik/beschriftung';
-import { gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
+import { feinRunde, gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
 import { verschiebeEcke } from '../logik/elementEcken';
@@ -15,7 +15,13 @@ import {
   type Seite,
 } from '../logik/regalseiten';
 import { groesstBaubareLaenge, passeAn } from '../logik/feldaufteilung';
-import { kannKopfgondel, kopflage, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
+import {
+  kannKopfgondel,
+  kopflage,
+  kopfmasse,
+  mitAusgerichtetenKoepfen,
+  type Kopfseite,
+} from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
 import { setzeFavoriten as speichereFavoriten } from '../speicher/projektArchiv';
@@ -1285,60 +1291,7 @@ function richteKoepfeAus(elemente: PlanElement[], zug: PlanElement): PlanElement
   });
 }
 
-/**
- * Setzt **jede** Kopfgondel auf die Stelle, die ihr Zug ihr vorgibt.
- *
- * Die Lage eines Kopfes wird abgeleitet und nicht mitgeführt. Das ist der
- * Unterschied zwischen „bewegt sich meistens mit" und „sitzt". Mitführen
- * hieße, an jeder Stelle daran zu denken, die etwas an einem Zug verändert –
- * Ziehen, Tastatur, Ausrichten, Drehen, Verlängern –, und eine davon
- * vergisst man. Genau so brachen Köpfe aus.
- *
- * Läuft über alle Elemente und ist damit O(n). Bei Plänen dieser Größe
- * fällt das nicht ins Gewicht, und die Zusage ist es wert.
- */
-function mitAusgerichtetenKoepfen(elemente: PlanElement[]): PlanElement[] {
-  const zuege = new Map<string, PlanElement>();
-  for (const el of elemente) if (el.kopfgondeln) zuege.set(el.id, el);
-  if (zuege.size === 0) return elemente;
 
-  return elemente.map((el) => {
-    if (!el.kopfVon) return el;
-    const zug = zuege.get(el.kopfVon);
-    if (!zug) return el;
-    const seite: Kopfseite | null =
-      zug.kopfgondeln?.anfang === el.id
-        ? 'anfang'
-        : zug.kopfgondeln?.ende === el.id
-          ? 'ende'
-          : null;
-    if (!seite) return el;
-    const lage = kopflage(zug, seite);
-    // Unverändert lassen, was schon sitzt – sonst entstünde bei jedem
-    // Zeichendurchlauf ein neues Objekt und React zeichnete unnötig neu.
-    if (
-      Math.abs(el.x - lage.x) < 0.005 &&
-      Math.abs(el.y - lage.y) < 0.005 &&
-      el.drehung === lage.drehung
-    ) {
-      return el;
-    }
-    return { ...el, x: feinRunde(lage.x), y: feinRunde(lage.y), drehung: lage.drehung };
-  });
-}
-
-/**
- * Rundet eine Koordinate auf Zehntelmillimeter statt auf einen halben
- * Zentimeter.
- *
- * Sonst zerstört das Runden genau das, worum es hier geht: Ein Zug von
- * 633,30 cm hat seinen Mittelpunkt auf 316,65 – auf halbe Zentimeter
- * geschoben wandert seine Anfangskante um anderthalb Millimeter. Auf dem
- * Bildschirm sieht man das nicht, in einer Flucht von zehn Zügen schon.
- */
-function feinRunde(wert: number): number {
-  return Math.round(wert * 100) / 100;
-}
 
 /**
  * Rundet die gezogene Länge eines Regalzugs auf ein baubares Maß **ab**.

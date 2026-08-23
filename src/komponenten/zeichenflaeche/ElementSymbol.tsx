@@ -395,7 +395,7 @@ export function zeichneWarengruppen(
   for (const seite of seiten) {
     const plaetze = feldplaetze(seite.felder, faktor);
 
-    for (const spanne of gruppenspannen(seite.felder)) {
+    for (const spanne of gruppenspannen(seite.felder, kopf)) {
       const erstes = plaetze[spanne.von];
       const letztes = plaetze[spanne.bis];
       if (!erstes || !letztes) continue;

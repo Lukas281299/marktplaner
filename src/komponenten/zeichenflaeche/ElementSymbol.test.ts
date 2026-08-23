@@ -842,6 +842,9 @@ describe('Beschriftungen bleiben lesbar', () => {
     }) as unknown as PlanElement;
 
   const gruppe = [{ breite: 100, warengruppe: { text: 'Senf', felder: 2 } }, { breite: 100 }];
+  // Dieselbe Strecke für ein Möbel, das andersherum läuft: Dort ist das
+  // letzte Feld der Liste das linke im Bild, und dort fängt die Strecke an.
+  const gruppeRueck = [{ breite: 100 }, { breite: 100, warengruppe: { text: 'Senf', felder: 2 } }];
 
   it('lässt aufrechte Schrift in Ruhe', () => {
     const { ctx, wendungen } = schreiber();
@@ -851,7 +854,7 @@ describe('Beschriftungen bleiben lesbar', () => {
 
   it('wendet die Beschriftung bei einer halben Drehung', () => {
     const { ctx, wendungen, texte } = schreiber();
-    zeichneWarengruppen(ctx, zug(180, gruppe), 200, TIEFE, 1);
+    zeichneWarengruppen(ctx, zug(180, gruppeRueck), 200, TIEFE, 1);
     expect(wendungen).toHaveLength(1);
     expect(wendungen[0].winkel).toBeCloseTo(Math.PI, 5);
     // Um die eigene Mitte: waagerecht die Mitte der Strecke …

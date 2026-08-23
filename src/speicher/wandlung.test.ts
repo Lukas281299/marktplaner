@@ -345,3 +345,44 @@ describe('Fassung 10: „Aktionsfläche" steht in der Fläche', () => {
       .beschriftung).toBe('EPAL quer · 1,20 x 0,80 m');
   });
 });
+
+describe('Fassung 11: Kopfgondeln schauen in den Gang', () => {
+  const zug = {
+    id: 'zug', vorlageId: 'wt-zug', ebeneId: 'einrichtung', name: 'Zug', kategorie: 'regale',
+    x: 1000, y: 1000, breite: 600, tiefe: 127, hoehe: 180, drehung: 0, form: 'wt100',
+    farbe: '#c9c5bd', beschriftung: '', beschriftungSichtbar: false, schriftgroesse: 12,
+    gesperrt: false, reihenfolge: 0, beidseitig: true, achsmass: 100,
+    kopfgondeln: { ende: 'kopf' },
+  };
+
+  /** Ein Kopf, wie ihn die alte Rechnung hingestellt hat: Front zum Zug. */
+  const kopf = {
+    id: 'kopf', vorlageId: 'wt-kopf', ebeneId: 'einrichtung', name: 'Kopfgondel A1250',
+    kategorie: 'regale', x: 1333.5, y: 1000, breite: 125, tiefe: 67, hoehe: 180,
+    drehung: 90, form: 'wt100', farbe: '#c9c5bd', beschriftung: '',
+    beschriftungSichtbar: false, schriftgroesse: 12, gesperrt: false, reihenfolge: 1,
+    beidseitig: false, achsmass: 125, kopfVon: 'zug',
+  };
+
+  it('dreht einen verdrehten Kopf beim Öffnen um', () => {
+    // Sonst behielte ein Plan, der nur geöffnet wird, seine verdrehten Köpfe
+    // für immer: Nachgerichtet wurden sie erst beim Verschieben des Zugs.
+    const neu = wandleProjekt(alteFassung({ elemente: [zug, kopf] }));
+    expect(neu.elemente.find((el) => el.id === 'kopf')!.drehung).toBe(270);
+  });
+
+  it('lässt seine Stelle unverändert', () => {
+    // Gedreht wird er, verschoben nicht – er steht ja am richtigen Ende.
+    const neu = wandleProjekt(alteFassung({ elemente: [zug, kopf] }));
+    const gedreht = neu.elemente.find((el) => el.id === 'kopf')!;
+    expect(gedreht.x).toBeCloseTo(kopf.x, 2);
+    expect(gedreht.y).toBeCloseTo(kopf.y, 2);
+  });
+
+  it('fasst eine von Hand gesetzte Kopfgondel nicht an', () => {
+    // Ohne `kopfVon` gehört sie niemandem – dort hat der Nutzer gedreht.
+    const frei = { ...kopf, id: 'frei', kopfVon: undefined };
+    const neu = wandleProjekt(alteFassung({ elemente: [{ ...zug, kopfgondeln: {} }, frei] }));
+    expect(neu.elemente.find((el) => el.id === 'frei')!.drehung).toBe(90);
+  });
+});

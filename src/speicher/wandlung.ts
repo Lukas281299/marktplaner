@@ -1,4 +1,5 @@
 import { AKTION_TEXT, SAISON_TEXT, WT_GRAU, WT_GRAU_ALT } from '../daten/bibliothek';
+import { mitAusgerichtetenKoepfen } from '../logik/kopfgondel';
 import { grundfelder } from '../logik/regalseiten';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
@@ -70,11 +71,16 @@ export function wandleProjekt(roh: unknown): Projekt {
     verkaufsflaechen: projekt?.verkaufsflaechen ?? [],
     // Fassung 7
     ebenen: ergaenzeEbenen(projekt?.ebenen),
-    elemente: (projekt?.elemente ?? [])
-      .map(wandleElement)
-      .map(vereinheitlicheRegalfarbe)
-      .map(teileSeitenAuf)
-      .map(beschrifteAktionsflaeche),
+    // Fassung 11: Die Köpfe stellen sich neu an ihre Züge. Sie werden sonst
+    // erst nachgerichtet, wenn jemand den Zug bewegt — ein Plan, der nur
+    // geöffnet wird, behielte seine verdrehten Köpfe für immer.
+    elemente: mitAusgerichtetenKoepfen(
+      (projekt?.elemente ?? [])
+        .map(wandleElement)
+        .map(vereinheitlicheRegalfarbe)
+        .map(teileSeitenAuf)
+        .map(beschrifteAktionsflaeche),
+    ),
   };
 }
 

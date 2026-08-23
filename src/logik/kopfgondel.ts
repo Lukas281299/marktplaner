@@ -1,3 +1,4 @@
+import { feinRunde } from './geometrie';
 import type { PlanElement } from '../typen/modell';
 
 /**
@@ -88,4 +89,46 @@ export function kannKopfgondel(element: PlanElement): boolean {
   // Nur beidseitige wire-tech-Züge: Ein Wandregal hat keinen freien Kopf,
   // und vor ein Kühlmöbel stellt niemand eine Kopfgondel.
   return element.form === 'wt100' && Boolean(element.beidseitig);
+}
+
+/**
+ * Setzt **jede** Kopfgondel auf die Stelle, die ihr Zug ihr vorgibt.
+ *
+ * Die Lage eines Kopfes wird abgeleitet und nicht mitgeführt. Das ist der
+ * Unterschied zwischen „bewegt sich meistens mit" und „sitzt". Mitführen
+ * hieße, an jeder Stelle daran zu denken, die etwas an einem Zug verändert –
+ * Ziehen, Tastatur, Ausrichten, Drehen, Verlängern –, und eine davon
+ * vergisst man. Genau so brachen Köpfe aus.
+ *
+ * Läuft über alle Elemente und ist damit O(n). Bei Plänen dieser Größe
+ * fällt das nicht ins Gewicht, und die Zusage ist es wert.
+ */
+export function mitAusgerichtetenKoepfen(elemente: PlanElement[]): PlanElement[] {
+  const zuege = new Map<string, PlanElement>();
+  for (const el of elemente) if (el.kopfgondeln) zuege.set(el.id, el);
+  if (zuege.size === 0) return elemente;
+
+  return elemente.map((el) => {
+    if (!el.kopfVon) return el;
+    const zug = zuege.get(el.kopfVon);
+    if (!zug) return el;
+    const seite: Kopfseite | null =
+      zug.kopfgondeln?.anfang === el.id
+        ? 'anfang'
+        : zug.kopfgondeln?.ende === el.id
+          ? 'ende'
+          : null;
+    if (!seite) return el;
+    const lage = kopflage(zug, seite);
+    // Unverändert lassen, was schon sitzt – sonst entstünde bei jedem
+    // Zeichendurchlauf ein neues Objekt und React zeichnete unnötig neu.
+    if (
+      Math.abs(el.x - lage.x) < 0.005 &&
+      Math.abs(el.y - lage.y) < 0.005 &&
+      el.drehung === lage.drehung
+    ) {
+      return el;
+    }
+    return { ...el, x: feinRunde(lage.x), y: feinRunde(lage.y), drehung: lage.drehung };
+  });
 }

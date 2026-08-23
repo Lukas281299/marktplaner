@@ -25,6 +25,8 @@ import type { Regalfeld } from '../typen/modell';
 export interface Gruppenspanne {
   von: number;
   bis: number;
+  /** Das Feld, an dem der Text hängt – der Anfang der Strecke im Bild. */
+  anker: number;
   text: string;
   /** Die eingestellte Schrifthöhe in cm, falls es eine gibt. */
   schrift?: number;
@@ -40,26 +42,43 @@ export interface Gruppenspanne {
  * Genauso endet sie am letzten Feld: Eine Angabe von fünf Feldern an einem
  * Zug mit dreien ist kein Fehler, den man dem Nutzer vorhalten müsste. Er hat
  * den Zug hinterher gekürzt.
+ *
+ * **Gezählt wird in Leserichtung des Plans.** „Ketchup über drei Felder"
+ * heißt: dieses Feld und die zwei rechts daneben – im Bild, nicht in der
+ * Achse des Möbels. Steht der Zug an der unteren Wand, läuft seine Achse
+ * andersherum; dann wird die Liste vorher umgedreht und hinterher zurück.
+ * Sonst reicht Ketchup nach links über die Mayonnaise.
+ *
+ * `von` und `bis` sind immer Nummern in der gespeicherten Liste, `von ≤ bis`.
+ * Welches der beiden den Text trägt, sagt `anker`.
  */
-export function gruppenspannen(felder: Regalfeld[]): Gruppenspanne[] {
+export function gruppenspannen(felder: Regalfeld[], rueckwaerts = false): Gruppenspanne[] {
+  const liste = rueckwaerts ? [...felder].reverse() : felder;
+  const zurueck = (i: number) => (rueckwaerts ? felder.length - 1 - i : i);
+
   const naechste = (ab: number) => {
-    for (let i = ab; i < felder.length; i++) {
-      if (felder[i].warengruppe?.text.trim()) return i;
+    for (let i = ab; i < liste.length; i++) {
+      if (liste[i].warengruppe?.text.trim()) return i;
     }
-    return felder.length;
+    return liste.length;
   };
 
   const spannen: Gruppenspanne[] = [];
-  for (let i = 0; i < felder.length; i++) {
-    const gruppe = felder[i].warengruppe;
+  for (let i = 0; i < liste.length; i++) {
+    const gruppe = liste[i].warengruppe;
     const text = gruppe?.text.trim();
     if (!text) continue;
 
     const gewuenscht = i + Math.max(1, Math.round(gruppe?.felder ?? 1)) - 1;
-    const grenze = Math.min(felder.length - 1, naechste(i + 1) - 1);
+    const grenze = Math.min(liste.length - 1, naechste(i + 1) - 1);
+    const bis = Math.min(gewuenscht, grenze);
+
+    const a = zurueck(i);
+    const b = zurueck(bis);
     spannen.push({
-      von: i,
-      bis: Math.min(gewuenscht, grenze),
+      von: Math.min(a, b),
+      bis: Math.max(a, b),
+      anker: a,
       text,
       schrift: gruppe?.schrift,
     });

@@ -843,6 +843,7 @@ function Seitenaufteilung({
                   element={element}
                   seite={welche}
                   feld={i}
+                  zeile={zeile}
                   mehrere={notizseiten.length > 1}
                 />
               ))}
@@ -910,7 +911,7 @@ function Kopfbeschriftung({ element, seite }: { element: PlanElement; seite: Kop
         <span className="kennzahl-wert">{kopf.name}</span>
       </div>
       <div style={{ display: 'flex' }}>
-        <Feldeingaben element={kopf} seite="unten" feld={0} mehrere={false} />
+        <Feldeingaben element={kopf} seite="unten" feld={0} zeile={0} mehrere={false} />
       </div>
     </div>
   );
@@ -927,11 +928,15 @@ function Feldeingaben({
   element,
   seite,
   feld,
+  zeile,
   mehrere,
 }: {
   element: PlanElement;
   seite: Seite;
+  /** Die Nummer in der gespeicherten Liste. */
   feld: number;
+  /** Die Nummer im Fenster – von links nach rechts im Plan gezählt. */
+  zeile: number;
   mehrere: boolean;
 }) {
   const felder = felderVon(element, seite);
@@ -947,12 +952,16 @@ function Feldeingaben({
         felder.map((f, j) => (j === feld ? { ...f, ...werte } : f)),
       );
 
-  // Deckt eine Beschriftung von weiter vorn dieses Feld schon ab? Dann steht
+  // Deckt eine Beschriftung von weiter links dieses Feld schon ab? Dann steht
   // hier kein zweites Eingabefeld – zwei Beschriftungen an derselben Stelle
   // wären eine Frage, die der Plan nicht beantworten kann.
-  const gedeckt = gruppenspannen(felder).find((sp) => feld > sp.von && feld <= sp.bis);
+  const gedeckt = gruppenspannen(felder, laeuftRueckwaerts(element.drehung)).find(
+    (sp) => feld >= sp.von && feld <= sp.bis && feld !== sp.anker,
+  );
   const gruppe = eintrag.warengruppe;
-  const rest = felder.length - feld;
+  // So viele Felder liegen von hier aus noch rechts im Plan – weiter kann
+  // eine Beschriftung nicht reichen.
+  const rest = felder.length - zeile;
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>

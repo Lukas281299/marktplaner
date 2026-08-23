@@ -89,3 +89,16 @@ export function grundflaecheVon(el: PlanElement): number {
 export function runde(wert: number): number {
   return Math.round(wert * 2) / 2;
 }
+
+/**
+ * Rundet eine Koordinate auf Zehntelmillimeter statt auf einen halben
+ * Zentimeter.
+ *
+ * Sonst zerstört das Runden genau das, worum es hier geht: Ein Zug von
+ * 633,30 cm hat seinen Mittelpunkt auf 316,65 – auf halbe Zentimeter
+ * geschoben wandert seine Anfangskante um anderthalb Millimeter. Auf dem
+ * Bildschirm sieht man das nicht, in einer Flucht von zehn Zügen schon.
+ */
+export function feinRunde(wert: number): number {
+  return Math.round(wert * 100) / 100;
+}
