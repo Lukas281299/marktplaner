@@ -1,4 +1,4 @@
-import { WT_GRAU, WT_GRAU_ALT } from '../daten/bibliothek';
+import { AKTION_TEXT, SAISON_TEXT, WT_GRAU, WT_GRAU_ALT } from '../daten/bibliothek';
 import { grundfelder } from '../logik/regalseiten';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
@@ -73,7 +73,39 @@ export function wandleProjekt(roh: unknown): Projekt {
     elemente: (projekt?.elemente ?? [])
       .map(wandleElement)
       .map(vereinheitlicheRegalfarbe)
-      .map(teileSeitenAuf),
+      .map(teileSeitenAuf)
+      .map(beschrifteAktionsflaeche),
+  };
+}
+
+/**
+ * Fassung 10: „Aktionsfläche" steht in der Fläche.
+ *
+ * Bis dahin bekam jedes Element den Namen seiner Vorlage als Beschriftung –
+ * bei einer Aktionsfläche also „Aktionsfläche 2 x 2 m". In zwei Metern Breite
+ * bleibt davon auf dem Bildschirm „Aktionsfl…" übrig, und die Maße stehen
+ * ohnehin am Element.
+ *
+ * Angefasst wird nur, was noch den Vorlagennamen trägt. Wer seine Fläche
+ * „Ostern" genannt hat, behält das: Eine Beschriftung, die jemand selbst
+ * geschrieben hat, gehört ihm.
+ */
+function beschrifteAktionsflaeche(element: PlanElement): PlanElement {
+  const vorlage = element.vorlageId ?? '';
+  const saison = vorlage === 'saisonflaeche';
+  if (!saison && !vorlage.startsWith('aktionsflaeche')) return element;
+
+  const text = saison ? SAISON_TEXT : AKTION_TEXT;
+  const alt = (element.beschriftung ?? '').trim();
+  if (alt !== '' && !alt.startsWith(text)) return element;
+  if (alt === text) return element;
+
+  return {
+    ...element,
+    beschriftung: text,
+    // War gar nichts zu sehen, wird es jetzt sichtbar. Eine ausgeblendete
+    // Beschriftung mit Text hat jemand ausgeblendet – das bleibt so.
+    beschriftungSichtbar: alt === '' ? true : element.beschriftungSichtbar,
   };
 }
 

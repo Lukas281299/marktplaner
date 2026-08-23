@@ -1010,6 +1010,11 @@ echte Maße.
 Jede Abteilung hat außerdem ein **freies Element**, dessen Maße man beliebig
 einstellen kann.
 
+In einer **Aktions- oder Saisonfläche** steht das Wort *Aktionsfläche* bzw.
+*Saisonfläche* mitten in der Fläche — so wie auf einem Marktplan. Wer die Zone
+genauer benennen will, überschreibt es unter *Beschriftung*: „Ostern",
+„Grillsaison", „Wein-Aktion".
+
 ### Drei Regeln, die man im Plan sieht
 
 **Das Achsmaß.** Jedes Regalfeld trägt ein Zeichen, an dem man seine Breite

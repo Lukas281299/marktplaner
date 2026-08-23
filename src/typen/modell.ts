@@ -723,6 +723,7 @@ export interface Projekt {
  *   7 – eigene Ebene für die Verkaufsfläche
  *   8 – ein Grauton für das ganze Trockensortiment
  *   9 – jede Gondelseite mit eigener Feldeinteilung
+ *  10 – „Aktionsfläche" steht in der Fläche
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -749,4 +750,9 @@ export interface Projekt {
  * einfach auf beide Seiten, samt der Notizen, die dort schon standen. Am Bild
  * ändert sich dadurch nichts.
  */
-export const SCHEMA_VERSION = 9;
+/**
+ * Fassung 10 schreibt „Aktionsfläche" in die Aktionsflächen. Bis dahin stand
+ * dort der Name der Vorlage samt Maßen, und der wurde in der Fläche
+ * abgeschnitten.
+ */
+export const SCHEMA_VERSION = 10;

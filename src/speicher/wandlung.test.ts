@@ -300,3 +300,48 @@ describe('Fassung 9: jede Gondelseite mit eigener Feldeinteilung', () => {
     expect(wandleProjekt(umgebaut).elemente[0].felderOben).toEqual([{ breite: 250 }]);
   });
 });
+
+describe('Fassung 10: „Aktionsfläche" steht in der Fläche', () => {
+  const flaeche = (zusatz: Record<string, unknown> = {}) => ({
+    id: 'el', vorlageId: 'aktionsflaeche', ebeneId: 'einrichtung', name: 'Aktionsfläche 2 x 2 m',
+    kategorie: 'aktion', x: 0, y: 0, breite: 200, tiefe: 200, drehung: 0, form: 'rechteck',
+    farbe: '#ffff99', beschriftung: 'Aktionsfläche 2 x 2 m', beschriftungSichtbar: true,
+    schriftgroesse: 12, gesperrt: false, reihenfolge: 0, beidseitig: false,
+    ...zusatz,
+  });
+
+  const erstes = (zusatz: Record<string, unknown> = {}) =>
+    wandleProjekt(alteFassung({ elemente: [flaeche(zusatz)] })).elemente[0];
+
+  it('kürzt den Vorlagennamen auf das eine Wort', () => {
+    // „Aktionsfläche 2 x 2 m" wird in zwei Metern Breite abgeschnitten, und
+    // die Maße stehen ohnehin am Element.
+    expect(erstes().beschriftung).toBe('Aktionsfläche');
+  });
+
+  it('lässt eine selbst geschriebene Beschriftung stehen', () => {
+    // Wer seine Fläche „Ostern" genannt hat, behält das.
+    expect(erstes({ beschriftung: 'Ostern' }).beschriftung).toBe('Ostern');
+  });
+
+  it('macht eine leere Beschriftung sichtbar', () => {
+    const neu = erstes({ beschriftung: '', beschriftungSichtbar: false });
+    expect(neu.beschriftung).toBe('Aktionsfläche');
+    expect(neu.beschriftungSichtbar).toBe(true);
+  });
+
+  it('lässt eine ausgeblendete Beschriftung ausgeblendet', () => {
+    // Ausgeblendet hat sie jemand von Hand – das bleibt so.
+    expect(erstes({ beschriftungSichtbar: false }).beschriftungSichtbar).toBe(false);
+  });
+
+  it('nennt die Saisonfläche beim eigenen Namen', () => {
+    const neu = erstes({ vorlageId: 'saisonflaeche', beschriftung: 'Saisonfläche' });
+    expect(neu.beschriftung).toBe('Saisonfläche');
+  });
+
+  it('fasst andere Möbel nicht an', () => {
+    expect(erstes({ vorlageId: 'palette-epal-quer', beschriftung: 'EPAL quer · 1,20 x 0,80 m' })
+      .beschriftung).toBe('EPAL quer · 1,20 x 0,80 m');
+  });
+});

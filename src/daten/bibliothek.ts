@@ -29,6 +29,17 @@ const OG_GRUEN = '#1a7a1a';
  * abheben, auf der sie stehen.
  */
 const AKTION_GELB = '#ffff99';
+
+/**
+ * Was in einer Aktionsfläche steht.
+ *
+ * Nicht der Name der Vorlage: „Aktionsfläche 2 x 2 m" wird in zwei Metern
+ * Breite abgeschnitten, und die Maße stehen ohnehin am Element. Auf dem
+ * Marktplan steht in so einer Zone das eine Wort – und wer will, schreibt
+ * „Ostern" oder „Grillsaison" darüber.
+ */
+export const AKTION_TEXT = 'Aktionsfläche';
+export const SAISON_TEXT = 'Saisonfläche';
 const PALETTE_GELB = '#cfc93f';
 const STAENDER_GELB = '#e0cf52';
 
@@ -850,11 +861,11 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   //   Viertelpalette       600 x 400 mm   (1/4 CHEP)
 
   // ---- Flächen
-  { id: 'aktionsflaeche', name: 'Aktionsfläche 2 x 2 m', kategorie: 'aktion', breite: 200, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen', hinweis: 'Zonenmarkierung, kein Möbel' },
-  { id: 'aktionsflaeche-3x2', name: 'Aktionsfläche 3 x 2 m', kategorie: 'aktion', breite: 300, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen' },
-  { id: 'aktionsflaeche-4x2', name: 'Aktionsfläche 4 x 2 m', kategorie: 'aktion', breite: 400, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen' },
-  { id: 'aktionsflaeche-frei', name: 'Aktionsfläche frei', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen', hinweis: 'Maße frei einstellbar' },
-  { id: 'saisonflaeche', name: 'Saisonfläche', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche', name: 'Aktionsfläche 2 x 2 m', kategorie: 'aktion', breite: 200, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen', hinweis: 'Zonenmarkierung, kein Möbel' },
+  { id: 'aktionsflaeche-3x2', name: 'Aktionsfläche 3 x 2 m', kategorie: 'aktion', breite: 300, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche-4x2', name: 'Aktionsfläche 4 x 2 m', kategorie: 'aktion', breite: 400, tiefe: 200, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen' },
+  { id: 'aktionsflaeche-frei', name: 'Aktionsfläche frei', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: AKTION_TEXT, gruppe: 'Flächen', hinweis: 'Maße frei einstellbar' },
+  { id: 'saisonflaeche', name: 'Saisonfläche', kategorie: 'aktion', breite: 300, tiefe: 300, hoehe: 0, form: 'rechteck', farbe: AKTION_GELB, standardBeschriftung: SAISON_TEXT, gruppe: 'Flächen' },
 
   // ---- Paletten
   { id: 'palette-epal-quer', name: 'EPAL quer · 1,20 x 0,80 m', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: 'Europalette, lange Seite zum Gang' },
