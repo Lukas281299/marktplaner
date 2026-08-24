@@ -5,6 +5,7 @@ import {
   gruppenZeilen,
   gruppensatz,
   gruppenspannen,
+  textImKasten,
 } from './warengruppe';
 import type { Regalfeld } from '../typen/modell';
 
@@ -183,5 +184,52 @@ describe('Beschriftung in die Strecke einpassen', () => {
   it('kommt mit einer Strecke ohne Breite zurecht', () => {
     // Kann beim Zeichnen vorkommen, bevor die Größe steht.
     expect(gruppensatz('Senf', 0, 20, miss).schrift).toBe(20);
+  });
+});
+
+describe('Text in einen Kasten setzen', () => {
+  /** Zehn Punkte je Zeichen bei Schrifthöhe 20 – linear wie eine echte Schrift. */
+  const miss = (text: string, schrift: number) => text.length * 10 * (schrift / 20);
+  const passt = (satz: { zeilen: string[]; schrift: number }, breite: number, hoehe: number) =>
+    satz.zeilen.every((z) => miss(z, satz.schrift) <= breite + 0.01) &&
+    satz.zeilen.length * satz.schrift * 1.2 <= hoehe + 0.01;
+
+  it('lässt einen passenden Text in voller Größe', () => {
+    const satz = textImKasten('Text', 400, 200, 30, miss);
+    expect(satz.schrift).toBe(30);
+    expect(satz.zeilen).toEqual(['Text']);
+  });
+
+  it('verkleinert, wenn der Umbruch zu hoch wird', () => {
+    // Der Fall, um den es geht: In die Breite passt es nach dem Umbruch, in
+    // die Höhe nicht mehr – zwei Zeilen sind doppelt so hoch wie eine.
+    const breite = 226;
+    const hoehe = 52;
+    const satz = textImKasten('Rampe frei halten', breite, hoehe, 37, miss);
+    expect(satz.schrift).toBeLessThan(37);
+    expect(passt(satz, breite, hoehe)).toBe(true);
+  });
+
+  it('nimmt lieber eine kleinere Zeile als zwei zu hohe', () => {
+    // In einem flachen, breiten Kasten sieht ein Umbruch schlechter aus als
+    // eine Nummer kleiner – und passt dort auch gar nicht hinein.
+    expect(textImKasten('Rampe frei halten', 226, 52, 37, miss).zeilen).toHaveLength(1);
+  });
+
+  it('hält den Text in seinem Kasten, in beide Richtungen', () => {
+    const faelle: [string, number, number][] = [
+      ['Rampe frei halten', 226, 52],
+      ['Hier später Bake-Off', 300, 40],
+      ['Kurz', 80, 30],
+      ['Ein sehr langer Hinweis über mehrere Wörter', 200, 120],
+    ];
+    for (const [text, breite, hoehe] of faelle) {
+      expect(passt(textImKasten(text, breite, hoehe, 40, miss), breite, hoehe)).toBe(true);
+    }
+  });
+
+  it('schrumpft auch hier nicht ins Unlesbare', () => {
+    const satz = textImKasten('Ein sehr langer Hinweis', 20, 6, 30, miss);
+    expect(satz.schrift).toBeGreaterThanOrEqual(KLEINSTE_SCHRIFT - 0.01);
   });
 });

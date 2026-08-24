@@ -3,7 +3,7 @@ import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 
-import { findeVorlage } from '../../daten/bibliothek';
+import { TEXTFELD_VORLAGE, findeVorlage } from '../../daten/bibliothek';
 import { bogenPunkte, entdoppele, taugtAlsUmriss } from '../../logik/bogen';
 import { buehneSteuerung } from '../../logik/buehne';
 import {
@@ -560,6 +560,16 @@ export function Zeichenflaeche() {
               drehung: treffer.winkel,
               gespiegelt: false,
             });
+            return;
+          }
+
+          // ------------------------------------------------------ Textfeld
+          // Ein Klick setzt eine Anmerkung an diese Stelle. Danach zurück
+          // zum Auswählen: Der neue Text ist ausgewählt, und rechts steht
+          // sein Feld – man will ihn ja sofort schreiben.
+          if (store0.werkzeug === 'textfeld') {
+            store0.fuegeElementHinzu(TEXTFELD_VORLAGE, anfang.x, anfang.y);
+            store0.setzeWerkzeug('auswahl');
             return;
           }
 
@@ -1503,6 +1513,11 @@ const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinwe
     titel: 'Verkaufsfläche markieren',
     hinweis:
       'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · das Werkzeug bleibt an, für die nächste Teilfläche',
+  },
+  textfeld: {
+    titel: 'Text einfügen',
+    hinweis:
+      'Auf die Stelle klicken – der Text steht danach rechts unter „Beschriftung". Wie groß er im Plan steht, sagt die Größe des Kastens: einfach am Rahmen ziehen.',
   },
   messen: {
     titel: 'Maß eintragen',

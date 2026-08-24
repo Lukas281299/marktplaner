@@ -123,6 +123,14 @@ export const SymbolVerkaufsflaeche = () => (
   </Zeichnung>
 );
 
+/** Ein freier Text im Plan: das große T über zwei Schreibzeilen. */
+export const SymbolTextfeld = () => (
+  <Zeichnung>
+    <path d="M6 5h12M12 5v9" />
+    <path d="M4 18h16M4 21h10" strokeWidth={1} />
+  </Zeichnung>
+);
+
 export const SymbolMassband = () => (
   <Zeichnung>
     <path d="M3 9h18v6H3z" />

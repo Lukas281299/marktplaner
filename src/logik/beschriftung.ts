@@ -31,10 +31,15 @@ export const SCHRIFT_FLAECHE = 45;
  * Ab wieviel Bildpunkten eine Beschriftung noch lesbar ist.
  *
  * Darunter wird sie nicht klein gezeichnet, sondern gar nicht: Ein Text von
- * vier Bildpunkten ist kein Text mehr, sondern ein grauer Fleck, und ein Plan
+ * drei Bildpunkten ist kein Text mehr, sondern ein grauer Fleck, und ein Plan
  * voller grauer Flecken ist unruhiger als einer ohne.
+ *
+ * Fünf und nicht sieben: Die Schrift bleibt, wie sie ist, aber sie soll auch
+ * aus etwas mehr Abstand noch dastehen. Eine Feldnotiz von 22 cm erscheint
+ * damit ab Zoom 23 % statt erst ab 32 % — das ist der Unterschied zwischen
+ * „eine Abteilung im Blick" und „drei Regale im Blick".
  */
-const LESBAR_AB = 7;
+const LESBAR_AB = 5;
 
 /**
  * Läuft dieses Möbel im Plan **von rechts nach links**?

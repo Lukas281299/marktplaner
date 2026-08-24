@@ -39,6 +39,27 @@ const AKTION_GELB = '#ffff99';
  * „Ostern" oder „Grillsaison" darüber.
  */
 export const AKTION_TEXT = 'Aktionsfläche';
+
+/**
+ * Die Vorlage hinter dem Textwerkzeug in der Kopfzeile.
+ *
+ * Kein Möbel und keine Zone – eine Anmerkung im Plan: „Rampe frei halten",
+ * „hier später Bake-Off". Sie steht nicht in der Bibliothek, weil man sie
+ * dort nicht sucht; sie hängt am Werkzeug.
+ */
+export const TEXTFELD_VORLAGE: BibliothekEintrag = {
+  id: 'textfeld',
+  name: 'Textfeld',
+  kategorie: 'ausstattung',
+  breite: 240,
+  tiefe: 60,
+  hoehe: 0,
+  form: 'textfeld',
+  farbe: 'rgba(0,0,0,0)',
+  standardBeschriftung: 'Text',
+  gruppe: 'Beschriftung',
+  hinweis: 'Freier Text im Plan – die Größe des Kastens bestimmt die Schrift',
+};
 export const SAISON_TEXT = 'Saisonfläche';
 const PALETTE_GELB = '#cfc93f';
 const STAENDER_GELB = '#e0cf52';

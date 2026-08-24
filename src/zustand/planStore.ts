@@ -91,7 +91,8 @@ export type Werkzeug =
   | 'oeffnung'
   | 'messen'
   | 'grundrissZeichnen'
-  | 'verkaufsflaeche';
+  | 'verkaufsflaeche'
+  | 'textfeld';
 
 /**
  * Was außer Elementen noch ausgewählt sein kann.

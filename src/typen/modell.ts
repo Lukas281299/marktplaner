@@ -75,6 +75,14 @@ export type Grundform =
    * sich der Größe an, damit es beim Ziehen lesbar bleibt.
    */
   | 'aktionsflaeche'
+  /**
+   * Ein freies Textfeld: eine Anmerkung im Plan, kein Möbel.
+   *
+   * Gezeichnet wird nur der Text; der Kasten darum ist nur beim Bearbeiten
+   * zu sehen. Wie groß der Text steht, sagt die Größe des Kastens — man
+   * zieht ihn sich zurecht, wie die Aktionsfläche.
+   */
+  | 'textfeld'
   // Gebäude und Ausstattung. Diese Symbole stehen für nichts, was man kaufen
   // kann – sie sagen, was im Raum steht, und müssen deshalb auf einen Blick
   // lesbar sein. Eine Treppe soll wie eine Treppe aussehen.

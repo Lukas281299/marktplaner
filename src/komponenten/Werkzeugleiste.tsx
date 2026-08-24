@@ -21,6 +21,7 @@ import {
   SymbolGruppeAufheben,
   SymbolGruppieren,
   SymbolMassband,
+  SymbolTextfeld,
   SymbolRaum,
   SymbolTuer,
   SymbolUmriss,
@@ -374,6 +375,13 @@ export function Werkzeugleiste() {
 
           <span className="trenner" />
 
+          <button
+            className={`knopf${werkzeug === 'textfeld' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'textfeld' ? 'auswahl' : 'textfeld')}
+            title="Freien Text in den Plan setzen – auf die Stelle klicken, Text danach rechts eintragen"
+          >
+            <SymbolTextfeld /> Text
+          </button>
           <button
             className={`knopf${werkzeug === 'messen' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'messen' ? 'auswahl' : 'messen')}

@@ -173,6 +173,39 @@ export function gruppensatz(
 }
 
 /**
+ * Setzt einen Text in ein Rechteck – passend in **beide** Richtungen.
+ *
+ * `gruppensatz` sorgt für die Breite; hier kommt die Höhe dazu. Nötig, weil
+ * das Umbrechen selbst Höhe kostet: Ein Text, der in zwei Zeilen passt, ist
+ * doppelt so hoch wie vorher und ragt sonst unten aus seinem Kasten.
+ *
+ * Gebraucht überall dort, wo die Größe des Möbels die Schrift vorgibt statt
+ * einer Einstellung – beim freien Textfeld und beim Namen einer
+ * Aktionsfläche. Man zieht den Kasten und sieht, was passiert.
+ */
+export function textImKasten(
+  text: string,
+  breite: number,
+  hoehe: number,
+  schrift: number,
+  messen: (text: string, schrift: number) => number,
+  zeilenabstand = 1.2,
+): Gruppensatz {
+  let satz = gruppensatz(text, breite, schrift, messen);
+
+  for (let versuch = 0; versuch < 3; versuch++) {
+    const gebraucht = satz.zeilen.length * satz.schrift * zeilenabstand;
+    if (gebraucht <= hoehe || gebraucht <= 0 || hoehe <= 0) break;
+
+    const naechste = Math.max(KLEINSTE_SCHRIFT, (satz.schrift * hoehe) / gebraucht);
+    if (naechste >= satz.schrift - 0.01) break;
+    satz = gruppensatz(text, breite, naechste, messen);
+  }
+
+  return satz;
+}
+
+/**
  * Bricht eine Beschriftung auf die Breite ihrer Strecke um.
  *
  * Umbrüche von Hand gelten unverändert – wer selbst trennt, weiß besser, wo.

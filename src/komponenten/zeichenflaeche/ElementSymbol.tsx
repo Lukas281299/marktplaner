@@ -19,6 +19,7 @@ import {
   GRUPPE_NORMAL,
   gruppensatz,
   gruppenspannen,
+  textImKasten,
 } from '../../logik/warengruppe';
 import type { Grundform, PlanElement, Regalfeld } from '../../typen/modell';
 
@@ -458,6 +459,50 @@ export function zeichneWarengruppen(
 }
 
 /**
+ * Schreibt ein freies Textfeld in den Plan.
+ *
+ * Nur den Text: Der Kasten darum ist eine Hilfe beim Setzen und gehört nicht
+ * in den Plan. Wie groß der Text steht, sagt die Größe des Kastens — das ist
+ * dieselbe Regel wie bei der Aktionsfläche und kommt ohne eine weitere
+ * Einstellung aus: Man zieht ihn sich zurecht und sieht dabei, was passiert.
+ */
+function zeichneTextfeld(
+  ctx: Konva.Context,
+  element: PlanElement,
+  b: number,
+  t: number,
+  zoom: number,
+) {
+  const text = (element.beschriftung ?? '').trim();
+  if (!element.beschriftungSichtbar || text === '' || b <= 0 || t <= 0) return;
+
+  const messen = (inhalt: string, schrift: number) => {
+    ctx.setAttr('font', `${schrift}px sans-serif`);
+    return typeof ctx.measureText === 'function'
+      ? ctx.measureText(inhalt).width
+      : inhalt.length * schrift * 0.55;
+  };
+
+  // Der Kasten gibt die Schrift vor – in beide Richtungen.
+  const satz = textImKasten(text, b * 0.94, t * 0.86, t * 0.62, messen);
+  if (satz.zeilen.length === 0 || !lesbar(satz.schrift, zoom)) return;
+
+  const zeilenhoehe = satz.schrift * 1.2;
+  const oben = t / 2 - (satz.zeilen.length * zeilenhoehe) / 2;
+
+  ctx.setAttr('font', `${satz.schrift}px sans-serif`);
+  ctx.setAttr('fillStyle', 'rgba(24,32,44,0.92)');
+  ctx.setAttr('textBaseline', 'top');
+  lesbarerBlock(ctx, laeuftRueckwaerts(element.drehung), b / 2, t / 2, () => {
+    ctx.setAttr('textAlign', 'center');
+    satz.zeilen.forEach((zeile, i) => {
+      ctx.fillText(zeile, b / 2, oben + i * zeilenhoehe);
+    });
+    ctx.setAttr('textAlign', 'left');
+  });
+}
+
+/**
  * Größte und kleinste Schrift einer Aktionsfläche, in cm.
  *
  * Die Fläche zieht man sich zurecht — zwei Meter im Quadrat oder acht mal
@@ -523,9 +568,10 @@ export function zeichneFlaechenangaben(
   const text = (element.beschriftung ?? '').trim();
   if (!element.beschriftungSichtbar || text === '') return;
 
-  const satz = gruppensatz(
+  const satz = textImKasten(
     text,
     b - 2 * rand,
+    t * 0.5,
     Math.min(FLAECHE_NAME_GROSS, t * 0.3, b * 0.3),
     messen,
   );
@@ -1707,7 +1753,18 @@ export function ElementSymbol({
       rotation={element.drehung}
       draggable={ziehbar}
       fill={element.farbe}
-      stroke={ausgewaehlt ? '#0a84ff' : 'rgba(30,40,52,0.55)'}
+      // Ein Textfeld hat keinen Umriss – im Plan steht dort nur der Text.
+      // Beim Auswählen wird sein Kasten sichtbar, damit man ihn fassen und
+      // ziehen kann; sonst wüsste niemand, woran er ziehen soll.
+      stroke={
+        element.form === 'textfeld'
+          ? ausgewaehlt
+            ? '#0a84ff'
+            : 'rgba(0,0,0,0)'
+          : ausgewaehlt
+            ? '#0a84ff'
+            : 'rgba(30,40,52,0.55)'
+      }
       strokeWidth={(ausgewaehlt ? 2 : 1) / zoom}
       opacity={element.gesperrt ? 0.7 : 1}
       shadowForStrokeEnabled={false}
@@ -1781,6 +1838,8 @@ export function ElementSymbol({
         if (element.form === 'aktionsflaeche') {
           // Eine Zone hat keine Felder. Sie trägt ihre eigenen Angaben.
           zeichneFlaechenangaben(ctx, element, b, t, zoom);
+        } else if (element.form === 'textfeld') {
+          zeichneTextfeld(ctx, element, b, t, zoom);
         } else {
           zeichneFeldnotizen(ctx, element, b, t, zoom);
           zeichneWarengruppen(ctx, element, b, t, zoom);
@@ -1811,9 +1870,9 @@ export function ElementBeschriftung({
   erzwungen?: boolean;
 }) {
   if ((!element.beschriftungSichtbar && !erzwungen) || !element.beschriftung.trim()) return null;
-  // Eine Aktionsfläche schreibt ihren Namen selbst – passend zu ihrer Größe
-  // und zusammen mit ihren Zahlen. Ein zweiter Text läge darüber.
-  if (element.form === 'aktionsflaeche') return null;
+  // Aktionsfläche und Textfeld schreiben sich selbst – passend zu ihrer
+  // Größe. Ein zweiter Text läge darüber.
+  if (element.form === 'aktionsflaeche' || element.form === 'textfeld') return null;
 
   const schrift = element.schriftgroesse / zoom;
   // Zu kleine Schrift auf dem Bildschirm ist unleserlich – dann lieber weglassen.

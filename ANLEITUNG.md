@@ -69,7 +69,7 @@ Plan**: Sie haben eine feste Größe *in der Zeichnung* und schrumpfen beim
 Herauszoomen mit. Sie können den Plan dadurch nie zudecken.
 
 Der Preis: In der Übersicht über den ganzen Markt werden sie zu klein zum
-Lesen und blenden sich dann aus. Ab etwa **Zoom 25 %** sind sie wieder da.
+Lesen und blenden sich dann aus. Ab etwa **Zoom 18 %** sind sie wieder da.
 
 Anders die **Werkzeuge**: der Abstand, der beim Ziehen eines Regals
 eingeblendet wird, die Kantenlänge an einem Eckpunkt, das Maß einer Wand, die
@@ -524,7 +524,7 @@ anderen gegenüberstehen.
 
 > Die Notizen gehören zur Zeichnung und schrumpfen beim Herauszoomen mit. In
 > der Übersicht über den ganzen Markt sind sie deshalb nicht zu sehen; ab
-> etwa **Zoom 35 %** stehen sie da.
+> etwa **Zoom 23 %** stehen sie da.
 
 **Gedreht wird mitgedreht — aber lesbar.** Die Beschriftung gehört zum Möbel
 und dreht sich mit ihm: Sie bleibt in ihrem Feld und unter ihrer Seite. Steht
@@ -768,6 +768,25 @@ den Haken weg und setzt eine Kopfgondel von Hand.
 unter *Regale → Kopfgondeln*, gerade und rund. Damit auch sie mitwandern,
 markierst du Zug und Kopf zusammen und drückst **Strg + G**. Danach verhalten
 sie sich genau wie die angehakten.
+
+---
+
+### Freier Text im Plan
+
+Oben in der Werkzeugleiste steht neben *Maß* der Knopf **Text**. Ein Klick auf
+die Stelle setzt eine Anmerkung in den Plan — „Rampe frei halten", „hier später
+Bake-Off", „Bestand prüfen". Danach schaltet das Werkzeug von selbst zurück
+aufs Auswählen, und der neue Text ist ausgewählt: Du schreibst ihn rechts unter
+*Beschriftung*.
+
+Ein Textfeld hat **keinen Rahmen im Plan** — dort steht nur der Text. Sein
+Kasten wird sichtbar, sobald du ihn auswählst; daran fasst du ihn zum
+Verschieben und Ziehen.
+
+**Die Größe des Kastens ist die Größe der Schrift.** Ziehst du ihn größer,
+wird der Text größer mit, und er passt sich immer in beide Richtungen ein: Er
+bricht um, wenn er zu breit wird, und wird kleiner, wenn er dann zu hoch wäre.
+Eine eigene Einstellung für die Schriftgröße braucht es dadurch nicht.
 
 ---
 
