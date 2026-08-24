@@ -598,49 +598,56 @@ Die folgenden Felder zeigen statt eines Eingabefelds den Hinweis
 *↳ Ketchup*. Zwei Beschriftungen an derselben Stelle kann es also nicht geben:
 Schreibst du mitten in eine Strecke etwas Neues, endet die vorige dort.
 
-### Die Sortimentsliste
+### Warengruppen zuordnen
 
-Statt jeden Namen zu tippen, greifst du auf die **Sortimentsliste** zu: Neben
-jedem Warengruppen-Feld steht der Knopf **☰**. Er klappt die Liste auf, in drei
-Stufen — Abteilung, Warengruppe, Sortiment:
+Oben in der Leiste stehen unter *Ansicht* zwei Reiter für die linke Spalte:
+**Möbel** und **Warengruppen**. Der zweite zeigt die Sortimentsliste des
+Marktes in drei Stufen — Abteilung, Warengruppe, Sortiment.
 
-```
-BACKWAREN                          1/2
-  ▾ ● Bake Off
-      ● Croissants
-      ● Laugengebäck
-    ● Backwaren Bedienung
-```
+**Zuordnen geht in zwei Klicks:**
 
-Angeklickt wird auf der Höhe, auf der du gerade denkst: mal die Warengruppe
-über sechs Meter, mal ein einzelnes Sortiment über einem. Tippen geht
-weiterhin — das Feld daneben nimmt jeden Text, und beim Schreiben schlägt der
-Browser passende Namen vor.
+1. Einen Namen in der Liste anklicken. Er wird aufgenommen und steht oben in
+   der Spalte.
+2. Im Plan auf die Meter klicken, die er bekommen soll — einen oder viele
+   hintereinander. Der Name wird jedes Mal in genau das Feld geschrieben, auf
+   das du geklickt hast; bei einer Gondel in die Seite, die du triffst.
 
-**Grün steht schon im Plan, rot fehlt noch.** Damit gehst du am Ende einer
-Planung die Liste durch und siehst, ob etwas vergessen wurde. Rechts neben
-jeder Abteilung steht, wie viele ihrer Warengruppen schon stehen.
+**Esc** legt den Namen wieder weg. Solange einer aufgenommen ist, wählt ein
+Klick kein Möbel aus — dafür erst weglegen.
 
-Zwei Regeln dahinter:
+Von Hand geht weiterhin alles: Das Feld *Warengruppe* im Eigenschaftenfenster
+nimmt jeden Text.
 
-- Schreibst du eine **Warengruppe** in den Plan, gelten alle ihre Sortimente
-  als platziert — „Molkereiprodukte" über sechs Meter heißt nicht, dass die
-  Butter vergessen wurde, sondern dass sie nicht einzeln aufgeführt ist.
+**Grün steht schon im Plan, rot fehlt noch.** Rechts neben jeder Abteilung
+steht, wie viele ihrer Warengruppen schon stehen. Damit gehst du am Ende die
+Liste durch und siehst, ob etwas vergessen wurde. Zwei Regeln dahinter:
+
+- Steht eine **Warengruppe** im Plan, gelten alle ihre Sortimente als
+  platziert — „Molkereiprodukte" über sechs Meter heißt nicht, dass die Butter
+  vergessen wurde.
 - Stehen umgekehrt **alle Sortimente** einzeln da, wird die Warengruppe grün.
 
-**Verglichen wird über den Text.** Wer „Babypflege" von Hand schreibt, hat
-Babypflege platziert, ganz ohne die Liste. Und wer zwei Namen auf einen Meter
-schreibt — „Babypflege, Windeln" —, hat beide platziert.
+Verglichen wird über den **Text**: Wer „Babypflege" von Hand schreibt, hat
+Babypflege platziert, und wer zwei Namen auf einen Meter schreibt, beide.
 
-Was in keiner Liste steht, nimmst du mit einem Klick auf **„… aufnehmen"**
-darin auf; beim nächsten Mal steht es da.
+#### Die Liste pflegen
+
+Der Stift **✎** oben im Reiter schaltet die Bearbeitung ein. Danach steht an
+jeder Zeile:
+
+| Zeichen | Wirkung |
+|---|---|
+| **✎** | umbenennen |
+| **+** | darunter etwas anlegen — an der Abteilung eine Warengruppe, an der Warengruppe ein Sortiment |
+| **×** | entfernen, mit allem darunter |
+
+Ganz unten legt **+ Abteilung** eine neue an.
 
 #### Die eigene Liste laden
 
 Ohne eigene Liste steht ein **allgemeiner Anfang** bereit. Die Sortimentsliste
 eines Marktes gehört dem Markt und nicht dem Programm — deshalb liegt sie
-nicht darin, sondern wird geladen: ohne Auswahl rechts unter **Sortiment** →
-*Sortimentsliste laden*.
+nicht darin, sondern wird geladen: unten im Reiter *Sortimentsliste laden*.
 
 Erwartet wird eine **JSON-Datei** oder eine **Tabelle mit drei Spalten**
 (Abteilung; Warengruppe; Sortiment), wie sie jedes Tabellenprogramm ausgibt.
@@ -648,7 +655,7 @@ Leere Zellen übernehmen den Wert der Zeile darüber.
 
 > Die geladene Liste bleibt **auf diesem Rechner** und wandert nicht in die
 > Planung. Auf einem zweiten Rechner lädst du sie einmal nach — genau wie die
-> Favoriten.
+> Favoriten. Auch alles, was du über den Stift änderst, bleibt dort.
 
 **Der Name wird nie breiter als sein Möbel.** Zwei Mittel sorgen dafür, in
 dieser Reihenfolge: Er **bricht um**, an den Wortgrenzen und passend zur Breite

@@ -64,6 +64,7 @@ export function Werkzeugleiste() {
 
   const syncZustand = useSyncStore((s) => s.zustand);
   const werkzeug = usePlanStore((s) => s.werkzeug);
+  const linkerReiter = usePlanStore((s) => s.linkerReiter);
   /** Steckt in der Auswahl mindestens ein Regal, das zu einer Gruppe gehört? */
   const auswahlHatGruppe = usePlanStore((s) =>
     s.projekt.elemente.some((el) => s.auswahl.includes(el.id) && el.gruppeId),
@@ -295,6 +296,27 @@ export function Werkzeugleiste() {
 
         {/* ------------------------------------------- Zeile 3: Grundriss */}
         <div className="werkzeugleiste-zeile">
+          <span className="leisten-titel">Ansicht</span>
+
+          {/* Zwei Reiter für die linke Spalte: die Möbel, aus denen der Markt
+              besteht, und die Warengruppen, die darin liegen. Beide brauchen
+              die ganze Spalte, gleichzeitig braucht man sie nie. */}
+          <button
+            className={`knopf${linkerReiter === 'bibliothek' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeLinkenReiter('bibliothek')}
+            title="Die Möbel, aus denen der Markt besteht"
+          >
+            Möbel
+          </button>
+          <button
+            className={`knopf${linkerReiter === 'warengruppen' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeLinkenReiter('warengruppen')}
+            title="Abteilungen, Warengruppen und Sortimente – anklicken und im Plan zuordnen"
+          >
+            Warengruppen
+          </button>
+
+          <span className="trenner" />
           <span className="leisten-titel">Grundriss</span>
 
           <button

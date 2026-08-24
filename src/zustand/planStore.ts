@@ -31,6 +31,7 @@ import {
 } from '../speicher/projektArchiv';
 import { STANDARD_SORTIMENT, type Sortimentsliste } from '../daten/warengruppen';
 import { mitAufgenommenem } from '../logik/sortiment';
+import { feldUnterPunkt } from '../logik/feldtreffer';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -145,6 +146,22 @@ interface PlanStore {
    * geladene Liste gilt der allgemeine Anfang aus `daten/warengruppen.ts`.
    */
   sortiment: Sortimentsliste;
+  /**
+   * Die Warengruppe, die gerade zugeordnet wird – oder nichts.
+   *
+   * Solange hier ein Name steht, schreibt ein Klick auf ein Möbel ihn in das
+   * getroffene Feld, statt das Möbel auszuwählen. Ein Pinsel eben: einmal
+   * aufnehmen, dann so viele Meter bestreichen, wie man will.
+   */
+  warengruppenPinsel: string | null;
+  /**
+   * Welcher Reiter links offen ist: die Möbel oder die Warengruppen.
+   *
+   * Beides braucht die ganze Spalte – eine Bibliothek mit zehn Abteilungen
+   * und eine Sortimentsliste mit dreihundert Namen. Deshalb teilen sie sich
+   * den Platz, statt sich zu drängeln.
+   */
+  linkerReiter: 'bibliothek' | 'warengruppen';
   ansicht: Ansicht;
   /** Erst `true`, wenn aus der Datenbank geladen wurde. */
   geladen: boolean;
@@ -170,6 +187,19 @@ interface PlanStore {
   setzeSortimentsliste(liste: Sortimentsliste, speichern?: boolean): void;
   /** Nimmt einen Namen in die Liste auf – tut nichts, wenn er schon drinsteht. */
   nimmSortimentAuf(name: string): void;
+  /** Nimmt eine Warengruppe zum Zuordnen auf – oder legt sie wieder weg. */
+  setzeWarengruppenPinsel(name: string | null): void;
+  /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
+  setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
+  /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
+  pflegeSortiment(liste: Sortimentsliste): void;
+  /**
+   * Schreibt die aufgenommene Warengruppe in das Feld unter diesem Punkt.
+   *
+   * Gibt zurück, ob etwas geschrieben wurde – der Aufrufer sagt es in der
+   * Statusleiste weiter.
+   */
+  ordneWarengruppeZu(elementId: string, punkt: Punkt): boolean;
   setzeFavoriten(ids: string[]): void;
   /** Markiert eine Vorlage als Favorit oder nimmt die Markierung zurück. */
   schalteFavorit(vorlageId: string): void;
@@ -311,6 +341,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   eigeneVorlagen: [],
   favoriten: [],
   sortiment: STANDARD_SORTIMENT,
+  warengruppenPinsel: null,
+  linkerReiter: 'bibliothek',
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
   geladenerStand: null,
@@ -354,6 +386,49 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   setzeSortimentsliste(liste, speichern = false) {
     set({ sortiment: liste });
     if (speichern) void speichereSortiment(liste);
+  },
+
+  setzeLinkenReiter(reiter) {
+    // Beim Wegschalten den Pinsel weglegen: Ein Klick auf ein Regal soll
+    // nicht Wochen später noch eine Warengruppe schreiben.
+    set(reiter === 'warengruppen' ? { linkerReiter: reiter } : { linkerReiter: reiter, warengruppenPinsel: null });
+  },
+
+  pflegeSortiment(liste) {
+    set({ sortiment: liste });
+    void speichereSortiment(liste);
+  },
+
+  setzeWarengruppenPinsel(name) {
+    // Beim Aufnehmen die Auswahl loslassen: Sonst stünden die Anfasser eines
+    // Regals im Weg, während man Meter für Meter bestreicht.
+    set(name ? { warengruppenPinsel: name, auswahl: [], sonderauswahl: null } : { warengruppenPinsel: null });
+  },
+
+  ordneWarengruppeZu(elementId, punkt) {
+    const text = get().warengruppenPinsel;
+    if (!text) return false;
+
+    const element = get().projekt.elemente.find((el) => el.id === elementId);
+    if (!element) return false;
+
+    const treffer = feldUnterPunkt(element, punkt, 5);
+    if (!treffer) return false;
+
+    const felder = felderVon(element, treffer.seite);
+    if (felder.length === 0) return false;
+
+    get().schnappschuss();
+    get().setzeSeitenfelder(
+      elementId,
+      treffer.seite,
+      felder.map((feld, i) =>
+        i === treffer.feld
+          ? { ...feld, warengruppe: { ...feld.warengruppe, text, felder: feld.warengruppe?.felder ?? 1 } }
+          : feld,
+      ),
+    );
+    return true;
   },
 
   nimmSortimentAuf(name) {

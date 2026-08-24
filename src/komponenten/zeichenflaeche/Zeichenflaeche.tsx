@@ -856,6 +856,20 @@ export function Zeichenflaeche() {
     if (e.evt.button !== 0 || leertasteRef.current) return;
     e.cancelBubble = true;
     const store = usePlanStore.getState();
+
+    // Ist eine Warengruppe aufgenommen, schreibt der Klick sie in den
+    // getroffenen Meter, statt das Möbel auszuwählen. So lassen sich mehrere
+    // Meter hintereinander bestreichen, ohne zwischendurch etwas umzustellen.
+    if (store.warengruppenPinsel) {
+      const punkt = planPunkt(e.evt.clientX, e.evt.clientY);
+      const geschrieben = store.ordneWarengruppeZu(id, punkt);
+      melde(
+        geschrieben
+          ? `„${store.warengruppenPinsel}" zugeordnet`
+          : 'Hier gibt es kein Feld für eine Warengruppe',
+      );
+      return;
+    }
     // Ein Klick nimmt die ganze Gruppe – wer eine Gondel anfasst, will sie im
     // Ganzen schieben. Mit Alt greift man ein einzelnes Feld heraus.
     const ids = e.evt.altKey ? [id] : mitgliederVon(store.projekt.elemente, id);

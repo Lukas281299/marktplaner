@@ -201,6 +201,157 @@ export function mitAufgenommenem(
   };
 }
 
+// ---------------------------------------------------------------- Pflegen
+
+/**
+ * Die Liste ändern: umbenennen, anlegen, entfernen.
+ *
+ * Alle drei Stufen, mit derselben Handschrift: Es entsteht immer eine **neue**
+ * Liste, die alte bleibt unangetastet. Das kostet ein paar Zeilen mehr und
+ * spart die Fehlersorte, bei der eine Änderung an einer Stelle woanders
+ * durchschlägt.
+ *
+ * Was es nicht gibt, wird nicht angelegt: Wer eine Warengruppe in einer
+ * Abteilung umbenennt, die es nicht mehr gibt, bekommt die Liste zurück, wie
+ * sie war. Ein stillschweigend neu angelegter Eintrag wäre schlimmer als
+ * nichts – man sucht ihn dann an der falschen Stelle.
+ */
+
+/** Eine Abteilung anlegen. Ein Name, den es schon gibt, wird nicht verdoppelt. */
+export function mitAbteilung(liste: Sortimentsliste, name: string): Sortimentsliste {
+  const sauber = name.trim();
+  if (!sauber || liste.abteilungen.some((a) => a.name === sauber)) return liste;
+  return { abteilungen: [...liste.abteilungen, { name: sauber, warengruppen: [] }] };
+}
+
+/** Eine Abteilung mitsamt allem darunter entfernen. */
+export function ohneAbteilung(liste: Sortimentsliste, name: string): Sortimentsliste {
+  return { abteilungen: liste.abteilungen.filter((a) => a.name !== name) };
+}
+
+/** Eine Abteilung umbenennen. */
+export function umbenannteAbteilung(
+  liste: Sortimentsliste,
+  alt: string,
+  neu: string,
+): Sortimentsliste {
+  const sauber = neu.trim();
+  if (!sauber) return liste;
+  return {
+    abteilungen: liste.abteilungen.map((a) => (a.name === alt ? { ...a, name: sauber } : a)),
+  };
+}
+
+/** Eine Warengruppe in einer Abteilung anlegen. */
+export function mitWarengruppe(
+  liste: Sortimentsliste,
+  abteilung: string,
+  name: string,
+): Sortimentsliste {
+  const sauber = name.trim();
+  if (!sauber) return liste;
+  return {
+    abteilungen: liste.abteilungen.map((a) =>
+      a.name === abteilung && !a.warengruppen.some((w) => w.name === sauber)
+        ? { ...a, warengruppen: [...a.warengruppen, { name: sauber, sortimente: [] }] }
+        : a,
+    ),
+  };
+}
+
+/** Eine Warengruppe mitsamt ihren Sortimenten entfernen. */
+export function ohneWarengruppe(
+  liste: Sortimentsliste,
+  abteilung: string,
+  name: string,
+): Sortimentsliste {
+  return {
+    abteilungen: liste.abteilungen.map((a) =>
+      a.name === abteilung ? { ...a, warengruppen: a.warengruppen.filter((w) => w.name !== name) } : a,
+    ),
+  };
+}
+
+/** Eine Warengruppe umbenennen. */
+export function umbenannteWarengruppe(
+  liste: Sortimentsliste,
+  abteilung: string,
+  alt: string,
+  neu: string,
+): Sortimentsliste {
+  const sauber = neu.trim();
+  if (!sauber) return liste;
+  return {
+    abteilungen: liste.abteilungen.map((a) =>
+      a.name === abteilung
+        ? {
+            ...a,
+            warengruppen: a.warengruppen.map((w) => (w.name === alt ? { ...w, name: sauber } : w)),
+          }
+        : a,
+    ),
+  };
+}
+
+/** Ein Sortiment in einer Warengruppe anlegen. */
+export function mitSortiment(
+  liste: Sortimentsliste,
+  abteilung: string,
+  gruppe: string,
+  name: string,
+): Sortimentsliste {
+  const sauber = name.trim();
+  if (!sauber) return liste;
+  return aendereGruppe(liste, abteilung, gruppe, (w) =>
+    w.sortimente.includes(sauber) ? w : { ...w, sortimente: [...w.sortimente, sauber] },
+  );
+}
+
+/** Ein Sortiment entfernen. */
+export function ohneSortiment(
+  liste: Sortimentsliste,
+  abteilung: string,
+  gruppe: string,
+  name: string,
+): Sortimentsliste {
+  return aendereGruppe(liste, abteilung, gruppe, (w) => ({
+    ...w,
+    sortimente: w.sortimente.filter((s) => s !== name),
+  }));
+}
+
+/** Ein Sortiment umbenennen. */
+export function umbenanntesSortiment(
+  liste: Sortimentsliste,
+  abteilung: string,
+  gruppe: string,
+  alt: string,
+  neu: string,
+): Sortimentsliste {
+  const sauber = neu.trim();
+  if (!sauber) return liste;
+  return aendereGruppe(liste, abteilung, gruppe, (w) => ({
+    ...w,
+    sortimente: w.sortimente.map((s) => (s === alt ? sauber : s)),
+  }));
+}
+
+/** Der gemeinsame Weg zu einer Warengruppe – die drei Sortimentsschritte teilen ihn. */
+function aendereGruppe(
+  liste: Sortimentsliste,
+  abteilung: string,
+  gruppe: string,
+  wandeln: (w: Sortimentsgruppeartig) => Sortimentsgruppeartig,
+): Sortimentsliste {
+  return {
+    abteilungen: liste.abteilungen.map((a) =>
+      a.name === abteilung
+        ? { ...a, warengruppen: a.warengruppen.map((w) => (w.name === gruppe ? wandeln(w) : w)) }
+        : a,
+    ),
+  };
+}
+
 /**
  * Liest eine Sortimentsliste aus einer Datei.
  *

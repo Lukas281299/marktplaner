@@ -105,9 +105,11 @@ export function useTastatur(): void {
           else store.loescheAuswahl();
           return;
         case 'Escape':
-          // Escape ist der Weg zurück ins normale Arbeiten: erst das
-          // Zeichenwerkzeug weglegen, dann die Auswahl aufheben.
-          if (store.werkzeug !== 'auswahl') store.setzeWerkzeug('auswahl');
+          // Escape ist der Weg zurück ins normale Arbeiten: erst die
+          // aufgenommene Warengruppe weglegen, dann das Zeichenwerkzeug,
+          // dann die Auswahl. Der Reihe nach das, was am meisten im Weg ist.
+          if (store.warengruppenPinsel) store.setzeWarengruppenPinsel(null);
+          else if (store.werkzeug !== 'auswahl') store.setzeWerkzeug('auswahl');
           else store.hebeAuswahlAuf();
           return;
         case 'r':

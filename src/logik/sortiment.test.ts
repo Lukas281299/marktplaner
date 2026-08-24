@@ -6,9 +6,18 @@ import {
   istPlatziert,
   kenntNamen,
   leseSortimentsliste,
+  mitAbteilung,
   mitAufgenommenem,
+  mitSortiment,
+  mitWarengruppe,
+  ohneAbteilung,
+  ohneSortiment,
+  ohneWarengruppe,
   platzierteTexte,
   schluesselVon,
+  umbenannteAbteilung,
+  umbenannteWarengruppe,
+  umbenanntesSortiment,
   umfang,
 } from './sortiment';
 import type { Sortimentsliste } from '../daten/warengruppen';
@@ -189,5 +198,67 @@ describe('Eine Liste einlesen', () => {
     expect(() => leseSortimentsliste('')).toThrow();
     expect(() => leseSortimentsliste('{ kaputt')).toThrow();
     expect(() => leseSortimentsliste('{"abteilungen":[]}')).toThrow();
+  });
+});
+
+describe('Die Liste pflegen', () => {
+  /**
+   * Ein Sortiment ändert sich – das Programm soll dem nicht im Weg stehen.
+   * Wichtig ist nur, dass jede Änderung eine **neue** Liste ergibt: Sonst
+   * schlüge sie an einer Stelle durch, an der niemand sie erwartet.
+   */
+  it('lässt die alte Liste in Ruhe', () => {
+    const vorher = JSON.stringify(liste);
+    mitAbteilung(liste, 'Neu');
+    ohneWarengruppe(liste, 'Drogerie', 'Babyartikel');
+    umbenanntesSortiment(liste, 'Drogerie', 'Babyartikel', 'Windeln', 'Höschen');
+    expect(JSON.stringify(liste)).toBe(vorher);
+  });
+
+  it('legt eine Abteilung an und entfernt sie wieder', () => {
+    const mit = mitAbteilung(liste, 'Getränke');
+    expect(mit.abteilungen.map((a) => a.name)).toContain('Getränke');
+    expect(ohneAbteilung(mit, 'Getränke').abteilungen).toHaveLength(liste.abteilungen.length);
+  });
+
+  it('legt keine Abteilung doppelt an', () => {
+    expect(mitAbteilung(liste, 'Drogerie').abteilungen).toHaveLength(2);
+  });
+
+  it('benennt auf allen drei Stufen um', () => {
+    expect(umbenannteAbteilung(liste, 'Drogerie', 'Drogerie & Tier').abteilungen[0].name).toBe(
+      'Drogerie & Tier',
+    );
+    expect(
+      umbenannteWarengruppe(liste, 'Drogerie', 'Babyartikel', 'Baby').abteilungen[0]
+        .warengruppen[0].name,
+    ).toBe('Baby');
+    expect(
+      umbenanntesSortiment(liste, 'Drogerie', 'Babyartikel', 'Windeln', 'Höschen').abteilungen[0]
+        .warengruppen[0].sortimente,
+    ).toContain('Höschen');
+  });
+
+  it('legt Warengruppe und Sortiment an', () => {
+    const mit = mitWarengruppe(liste, 'Backwaren', 'Brot SB');
+    expect(mit.abteilungen[1].warengruppen.map((w) => w.name)).toContain('Brot SB');
+    const mitS = mitSortiment(mit, 'Backwaren', 'Brot SB', 'Toast');
+    expect(mitS.abteilungen[1].warengruppen[1].sortimente).toEqual(['Toast']);
+  });
+
+  it('entfernt ein Sortiment, ohne die Nachbarn anzufassen', () => {
+    const ohne = ohneSortiment(liste, 'Drogerie', 'Babyartikel', 'Windeln');
+    expect(ohne.abteilungen[0].warengruppen[0].sortimente).toEqual([
+      'Babypflege',
+      'Babynahrung Glas',
+    ]);
+    expect(ohne.abteilungen[0].warengruppen[1].sortimente).toHaveLength(2);
+  });
+
+  it('fasst nichts an, was es nicht gibt', () => {
+    // Ein stillschweigend neu angelegter Eintrag wäre schlimmer als nichts:
+    // Man sucht ihn dann an der falschen Stelle.
+    expect(mitSortiment(liste, 'Gibtsnicht', 'Auch nicht', 'X')).toEqual(liste);
+    expect(umbenannteWarengruppe(liste, 'Gibtsnicht', 'A', 'B')).toEqual(liste);
   });
 });

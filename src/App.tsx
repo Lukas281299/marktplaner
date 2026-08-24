@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Eigenschaftenfenster } from './komponenten/Eigenschaftenfenster';
 import { Elementbibliothek } from './komponenten/Elementbibliothek';
+import { Warengruppenfenster } from './komponenten/Warengruppenfenster';
 import { Statusleiste } from './komponenten/Statusleiste';
 import { Werkzeugleiste } from './komponenten/Werkzeugleiste';
 import { Zeichenflaeche } from './komponenten/zeichenflaeche/Zeichenflaeche';
@@ -104,11 +105,13 @@ export default function App() {
     return () => window.clearTimeout(uhrRef.current);
   }, [projekt, geladenerStand, geladen]);
 
+  const linkerReiter = usePlanStore((s) => s.linkerReiter);
+
   return (
     <div className="app">
       <Werkzeugleiste />
       <div className="arbeitsbereich">
-        <Elementbibliothek />
+        {linkerReiter === 'warengruppen' ? <Warengruppenfenster /> : <Elementbibliothek />}
         <Zeichenflaeche />
         <Eigenschaftenfenster />
       </div>
