@@ -262,3 +262,35 @@ describe('Die Liste pflegen', () => {
     expect(umbenannteWarengruppe(liste, 'Gibtsnicht', 'A', 'B')).toEqual(liste);
   });
 });
+
+describe('Die Tabelle des Marktes', () => {
+  /**
+   * Die Sortimentsliste kommt aus einer Excel-Tabelle, deren Gliederung in
+   * Excels Zeilengruppierung steckt: keine Stufe = Abteilung, Stufe 1 =
+   * Warengruppe, alles tiefer = Sortiment. „Alles tiefer" ist wichtig – bei
+   * einer Warengruppe sitzen die Sortimente eine Stufe zu tief gruppiert, und
+   * ohne diese Regel fielen sie weg.
+   */
+  const ausGliederung = (zeilen: [string, number][]) => {
+    const roh = zeilen
+      .map(([name, stufe]) =>
+        stufe === 0 ? `${name};;` : stufe === 1 ? `;${name};` : `;;${name}`,
+      )
+      .join('\n');
+    return leseSortimentsliste(roh);
+  };
+
+  it('ordnet drei Stufen richtig ein', () => {
+    const gelesen = ausGliederung([
+      ['Backwaren', 0],
+      ['Bake Off', 1],
+      ['Croissants', 2],
+      ['Snacks', 3],
+      ['Centeria', 0],
+      ['Restaurant', 1],
+    ]);
+    expect(gelesen.abteilungen.map((a) => a.name)).toEqual(['Backwaren', 'Centeria']);
+    expect(gelesen.abteilungen[0].warengruppen[0].sortimente).toEqual(['Croissants', 'Snacks']);
+    expect(gelesen.abteilungen[1].warengruppen[0]).toEqual({ name: 'Restaurant', sortimente: [] });
+  });
+});

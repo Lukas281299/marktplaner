@@ -645,9 +645,11 @@ Ganz unten legt **+ Abteilung** eine neue an.
 
 #### Die eigene Liste laden
 
-Ohne eigene Liste steht ein **allgemeiner Anfang** bereit. Die Sortimentsliste
-eines Marktes gehört dem Markt und nicht dem Programm — deshalb liegt sie
-nicht darin, sondern wird geladen: unten im Reiter *Sortimentsliste laden*.
+**Ohne geladene Liste ist der Reiter leer** — und sagt das auch. Die
+Sortimentsliste eines Marktes gehört dem Markt und nicht dem Programm; deshalb
+liegt sie nicht darin, sondern wird geladen: unten im Reiter *Sortimentsliste
+laden*. Eine allgemeine Beispielliste stand hier einmal, sie sah aus wie das
+eigene Sortiment und war es nicht.
 
 Erwartet wird eine **JSON-Datei** oder eine **Tabelle mit drei Spalten**
 (Abteilung; Warengruppe; Sortiment), wie sie jedes Tabellenprogramm ausgibt.

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { KATEGORIEN } from '../daten/kategorien';
 import { RAUMARTEN, raumart } from '../daten/raumarten';
-import { WARENGRUPPEN, alleNamen } from '../daten/warengruppen';
+import { alleNamen } from '../daten/warengruppen';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
@@ -1571,7 +1571,7 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           <Textfeld
             label="Warengruppe"
             wert={erstes.warengruppe ?? ''}
-            vorschlaege={WARENGRUPPEN}
+            vorschlaege={alleNamen(usePlanStore.getState().sortiment)}
             beiStart={beiStart}
             aendern={(warengruppe) => setze({ warengruppe })}
           />

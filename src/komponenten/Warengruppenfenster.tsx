@@ -292,10 +292,30 @@ export function Warengruppenfenster() {
           );
         })}
 
-        {gezeigt.abteilungen.length === 0 && (
+        {gezeigt.abteilungen.length === 0 && sortiment.abteilungen.length > 0 && (
           <p className="hinweis" style={{ margin: 8 }}>
             Nichts gefunden.
           </p>
+        )}
+
+        {/* Ohne geladene Liste steht hier nichts – und das soll man sehen.
+            Eine allgemeine Beispielliste stand einmal hier; sie sah aus wie
+            das Sortiment des Marktes, war es aber nicht. */}
+        {sortiment.abteilungen.length === 0 && (
+          <div style={{ padding: 12 }}>
+            <p className="hinweis">
+              <strong>Noch keine Sortimentsliste geladen.</strong>
+            </p>
+            <p className="hinweis">
+              Die Liste gehört dem Markt und nicht dem Programm — deshalb liegt sie nicht
+              darin. Lade sie unten: eine JSON-Datei oder eine Tabelle mit drei Spalten
+              (Abteilung; Warengruppe; Sortiment).
+            </p>
+            <p className="hinweis">
+              Danach bleibt sie auf diesem Rechner. Ändern kannst du sie hier jederzeit über
+              den Stift oben.
+            </p>
+          </div>
         )}
 
         {pflege && (

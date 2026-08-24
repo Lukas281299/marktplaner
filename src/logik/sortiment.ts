@@ -424,15 +424,25 @@ function ausTabelle(roh: string): Sortimentsliste {
     // Eine Kopfzeile erkennt man daran, dass sie sich selbst beschreibt.
     if (schluessel(a) === 'abteilung') continue;
 
-    if (a) letzteAbteilung = a;
+    // Eine neue Abteilung setzt die gemerkte Warengruppe zurück. Ohne das
+    // rutschte die letzte Warengruppe der vorigen Abteilung mit hinüber und
+    // stünde dort als leere Zeile – ein Eintrag, den es nirgends gibt.
+    if (a) {
+      letzteAbteilung = a;
+      letzteGruppe = '';
+    }
     if (w) letzteGruppe = w;
-    if (!letzteAbteilung || !letzteGruppe) continue;
+    if (!letzteAbteilung) continue;
 
     let abteilung = abteilungen.find((x) => x.name === letzteAbteilung);
     if (!abteilung) {
       abteilung = { name: letzteAbteilung, warengruppen: [] };
       abteilungen.push(abteilung);
     }
+    // Eine Abteilung ohne Warengruppe gibt es – „Pflanzen & Blumen" hat
+    // welche, „Centeria" hat eine einzige. Sie darf also allein dastehen.
+    if (!letzteGruppe) continue;
+
     let gruppe = abteilung.warengruppen.find((x) => x.name === letzteGruppe);
     if (!gruppe) {
       gruppe = { name: letzteGruppe, sortimente: [] };
