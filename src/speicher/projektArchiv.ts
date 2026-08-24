@@ -1,3 +1,4 @@
+import type { Sortimentsliste } from '../daten/warengruppen';
 import { neueId } from '../logik/id';
 import { SCHEMA_VERSION, type BibliothekEintrag, type Projekt } from '../typen/modell';
 import type { Grabstein, Verzeichniseintrag } from './abgleich';
@@ -151,6 +152,33 @@ export async function holeFavoriten(): Promise<string[]> {
 export async function setzeFavoriten(ids: string[]): Promise<void> {
   const datenbank = await db();
   await datenbank.put('einstellungen', ids, 'favoriten');
+}
+
+// ------------------------------------------------------ Sortimentsliste
+
+/**
+ * Die Sortimentsliste des Marktes.
+ *
+ * Wie die Favoriten am Gerät und nicht in der Planung – und aus einem zweiten
+ * Grund: Sie gehört dem Markt und nicht dem Programm. Ein öffentliches
+ * Programm hat kein Sortiment mitzuliefern; geladen wird sie von der Platte,
+ * gespeichert wird sie hier.
+ *
+ * Nichts gespeichert heißt: Es gilt der allgemeine Anfang aus
+ * `daten/warengruppen.ts`.
+ */
+export async function holeSortimentsliste(): Promise<Sortimentsliste | null> {
+  const datenbank = await db();
+  const wert = await datenbank.get('einstellungen', 'sortimentsliste');
+  const abteilungen = (wert as Sortimentsliste | undefined)?.abteilungen;
+  return Array.isArray(abteilungen) && abteilungen.length > 0
+    ? { abteilungen }
+    : null;
+}
+
+export async function setzeSortimentsliste(liste: Sortimentsliste): Promise<void> {
+  const datenbank = await db();
+  await datenbank.put('einstellungen', liste, 'sortimentsliste');
 }
 
 // ---------------------------------------------------------------- Grabsteine

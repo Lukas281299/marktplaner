@@ -25,7 +25,12 @@ import {
 } from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
-import { setzeFavoriten as speichereFavoriten } from '../speicher/projektArchiv';
+import {
+  setzeSortimentsliste as speichereSortiment,
+  setzeFavoriten as speichereFavoriten,
+} from '../speicher/projektArchiv';
+import { STANDARD_SORTIMENT, type Sortimentsliste } from '../daten/warengruppen';
+import { mitAufgenommenem } from '../logik/sortiment';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -133,6 +138,13 @@ interface PlanStore {
    * Änderung am Plan.
    */
   favoriten: string[];
+  /**
+   * Die Sortimentsliste: Abteilungen, Warengruppen, Sortimente.
+   *
+   * Gehört zum Gerät, nicht zur Planung – siehe `holeSortimentsliste`. Ohne
+   * geladene Liste gilt der allgemeine Anfang aus `daten/warengruppen.ts`.
+   */
+  sortiment: Sortimentsliste;
   ansicht: Ansicht;
   /** Erst `true`, wenn aus der Datenbank geladen wurde. */
   geladen: boolean;
@@ -154,6 +166,10 @@ interface PlanStore {
   // --------------------------------------------------------------- Projekt
   setzeProjekt(projekt: Projekt, alsGeladen?: boolean): void;
   setzeEigeneVorlagen(vorlagen: BibliothekEintrag[]): void;
+  /** Übernimmt eine geladene oder gespeicherte Sortimentsliste. */
+  setzeSortimentsliste(liste: Sortimentsliste, speichern?: boolean): void;
+  /** Nimmt einen Namen in die Liste auf – tut nichts, wenn er schon drinsteht. */
+  nimmSortimentAuf(name: string): void;
   setzeFavoriten(ids: string[]): void;
   /** Markiert eine Vorlage als Favorit oder nimmt die Markierung zurück. */
   schalteFavorit(vorlageId: string): void;
@@ -294,6 +310,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   zwischenablage: [],
   eigeneVorlagen: [],
   favoriten: [],
+  sortiment: STANDARD_SORTIMENT,
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
   geladenerStand: null,
@@ -332,6 +349,20 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   setzeEigeneVorlagen(vorlagen) {
     set({ eigeneVorlagen: vorlagen });
+  },
+
+  setzeSortimentsliste(liste, speichern = false) {
+    set({ sortiment: liste });
+    if (speichern) void speichereSortiment(liste);
+  },
+
+  nimmSortimentAuf(name) {
+    const neu = mitAufgenommenem(get().sortiment, name);
+    // Nichts zu tun heißt hier wirklich nichts: Der Name ist leer oder steht
+    // schon da. Ein zweiter Eintrag desselben Namens hülfe niemandem.
+    if (!neu) return;
+    set({ sortiment: neu });
+    void speichereSortiment(neu);
   },
 
   benenneProjektUm(name) {

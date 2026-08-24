@@ -591,6 +591,122 @@ body {
  * das Eigenschaftenfenster einer Gondel auf drei Bildschirmhöhen, und das
  * meiste davon war Fließtext, den man beim zehnten Mal überscrollt.
  */
+/*
+ * Der aufgeklappte Vorrat an Warengruppen.
+ *
+ * Er legt sich über das Fenster, statt es auseinanderzuschieben: Wer eine
+ * Gruppe sucht, will danach dort weitermachen, wo er war – und nicht erst
+ * wieder hinscrollen.
+ */
+.vorrat {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  width: min(260px, 100%);
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--flaeche, #fff);
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(20, 28, 38, 0.18);
+  padding: 6px;
+}
+
+.vorrat-suche {
+  width: 100%;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.vorrat-liste {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.vorrat-abteilung {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-schwach);
+  margin: 8px 2px 2px;
+  border-top: 1px solid var(--rand);
+  padding-top: 5px;
+}
+
+.vorrat-zeile {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Der Pfeil klappt die Sortimente einer Warengruppe auf. Als Platzhalter
+   steht er auch dort, wo es nichts aufzuklappen gibt – sonst stünden die
+   Namen zweier Warengruppen um ein paar Punkte versetzt. */
+.vorrat-pfeil {
+  flex: none;
+  width: 16px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-schwach);
+  cursor: pointer;
+  padding: 0;
+}
+
+.vorrat-eintrag {
+  display: block;
+  flex: 1;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+/* Grün steht schon im Plan, rot fehlt noch. Der Punkt davor trägt die
+   Aussage; die Schriftfarbe allein wäre für rot-grün-blinde Augen keine. */
+.vorrat-eintrag::before,
+.vorrat-abteilung .steht::before,
+.vorrat-abteilung .fehlt::before {
+  content: '● ';
+}
+
+.vorrat-eintrag.steht,
+.vorrat-abteilung .steht {
+  color: #1a7a1a;
+}
+
+.vorrat-eintrag.fehlt,
+.vorrat-abteilung .fehlt {
+  color: #b3372a;
+}
+
+.vorrat-tief {
+  padding-left: 22px;
+  font-size: 12px;
+}
+
+.vorrat-eintrag:hover {
+  background: var(--blau-hell);
+}
+
+.vorrat-eintrag.aktiv {
+  background: var(--blau-hell);
+  font-weight: 600;
+}
+
 details.erklaerung {
   margin: 6px 0 2px;
 }

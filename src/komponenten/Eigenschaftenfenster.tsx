@@ -2,7 +2,17 @@ import { useState, type ReactNode } from 'react';
 import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { KATEGORIEN } from '../daten/kategorien';
 import { RAUMARTEN, raumart } from '../daten/raumarten';
-import { WARENGRUPPEN } from '../daten/warengruppen';
+import { WARENGRUPPEN, alleNamen } from '../daten/warengruppen';
+import {
+  abdeckung,
+  abteilungsstand,
+  gefiltert,
+  kenntNamen,
+  leseSortimentsliste,
+  platzierteTexte,
+  schluesselVon,
+  umfang,
+} from '../logik/sortiment';
 import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
 import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
@@ -546,6 +556,7 @@ function Feldaufteilung({
 
   return (
     <>
+      <Warengruppenliste />
       <Seitenaufteilung
         element={element}
         satz={satz}
@@ -892,6 +903,180 @@ function Erklaerung({ titel = 'Wie das gemeint ist', children }: { titel?: strin
 }
 
 /**
+ * Der Vorrat an Warengruppen, aufklappbar neben dem Eingabefeld.
+ *
+ * Beim Planen schreibt man dieselben zwanzig Namen immer wieder. Tippen soll
+ * trotzdem möglich bleiben — für alles, was in keiner Liste steht. Deshalb
+ * beides nebeneinander: das Feld zum Schreiben, daneben der Knopf zum
+ * Aussuchen.
+ *
+ * Sortiert nach Abteilungen, damit man den Namen dort sucht, wo er im Markt
+ * steht. Und was man neu geschrieben hat, lässt sich mit einem Klick
+ * aufnehmen: Beim zweiten Mal steht es schon in der Liste.
+ */
+/**
+ * Die Vorschläge fürs Eingabefeld – einmal je Fenster.
+ *
+ * Der Browser blendet sie beim Tippen ein. Für die geordnete Suche gibt es
+ * daneben den Knopf; hier geht es nur ums schnelle Weiterschreiben.
+ */
+function Warengruppenliste() {
+  const sortiment = usePlanStore((s) => s.sortiment);
+  return (
+    <datalist id="warengruppen-vorrat">
+      {alleNamen(sortiment).map((name) => (
+        <option key={name} value={name} />
+      ))}
+    </datalist>
+  );
+}
+
+/**
+ * Die Sortimentsliste, aufklappbar neben dem Eingabefeld.
+ *
+ * Drei Stufen, so wie die Liste des Marktes aufgebaut ist: Abteilung,
+ * Warengruppe, Sortiment. Angeklickt wird auf der Höhe, auf der man gerade
+ * denkt — mal steht die Warengruppe über sechs Metern, mal ein einzelnes
+ * Sortiment über einem.
+ *
+ * **Grün heißt: steht schon im Plan.** Rot heißt: fehlt noch. Damit lässt
+ * sich am Ende einer Planung durchgehen, ob etwas vergessen wurde. Verglichen
+ * wird über den Text — wer „Babypflege" von Hand schreibt, hat Babypflege
+ * platziert, und wer zwei Namen auf einen Meter schreibt, beide.
+ */
+function Warengruppenwahl({
+  wert,
+  waehlen,
+}: {
+  wert: string;
+  waehlen: (name: string) => void;
+}) {
+  const sortiment = usePlanStore((s) => s.sortiment);
+  const elemente = usePlanStore((s) => s.projekt.elemente);
+  const [offen, setOffen] = useState(false);
+  const [suche, setSuche] = useState('');
+  const [ausgeklappt, setAusgeklappt] = useState<string | null>(null);
+
+  const gezeigt = gefiltert(sortiment, suche);
+  const stand = abdeckung(sortiment, platzierteTexte({ elemente }));
+  const neuerName = wert.trim();
+  const aufnehmbar = neuerName !== '' && !kenntNamen(sortiment, neuerName);
+
+  const nimm = (name: string) => {
+    usePlanStore.getState().schnappschuss();
+    waehlen(name);
+    setOffen(false);
+  };
+
+  return (
+    <>
+      <button
+        className={`knopf knopf-nur-symbol${offen ? ' aktiv' : ''}`}
+        title="Aus der Sortimentsliste wählen – grün steht schon im Plan, rot fehlt noch"
+        onClick={() => {
+          setSuche('');
+          setOffen(!offen);
+        }}
+      >
+        ☰
+      </button>
+
+      {offen && (
+        <div className="vorrat">
+          <input
+            type="text"
+            autoFocus
+            className="vorrat-suche"
+            placeholder="Suchen …"
+            value={suche}
+            onChange={(e) => setSuche(e.target.value)}
+          />
+
+          <div className="vorrat-liste">
+            {gezeigt.abteilungen.map((abteilung) => {
+              const zahl = abteilungsstand(abteilung, stand);
+              return (
+                <div key={abteilung.name}>
+                  <div className="vorrat-abteilung">
+                    <span>{abteilung.name}</span>
+                    <span className={zahl.platziert === zahl.gesamt ? 'steht' : 'fehlt'}>
+                      {zahl.platziert}/{zahl.gesamt}
+                    </span>
+                  </div>
+
+                  {abteilung.warengruppen.map((gruppe) => {
+                    const schluessel = schluesselVon(abteilung.name, gruppe.name);
+                    const eintrag = stand.get(schluessel);
+                    const auf = ausgeklappt === schluessel || suche.trim() !== '';
+                    return (
+                      <div key={schluessel}>
+                        <div className="vorrat-zeile">
+                          {gruppe.sortimente.length > 0 ? (
+                            <button
+                              className="vorrat-pfeil"
+                              title={auf ? 'Sortimente zuklappen' : 'Sortimente zeigen'}
+                              onClick={() => setAusgeklappt(auf ? null : schluessel)}
+                            >
+                              {auf ? '▾' : '▸'}
+                            </button>
+                          ) : (
+                            <span className="vorrat-pfeil" />
+                          )}
+                          <button
+                            className={`vorrat-eintrag ${eintrag?.platziert ? 'steht' : 'fehlt'}${
+                              gruppe.name === wert ? ' aktiv' : ''
+                            }`}
+                            onClick={() => nimm(gruppe.name)}
+                          >
+                            {gruppe.name}
+                          </button>
+                        </div>
+
+                        {auf &&
+                          gruppe.sortimente.map((sortimentName) => (
+                            <button
+                              key={sortimentName}
+                              className={`vorrat-eintrag vorrat-tief ${
+                                eintrag?.sortimente.get(sortimentName) ? 'steht' : 'fehlt'
+                              }${sortimentName === wert ? ' aktiv' : ''}`}
+                              onClick={() => nimm(sortimentName)}
+                            >
+                              {sortimentName}
+                            </button>
+                          ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            {gezeigt.abteilungen.length === 0 && (
+              <p className="hinweis" style={{ margin: '4px 2px' }}>
+                Nichts gefunden.
+              </p>
+            )}
+          </div>
+
+          {aufnehmbar && (
+            <button
+              className="knopf"
+              style={{ width: '100%', marginTop: 4 }}
+              title="Diesen Namen in die Sortimentsliste aufnehmen – er steht dann in jeder Planung bereit"
+              onClick={() => {
+                usePlanStore.getState().nimmSortimentAuf(neuerName);
+                setOffen(false);
+              }}
+            >
+              „{neuerName}" aufnehmen
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
  * Notiz und Warengruppe für ein Möbel ohne Einheiten.
  *
  * Ein runder Kopf, eine Ecke, eine Palette, ein Drehständer: Die bestehen
@@ -908,6 +1093,7 @@ function Elementbeschriftung({ element }: { element: PlanElement }) {
   return (
     <div className="gruppe">
       <div className="gruppe-titel">Notiz und Warengruppe</div>
+      <Warengruppenliste />
       <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
         {seiten.map((seite) => (
           <Feldeingaben
@@ -1020,6 +1206,8 @@ function Feldeingaben({
           flexDirection: mehrere ? 'column' : 'row',
           alignItems: mehrere ? 'stretch' : 'flex-start',
           gap: 4,
+          // Bezugspunkt für die aufgeklappte Auswahl darunter.
+          position: 'relative',
         }}
       >
         <textarea
@@ -1071,6 +1259,7 @@ function Feldeingaben({
         ) : (
           <input
             type="text"
+            list="warengruppen-vorrat"
             style={{ flex: 1, fontSize: 12, minWidth: 0 }}
             value={gruppe?.text ?? ''}
             placeholder="Warengruppe"
@@ -1095,6 +1284,15 @@ function Feldeingaben({
                   ? { text: e.target.value, felder: gruppe?.felder ?? 1 }
                   : undefined,
               })
+            }
+          />
+        )}
+
+        {!gedeckt && (
+          <Warengruppenwahl
+            wert={gruppe?.text ?? ''}
+            waehlen={(name) =>
+              setze({ warengruppe: { ...gruppe, text: name, felder: gruppe?.felder ?? 1 } })
             }
           />
         )}
@@ -1725,6 +1923,93 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
   );
 }
 
+/**
+ * Die Sortimentsliste laden und nachsehen, was noch fehlt.
+ *
+ * Die Liste eines Marktes gehört dem Markt und nicht dem Programm — deshalb
+ * liegt sie nicht im Programm, sondern wird von der Platte geholt und bleibt
+ * danach auf diesem Rechner. Ohne geladene Liste steht ein allgemeiner Anfang
+ * bereit, damit die Auswahl nicht leer ist.
+ */
+function Sortimentsverwaltung() {
+  const sortiment = usePlanStore((s) => s.sortiment);
+  const elemente = usePlanStore((s) => s.projekt.elemente);
+  const [fehler, setFehler] = useState<string | null>(null);
+
+  const zahlen = umfang(sortiment);
+  const stand = abdeckung(sortiment, platzierteTexte({ elemente }));
+  const gestellt = [...stand.values()].filter((e) => e.platziert).length;
+
+  const laden = async (datei: File | undefined) => {
+    if (!datei) return;
+    try {
+      const liste = leseSortimentsliste(await datei.text());
+      usePlanStore.getState().setzeSortimentsliste(liste, true);
+      setFehler(null);
+    } catch (e) {
+      setFehler(e instanceof Error ? e.message : 'Die Datei ließ sich nicht lesen.');
+    }
+  };
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Sortiment</div>
+
+      <div className="kennzahl">
+        <span>Warengruppen im Plan</span>
+        <span className="kennzahl-wert">
+          {gestellt} von {zahlen.warengruppen}
+        </span>
+      </div>
+      <div className="kennzahl">
+        <span>Abteilungen · Sortimente</span>
+        <span className="kennzahl-wert">
+          {zahlen.abteilungen} · {zahlen.sortimente}
+        </span>
+      </div>
+
+      <label className="knopf" style={{ width: '100%', marginTop: 8, textAlign: 'center' }}>
+        Sortimentsliste laden
+        <input
+          type="file"
+          accept=".json,.csv,.txt,.tsv"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            void laden(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+      </label>
+
+      {fehler && (
+        <p className="hinweis" style={{ marginTop: 6, color: 'var(--rot, #b3372a)' }}>
+          {fehler}
+        </p>
+      )}
+
+      <Erklaerung titel="Woher die Liste kommt">
+        <p className="hinweis">
+          Erwartet wird eine <strong>JSON-Datei</strong> mit Abteilungen, Warengruppen und
+          Sortimenten — oder eine <strong>Tabelle mit drei Spalten</strong>: Abteilung,
+          Warengruppe, Sortiment. Leere Zellen übernehmen den Wert der Zeile darüber, so wie
+          man so eine Tabelle schreibt.
+        </p>
+        <p className="hinweis">
+          Die geladene Liste bleibt <strong>auf diesem Rechner</strong> und wandert nicht in
+          die Planung — sie gehört dem Markt, nicht der Zeichnung. Auf einem zweiten Rechner
+          lädst du sie einmal nach.
+        </p>
+        <p className="hinweis">
+          In der Auswahl neben jedem Warengruppen-Feld steht danach die ganze Liste:{' '}
+          <strong>grün</strong>, was schon im Plan steht, <strong>rot</strong>, was noch
+          fehlt. Verglichen wird über den Text — schreibst du „Babypflege" von Hand, zählt
+          das genauso, und zwei Namen auf einem Meter zählen beide.
+        </p>
+      </Erklaerung>
+    </div>
+  );
+}
+
 // ===========================================================================
 //  Projekteigenschaften (wenn nichts ausgewählt ist)
 // ===========================================================================
@@ -1940,6 +2225,8 @@ function ProjektEigenschaften() {
           müssen.
         </p>
       </div>
+
+      <Sortimentsverwaltung />
 
       {/* ------------------------------------------------------------ Ebenen */}
       <div className="gruppe">

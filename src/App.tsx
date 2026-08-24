@@ -11,6 +11,7 @@ import {
   holeZuletztGeoeffnet,
   ladeProjekt,
   listeVorlagen,
+  holeSortimentsliste,
   holeFavoriten,
   merkeZuletztGeoeffnet,
   speichereProjekt,
@@ -44,6 +45,7 @@ export default function App() {
     const starten = async () => {
       const vorlagen = await listeVorlagen().catch(() => []);
       const favoriten = await holeFavoriten().catch(() => []);
+      const sortiment = await holeSortimentsliste().catch(() => null);
 
       // Die zuletzt geöffnete Planung darf den Start nicht verhindern.
       //
@@ -63,6 +65,7 @@ export default function App() {
 
       usePlanStore.getState().setzeEigeneVorlagen(vorlagen);
       usePlanStore.getState().setzeFavoriten(favoriten);
+      if (sortiment) usePlanStore.getState().setzeSortimentsliste(sortiment);
       if (gespeichert) {
         usePlanStore.getState().setzeProjekt(gespeichert);
       } else {
