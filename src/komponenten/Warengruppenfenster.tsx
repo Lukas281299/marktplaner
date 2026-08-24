@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import {
-  abdeckung,
   abteilungsstand,
   gefiltert,
+  gruppenstand,
   leseSortimentsliste,
   mitAbteilung,
   mitSortiment,
   mitWarengruppe,
   ohneAbteilung,
   ohneSortiment,
+  naechsterStand,
   ohneWarengruppe,
-  platzierteTexte,
-  schluesselVon,
+  pfadVon,
+  standVon,
   umbenannteAbteilung,
   umbenannteWarengruppe,
   umbenanntesSortiment,
   umfang,
+  type Standwert,
 } from '../logik/sortiment';
 import { usePlanStore } from '../zustand/planStore';
 
@@ -38,7 +40,7 @@ import { usePlanStore } from '../zustand/planStore';
  */
 export function Warengruppenfenster() {
   const sortiment = usePlanStore((s) => s.sortiment);
-  const elemente = usePlanStore((s) => s.projekt.elemente);
+  const stand = usePlanStore((s) => s.projekt.sortimentsstand);
   const pinsel = usePlanStore((s) => s.warengruppenPinsel);
 
   const [suche, setSuche] = useState('');
@@ -47,9 +49,19 @@ export function Warengruppenfenster() {
   const [fehler, setFehler] = useState<string | null>(null);
 
   const gezeigt = gefiltert(sortiment, suche);
-  const stand = abdeckung(sortiment, platzierteTexte({ elemente }));
   const zahlen = umfang(sortiment);
   const sucht = suche.trim() !== '';
+
+  /** Ein Klick auf den Punkt schaltet weiter: rot → grün → grau → rot. */
+  const schalte = (pfad: string, jetzt: Standwert) =>
+    usePlanStore.getState().setzeSortimentsstand(pfad, naechsterStand(jetzt));
+
+  const titel = (wert: Standwert) =>
+    wert === 'gruen'
+      ? 'Steht im Markt — anklicken für „nicht vorgesehen"'
+      : wert === 'grau'
+        ? 'In diesem Markt nicht vorgesehen — anklicken für „offen"'
+        : 'Offen — anklicken für „steht im Markt"';
 
   const pflegen = (liste: typeof sortiment) => usePlanStore.getState().pflegeSortiment(liste);
   const nimm = (name: string) =>
@@ -115,7 +127,10 @@ export function Warengruppenfenster() {
           </div>
         ) : (
           <p className="hinweis" style={{ margin: '4px 2px' }}>
-            Namen anklicken, dann die Meter im Plan. ● grün steht schon, ● rot fehlt.
+            Namen anklicken, dann die Meter im Plan. Der Punkt davor hakt ab:
+            <span className="wg-punkt rot" /> offen,
+            <span className="wg-punkt gruen" /> steht,
+            <span className="wg-punkt grau" /> nicht vorgesehen.
           </p>
         )}
       </div>
@@ -123,7 +138,7 @@ export function Warengruppenfenster() {
       <div className="spalte-inhalt">
         {gezeigt.abteilungen.map((abteilung) => {
           const offen = sucht || !zu.has(abteilung.name);
-          const zahl = abteilungsstand(abteilung, stand);
+          const zahl = abteilungsstand(stand, abteilung);
           return (
             <div key={abteilung.name} className="wg-abteilung">
               <div className="wg-kopf">
@@ -139,9 +154,15 @@ export function Warengruppenfenster() {
                   <span className="wg-pfeil">{offen ? '▾' : '▸'}</span>
                   {abteilung.name}
                 </button>
-                <span className={zahl.platziert === zahl.gesamt ? 'steht' : 'fehlt'}>
-                  {zahl.platziert}/{zahl.gesamt}
+                <span className={`wg-zahl ${zahl.wert}`}>
+                  {zahl.zahlen.gruen}/{zahl.zahlen.gruen + zahl.zahlen.offen}
+                  {zahl.zahlen.grau > 0 ? ` (${zahl.zahlen.grau})` : ''}
                 </span>
+                <button
+                  className={`wg-punkt ${zahl.wert}`}
+                  title={titel(zahl.wert)}
+                  onClick={() => schalte(pfadVon(abteilung.name), zahl.wert)}
+                />
                 {pflege && (
                   <>
                     <button
@@ -181,14 +202,18 @@ export function Warengruppenfenster() {
 
               {offen &&
                 abteilung.warengruppen.map((gruppe) => {
-                  const eintrag = stand.get(schluesselVon(abteilung.name, gruppe.name));
+                  const eigen = pfadVon(abteilung.name, gruppe.name);
+                  const gStand = gruppenstand(stand, abteilung.name, gruppe);
                   return (
                     <div key={gruppe.name}>
                       <div className="wg-zeile">
                         <button
-                          className={`wg-name ${eintrag?.platziert ? 'steht' : 'fehlt'}${
-                            pinsel === gruppe.name ? ' aktiv' : ''
-                          }`}
+                          className={`wg-punkt ${gStand.wert}`}
+                          title={titel(gStand.wert)}
+                          onClick={() => schalte(eigen, gStand.wert)}
+                        />
+                        <button
+                          className={`wg-name${pinsel === gruppe.name ? ' aktiv' : ''}`}
                           onClick={() => nimm(gruppe.name)}
                           title="Aufnehmen und im Plan zuordnen"
                         >
@@ -237,12 +262,18 @@ export function Warengruppenfenster() {
                         )}
                       </div>
 
-                      {gruppe.sortimente.map((name) => (
+                      {gruppe.sortimente.map((name) => {
+                        const pfad = pfadVon(abteilung.name, gruppe.name, name);
+                        const wert = standVon(stand, pfad);
+                        return (
                         <div className="wg-zeile wg-tief" key={name}>
                           <button
-                            className={`wg-name ${
-                              eintrag?.sortimente.get(name) ? 'steht' : 'fehlt'
-                            }${pinsel === name ? ' aktiv' : ''}`}
+                            className={`wg-punkt ${wert}`}
+                            title={titel(wert)}
+                            onClick={() => schalte(pfad, wert)}
+                          />
+                          <button
+                            className={`wg-name${pinsel === name ? ' aktiv' : ''}`}
                             onClick={() => nimm(name)}
                             title="Aufnehmen und im Plan zuordnen"
                           >
@@ -284,7 +315,8 @@ export function Warengruppenfenster() {
                             </>
                           )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   );
                 })}

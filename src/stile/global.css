@@ -388,26 +388,88 @@ body {
   font-size: 12px;
 }
 
-/* Grün steht schon im Plan, rot fehlt noch. Der Punkt davor trägt die
-   Aussage mit – die Schriftfarbe allein wäre für rot-grün-blinde Augen
-   keine Unterscheidung. */
-.wg-name::before {
-  content: '● ';
+/*
+ * Der Haken vor jedem Eintrag: offen, erledigt, nicht vorgesehen.
+ *
+ * Ein Knopf und keine Farbe am Text: Man klickt ihn an, und er schaltet
+ * weiter. Die Form unterscheidet die drei zusätzlich zur Farbe – ein
+ * gefüllter, ein leerer und ein durchgestrichener Punkt –, damit sie auch
+ * für rot-grün-blinde Augen auseinandergehen.
+ */
+.wg-punkt {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  background: none;
+  cursor: pointer;
+  position: relative;
 }
 
-.wg-name.steht,
-.wg-kopf .steht {
-  color: #1a7a1a;
-}
-
-.wg-name.fehlt,
-.wg-kopf .fehlt {
+.wg-punkt.rot {
   color: #b3372a;
 }
 
-.wg-kopf .steht::before,
-.wg-kopf .fehlt::before {
-  content: '● ';
+.wg-punkt.gruen {
+  color: #1a7a1a;
+  background: currentColor;
+}
+
+/* Erledigt bekommt zusätzlich das Häkchen. */
+.wg-punkt.gruen::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0.5px;
+  width: 3px;
+  height: 7px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.wg-punkt.grau {
+  color: #98a1ab;
+}
+
+/* Nicht vorgesehen: durchgestrichen. */
+.wg-punkt.grau::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 4.5px;
+  border-top: 2px solid currentColor;
+}
+
+.wg-punkt:hover {
+  filter: brightness(1.25);
+}
+
+/* Im Fließtext des Hinweises stehen die drei Punkte als Beispiel. */
+p .wg-punkt {
+  display: inline-block;
+  vertical-align: -2px;
+  cursor: default;
+  margin: 0 1px 0 4px;
+}
+
+.wg-zahl {
+  font-variant-numeric: tabular-nums;
+}
+
+.wg-zahl.gruen {
+  color: #1a7a1a;
+}
+
+.wg-zahl.rot {
+  color: #b3372a;
+}
+
+.wg-zahl.grau {
+  color: #98a1ab;
 }
 
 .wg-name:hover {

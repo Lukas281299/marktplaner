@@ -3,113 +3,217 @@ import {
   type Sortimentsabteilung,
   type Sortimentsliste,
 } from '../daten/warengruppen';
-import { felderVon, seitenVon } from './regalseiten';
-import type { PlanElement, Projekt } from '../typen/modell';
+import type { Sortimentsgruppe } from '../daten/warengruppen';
 
 /**
- * Was vom Sortiment schon im Plan steht – und was noch fehlt.
+ * Was in diesem Markt aus dem Sortiment geworden ist.
  *
- * Das ist der eigentliche Zweck der Liste: Am Ende einer Planung will man
- * wissen, ob etwas vergessen wurde. Deshalb wird jeder Name der Liste gegen
- * das gehalten, was im Plan geschrieben steht. Was dasteht, ist grün; was
- * fehlt, ist rot.
+ * Drei Zustände, von Hand gesetzt:
  *
- * **Verglichen wird über den Text, nicht über eine Kennung.** Eine
- * Beschriftung entsteht beim Schreiben, nicht beim Anklicken einer Liste –
- * wer „Babypflege" von Hand tippt, hat Babypflege platziert. Und wer
- * „Babypflege, Windeln" auf einen Meter schreibt, hat beides platziert:
- * Gesucht wird deshalb, ob der Name **im** Text vorkommt.
+ *  - **rot** – offen. Der Grundzustand: Was niemand angefasst hat, fehlt noch.
+ *  - **grün** – erledigt, steht im Markt.
+ *  - **grau** – in diesem Markt nicht vorgesehen. Nicht dasselbe wie
+ *    erledigt, und schon gar nicht wie offen: Was es hier nicht gibt, soll
+ *    beim Durchgehen weder als Haken noch als Lücke zählen.
  *
- * Zwei Regeln nach unten und oben:
+ * **Von Hand und nicht geraten.** Vorher wurde am Text abgeglichen, ob eine
+ * Warengruppe im Plan steht. Das ging schief, sobald ein Name im anderen
+ * steckt: „Kaffee" galt als gesetzt, weil irgendwo „Filterkaffee" stand. Ein
+ * Haken, der sich selbst setzt, ist schlimmer als keiner – man verlässt sich
+ * darauf.
  *
- *  - Steht eine **Warengruppe** im Plan, gelten alle ihre Sortimente als
- *    platziert. Wer „Molkereiprodukte" über sechs Meter schreibt, hat die
- *    Butter nicht vergessen, sondern nicht einzeln aufgeführt.
- *  - Eine Warengruppe gilt auch dann als platziert, wenn **alle** ihre
- *    Sortimente einzeln dastehen. Sonst bliebe sie rot, obwohl nichts fehlt.
+ * Was mit dem Pinsel zugeordnet wird, hakt sich trotzdem selbst ab: Dort ist
+ * der Name genau der Name und nicht ein Teil davon.
  */
 
-/** Kleinschreibung und Leerraum weg – so wird verglichen. */
+/** Die drei Zustände. Rot ist der Grundzustand und wird nicht gespeichert. */
+export type Standwert = 'rot' | 'gruen' | 'grau';
+
+/** Was in der Planung steht – siehe `Projekt.sortimentsstand`. */
+export type Sortimentsstand = Record<string, 'gruen' | 'grau'>;
+
+/** Kleinschreibung und Leerraum weg – so werden Namen verglichen. */
 const schluessel = (text: string) => text.trim().toLocaleLowerCase('de-DE');
 
-/**
- * Jede Warengruppen-Beschriftung, die im Plan steht.
- *
- * Aus den Feldern beider Seiten und aus der Warengruppe am Element selbst.
- * Beides sind Aussagen darüber, was dort liegt – die eine steht im Bild, die
- * andere in den Zusatzangaben.
- */
-export function platzierteTexte(projekt: Pick<Projekt, 'elemente'>): string[] {
-  const texte: string[] = [];
+/** Der Schlüssel eines Eintrags: seine Stufen mit einem Zeichen dazwischen. */
+export function pfadVon(...stufen: string[]): string {
+  return stufen.join(' › ');
+}
 
-  for (const element of projekt.elemente ?? []) {
-    if (element.warengruppe?.trim()) texte.push(element.warengruppe);
-    for (const seite of seitenVon(element)) {
-      for (const feld of felderVon(element, seite)) {
-        const text = feld.warengruppe?.text;
-        if (text?.trim()) texte.push(text);
+/** Der alte Name für den Pfad einer Warengruppe – bleibt der Lesbarkeit wegen. */
+export function schluesselVon(abteilung: string, gruppe: string): string {
+  return pfadVon(abteilung, gruppe);
+}
+
+/** Der Zustand eines einzelnen Eintrags. */
+export function standVon(stand: Sortimentsstand | undefined, pfad: string): Standwert {
+  return stand?.[pfad] ?? 'rot';
+}
+
+/**
+ * Der nächste Zustand beim Anklicken: rot → grün → grau → rot.
+ *
+ * Grün steht in der Mitte, weil es der häufige Fall ist: Beim Durchgehen hakt
+ * man ab, was steht, und nur ab und zu ist etwas gar nicht vorgesehen.
+ */
+export function naechsterStand(jetzt: Standwert): Standwert {
+  return jetzt === 'rot' ? 'gruen' : jetzt === 'gruen' ? 'grau' : 'rot';
+}
+
+/**
+ * Alle Pfade von einem Eintrag abwärts – er selbst eingeschlossen.
+ *
+ * Wer eine Warengruppe abhakt, hakt ihre Sortimente mit ab; wer eine ganze
+ * Abteilung grau setzt, meint alles darin. Alles andere wäre Klickarbeit.
+ */
+export function pfadeUnter(liste: Sortimentsliste, pfad: string): string[] {
+  const pfade: string[] = [];
+
+  for (const abteilung of liste.abteilungen) {
+    const a = pfadVon(abteilung.name);
+    for (const gruppe of abteilung.warengruppen) {
+      const g = pfadVon(abteilung.name, gruppe.name);
+      const sortimente = gruppe.sortimente.map((n) => pfadVon(abteilung.name, gruppe.name, n));
+      if (pfad === a || pfad === g) {
+        if (pfad === g) pfade.push(g, ...sortimente);
+        else pfade.push(g, ...sortimente);
+      } else {
+        const treffer = sortimente.find((sp) => sp === pfad);
+        if (treffer) pfade.push(treffer);
       }
     }
+    if (pfad === a) pfade.unshift(a);
   }
-  return texte;
+  return pfade.length > 0 ? [...new Set(pfade)] : [pfad];
 }
 
-/** Kommt dieser Name in einem der Texte vor? */
-export function istPlatziert(texte: string[], name: string): boolean {
-  const gesucht = schluessel(name);
-  if (!gesucht) return false;
-  return texte.some((text) => schluessel(text).includes(gesucht));
+/** Wie viele Einträge einer Menge grün, offen und grau sind. */
+export interface Standzahlen {
+  gruen: number;
+  offen: number;
+  grau: number;
 }
 
-/** Was von einer Warengruppe im Plan steht. */
-export interface Gruppenstand {
-  /** Die Warengruppe selbst steht im Plan oder alle ihre Sortimente. */
-  platziert: boolean;
-  /** Welche Sortimente dastehen – nach Namen. */
-  sortimente: Map<string, boolean>;
+function zaehle(stand: Sortimentsstand | undefined, pfade: string[]): Standzahlen {
+  const zahlen: Standzahlen = { gruen: 0, offen: 0, grau: 0 };
+  for (const pfad of pfade) {
+    const wert = standVon(stand, pfad);
+    if (wert === 'gruen') zahlen.gruen++;
+    else if (wert === 'grau') zahlen.grau++;
+    else zahlen.offen++;
+  }
+  return zahlen;
 }
 
 /**
- * Der Stand des ganzen Sortiments, Warengruppe für Warengruppe.
+ * Der Zustand einer Warengruppe, aus ihren Sortimenten abgeleitet.
  *
- * Der Schlüssel ist `Abteilung › Warengruppe`, damit gleiche Namen in
- * verschiedenen Abteilungen sich nicht in die Quere kommen – „Snacks" gibt es
- * bei den Backwaren und bei den Knabberartikeln.
+ * Eine Warengruppe **ohne** Sortimente trägt ihren eigenen Haken. Eine mit
+ * Sortimenten richtet sich nach ihnen: Erst wenn alles darunter steht, steht
+ * sie. Sonst könnte sie grün sein, während drei ihrer Sortimente fehlen – und
+ * genau davor soll die Liste ja warnen.
  */
-export function abdeckung(liste: Sortimentsliste, texte: string[]): Map<string, Gruppenstand> {
-  const stand = new Map<string, Gruppenstand>();
+export function gruppenstand(
+  stand: Sortimentsstand | undefined,
+  abteilung: string,
+  gruppe: Sortimentsgruppeartig,
+): { wert: Standwert; zahlen: Standzahlen } {
+  const eigen = pfadVon(abteilung, gruppe.name);
+  if (gruppe.sortimente.length === 0) {
+    const wert = standVon(stand, eigen);
+    return {
+      wert,
+      zahlen: { gruen: wert === 'gruen' ? 1 : 0, offen: wert === 'rot' ? 1 : 0, grau: wert === 'grau' ? 1 : 0 },
+    };
+  }
+
+  const zahlen = zaehle(
+    stand,
+    gruppe.sortimente.map((n) => pfadVon(abteilung, gruppe.name, n)),
+  );
+  return { wert: ausZahlen(zahlen), zahlen };
+}
+
+/** Der Zustand einer Abteilung, aus ihren Warengruppen abgeleitet. */
+export function abteilungsstand(
+  stand: Sortimentsstand | undefined,
+  abteilung: Sortimentsabteilung,
+): { wert: Standwert; zahlen: Standzahlen } {
+  if (abteilung.warengruppen.length === 0) {
+    const wert = standVon(stand, pfadVon(abteilung.name));
+    return {
+      wert,
+      zahlen: { gruen: wert === 'gruen' ? 1 : 0, offen: wert === 'rot' ? 1 : 0, grau: wert === 'grau' ? 1 : 0 },
+    };
+  }
+
+  const zahlen: Standzahlen = { gruen: 0, offen: 0, grau: 0 };
+  for (const gruppe of abteilung.warengruppen) {
+    const wert = gruppenstand(stand, abteilung.name, gruppe).wert;
+    if (wert === 'gruen') zahlen.gruen++;
+    else if (wert === 'grau') zahlen.grau++;
+    else zahlen.offen++;
+  }
+  return { wert: ausZahlen(zahlen), zahlen };
+}
+
+/**
+ * Aus den Zahlen darunter wird der Zustand darüber.
+ *
+ * Grau zählt nicht mit: Eine Warengruppe, von der die Hälfte hier gar nicht
+ * vorgesehen ist, ist erledigt, sobald die andere Hälfte steht. Ist alles
+ * grau, ist sie selbst grau – dann gibt es sie hier nicht.
+ */
+function ausZahlen(zahlen: Standzahlen): Standwert {
+  if (zahlen.offen > 0) return 'rot';
+  if (zahlen.gruen > 0) return 'gruen';
+  return 'grau';
+}
+
+/**
+ * Hakt einen Namen ab, weil er gerade zugeordnet wurde.
+ *
+ * Anders als der frühere Textabgleich ist das eindeutig: Der Pinsel schreibt
+ * genau diesen Namen, nicht einen, in dem er vorkommt. Grün werden alle
+ * Einträge, die so heißen – ein Name kann in zwei Abteilungen stehen.
+ */
+export function mitAbgehaktemNamen(
+  liste: Sortimentsliste,
+  stand: Sortimentsstand | undefined,
+  name: string,
+): Sortimentsstand {
+  const gesucht = schluessel(name);
+  const neu: Sortimentsstand = { ...(stand ?? {}) };
 
   for (const abteilung of liste.abteilungen) {
     for (const gruppe of abteilung.warengruppen) {
-      const selbst = istPlatziert(texte, gruppe.name);
-      const sortimente = new Map<string, boolean>(
-        gruppe.sortimente.map((s) => [s, selbst || istPlatziert(texte, s)]),
-      );
-      const alle = sortimente.size > 0 && [...sortimente.values()].every(Boolean);
-      stand.set(schluesselVon(abteilung.name, gruppe.name), {
-        platziert: selbst || alle,
-        sortimente,
-      });
+      if (schluessel(gruppe.name) === gesucht) {
+        for (const pfad of pfadeUnter(liste, pfadVon(abteilung.name, gruppe.name))) {
+          neu[pfad] = 'gruen';
+        }
+      }
+      for (const sortiment of gruppe.sortimente) {
+        if (schluessel(sortiment) === gesucht) {
+          neu[pfadVon(abteilung.name, gruppe.name, sortiment)] = 'gruen';
+        }
+      }
     }
   }
-  return stand;
+  return neu;
 }
 
-/** Der Schlüssel einer Warengruppe innerhalb ihrer Abteilung. */
-export function schluesselVon(abteilung: string, gruppe: string): string {
-  return `${abteilung} › ${gruppe}`;
-}
-
-/** Wie viele Warengruppen einer Abteilung schon stehen. */
-export function abteilungsstand(
-  abteilung: Sortimentsabteilung,
-  stand: Map<string, Gruppenstand>,
-): { platziert: number; gesamt: number } {
-  const gesamt = abteilung.warengruppen.length;
-  const platziert = abteilung.warengruppen.filter(
-    (w) => stand.get(schluesselVon(abteilung.name, w.name))?.platziert,
-  ).length;
-  return { platziert, gesamt };
+/** Setzt eine Menge von Pfaden auf einen Zustand. Rot heißt: nichts merken. */
+export function mitStand(
+  stand: Sortimentsstand | undefined,
+  pfade: string[],
+  wert: Standwert,
+): Sortimentsstand {
+  const neu: Sortimentsstand = { ...(stand ?? {}) };
+  for (const pfad of pfade) {
+    if (wert === 'rot') delete neu[pfad];
+    else neu[pfad] = wert;
+  }
+  return neu;
 }
 
 /**
@@ -143,7 +247,7 @@ export function gefiltert(liste: Sortimentsliste, suche: string): Sortimentslist
 }
 
 /** Hilfstyp, damit der Filter oben lesbar bleibt. */
-type Sortimentsgruppeartig = Sortimentsabteilung['warengruppen'][number];
+type Sortimentsgruppeartig = Sortimentsgruppe;
 
 /** Steht dieser Name schon irgendwo in der Liste? */
 export function kenntNamen(liste: Sortimentsliste, name: string): boolean {
@@ -475,5 +579,3 @@ export function umfang(liste: Sortimentsliste): {
   };
 }
 
-/** Nur zur Sicherheit: `PlanElement` wird über `felderVon` mitgelesen. */
-export type { PlanElement };

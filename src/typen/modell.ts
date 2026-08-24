@@ -713,6 +713,18 @@ export interface Projekt {
   raeume: Raum[];
   /** Eingezeichnete Verkaufsfläche – leer heißt: aus den Räumen gerechnet. */
   verkaufsflaechen: Verkaufsflaeche[];
+  /**
+   * Welche Warengruppen in diesem Markt abgehakt sind.
+   *
+   * Der Schlüssel ist der Pfad in der Sortimentsliste – `Abteilung`,
+   * `Abteilung › Warengruppe` oder `Abteilung › Warengruppe › Sortiment`.
+   * Was nicht darinsteht, ist **offen**.
+   *
+   * Gehört zur Planung und nicht zur Liste: Die Liste sagt, was es gibt, der
+   * Haken sagt, was in **diesem** Markt daraus geworden ist. Ein zweiter
+   * Markt fängt wieder bei null an.
+   */
+  sortimentsstand?: Record<string, 'gruen' | 'grau'>;
   /** Freistehende Innenwände, die keinen ganzen Raum abtrennen. */
   waende: Wand[];
   /** Türen, Durchgänge und Tore. */
@@ -743,6 +755,7 @@ export interface Projekt {
  *  10 – „Aktionsfläche" steht in der Fläche
  *  11 – Kopfgondeln schauen in den Gang
  *  12 – Aktionsflächen sind eine eigene Grundform
+ *  13 – abgehakte Warengruppen je Markt
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -784,4 +797,8 @@ export interface Projekt {
  * es Rechtecke wie jedes andere und trugen deshalb weder ihre Quadratmeter
  * noch ihre Maße.
  */
-export const SCHEMA_VERSION = 12;
+/**
+ * Fassung 13 merkt sich, welche Warengruppen in diesem Markt abgehakt sind.
+ * Ein neues Feld ohne Umwandlung: Was nicht dasteht, ist offen.
+ */
+export const SCHEMA_VERSION = 13;

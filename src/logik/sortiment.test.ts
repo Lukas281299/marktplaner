@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  abdeckung,
   abteilungsstand,
   gefiltert,
-  istPlatziert,
+  gruppenstand,
   kenntNamen,
   leseSortimentsliste,
   mitAbteilung,
@@ -12,16 +11,19 @@ import {
   mitWarengruppe,
   ohneAbteilung,
   ohneSortiment,
+  mitAbgehaktemNamen,
+  mitStand,
+  naechsterStand,
   ohneWarengruppe,
-  platzierteTexte,
-  schluesselVon,
+  pfadVon,
+  pfadeUnter,
+  standVon,
   umbenannteAbteilung,
   umbenannteWarengruppe,
   umbenanntesSortiment,
   umfang,
 } from './sortiment';
 import type { Sortimentsliste } from '../daten/warengruppen';
-import type { PlanElement } from '../typen/modell';
 
 /**
  * Prüfungen für den Abgleich zwischen Sortimentsliste und Plan.
@@ -48,100 +50,115 @@ const liste: Sortimentsliste = {
   ],
 };
 
-const feld = (text: string) => ({ breite: 100, warengruppe: { text, felder: 1 } });
+const drogerie = liste.abteilungen[0];
+const baby = drogerie.warengruppen[0];
 
-const zug = (texte: string[]): PlanElement =>
-  ({
-    id: 'z',
-    vorlageId: 'wt-zug',
-    ebeneId: 'einrichtung',
-    name: 'Zug',
-    kategorie: 'regale',
-    x: 0,
-    y: 0,
-    breite: 100 * texte.length,
-    tiefe: 67,
-    drehung: 0,
-    form: 'wt100',
-    farbe: '#ccc',
-    beschriftung: '',
-    beschriftungSichtbar: false,
-    schriftgroesse: 12,
-    gesperrt: false,
-    reihenfolge: 0,
-    beidseitig: false,
-    achsmass: 100,
-    felderUnten: texte.map(feld),
-  }) as unknown as PlanElement;
+/** Der Pfad eines Sortiments in der Beispielliste. */
+const sPfad = (name: string) => pfadVon(drogerie.name, baby.name, name);
+const gPfad = pfadVon(drogerie.name, baby.name);
 
-const standVon = (texte: string[]) => abdeckung(liste, texte);
-const gruppe = (texte: string[], abteilung: string, name: string) =>
-  standVon(texte).get(schluesselVon(abteilung, name))!;
-
-describe('Was im Plan steht', () => {
-  it('liest die Warengruppen aus den Feldern beider Seiten', () => {
-    const gondel = {
-      ...zug(['Windeln']),
-      beidseitig: true,
-      felderOben: [feld('Croissants')],
-    } as PlanElement;
-    expect(platzierteTexte({ elemente: [gondel] }).sort()).toEqual(['Croissants', 'Windeln']);
+describe('Abhaken von Hand', () => {
+  it('ist ohne Zutun offen', () => {
+    expect(standVon(undefined, sPfad('Windeln'))).toBe('rot');
   });
 
-  it('liest auch die Warengruppe am Element', () => {
-    const el = { ...zug([]), warengruppe: 'Drogerie' } as PlanElement;
-    expect(platzierteTexte({ elemente: [el] })).toContain('Drogerie');
+  it('schaltet rot → grün → grau → rot', () => {
+    expect(naechsterStand('rot')).toBe('gruen');
+    expect(naechsterStand('gruen')).toBe('grau');
+    expect(naechsterStand('grau')).toBe('rot');
   });
 
-  it('findet einen Namen mitten im Text', () => {
-    // Mehrere Sortimente auf einem Meter: „Babypflege, Windeln" ist beides.
-    expect(istPlatziert(['Babypflege, Windeln'], 'Windeln')).toBe(true);
-    expect(istPlatziert(['Babypflege, Windeln'], 'Babypflege')).toBe(true);
+  it('merkt sich grün und grau, rot aber nicht', () => {
+    // Rot ist der Grundzustand. Ihn zu speichern hieße, jede Planung mit
+    // dreihundert Einträgen zu füllen, die nichts aussagen.
+    const gruen = mitStand({}, [sPfad('Windeln')], 'gruen');
+    expect(gruen[sPfad('Windeln')]).toBe('gruen');
+    expect(mitStand(gruen, [sPfad('Windeln')], 'rot')).toEqual({});
   });
 
-  it('achtet nicht auf Groß- und Kleinschreibung', () => {
-    expect(istPlatziert(['babypflege'], 'Babypflege')).toBe(true);
+  it('nimmt beim Abhaken alles darunter mit', () => {
+    // Wer eine Warengruppe abhakt, hakt ihre Sortimente mit ab – alles
+    // andere wäre Klickarbeit.
+    const pfade = pfadeUnter(liste, gPfad);
+    expect(pfade).toContain(gPfad);
+    expect(pfade).toContain(sPfad('Windeln'));
+    expect(pfade).toHaveLength(1 + baby.sortimente.length);
   });
 
-  it('hält einen leeren Namen für nirgends platziert', () => {
-    // Sonst wäre jede leere Zeile überall ein Treffer.
-    expect(istPlatziert(['irgendwas'], '   ')).toBe(false);
+  it('nimmt bei einer Abteilung alles darin mit', () => {
+    const pfade = pfadeUnter(liste, pfadVon(drogerie.name));
+    expect(pfade[0]).toBe(pfadVon(drogerie.name));
+    // Zwei Warengruppen mit drei und zwei Sortimenten, dazu die Abteilung.
+    expect(pfade).toHaveLength(1 + 2 + 3 + 2);
   });
 });
 
-describe('Grün und Rot', () => {
-  it('macht ein einzeln geschriebenes Sortiment grün', () => {
-    const stand = gruppe(['Windeln'], 'Drogerie', 'Babyartikel');
-    expect(stand.sortimente.get('Windeln')).toBe(true);
-    expect(stand.sortimente.get('Babypflege')).toBe(false);
+describe('Grün, rot und grau', () => {
+  const mit = (paare: [string, 'gruen' | 'grau'][]) =>
+    paare.reduce<Record<string, 'gruen' | 'grau'>>((stand, [pfad, wert]) => mitStand(stand, [pfad], wert), {});
+
+  it('lässt eine Warengruppe rot, solange ein Sortiment offen ist', () => {
+    // Genau der Fehler von vorher: „Kaffee" galt als gesetzt, weil irgendwo
+    // „Filterkaffee" stand. Jetzt zählt nur, was abgehakt ist.
+    const stand = mit([[sPfad('Windeln'), 'gruen']]);
+    expect(gruppenstand(stand, drogerie.name, baby).wert).toBe('rot');
   });
 
-  it('macht mit der Warengruppe alle ihre Sortimente grün', () => {
-    // Wer „Babyartikel" über sechs Meter schreibt, hat die Windeln nicht
-    // vergessen – er hat sie nicht einzeln aufgeführt.
-    const stand = gruppe(['Babyartikel'], 'Drogerie', 'Babyartikel');
-    expect(stand.platziert).toBe(true);
-    expect([...stand.sortimente.values()].every(Boolean)).toBe(true);
+  it('macht sie grün, wenn alles darunter steht', () => {
+    const stand = mit(baby.sortimente.map((n) => [sPfad(n), 'gruen'] as [string, 'gruen']));
+    expect(gruppenstand(stand, drogerie.name, baby).wert).toBe('gruen');
   });
 
-  it('macht die Warengruppe grün, wenn alle Sortimente einzeln dastehen', () => {
-    // Sonst bliebe sie rot, obwohl nichts fehlt.
-    const stand = gruppe(['Croissants', 'Snacks'], 'Backwaren', 'Bake Off');
-    expect(stand.platziert).toBe(true);
+  it('zählt Graues nicht als Lücke', () => {
+    // Was es hier nicht gibt, fehlt auch nicht.
+    const stand = mit([
+      [sPfad('Windeln'), 'gruen'],
+      [sPfad('Babypflege'), 'grau'],
+      [sPfad('Babynahrung Glas'), 'grau'],
+    ]);
+    const ergebnis = gruppenstand(stand, drogerie.name, baby);
+    expect(ergebnis.wert).toBe('gruen');
+    expect(ergebnis.zahlen).toEqual({ gruen: 1, offen: 0, grau: 2 });
   });
 
-  it('lässt die Warengruppe rot, solange eines fehlt', () => {
-    expect(gruppe(['Croissants'], 'Backwaren', 'Bake Off').platziert).toBe(false);
+  it('macht sie grau, wenn alles darunter grau ist', () => {
+    const stand = mit(baby.sortimente.map((n) => [sPfad(n), 'grau'] as [string, 'grau']));
+    expect(gruppenstand(stand, drogerie.name, baby).wert).toBe('grau');
   });
 
-  it('hält gleiche Namen in verschiedenen Abteilungen auseinander', () => {
-    // „Snacks" gibt es öfter. Der Schlüssel trägt deshalb die Abteilung.
-    expect(schluesselVon('Backwaren', 'Bake Off')).not.toBe(schluesselVon('Drogerie', 'Bake Off'));
+  it('lässt eine Warengruppe ohne Sortimente ihren eigenen Haken tragen', () => {
+    const leer = { name: 'Restaurant', sortimente: [] };
+    expect(gruppenstand({}, 'Centeria', leer).wert).toBe('rot');
+    expect(
+      gruppenstand({ [pfadVon('Centeria', 'Restaurant')]: 'gruen' }, 'Centeria', leer).wert,
+    ).toBe('gruen');
   });
 
-  it('zählt je Abteilung, wie viel schon steht', () => {
-    const stand = standVon(['Babyartikel']);
-    expect(abteilungsstand(liste.abteilungen[0], stand)).toEqual({ platziert: 1, gesamt: 2 });
+  it('rechnet die Abteilung aus ihren Warengruppen', () => {
+    const stand = mit(baby.sortimente.map((n) => [sPfad(n), 'gruen'] as [string, 'gruen']));
+    const ergebnis = abteilungsstand(stand, drogerie);
+    expect(ergebnis.wert).toBe('rot');
+    expect(ergebnis.zahlen).toEqual({ gruen: 1, offen: 1, grau: 0 });
+  });
+});
+
+describe('Zugeordnet heißt abgehakt', () => {
+  it('hakt genau den zugeordneten Namen ab', () => {
+    // Anders als der frühere Textabgleich: Der Pinsel schreibt genau diesen
+    // Namen, nicht einen, in dem er vorkommt.
+    const stand = mitAbgehaktemNamen(liste, {}, 'Windeln');
+    expect(stand[sPfad('Windeln')]).toBe('gruen');
+    expect(stand[sPfad('Babypflege')]).toBeUndefined();
+  });
+
+  it('hakt bei einer Warengruppe ihre Sortimente mit ab', () => {
+    const stand = mitAbgehaktemNamen(liste, {}, 'Babyartikel');
+    expect(stand[gPfad]).toBe('gruen');
+    expect(stand[sPfad('Windeln')]).toBe('gruen');
+  });
+
+  it('lässt einen Namen, den die Liste nicht kennt, ohne Wirkung', () => {
+    expect(mitAbgehaktemNamen(liste, {}, 'Grillkohle')).toEqual({});
   });
 });
 

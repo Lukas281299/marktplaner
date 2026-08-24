@@ -30,7 +30,13 @@ import {
   setzeFavoriten as speichereFavoriten,
 } from '../speicher/projektArchiv';
 import { STANDARD_SORTIMENT, type Sortimentsliste } from '../daten/warengruppen';
-import { mitAufgenommenem } from '../logik/sortiment';
+import {
+  mitAbgehaktemNamen,
+  mitAufgenommenem,
+  mitStand,
+  pfadeUnter,
+  type Standwert,
+} from '../logik/sortiment';
 import { feldUnterPunkt } from '../logik/feldtreffer';
 import type {
   BibliothekEintrag,
@@ -191,6 +197,13 @@ interface PlanStore {
   setzeWarengruppenPinsel(name: string | null): void;
   /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
   setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
+  /**
+   * Hakt einen Eintrag der Sortimentsliste ab – mit allem darunter.
+   *
+   * Der Zustand gehört zur Planung: Die Liste sagt, was es gibt, der Haken
+   * sagt, was in **diesem** Markt daraus geworden ist.
+   */
+  setzeSortimentsstand(pfad: string, wert: Standwert): void;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
   /**
@@ -394,6 +407,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set(reiter === 'warengruppen' ? { linkerReiter: reiter } : { linkerReiter: reiter, warengruppenPinsel: null });
   },
 
+  setzeSortimentsstand(pfad, wert) {
+    const pfade = pfadeUnter(get().sortiment, pfad);
+    aendere(set, get, (p) => ({ ...p, sortimentsstand: mitStand(p.sortimentsstand, pfade, wert) }));
+  },
+
   pflegeSortiment(liste) {
     set({ sortiment: liste });
     void speichereSortiment(liste);
@@ -419,6 +437,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     if (felder.length === 0) return false;
 
     get().schnappschuss();
+    // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
+    // ein Teil eines anderen – anders als beim früheren Textabgleich.
+    aendere(set, get, (p) => ({
+      ...p,
+      sortimentsstand: mitAbgehaktemNamen(get().sortiment, p.sortimentsstand, text),
+    }));
     get().setzeSeitenfelder(
       elementId,
       treffer.seite,

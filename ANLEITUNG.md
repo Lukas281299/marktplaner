@@ -618,17 +618,33 @@ Klick kein Möbel aus — dafür erst weglegen.
 Von Hand geht weiterhin alles: Das Feld *Warengruppe* im Eigenschaftenfenster
 nimmt jeden Text.
 
-**Grün steht schon im Plan, rot fehlt noch.** Rechts neben jeder Abteilung
-steht, wie viele ihrer Warengruppen schon stehen. Damit gehst du am Ende die
-Liste durch und siehst, ob etwas vergessen wurde. Zwei Regeln dahinter:
+**Abgehakt wird von Hand.** Vor jedem Eintrag steht ein Punkt, und ein Klick
+darauf schaltet ihn weiter:
 
-- Steht eine **Warengruppe** im Plan, gelten alle ihre Sortimente als
-  platziert — „Molkereiprodukte" über sechs Meter heißt nicht, dass die Butter
-  vergessen wurde.
-- Stehen umgekehrt **alle Sortimente** einzeln da, wird die Warengruppe grün.
+| Punkt | Bedeutung |
+|---|---|
+| ○ **rot** | offen — der Grundzustand |
+| ● **grün** | steht im Markt |
+| ⊘ **grau** | in diesem Markt nicht vorgesehen |
 
-Verglichen wird über den **Text**: Wer „Babypflege" von Hand schreibt, hat
-Babypflege platziert, und wer zwei Namen auf einen Meter schreibt, beide.
+Der Klick nimmt **alles darunter mit**: Eine Warengruppe abzuhaken hakt ihre
+Sortimente mit ab, eine Abteilung ihre ganze Warengruppenliste.
+
+**Nach oben wird gerechnet, nicht geraten.** Eine Warengruppe wird erst grün,
+wenn alle ihre Sortimente stehen — sonst bliebe sie grün, während drei davon
+fehlen, und genau davor soll die Liste ja warnen. **Graues zählt nicht mit:**
+Was es hier nicht gibt, fehlt auch nicht. Rechts neben jeder Abteilung steht
+darum *grün/offen* und in Klammern, wie viel davon grau ist — etwa `3/21 (2)`.
+
+Was du mit dem Pinsel zuordnest, hakt sich **selbst ab**: Dort ist der Name
+genau der Name. Von Hand geschriebene Beschriftungen zählt die Liste dagegen
+nicht — ein Haken, der sich selbst setzt, ist schlimmer als keiner. Früher
+wurde am Text verglichen, und „Kaffee" galt als gesetzt, weil irgendwo
+„Filterkaffee" stand.
+
+> Die Haken gehören zur **Planung**, nicht zur Liste: Die Liste sagt, was es
+> gibt, der Haken sagt, was in diesem Markt daraus geworden ist. Ein zweiter
+> Markt fängt wieder bei null an.
 
 #### Die Liste pflegen
 
