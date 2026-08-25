@@ -456,6 +456,72 @@ function aendereGruppe(
   };
 }
 
+/** Was ein Ergänzen hinzugefügt hat – für die Rückmeldung danach. */
+export interface Zuwachs {
+  abteilungen: number;
+  warengruppen: number;
+  sortimente: number;
+}
+
+/**
+ * Ergänzt die vorhandene Liste um alles, was in der neuen dazugekommen ist.
+ *
+ * Der übliche Weg, wenn die Sortimentsliste des Marktes überarbeitet wurde:
+ * Ein paar Sortimente sind dazugekommen, der Rest ist geblieben. **Ersetzen
+ * wäre hier falsch** – es würfe weg, was von Hand aufgenommen wurde, und
+ * jeder Haken hinge plötzlich an einem Eintrag, den es so nicht mehr gibt.
+ *
+ * Ergänzt wird deshalb nur, und zwar in der Reihenfolge der neuen Liste
+ * eingehängt: Ein neues Sortiment steht dort, wo es in der Tabelle steht,
+ * und nicht am Ende. Was in der neuen Liste **fehlt**, bleibt trotzdem
+ * stehen: Vielleicht wurde es dort gestrichen, vielleicht steht es nur
+ * woanders – und ein Eintrag, den das Programm still entfernt, nimmt einen
+ * Haken mit, den jemand gesetzt hat.
+ *
+ * Verglichen wird ohne Rücksicht auf Groß- und Kleinschreibung; sonst stünde
+ * „Bake off" ein zweites Mal neben „Bake Off".
+ */
+export function vereinigt(
+  alt: Sortimentsliste,
+  neu: Sortimentsliste,
+): { liste: Sortimentsliste; zuwachs: Zuwachs } {
+  const zuwachs: Zuwachs = { abteilungen: 0, warengruppen: 0, sortimente: 0 };
+
+  const abteilungen = alt.abteilungen.map((abteilung) => {
+    const dazu = neu.abteilungen.find((a) => schluessel(a.name) === schluessel(abteilung.name));
+    if (!dazu) return abteilung;
+
+    const warengruppen = abteilung.warengruppen.map((gruppe) => {
+      const g = dazu.warengruppen.find((w) => schluessel(w.name) === schluessel(gruppe.name));
+      if (!g) return gruppe;
+
+      const bekannt = new Set(gruppe.sortimente.map(schluessel));
+      const neue = g.sortimente.filter((sortiment) => !bekannt.has(schluessel(sortiment)));
+      if (neue.length === 0) return gruppe;
+      zuwachs.sortimente += neue.length;
+      return { ...gruppe, sortimente: [...gruppe.sortimente, ...neue] };
+    });
+
+    const bekannt = new Set(abteilung.warengruppen.map((w) => schluessel(w.name)));
+    const neueGruppen = dazu.warengruppen.filter((w) => !bekannt.has(schluessel(w.name)));
+    zuwachs.warengruppen += neueGruppen.length;
+    zuwachs.sortimente += neueGruppen.reduce((n, w) => n + w.sortimente.length, 0);
+
+    return { ...abteilung, warengruppen: [...warengruppen, ...neueGruppen] };
+  });
+
+  const bekannt = new Set(alt.abteilungen.map((a) => schluessel(a.name)));
+  const neueAbteilungen = neu.abteilungen.filter((a) => !bekannt.has(schluessel(a.name)));
+  zuwachs.abteilungen = neueAbteilungen.length;
+  zuwachs.warengruppen += neueAbteilungen.reduce((n, a) => n + a.warengruppen.length, 0);
+  zuwachs.sortimente += neueAbteilungen.reduce(
+    (n, a) => n + a.warengruppen.reduce((m, w) => m + w.sortimente.length, 0),
+    0,
+  );
+
+  return { liste: { abteilungen: [...abteilungen, ...neueAbteilungen] }, zuwachs };
+}
+
 /**
  * Liest eine Sortimentsliste aus einer Datei.
  *

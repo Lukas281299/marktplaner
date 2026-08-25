@@ -604,6 +604,10 @@ Oben in der Leiste stehen unter *Ansicht* zwei Reiter für die linke Spalte:
 **Möbel** und **Warengruppen**. Der zweite zeigt die Sortimentsliste des
 Marktes in drei Stufen — Abteilung, Warengruppe, Sortiment.
 
+Die Abteilungen stehen **zugeklappt**; ein Klick auf den Namen öffnet sie. Was
+du aufgeklappt hast, steht beim nächsten Öffnen des Reiters wieder offen. Beim
+Suchen klappt alles auf, sonst sähe man die Treffer nicht.
+
 **Zuordnen geht in zwei Klicks:**
 
 1. Einen Namen in der Liste anklicken. Er wird aufgenommen und steht oben in
@@ -670,6 +674,31 @@ eigene Sortiment und war es nicht.
 Erwartet wird eine **JSON-Datei** oder eine **Tabelle mit drei Spalten**
 (Abteilung; Warengruppe; Sortiment), wie sie jedes Tabellenprogramm ausgibt.
 Leere Zellen übernehmen den Wert der Zeile darüber.
+
+#### Wenn die Liste sich ändert
+
+Wird die Sortimentsliste des Marktes überarbeitet, lädst du sie einfach wieder
+— mit **Liste ergänzen**. Dann kommt dazu, was neu ist, und alles Vorhandene
+bleibt stehen: die Haken, die du gesetzt hast, und was du selbst aufgenommen
+hast. Danach steht da, wie viel dazugekommen ist.
+
+Was in der neuen Datei **fehlt**, bleibt trotzdem stehen. Ein Eintrag, den das
+Programm still entfernt, nimmt einen Haken mit, den jemand gesetzt hat — wer
+wirklich aufräumen will, entfernt ihn über den Stift oder nimmt *ersetzen*.
+
+**Ersetzen** wirft die ganze Liste weg und fragt vorher nach. Das ist der Weg
+für einen sauberen Neuanfang, nicht für ein Nachtragen.
+
+> Aus einer Excel-Tabelle macht `werkzeuge/sortimentsliste-aus-excel.py` die
+> JSON-Datei:
+>
+> ```
+> python werkzeuge/sortimentsliste-aus-excel.py "Sortimentsliste.xlsx"
+> ```
+>
+> Gelesen wird die **Gliederung** der Tabelle — Excels Zeilengruppierung —,
+> nicht ihre Schrift: keine Stufe heißt Abteilung, Stufe 1 Warengruppe, alles
+> darunter Sortiment.
 
 > Die geladene Liste bleibt **auf diesem Rechner** und wandert nicht in die
 > Planung. Auf einem zweiten Rechner lädst du sie einmal nach — genau wie die

@@ -22,6 +22,7 @@ import {
   umbenannteWarengruppe,
   umbenanntesSortiment,
   umfang,
+  vereinigt,
 } from './sortiment';
 import type { Sortimentsliste } from '../daten/warengruppen';
 
@@ -309,5 +310,85 @@ describe('Die Tabelle des Marktes', () => {
     expect(gelesen.abteilungen.map((a) => a.name)).toEqual(['Backwaren', 'Centeria']);
     expect(gelesen.abteilungen[0].warengruppen[0].sortimente).toEqual(['Croissants', 'Snacks']);
     expect(gelesen.abteilungen[1].warengruppen[0]).toEqual({ name: 'Restaurant', sortimente: [] });
+  });
+});
+
+describe('Eine überarbeitete Liste ergänzen', () => {
+  /**
+   * Der übliche Fall: Die Sortimentsliste des Marktes wurde überarbeitet, ein
+   * paar Sortimente sind dazugekommen. Ersetzen wäre dort falsch — es würfe
+   * weg, was von Hand aufgenommen wurde, und jeder Haken hinge an einem
+   * Eintrag, den es so nicht mehr gibt.
+   */
+  const neuere: Sortimentsliste = {
+    abteilungen: [
+      {
+        name: 'Drogerie',
+        warengruppen: [
+          // Ein neues Sortiment in einer bekannten Warengruppe …
+          { name: 'Babyartikel', sortimente: ['Windeln', 'Feuchttücher'] },
+          // … und eine ganz neue Warengruppe.
+          { name: 'Zahnpflege', sortimente: ['Zahnpasta'] },
+        ],
+      },
+      // Eine ganz neue Abteilung.
+      { name: 'Getränke', warengruppen: [{ name: 'Wasser', sortimente: ['Still', 'Sprudel'] }] },
+    ],
+  };
+
+  it('zählt, was dazugekommen ist', () => {
+    const { zuwachs } = vereinigt(liste, neuere);
+    expect(zuwachs).toEqual({ abteilungen: 1, warengruppen: 2, sortimente: 4 });
+  });
+
+  it('hängt Neues an, ohne Vorhandenes anzufassen', () => {
+    const { liste: ergaenzt } = vereinigt(liste, neuere);
+    const drogerieNeu = ergaenzt.abteilungen[0];
+    expect(drogerieNeu.warengruppen[0].sortimente).toEqual([
+      'Babypflege',
+      'Windeln',
+      'Babynahrung Glas',
+      'Feuchttücher',
+    ]);
+    expect(drogerieNeu.warengruppen.map((w) => w.name)).toEqual([
+      'Babyartikel',
+      'Waschmittel',
+      'Zahnpflege',
+    ]);
+    expect(ergaenzt.abteilungen.map((a) => a.name)).toEqual([
+      'Drogerie',
+      'Backwaren',
+      'Getränke',
+    ]);
+  });
+
+  it('lässt stehen, was in der neuen Liste fehlt', () => {
+    // „Backwaren" kommt dort gar nicht vor. Ein Eintrag, den das Programm
+    // still entfernt, nimmt einen Haken mit, den jemand gesetzt hat.
+    const { liste: ergaenzt } = vereinigt(liste, neuere);
+    expect(ergaenzt.abteilungen.find((a) => a.name === 'Backwaren')).toBeTruthy();
+    expect(ergaenzt.abteilungen[0].warengruppen[1].name).toBe('Waschmittel');
+  });
+
+  it('legt nichts zweimal an, nur weil es anders geschrieben ist', () => {
+    const anders: Sortimentsliste = {
+      abteilungen: [
+        { name: 'DROGERIE', warengruppen: [{ name: 'babyartikel', sortimente: ['windeln'] }] },
+      ],
+    };
+    expect(vereinigt(liste, anders).zuwachs).toEqual({
+      abteilungen: 0,
+      warengruppen: 0,
+      sortimente: 0,
+    });
+  });
+
+  it('meldet null, wenn dieselbe Datei noch einmal kommt', () => {
+    expect(vereinigt(liste, liste).zuwachs).toEqual({
+      abteilungen: 0,
+      warengruppen: 0,
+      sortimente: 0,
+    });
+    expect(vereinigt(liste, liste).liste).toEqual(liste);
   });
 });

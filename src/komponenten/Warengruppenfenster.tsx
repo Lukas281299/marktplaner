@@ -17,6 +17,7 @@ import {
   umbenannteWarengruppe,
   umbenanntesSortiment,
   umfang,
+  vereinigt,
   type Standwert,
 } from '../logik/sortiment';
 import { usePlanStore } from '../zustand/planStore';
@@ -43,10 +44,12 @@ export function Warengruppenfenster() {
   const stand = usePlanStore((s) => s.projekt.sortimentsstand);
   const pinsel = usePlanStore((s) => s.warengruppenPinsel);
 
+  const offeneAbteilungen = usePlanStore((s) => s.offeneAbteilungen);
+
   const [suche, setSuche] = useState('');
-  const [zu, setZu] = useState<Set<string>>(new Set());
   const [pflege, setPflege] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [meldung, setMeldung] = useState<string | null>(null);
 
   const gezeigt = gefiltert(sortiment, suche);
   const zahlen = umfang(sortiment);
@@ -73,12 +76,38 @@ export function Warengruppenfenster() {
     return antwort?.trim() ? antwort.trim() : null;
   };
 
-  const laden = async (datei: File | undefined) => {
+  /**
+   * Eine Datei einlesen – ergänzend oder ersetzend.
+   *
+   * Ergänzen ist der übliche Weg: Die Sortimentsliste des Marktes wurde
+   * überarbeitet, ein paar Sortimente sind dazugekommen. Ersetzen wirft alles
+   * weg, auch die eigenen Ergänzungen – deshalb fragt es vorher nach.
+   */
+  const laden = async (datei: File | undefined, ersetzen: boolean) => {
     if (!datei) return;
     try {
-      usePlanStore.getState().setzeSortimentsliste(leseSortimentsliste(await datei.text()), true);
+      const gelesen = leseSortimentsliste(await datei.text());
       setFehler(null);
+
+      if (ersetzen) {
+        usePlanStore.getState().setzeSortimentsliste(gelesen, true);
+        const z = umfang(gelesen);
+        setMeldung(
+          `Liste ersetzt: ${z.abteilungen} Abteilungen, ${z.warengruppen} Warengruppen, ${z.sortimente} Sortimente.`,
+        );
+        return;
+      }
+
+      const { liste, zuwachs } = vereinigt(sortiment, gelesen);
+      usePlanStore.getState().setzeSortimentsliste(liste, true);
+      const teile = [
+        zuwachs.abteilungen > 0 ? `${zuwachs.abteilungen} Abteilungen` : null,
+        zuwachs.warengruppen > 0 ? `${zuwachs.warengruppen} Warengruppen` : null,
+        zuwachs.sortimente > 0 ? `${zuwachs.sortimente} Sortimente` : null,
+      ].filter(Boolean);
+      setMeldung(teile.length > 0 ? `Ergänzt: ${teile.join(', ')}.` : 'Nichts Neues dabei.');
     } catch (e) {
+      setMeldung(null);
       setFehler(e instanceof Error ? e.message : 'Die Datei ließ sich nicht lesen.');
     }
   };
@@ -137,19 +166,16 @@ export function Warengruppenfenster() {
 
       <div className="spalte-inhalt">
         {gezeigt.abteilungen.map((abteilung) => {
-          const offen = sucht || !zu.has(abteilung.name);
+          // Zugeklappt ist der Anfang; beim Suchen geht alles auf, sonst
+          // sähe man die Treffer nicht.
+          const offen = sucht || offeneAbteilungen.includes(abteilung.name);
           const zahl = abteilungsstand(stand, abteilung);
           return (
             <div key={abteilung.name} className="wg-abteilung">
               <div className="wg-kopf">
                 <button
                   className="wg-titel"
-                  onClick={() => {
-                    const neu = new Set(zu);
-                    if (offen) neu.add(abteilung.name);
-                    else neu.delete(abteilung.name);
-                    setZu(neu);
-                  }}
+                  onClick={() => usePlanStore.getState().schalteAbteilung(abteilung.name)}
                 >
                   <span className="wg-pfeil">{offen ? '▾' : '▸'}</span>
                   {abteilung.name}
@@ -371,18 +397,45 @@ export function Warengruppenfenster() {
             {zahlen.abteilungen} · {zahlen.warengruppen} · {zahlen.sortimente}
           </span>
         </div>
-        <label className="knopf" style={{ width: '100%', textAlign: 'center' }}>
-          Sortimentsliste laden
-          <input
-            type="file"
-            accept=".json,.csv,.txt,.tsv"
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              void laden(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-        </label>
+        <div className="knopfreihe">
+          <label className="knopf" style={{ flex: 1, textAlign: 'center' }}>
+            {sortiment.abteilungen.length === 0 ? 'Sortimentsliste laden' : 'Liste ergänzen'}
+            <input
+              type="file"
+              accept=".json,.csv,.txt,.tsv"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                void laden(e.target.files?.[0], false);
+                e.target.value = '';
+              }}
+            />
+          </label>
+          {sortiment.abteilungen.length > 0 && (
+            <label
+              className="knopf"
+              title="Die ganze Liste durch die Datei ersetzen – eigene Ergänzungen gehen dabei verloren"
+            >
+              ersetzen
+              <input
+                type="file"
+                accept=".json,.csv,.txt,.tsv"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const datei = e.target.files?.[0];
+                  e.target.value = '';
+                  if (datei && window.confirm('Die ganze Liste ersetzen? Eigene Ergänzungen gehen dabei verloren.')) {
+                    void laden(datei, true);
+                  }
+                }}
+              />
+            </label>
+          )}
+        </div>
+        {meldung && (
+          <p className="hinweis" style={{ marginTop: 6 }}>
+            {meldung}
+          </p>
+        )}
         {fehler && (
           <p className="hinweis" style={{ marginTop: 6, color: 'var(--rot, #b3372a)' }}>
             {fehler}

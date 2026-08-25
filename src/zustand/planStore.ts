@@ -168,6 +168,15 @@ interface PlanStore {
    * den Platz, statt sich zu drängeln.
    */
   linkerReiter: 'bibliothek' | 'warengruppen';
+  /**
+   * Welche Abteilungen im Warengruppen-Reiter aufgeklappt sind.
+   *
+   * Zugeklappt ist der Anfang: Elf Abteilungen mit dreihundert Sortimenten
+   * sind aufgeklappt keine Liste mehr, sondern eine Wand. Und der Zustand
+   * gehört hierher und nicht in die Komponente – sonst stünde nach jedem
+   * Wechsel zu den Möbeln wieder alles zu.
+   */
+  offeneAbteilungen: string[];
   ansicht: Ansicht;
   /** Erst `true`, wenn aus der Datenbank geladen wurde. */
   geladen: boolean;
@@ -197,6 +206,8 @@ interface PlanStore {
   setzeWarengruppenPinsel(name: string | null): void;
   /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
   setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
+  /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
+  schalteAbteilung(name: string): void;
   /**
    * Hakt einen Eintrag der Sortimentsliste ab – mit allem darunter.
    *
@@ -356,6 +367,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   sortiment: STANDARD_SORTIMENT,
   warengruppenPinsel: null,
   linkerReiter: 'bibliothek',
+  offeneAbteilungen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
   geladenerStand: null,
@@ -405,6 +417,15 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // Beim Wegschalten den Pinsel weglegen: Ein Klick auf ein Regal soll
     // nicht Wochen später noch eine Warengruppe schreiben.
     set(reiter === 'warengruppen' ? { linkerReiter: reiter } : { linkerReiter: reiter, warengruppenPinsel: null });
+  },
+
+  schalteAbteilung(name) {
+    const offen = get().offeneAbteilungen;
+    set({
+      offeneAbteilungen: offen.includes(name)
+        ? offen.filter((n) => n !== name)
+        : [...offen, name],
+    });
   },
 
   setzeSortimentsstand(pfad, wert) {
