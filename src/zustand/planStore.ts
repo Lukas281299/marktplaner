@@ -37,7 +37,11 @@ import {
   pfadeUnter,
   type Standwert,
 } from '../logik/sortiment';
-import { mitZugeordnetem, ohneElemente, umgeschaltet } from '../logik/warengruppenband';
+import {
+  mitZugeordnetenFeldern,
+  ohneZugeordneteFelder,
+  umgeschaltet,
+} from '../logik/warengruppenzuordnung';
 import { feldUnterPunkt } from '../logik/feldtreffer';
 import type {
   BibliothekEintrag,
@@ -248,6 +252,13 @@ interface PlanStore {
   markiereFeld(elementId: string, punkt: Punkt): boolean;
   /** Hebt die Markierung auf. */
   hebeMarkierungAuf(): void;
+  /**
+   * Nimmt die Beschriftung von den markierten Metern wieder weg.
+   *
+   * Damit man einen Fehlgriff loswird, ohne sich in die Gondelübersicht
+   * hineinzuklicken und den Text dort von Hand zu löschen.
+   */
+  loescheMarkierteWarengruppen(): boolean;
   /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
   setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
   /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
@@ -509,16 +520,32 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     const markierung = get().warengruppenMarkierung;
     if (!text || markierung.length === 0) return false;
 
-    get().schnappschuss();
+    // Kein eigener Schnappschuss: `aendere` legt ihn schon an. Zwei Einträge
+    // hießen, dass der zweite Strg+Z nichts täte.
     aendere(set, get, (p) => ({
       ...p,
-      warengruppenbaender: mitZugeordnetem(p.warengruppenbaender ?? [], markierung, text),
+      // Geschrieben wird in dieselben Felder, die man in der Gondelübersicht
+      // von Hand füllt: Es gibt nur eine Sorte Beschriftung.
+      elemente: mitZugeordnetenFeldern(p.elemente, markierung, text),
       // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
       // ein Teil eines anderen – anders als beim früheren Textabgleich.
       sortimentsstand: mitAbgehaktemNamen(get().sortiment, p.sortimentsstand, text),
     }));
-    // Die Markierung bleibt stehen: Oft kommt gleich das nächste Sortiment
-    // auf dieselbe Strecke, und dann steht es mit Komma daneben.
+    // Die Markierung ist damit erledigt. Wer sie stehen ließe, schriebe beim
+    // nächsten Enter versehentlich noch einmal dorthin.
+    set({ warengruppenMarkierung: [] });
+    return true;
+  },
+
+  loescheMarkierteWarengruppen() {
+    const markierung = get().warengruppenMarkierung;
+    if (markierung.length === 0) return false;
+
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: ohneZugeordneteFelder(p.elemente, markierung),
+    }));
+    set({ warengruppenMarkierung: [] });
     return true;
   },
 
@@ -1223,9 +1250,6 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       ...p,
       // Gesperrte Elemente werden bewusst nicht gelöscht.
       elemente: p.elemente.filter((el) => !menge.has(el.id) || el.gesperrt),
-      // Ein gelöschtes Möbel nimmt seine Beschriftung mit. Sonst bliebe ein
-      // Band über einer Lücke stehen – oder ganz ohne Möbel im Nichts.
-      warengruppenbaender: ohneElemente(p.warengruppenbaender ?? [], [...menge]),
     }));
     set({ auswahl: [] });
   },

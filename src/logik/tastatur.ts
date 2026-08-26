@@ -99,16 +99,23 @@ export function useTastatur(): void {
           if (store.werkzeug === 'grundrissZeichnen' || store.werkzeug === 'verkaufsflaeche') {
             return;
           }
+          // Sind Meter markiert, nimmt Entf ihre Warengruppe weg statt ein
+          // Möbel zu löschen. Wer sich vergriffen hat, wird die Beschriftung
+          // so wieder los, ohne sich in die Gondelübersicht hineinzuklicken.
+          if (store.warengruppenMarkierung.length > 0) {
+            store.loescheMarkierteWarengruppen();
+            return;
+          }
           // Räume, Wände und Öffnungen liegen in einer eigenen Auswahl –
           // sonst löschte Entf hier nichts, obwohl sichtbar etwas markiert ist.
           if (store.sonderauswahl) store.loescheSonderauswahl();
           else store.loescheAuswahl();
           return;
         case 'Enter':
-          // Enter ordnet die aufgenommene Warengruppe der Auswahl zu. Erst
-          // markieren, dann zuordnen: So sieht man vorher, was man erwischt,
-          // und die ganze Strecke bekommt einen Namen statt jeden Meter für
-          // sich.
+          // Enter schreibt die aufgenommene Warengruppe in die markierten
+          // Meter. Erst markieren, dann schreiben: So sieht man vorher, was
+          // man erwischt, und die ganze Strecke bekommt einen Namen statt
+          // jeder Meter für sich.
           if (store.warengruppenPinsel && store.warengruppenMarkierung.length > 0) {
             e.preventDefault();
             store.ordneMarkierungZu();

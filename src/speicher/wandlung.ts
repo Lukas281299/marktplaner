@@ -1,5 +1,6 @@
 import { AKTION_TEXT, SAISON_TEXT, WT_GRAU, WT_GRAU_ALT } from '../daten/bibliothek';
 import { mitAusgerichtetenKoepfen } from '../logik/kopfgondel';
+import { mitZugeordnetenFeldern } from '../logik/warengruppenzuordnung';
 import { grundfelder } from '../logik/regalseiten';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
@@ -74,15 +75,47 @@ export function wandleProjekt(roh: unknown): Projekt {
     // Fassung 11: Die Köpfe stellen sich neu an ihre Züge. Sie werden sonst
     // erst nachgerichtet, wenn jemand den Zug bewegt — ein Plan, der nur
     // geöffnet wird, behielte seine verdrehten Köpfe für immer.
-    elemente: mitAusgerichtetenKoepfen(
+    // Fassung 14 führte die Warengruppen kurz als eigenes Band. Sie gehören
+    // in die Felder – dort werden sie auch von Hand geschrieben.
+    elemente: loeseBaenderAuf(
+      (projekt as { warengruppenbaender?: AltesBand[] }).warengruppenbaender,
+      mitAusgerichtetenKoepfen(
       (projekt?.elemente ?? [])
         .map(wandleElement)
         .map(vereinheitlicheRegalfarbe)
         .map(teileSeitenAuf)
         .map(beschrifteAktionsflaeche)
         .map(machZurFlaeche),
+      ),
     ),
   };
+}
+
+/** So sah eine Warengruppen-Beschriftung in Fassung 14 aus. */
+interface AltesBand {
+  felder?: { element: string; seite: 'oben' | 'unten'; feld: number }[];
+  text?: string;
+}
+
+/**
+ * Fassung 14 war ein Umweg: Die Warengruppen-Beschriftung lag kurz als
+ * eigenes „Band" neben den Möbeln statt in ihren Feldern.
+ *
+ * Das war eine Sorte Beschriftung zu viel – von Hand geschrieben stand sie
+ * schon immer im Feld, und wer sie ändern wollte, fand zwei Stellen dafür.
+ * Hier wandern die Bänder zurück in die Felder; danach gibt es wieder eine.
+ */
+function loeseBaenderAuf(baender: AltesBand[] | undefined, elemente: PlanElement[]): PlanElement[] {
+  if (!Array.isArray(baender) || baender.length === 0) return elemente;
+
+  let ergebnis = elemente;
+  for (const band of baender) {
+    const felder = (band?.felder ?? []).filter((f) => f && typeof f.element === 'string');
+    const text = (band?.text ?? '').trim();
+    if (felder.length === 0 || !text) continue;
+    ergebnis = mitZugeordnetenFeldern(ergebnis, felder, text);
+  }
+  return ergebnis;
 }
 
 /**

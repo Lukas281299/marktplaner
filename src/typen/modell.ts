@@ -459,22 +459,6 @@ export interface PlanElement {
 }
 
 /**
- * Eine Warengruppen-Beschriftung unter einer Reihe von Möbeln.
- *
- * Entsteht, indem man die Meter auswählt und Enter drückt. Mehrere Namen auf
- * derselben Strecke stehen in einem Text, mit Komma getrennt.
- */
-export interface Warengruppenband {
-  id: string;
-  /** Die Meter, über die sie reicht. */
-  felder: Feldbezug[];
-  /** Was darunter steht – „Eier, Butter". */
-  text: string;
-  /** Schrifthöhe in cm, falls von Hand eingestellt. */
-  schrift?: number;
-}
-
-/**
  * Ein einzelnes Feld eines Möbels – ein Meter im Plan.
  *
  * Nicht das Möbel: Eine Gondel ist **ein** Element mit sechs Feldern, und die
@@ -754,14 +738,6 @@ export interface Projekt {
    * Markt fängt wieder bei null an.
    */
   sortimentsstand?: Record<string, 'gruen' | 'grau'>;
-  /**
-   * Die Warengruppen-Beschriftungen unter den Möbeln.
-   *
-   * Ein Band gehört zu einer Menge von **Feldern**: Vier Meter Eier tragen
-   * einen Namen über die ganze Strecke und nicht viermal denselben – siehe
-   * `logik/warengruppenband.ts`.
-   */
-  warengruppenbaender?: Warengruppenband[];
   /** Freistehende Innenwände, die keinen ganzen Raum abtrennen. */
   waende: Wand[];
   /** Türen, Durchgänge und Tore. */
@@ -793,7 +769,7 @@ export interface Projekt {
  *  11 – Kopfgondeln schauen in den Gang
  *  12 – Aktionsflächen sind eine eigene Grundform
  *  13 – abgehakte Warengruppen je Markt
- *  14 – Warengruppen als Band unter einer Auswahl
+ *  14 – Warengruppen als Band unter einer Auswahl (wieder aufgegeben)
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das

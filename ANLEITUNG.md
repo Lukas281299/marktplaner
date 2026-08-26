@@ -619,19 +619,28 @@ Suchen klappt alles auf, sonst sähe man die Treffer nicht.
    einer Gondel triffst du auch die Seite, auf die du klickst.
 3. **Enter** drücken. Erst jetzt erscheint die Schrift.
 
-Über die ganze Auswahl steht **ein** Name mit einem Strich an jedem Ende —
+Über die ganze Strecke steht **ein** Name mit einem Strich an jedem Ende —
 nicht viermal „Eier" über vier Metern. Auch bei einem einzelnen Meter läuft es
-so; dort bleibt die Klammer weg.
+so; dort bleibt die Klammer weg. Nach Enter ist die Markierung weg.
 
-Ordnest du derselben Auswahl noch einen Namen zu, wächst er in denselben Text
-hinein: **„Eier, Butter"**. Wird der Text zu lang für die Strecke, bricht er
-um und stapelt sich sauber darunter. Ein Möbel trägt dabei immer nur **eine**
-Beschriftung — nimmst du einen Meter in eine neue Auswahl, verliert ihn die
-alte.
+**Geschrieben wird in dieselben Felder, die du von Hand füllst.** Der Text
+landet im Feld *Warengruppe* des ersten Meters der Strecke, mit der Angabe,
+über wie viele Meter er gilt — genau das, was du sonst dort eintippst. Es gibt
+also nur **eine** Beschriftung und nicht zwei Sorten: Wer sie nachbessern
+will, findet sie dort, wo sie immer stand.
+
+Ordnest du derselben Strecke noch einen Namen zu, wächst er in denselben Text
+hinein: **„Eier, Butter"**. Wird der Text zu lang, bricht er um und stapelt
+sich sauber darunter.
+
+Wieder loswerden geht auf zwei Wegen, ohne dich in die Gondelübersicht
+hineinzuklicken:
+
+- **Strg+Z** nimmt die Zuordnung zurück — ein Druck je Zuordnung.
+- **Entf** löscht die Warengruppen der gerade markierten Meter.
 
 **Esc** räumt schrittweise auf: erst die Markierung, dann den aufgenommenen
-Namen. Die Markierung bleibt nach Enter stehen — so kommt das nächste
-Sortiment mit einem Klick auf dieselbe Strecke.
+Namen.
 
 Von Hand geht weiterhin alles: Das Feld *Warengruppe* im Eigenschaftenfenster
 nimmt jeden Text.

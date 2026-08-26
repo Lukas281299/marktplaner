@@ -24,7 +24,7 @@ import type { Punkt } from '../../typen/modell';
 import { usePlanStore, type Werkzeug } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
-import { Warengruppenbaender } from './Warengruppenbaender';
+import { Warengruppenmarkierung } from './Warengruppenmarkierung';
 import { Eckanfasser } from './Eckanfasser';
 import { Gebaeude } from './Gebaeude';
 import { Planvorlage } from './Planvorlage';
@@ -1231,10 +1231,9 @@ export function Zeichenflaeche() {
               beiZiehEnde={beiZiehEnde}
             />
           ))}
-          {/* Die Warengruppen liegen über den Möbeln und gehören keinem –
-              eine Strecke kann über mehrere reichen. */}
-          <Warengruppenbaender
-            baender={projekt.warengruppenbaender ?? []}
+          {/* Die markierten Meter liegen über den Möbeln: Sie gehören zum
+              Arbeiten und stehen mal an diesem, mal an jenem Möbel. */}
+          <Warengruppenmarkierung
             markierung={warengruppenMarkierung}
             elemente={projekt.elemente}
             zoom={zoom}
