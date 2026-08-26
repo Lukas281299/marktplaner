@@ -612,12 +612,11 @@ Suchen klappt alles auf, sonst sähe man die Treffer nicht.
 
 1. Einen Namen in der Liste anklicken. Er wird aufgenommen und steht oben in
    der Spalte.
-2. Im Plan die Meter **auswählen**, die ihn bekommen sollen — einen oder
-   viele, mit Klick, Umschalt+Klick oder einem Rahmen. Solange ein Name
-   aufgenommen ist, wählt ein Klick **genau ein Möbel** aus und nicht die
-   ganze Gondel: Hier geht es um den einzelnen Meter. Ohne aufgenommenen
-   Namen bleibt es beim Gewohnten — ein Klick nimmt die Gruppe, mit Alt
-   greifst du eines heraus.
+2. Im Plan die **Meter anklicken**, die ihn bekommen sollen — einen oder
+   viele nacheinander. Jeder angeklickte Meter wird blau markiert; ein
+   zweiter Klick nimmt ihn wieder heraus. Gemeint ist der **Meter**, nicht
+   das Möbel: Eine Gondel ist ein einziges Element mit sechs Feldern, und bei
+   einer Gondel triffst du auch die Seite, auf die du klickst.
 3. **Enter** drücken. Erst jetzt erscheint die Schrift.
 
 Über die ganze Auswahl steht **ein** Name mit einem Strich an jedem Ende —
@@ -630,8 +629,9 @@ um und stapelt sich sauber darunter. Ein Möbel trägt dabei immer nur **eine**
 Beschriftung — nimmst du einen Meter in eine neue Auswahl, verliert ihn die
 alte.
 
-**Esc** legt den Namen wieder weg. Auswählen und Verschieben geht die ganze
-Zeit ganz normal weiter; erst Enter schreibt etwas.
+**Esc** räumt schrittweise auf: erst die Markierung, dann den aufgenommenen
+Namen. Die Markierung bleibt nach Enter stehen — so kommt das nächste
+Sortiment mit einem Klick auf dieselbe Strecke.
 
 Von Hand geht weiterhin alles: Das Feld *Warengruppe* im Eigenschaftenfenster
 nimmt jeden Text.

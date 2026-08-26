@@ -109,16 +109,20 @@ export function useTastatur(): void {
           // markieren, dann zuordnen: So sieht man vorher, was man erwischt,
           // und die ganze Strecke bekommt einen Namen statt jeden Meter für
           // sich.
-          if (store.warengruppenPinsel && store.auswahl.length > 0) {
+          if (store.warengruppenPinsel && store.warengruppenMarkierung.length > 0) {
             e.preventDefault();
-            store.ordneAuswahlZu();
+            store.ordneMarkierungZu();
           }
           return;
         case 'Escape':
           // Escape ist der Weg zurück ins normale Arbeiten: erst die
-          // aufgenommene Warengruppe weglegen, dann das Zeichenwerkzeug,
-          // dann die Auswahl. Der Reihe nach das, was am meisten im Weg ist.
-          if (store.warengruppenPinsel) store.setzeWarengruppenPinsel(null);
+          // Markierung, dann die aufgenommene Warengruppe, dann das
+          // Zeichenwerkzeug, dann die Auswahl – der Reihe nach das, was am
+          // meisten im Weg ist.
+          // Erst die Markierung, dann der Name: Wer sich vertan hat, will
+          // meist nur neu markieren und nicht von vorn anfangen.
+          if (store.warengruppenMarkierung.length > 0) store.hebeMarkierungAuf();
+          else if (store.warengruppenPinsel) store.setzeWarengruppenPinsel(null);
           else if (store.werkzeug !== 'auswahl') store.setzeWerkzeug('auswahl');
           else store.hebeAuswahlAuf();
           return;

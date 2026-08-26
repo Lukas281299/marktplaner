@@ -63,6 +63,7 @@ function zeichnetZug(werkzeug: Werkzeug): boolean {
 export function Zeichenflaeche() {
   const projekt = usePlanStore((s) => s.projekt);
   const auswahl = usePlanStore((s) => s.auswahl);
+  const warengruppenMarkierung = usePlanStore((s) => s.warengruppenMarkierung);
   const sonderauswahl = usePlanStore((s) => s.sonderauswahl);
   const werkzeug = usePlanStore((s) => s.werkzeug);
   const ansicht = usePlanStore((s) => s.ansicht);
@@ -632,11 +633,9 @@ export function Zeichenflaeche() {
           .filter((el) => offeneEbenen.has(el.ebeneId))
           .filter((el) => ueberschneiden(umgrenzung(el), bereich))
           .map((el) => el.id);
-        // Wer einen Rahmen über eine halbe Gondel zieht, meint die Gondel –
-        // außer beim Zuordnen einer Warengruppe: Dort meint der Rahmen genau
-        // die Meter, über die er gezogen wurde.
+        // Wer einen Rahmen über eine halbe Gondel zieht, meint die Gondel.
         store.waehleAus(
-          store.warengruppenPinsel ? treffer : mitGruppen(store.projekt.elemente, treffer),
+          mitGruppen(store.projekt.elemente, treffer),
           rahmen.shift ? 'umschalten' : 'ersetzen',
         );
       }
@@ -860,9 +859,19 @@ export function Zeichenflaeche() {
     e.cancelBubble = true;
     const store = usePlanStore.getState();
 
+    // Ist eine Warengruppe aufgenommen, markiert der Klick den getroffenen
+    // Meter, statt ein Möbel auszuwählen. Eine Gondel ist ein einziges
+    // Element mit sechs Feldern – über die Auswahl käme man an den einzelnen
+    // Meter nie heran.
+    if (store.warengruppenPinsel) {
+      const punkt = planPunkt(e.evt.clientX, e.evt.clientY);
+      if (!store.markiereFeld(id, punkt)) melde('Hier gibt es keinen Meter zum Beschriften');
+      return;
+    }
+
     const ids = auswahlFuerKlick(store.projekt.elemente, id, {
       alt: e.evt.altKey,
-      zuordnen: Boolean(store.warengruppenPinsel),
+      zuordnen: false,
     });
 
     if (e.evt.shiftKey || e.evt.ctrlKey) {
@@ -1226,6 +1235,7 @@ export function Zeichenflaeche() {
               eine Strecke kann über mehrere reichen. */}
           <Warengruppenbaender
             baender={projekt.warengruppenbaender ?? []}
+            markierung={warengruppenMarkierung}
             elemente={projekt.elemente}
             zoom={zoom}
           />

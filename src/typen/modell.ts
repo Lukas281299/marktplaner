@@ -466,12 +466,25 @@ export interface PlanElement {
  */
 export interface Warengruppenband {
   id: string;
-  /** Die Möbel, über die sie reicht. */
-  elemente: string[];
+  /** Die Meter, über die sie reicht. */
+  felder: Feldbezug[];
   /** Was darunter steht – „Eier, Butter". */
   text: string;
   /** Schrifthöhe in cm, falls von Hand eingestellt. */
   schrift?: number;
+}
+
+/**
+ * Ein einzelnes Feld eines Möbels – ein Meter im Plan.
+ *
+ * Nicht das Möbel: Eine Gondel ist **ein** Element mit sechs Feldern, und die
+ * sechs Meter darin tragen verschiedene Warengruppen.
+ */
+export interface Feldbezug {
+  element: string;
+  seite: 'oben' | 'unten';
+  /** Die Nummer in der Feldliste dieser Seite. */
+  feld: number;
 }
 
 /** Wozu mehrere Elemente zusammengefasst sind. */
@@ -744,9 +757,9 @@ export interface Projekt {
   /**
    * Die Warengruppen-Beschriftungen unter den Möbeln.
    *
-   * Ein Band gehört zu einer **Auswahl von Möbeln** und nicht zu einem Feld:
-   * Vier Meter Eier tragen einen Namen über die ganze Strecke und nicht
-   * viermal denselben – siehe `logik/warengruppenband.ts`.
+   * Ein Band gehört zu einer Menge von **Feldern**: Vier Meter Eier tragen
+   * einen Namen über die ganze Strecke und nicht viermal denselben – siehe
+   * `logik/warengruppenband.ts`.
    */
   warengruppenbaender?: Warengruppenband[];
   /** Freistehende Innenwände, die keinen ganzen Raum abtrennen. */

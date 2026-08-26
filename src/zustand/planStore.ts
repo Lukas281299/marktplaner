@@ -37,7 +37,8 @@ import {
   pfadeUnter,
   type Standwert,
 } from '../logik/sortiment';
-import { mitZugeordnetem, ohneElemente } from '../logik/warengruppenband';
+import { mitZugeordnetem, ohneElemente, umgeschaltet } from '../logik/warengruppenband';
+import { feldUnterPunkt } from '../logik/feldtreffer';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -48,6 +49,7 @@ import type {
   Oeffnung,
   PlanElement,
   Projekt,
+  Feldbezug,
   Punkt,
   Regalfeld,
   Raum,
@@ -161,6 +163,16 @@ interface PlanStore {
    */
   warengruppenPinsel: string | null;
   /**
+   * Die Meter, die gerade markiert sind.
+   *
+   * Markiert wird durch Anklicken, geschrieben mit Enter. Dazwischen sieht
+   * man, was man erwischt hat – das ist der ganze Zweck des Umwegs.
+   *
+   * Meter und nicht Möbel: Eine Gondel ist **ein** Element mit sechs Feldern,
+   * und die tragen verschiedene Warengruppen.
+   */
+  warengruppenMarkierung: Feldbezug[];
+  /**
    * Welcher Reiter links offen ist: die Möbel oder die Warengruppen.
    *
    * Beides braucht die ganze Spalte – eine Bibliothek mit zehn Abteilungen
@@ -227,7 +239,15 @@ interface PlanStore {
    * Gibt zurück, ob etwas geschrieben wurde; der Aufrufer sagt es in der
    * Statusleiste weiter.
    */
-  ordneAuswahlZu(): boolean;
+  ordneMarkierungZu(): boolean;
+  /**
+   * Nimmt den Meter unter diesem Punkt in die Markierung auf – oder heraus.
+   *
+   * Gibt zurück, ob dort ein Meter war.
+   */
+  markiereFeld(elementId: string, punkt: Punkt): boolean;
+  /** Hebt die Markierung auf. */
+  hebeMarkierungAuf(): void;
   /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
   setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
   /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
@@ -383,6 +403,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   favoriten: [],
   sortiment: STANDARD_SORTIMENT,
   warengruppenPinsel: null,
+  warengruppenMarkierung: [],
   linkerReiter: 'bibliothek',
   offeneAbteilungen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
@@ -456,23 +477,48 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   setzeWarengruppenPinsel(name) {
-    // Die Auswahl bleibt stehen: Sie ist das, worauf der Name gleich kommt.
-    set({ warengruppenPinsel: name });
+    // Beim Weglegen verschwindet auch die Markierung: Sie gehört zum
+    // Zuordnen und hat ohne Namen keinen Sinn.
+    set(name ? { warengruppenPinsel: name } : { warengruppenPinsel: null, warengruppenMarkierung: [] });
   },
 
-  ordneAuswahlZu() {
+  markiereFeld(elementId, punkt) {
+    if (!get().warengruppenPinsel) return false;
+    const element = get().projekt.elemente.find((el) => el.id === elementId);
+    if (!element) return false;
+
+    const treffer = feldUnterPunkt(element, punkt, 5);
+    if (!treffer) return false;
+
+    set({
+      warengruppenMarkierung: umgeschaltet(get().warengruppenMarkierung, {
+        element: elementId,
+        seite: treffer.seite,
+        feld: treffer.feld,
+      }),
+    });
+    return true;
+  },
+
+  hebeMarkierungAuf() {
+    set({ warengruppenMarkierung: [] });
+  },
+
+  ordneMarkierungZu() {
     const text = get().warengruppenPinsel;
-    const auswahl = get().auswahl;
-    if (!text || auswahl.length === 0) return false;
+    const markierung = get().warengruppenMarkierung;
+    if (!text || markierung.length === 0) return false;
 
     get().schnappschuss();
     aendere(set, get, (p) => ({
       ...p,
-      warengruppenbaender: mitZugeordnetem(p.warengruppenbaender ?? [], auswahl, text),
+      warengruppenbaender: mitZugeordnetem(p.warengruppenbaender ?? [], markierung, text),
       // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
       // ein Teil eines anderen – anders als beim früheren Textabgleich.
       sortimentsstand: mitAbgehaktemNamen(get().sortiment, p.sortimentsstand, text),
     }));
+    // Die Markierung bleibt stehen: Oft kommt gleich das nächste Sortiment
+    // auf dieselbe Strecke, und dann steht es mit Komma daneben.
     return true;
   },
 
