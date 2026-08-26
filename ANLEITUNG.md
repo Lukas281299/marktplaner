@@ -608,16 +608,26 @@ Die Abteilungen stehen **zugeklappt**; ein Klick auf den Namen öffnet sie. Was
 du aufgeklappt hast, steht beim nächsten Öffnen des Reiters wieder offen. Beim
 Suchen klappt alles auf, sonst sähe man die Treffer nicht.
 
-**Zuordnen geht in zwei Klicks:**
+**Zuordnen geht in drei Schritten:**
 
 1. Einen Namen in der Liste anklicken. Er wird aufgenommen und steht oben in
    der Spalte.
-2. Im Plan auf die Meter klicken, die er bekommen soll — einen oder viele
-   hintereinander. Der Name wird jedes Mal in genau das Feld geschrieben, auf
-   das du geklickt hast; bei einer Gondel in die Seite, die du triffst.
+2. Im Plan die Meter **auswählen**, die ihn bekommen sollen — einen oder
+   viele, ganz normal mit Klick, Umschalt+Klick oder einem Rahmen.
+3. **Enter** drücken. Erst jetzt erscheint die Schrift.
 
-**Esc** legt den Namen wieder weg. Solange einer aufgenommen ist, wählt ein
-Klick kein Möbel aus — dafür erst weglegen.
+Über die ganze Auswahl steht **ein** Name mit einem Strich an jedem Ende —
+nicht viermal „Eier" über vier Metern. Auch bei einem einzelnen Meter läuft es
+so; dort bleibt die Klammer weg.
+
+Ordnest du derselben Auswahl noch einen Namen zu, wächst er in denselben Text
+hinein: **„Eier, Butter"**. Wird der Text zu lang für die Strecke, bricht er
+um und stapelt sich sauber darunter. Ein Möbel trägt dabei immer nur **eine**
+Beschriftung — nimmst du einen Meter in eine neue Auswahl, verliert ihn die
+alte.
+
+**Esc** legt den Namen wieder weg. Auswählen und Verschieben geht die ganze
+Zeit ganz normal weiter; erst Enter schreibt etwas.
 
 Von Hand geht weiterhin alles: Das Feld *Warengruppe* im Eigenschaftenfenster
 nimmt jeden Text.

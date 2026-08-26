@@ -37,7 +37,7 @@ import {
   pfadeUnter,
   type Standwert,
 } from '../logik/sortiment';
-import { feldUnterPunkt } from '../logik/feldtreffer';
+import { mitZugeordnetem, ohneElemente } from '../logik/warengruppenband';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -218,12 +218,29 @@ interface PlanStore {
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
   /**
-   * Schreibt die aufgenommene Warengruppe in das Feld unter diesem Punkt.
+   * Ordnet die aufgenommene Warengruppe der Auswahl zu.
    *
-   * Gibt zurück, ob etwas geschrieben wurde – der Aufrufer sagt es in der
+   * Der Weg dorthin ist Enter: erst die Meter markieren, dann zuordnen. So
+   * entsteht **ein** Name über die ganze Strecke statt viermal derselbe über
+   * vier Metern – und man sieht vorher, was man erwischt hat.
+   *
+   * Gibt zurück, ob etwas geschrieben wurde; der Aufrufer sagt es in der
    * Statusleiste weiter.
    */
-  ordneWarengruppeZu(elementId: string, punkt: Punkt): boolean;
+  ordneAuswahlZu(): boolean;
+  /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
+  setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
+  /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
+  schalteAbteilung(name: string): void;
+  /**
+   * Hakt einen Eintrag der Sortimentsliste ab – mit allem darunter.
+   *
+   * Der Zustand gehört zur Planung: Die Liste sagt, was es gibt, der Haken
+   * sagt, was in **diesem** Markt daraus geworden ist.
+   */
+  setzeSortimentsstand(pfad: string, wert: Standwert): void;
+  /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
+  pflegeSortiment(liste: Sortimentsliste): void;
   setzeFavoriten(ids: string[]): void;
   /** Markiert eine Vorlage als Favorit oder nimmt die Markierung zurück. */
   schalteFavorit(vorlageId: string): void;
@@ -439,40 +456,23 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   setzeWarengruppenPinsel(name) {
-    // Beim Aufnehmen die Auswahl loslassen: Sonst stünden die Anfasser eines
-    // Regals im Weg, während man Meter für Meter bestreicht.
-    set(name ? { warengruppenPinsel: name, auswahl: [], sonderauswahl: null } : { warengruppenPinsel: null });
+    // Die Auswahl bleibt stehen: Sie ist das, worauf der Name gleich kommt.
+    set({ warengruppenPinsel: name });
   },
 
-  ordneWarengruppeZu(elementId, punkt) {
+  ordneAuswahlZu() {
     const text = get().warengruppenPinsel;
-    if (!text) return false;
-
-    const element = get().projekt.elemente.find((el) => el.id === elementId);
-    if (!element) return false;
-
-    const treffer = feldUnterPunkt(element, punkt, 5);
-    if (!treffer) return false;
-
-    const felder = felderVon(element, treffer.seite);
-    if (felder.length === 0) return false;
+    const auswahl = get().auswahl;
+    if (!text || auswahl.length === 0) return false;
 
     get().schnappschuss();
-    // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
-    // ein Teil eines anderen – anders als beim früheren Textabgleich.
     aendere(set, get, (p) => ({
       ...p,
+      warengruppenbaender: mitZugeordnetem(p.warengruppenbaender ?? [], auswahl, text),
+      // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
+      // ein Teil eines anderen – anders als beim früheren Textabgleich.
       sortimentsstand: mitAbgehaktemNamen(get().sortiment, p.sortimentsstand, text),
     }));
-    get().setzeSeitenfelder(
-      elementId,
-      treffer.seite,
-      felder.map((feld, i) =>
-        i === treffer.feld
-          ? { ...feld, warengruppe: { ...feld.warengruppe, text, felder: feld.warengruppe?.felder ?? 1 } }
-          : feld,
-      ),
-    );
     return true;
   },
 
@@ -1177,6 +1177,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       ...p,
       // Gesperrte Elemente werden bewusst nicht gelöscht.
       elemente: p.elemente.filter((el) => !menge.has(el.id) || el.gesperrt),
+      // Ein gelöschtes Möbel nimmt seine Beschriftung mit. Sonst bliebe ein
+      // Band über einer Lücke stehen – oder ganz ohne Möbel im Nichts.
+      warengruppenbaender: ohneElemente(p.warengruppenbaender ?? [], [...menge]),
     }));
     set({ auswahl: [] });
   },

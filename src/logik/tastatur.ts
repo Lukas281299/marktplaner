@@ -104,6 +104,16 @@ export function useTastatur(): void {
           if (store.sonderauswahl) store.loescheSonderauswahl();
           else store.loescheAuswahl();
           return;
+        case 'Enter':
+          // Enter ordnet die aufgenommene Warengruppe der Auswahl zu. Erst
+          // markieren, dann zuordnen: So sieht man vorher, was man erwischt,
+          // und die ganze Strecke bekommt einen Namen statt jeden Meter für
+          // sich.
+          if (store.warengruppenPinsel && store.auswahl.length > 0) {
+            e.preventDefault();
+            store.ordneAuswahlZu();
+          }
+          return;
         case 'Escape':
           // Escape ist der Weg zurück ins normale Arbeiten: erst die
           // aufgenommene Warengruppe weglegen, dann das Zeichenwerkzeug,

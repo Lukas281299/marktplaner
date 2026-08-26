@@ -144,7 +144,7 @@ export function Warengruppenfenster() {
         {pinsel ? (
           <div className="pinsel">
             <span>
-              <strong>{pinsel}</strong> — jetzt Meter im Plan anklicken
+              <strong>{pinsel}</strong> — Meter auswählen, dann <strong>Enter</strong>
             </span>
             <button
               className="knopf knopf-nur-symbol"
@@ -156,7 +156,8 @@ export function Warengruppenfenster() {
           </div>
         ) : (
           <p className="hinweis" style={{ margin: '4px 2px' }}>
-            Namen anklicken, dann die Meter im Plan. Der Punkt davor hakt ab:
+            Namen anklicken, im Plan die Meter auswählen, <strong>Enter</strong>. Der Punkt
+            davor hakt ab:
             <span className="wg-punkt rot" /> offen,
             <span className="wg-punkt gruen" /> steht,
             <span className="wg-punkt grau" /> nicht vorgesehen.
@@ -241,7 +242,7 @@ export function Warengruppenfenster() {
                         <button
                           className={`wg-name${pinsel === gruppe.name ? ' aktiv' : ''}`}
                           onClick={() => nimm(gruppe.name)}
-                          title="Aufnehmen und im Plan zuordnen"
+                          title="Aufnehmen — dann im Plan auswählen und Enter drücken"
                         >
                           {gruppe.name}
                         </button>
@@ -301,7 +302,7 @@ export function Warengruppenfenster() {
                           <button
                             className={`wg-name${pinsel === name ? ' aktiv' : ''}`}
                             onClick={() => nimm(name)}
-                            title="Aufnehmen und im Plan zuordnen"
+                            title="Aufnehmen — dann im Plan auswählen und Enter drücken"
                           >
                             {name}
                           </button>

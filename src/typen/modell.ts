@@ -458,6 +458,22 @@ export interface PlanElement {
   grundboden?: number;
 }
 
+/**
+ * Eine Warengruppen-Beschriftung unter einer Reihe von Möbeln.
+ *
+ * Entsteht, indem man die Meter auswählt und Enter drückt. Mehrere Namen auf
+ * derselben Strecke stehen in einem Text, mit Komma getrennt.
+ */
+export interface Warengruppenband {
+  id: string;
+  /** Die Möbel, über die sie reicht. */
+  elemente: string[];
+  /** Was darunter steht – „Eier, Butter". */
+  text: string;
+  /** Schrifthöhe in cm, falls von Hand eingestellt. */
+  schrift?: number;
+}
+
 /** Wozu mehrere Elemente zusammengefasst sind. */
 export type Gruppenart = 'zug' | 'gondel' | 'frei';
 
@@ -725,6 +741,14 @@ export interface Projekt {
    * Markt fängt wieder bei null an.
    */
   sortimentsstand?: Record<string, 'gruen' | 'grau'>;
+  /**
+   * Die Warengruppen-Beschriftungen unter den Möbeln.
+   *
+   * Ein Band gehört zu einer **Auswahl von Möbeln** und nicht zu einem Feld:
+   * Vier Meter Eier tragen einen Namen über die ganze Strecke und nicht
+   * viermal denselben – siehe `logik/warengruppenband.ts`.
+   */
+  warengruppenbaender?: Warengruppenband[];
   /** Freistehende Innenwände, die keinen ganzen Raum abtrennen. */
   waende: Wand[];
   /** Türen, Durchgänge und Tore. */
@@ -756,6 +780,7 @@ export interface Projekt {
  *  11 – Kopfgondeln schauen in den Gang
  *  12 – Aktionsflächen sind eine eigene Grundform
  *  13 – abgehakte Warengruppen je Markt
+ *  14 – Warengruppen als Band unter einer Auswahl
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -801,4 +826,9 @@ export interface Projekt {
  * Fassung 13 merkt sich, welche Warengruppen in diesem Markt abgehakt sind.
  * Ein neues Feld ohne Umwandlung: Was nicht dasteht, ist offen.
  */
-export const SCHEMA_VERSION = 13;
+/**
+ * Fassung 14 legt die Warengruppen-Beschriftung als **Band** unter eine
+ * Auswahl von Möbeln, statt sie an ein einzelnes Feld zu hängen. Ein neues
+ * Feld ohne Umwandlung: Was nicht dasteht, gibt es nicht.
+ */
+export const SCHEMA_VERSION = 14;

@@ -24,6 +24,7 @@ import type { Punkt } from '../../typen/modell';
 import { usePlanStore, type Werkzeug } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
+import { Warengruppenbaender } from './Warengruppenbaender';
 import { Eckanfasser } from './Eckanfasser';
 import { Gebaeude } from './Gebaeude';
 import { Planvorlage } from './Planvorlage';
@@ -857,19 +858,6 @@ export function Zeichenflaeche() {
     e.cancelBubble = true;
     const store = usePlanStore.getState();
 
-    // Ist eine Warengruppe aufgenommen, schreibt der Klick sie in den
-    // getroffenen Meter, statt das Möbel auszuwählen. So lassen sich mehrere
-    // Meter hintereinander bestreichen, ohne zwischendurch etwas umzustellen.
-    if (store.warengruppenPinsel) {
-      const punkt = planPunkt(e.evt.clientX, e.evt.clientY);
-      const geschrieben = store.ordneWarengruppeZu(id, punkt);
-      melde(
-        geschrieben
-          ? `„${store.warengruppenPinsel}" zugeordnet`
-          : 'Hier gibt es kein Feld für eine Warengruppe',
-      );
-      return;
-    }
     // Ein Klick nimmt die ganze Gruppe – wer eine Gondel anfasst, will sie im
     // Ganzen schieben. Mit Alt greift man ein einzelnes Feld heraus.
     const ids = e.evt.altKey ? [id] : mitgliederVon(store.projekt.elemente, id);
@@ -1231,6 +1219,14 @@ export function Zeichenflaeche() {
               beiZiehEnde={beiZiehEnde}
             />
           ))}
+          {/* Die Warengruppen liegen über den Möbeln und gehören keinem –
+              eine Strecke kann über mehrere reichen. */}
+          <Warengruppenbaender
+            baender={projekt.warengruppenbaender ?? []}
+            elemente={projekt.elemente}
+            zoom={zoom}
+          />
+
           {beschriftungen !== 'aus' &&
             sichtbareElemente.map((el) => (
               <ElementBeschriftung
