@@ -613,7 +613,11 @@ Suchen klappt alles auf, sonst sähe man die Treffer nicht.
 1. Einen Namen in der Liste anklicken. Er wird aufgenommen und steht oben in
    der Spalte.
 2. Im Plan die Meter **auswählen**, die ihn bekommen sollen — einen oder
-   viele, ganz normal mit Klick, Umschalt+Klick oder einem Rahmen.
+   viele, mit Klick, Umschalt+Klick oder einem Rahmen. Solange ein Name
+   aufgenommen ist, wählt ein Klick **genau ein Möbel** aus und nicht die
+   ganze Gondel: Hier geht es um den einzelnen Meter. Ohne aufgenommenen
+   Namen bleibt es beim Gewohnten — ein Klick nimmt die Gruppe, mit Alt
+   greifst du eines heraus.
 3. **Enter** drücken. Erst jetzt erscheint die Schrift.
 
 Über die ganze Auswahl steht **ein** Name mit einem Strich an jedem Ende —

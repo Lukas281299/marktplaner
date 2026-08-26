@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { PlanElement } from '../typen/modell';
-import { hauptrichtung, mitGruppen, mitgliederVon, reiheAneinander } from './gruppen';
+import {
+  auswahlFuerKlick,
+  hauptrichtung,
+  mitGruppen,
+  mitgliederVon,
+  reiheAneinander,
+} from './gruppen';
 
 /** Ein Regal, 125 cm breit und 60 cm tief – ein übliches Feld. */
 function regal(id: string, x: number, y: number, zusatz: Partial<PlanElement> = {}): PlanElement {
@@ -51,6 +57,37 @@ describe('Gruppenmitglieder', () => {
 
   it('zählt kein Element doppelt', () => {
     expect(mitGruppen(elemente, ['a', 'b'])).toHaveLength(2);
+  });
+});
+
+describe('Was ein Klick auswählt', () => {
+  const elemente = [
+    regal('a', 0, 0, { gruppeId: 'g1' }),
+    regal('b', 200, 0, { gruppeId: 'g1' }),
+    regal('c', 400, 0),
+  ];
+  const klick = (id: string, alt = false, zuordnen = false) =>
+    auswahlFuerKlick(elemente, id, { alt, zuordnen }).sort();
+
+  it('nimmt normalerweise die ganze Gruppe', () => {
+    // Wer eine Gondel anfasst, will sie im Ganzen schieben – sonst bliebe
+    // beim ersten Ziehen die Hälfte stehen.
+    expect(klick('a')).toEqual(['a', 'b']);
+  });
+
+  it('greift mit Alt ein einzelnes Möbel heraus', () => {
+    expect(klick('a', true)).toEqual(['a']);
+  });
+
+  it('nimmt beim Zuordnen einer Warengruppe nur den einen Meter', () => {
+    // Der gemeldete Fehler: Beim Zuordnen sprang die ganze Gondel an, und ein
+    // einzelner Meter ließ sich gar nicht beschriften.
+    expect(klick('a', false, true)).toEqual(['a']);
+  });
+
+  it('lässt ein Möbel ohne Gruppe immer allein', () => {
+    expect(klick('c')).toEqual(['c']);
+    expect(klick('c', false, true)).toEqual(['c']);
   });
 });
 

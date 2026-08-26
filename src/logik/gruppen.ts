@@ -26,6 +26,26 @@ export function mitgliederVon(elemente: PlanElement[], id: string): string[] {
   return elemente.filter((el) => el.gruppeId === element.gruppeId).map((el) => el.id);
 }
 
+/**
+ * Was ein Klick auf dieses Möbel auswählt.
+ *
+ * Drei Regeln, in dieser Reihenfolge:
+ *
+ *  - **Beim Zuordnen einer Warengruppe zählt das einzelne Möbel.** Dort geht
+ *    es um den einzelnen Meter, und die halbe Gondel mitzunehmen wäre falsch.
+ *    Mehrere Meter holt man sich mit Umschalt oder einem Rahmen.
+ *  - **Mit Alt** greift man ein einzelnes Möbel aus einer Gruppe heraus.
+ *  - **Sonst die ganze Gruppe.** Wer eine Gondel anfasst, will sie im Ganzen
+ *    schieben – sonst bliebe beim ersten Ziehen die Hälfte stehen.
+ */
+export function auswahlFuerKlick(
+  elemente: PlanElement[],
+  id: string,
+  lage: { alt: boolean; zuordnen: boolean },
+): string[] {
+  return lage.alt || lage.zuordnen ? [id] : mitgliederVon(elemente, id);
+}
+
 /** Erweitert eine Auswahl um alle Gruppenmitglieder. */
 export function mitGruppen(elemente: PlanElement[], ids: string[]): string[] {
   const gesamt = new Set<string>();

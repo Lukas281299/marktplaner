@@ -14,7 +14,7 @@ import {
 } from '../../logik/einrasten';
 import { hatEcken } from '../../logik/elementEcken';
 import { runde, ueberschneiden, umgrenzung } from '../../logik/geometrie';
-import { mitGruppen, mitgliederVon } from '../../logik/gruppen';
+import { auswahlFuerKlick, mitGruppen, mitgliederVon } from '../../logik/gruppen';
 import { formatiereLaenge } from '../../logik/masse';
 import { fangePunkt, fangpunkte } from '../../logik/messen';
 import { rahmen as umrissRahmen, rechteckAusEcken, vereinige, ziehAb } from '../../logik/polygon';
@@ -632,9 +632,11 @@ export function Zeichenflaeche() {
           .filter((el) => offeneEbenen.has(el.ebeneId))
           .filter((el) => ueberschneiden(umgrenzung(el), bereich))
           .map((el) => el.id);
-        // Wer einen Rahmen über eine halbe Gondel zieht, meint die Gondel.
+        // Wer einen Rahmen über eine halbe Gondel zieht, meint die Gondel –
+        // außer beim Zuordnen einer Warengruppe: Dort meint der Rahmen genau
+        // die Meter, über die er gezogen wurde.
         store.waehleAus(
-          mitGruppen(store.projekt.elemente, treffer),
+          store.warengruppenPinsel ? treffer : mitGruppen(store.projekt.elemente, treffer),
           rahmen.shift ? 'umschalten' : 'ersetzen',
         );
       }
@@ -858,9 +860,10 @@ export function Zeichenflaeche() {
     e.cancelBubble = true;
     const store = usePlanStore.getState();
 
-    // Ein Klick nimmt die ganze Gruppe – wer eine Gondel anfasst, will sie im
-    // Ganzen schieben. Mit Alt greift man ein einzelnes Feld heraus.
-    const ids = e.evt.altKey ? [id] : mitgliederVon(store.projekt.elemente, id);
+    const ids = auswahlFuerKlick(store.projekt.elemente, id, {
+      alt: e.evt.altKey,
+      zuordnen: Boolean(store.warengruppenPinsel),
+    });
 
     if (e.evt.shiftKey || e.evt.ctrlKey) {
       store.waehleAus(ids, 'umschalten');
