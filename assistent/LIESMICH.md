@@ -80,22 +80,30 @@ KV** → **Instanz erstellen**, Name `marktplaner`.
 ## Schritt 4: Schlüssel und Zugangswort hinterlegen
 
 Beim Worker: **Einstellungen** (Settings) → **Variablen und Secrets**
-(Variables and Secrets)
+(Variables and Secrets) → **Hinzufügen**
 
-Vier Einträge, zwei davon als **Secret**:
+Cloudflare fragt nach *Schlüssel* und *Wert* und hat daneben ein Kästchen
+**Geheimnis** (Secret). Wo es hier gesetzt ist, muss es gesetzt sein: Ohne
+Häkchen steht der Anthropic-Schlüssel danach für jeden lesbar im Dashboard.
 
-| Name | Typ | Wert |
+| Schlüssel | Wert | Geheimnis |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Secret | dein Schlüssel, beginnt mit `sk-ant-` |
-| `ASSISTENT_ZUGANG` | Secret | ein Wort, das du dir ausdenkst |
-| `ERLAUBTE_HERKUNFT` | Variable (Text) | `https://lukas281299.github.io` |
-| `TAGESLIMIT` | Variable (Text) | `200` |
+| `ANTHROPIC_API_KEY` | dein Schlüssel, beginnt mit `sk-ant-` | ☑ ja |
+| `ASSISTENT_ZUGANG` | ein Wort, das du dir ausdenkst | ☑ ja |
+| `ERLAUBTE_HERKUNFT` | `https://lukas281299.github.io` | ☐ nein |
+| `TAGESLIMIT` | `200` | ☐ nein |
 
-Danach **Bereitstellen** (Deploy).
+Über **+ Hinzufügen** kommen weitere Zeilen dazu; der Knopf unten zählt mit
+und muss am Ende *Fügen Sie 4 Variablen hinzu* anbieten. Danach
+**Bereitstellen** (Deploy) — sonst laufen sie nicht scharf.
 
 **Zum Zugangswort:** Denk dir etwas aus, das niemand rät — es ist der Riegel
-vor deinem Schlüssel. Du gibst es gleich einmal im Marktplaner ein und danach
-nie wieder. Ein Passwortgenerator ist hier genau richtig.
+vor deinem Schlüssel. Ein Passwortgenerator ist genau richtig. Du brauchst es
+gleich noch einmal in der App, also mit abspeichern; nach dem Setzen zeigt
+Cloudflare es nicht mehr an.
+
+> **Kein Leerzeichen am Ende** — beim Einfügen rutscht leicht eines mit, und
+> die App meldet später nur „Das Zugangswort stimmt nicht".
 
 > **Achtung:** Stellst du später den Code neu bereit, kann Cloudflare eine
 > über das Dashboard angelegte KV-Bindung wieder entfernen. Nach jedem *Deploy*
@@ -156,7 +164,7 @@ handeln, statt zu fragen — ein Fehlgriff kostet dich einen Tastendruck.
 |---|---|
 | „Unter dieser Adresse antwortet nichts" | Adresse falsch, oder der Worker wurde nicht bereitgestellt. |
 | „Unter dieser Adresse läuft etwas anderes" | Im Worker steht noch das Hello-World-Beispiel. Schritt 2 wiederholen. |
-| „Am Worker fehlt der ANTHROPIC_API_KEY" | Schritt 4, erste Zeile. Als **Secret** anlegen, nicht als Variable. |
+| „Am Worker fehlt der ANTHROPIC_API_KEY" | Schritt 4, erste Zeile — Häkchen **Geheimnis** nicht vergessen. |
 | „Am Worker fehlt das ASSISTENT_ZUGANG" | Schritt 4, zweite Zeile. |
 | „Am Worker fehlt der KV-Namensraum MARKTPLANER" | Schritt 3 fehlt oder der Name ist nicht exakt `MARKTPLANER`. |
 | „Das Zugangswort stimmt nicht" | In der App steht ein anderes als am Worker. Auf Leerzeichen am Ende achten. |
