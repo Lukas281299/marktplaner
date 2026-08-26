@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { Fehlerfang } from './komponenten/Fehlerfang';
+import * as assistentWerkzeuge from './assistent/werkzeuge';
 import * as polygon from './logik/polygon';
 import { usePlanStore } from './zustand/planStore';
 import './stile/global.css';
@@ -18,9 +19,16 @@ if (!wurzel) throw new Error('Das Element mit der Kennung "root" fehlt in index.
  * `false`, und der Baustein wirft den Block dann ganz heraus.
  */
 if (import.meta.env.DEV) {
-  const fenster = window as unknown as { marktplaner: unknown; polygon: unknown };
+  const fenster = window as unknown as {
+    marktplaner: unknown;
+    polygon: unknown;
+    werkzeuge: unknown;
+  };
   fenster.marktplaner = usePlanStore;
   fenster.polygon = polygon;
+  // Die Werkzeuge des Assistenten lassen sich so ohne Worker ausprobieren:
+  //   werkzeuge.fuehreWerkzeugAus('plan_lesen', {})
+  fenster.werkzeuge = assistentWerkzeuge;
 }
 
 createRoot(wurzel).render(

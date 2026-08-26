@@ -124,7 +124,7 @@ export type Sonderauswahl = {
   id: string;
 } | null;
 
-interface PlanStore {
+export interface PlanStore {
   // ------------------------------------------------------------------ Daten
   projekt: Projekt;
   /** Kennungen der ausgewählten Elemente. */
@@ -210,6 +210,21 @@ interface PlanStore {
 
   vergangenheit: Projekt[];
   zukunft: Projekt[];
+  /**
+   * Wie viele Klammern gerade offen sind (siehe `klammereZusammen`).
+   *
+   * Solange hier etwas steht, legt keine Änderung einen eigenen
+   * Historieneintrag an – der erste deckt alles bis zum Schließen ab.
+   */
+  klammertiefe: number;
+  /**
+   * Steht in der offenen Klammer noch kein Eintrag?
+   *
+   * Die Klammer trägt **faul** ein: nicht beim Öffnen, sondern bei der ersten
+   * Änderung. Sonst legte jede Runde des Assistenten einen Schritt an, auch
+   * eine, die nur eine Frage beantwortet hat – und Strg+Z liefe ins Leere.
+   */
+  klammerFrisch: boolean;
 
   // --------------------------------------------------------------- Projekt
   setzeProjekt(projekt: Projekt, alsGeladen?: boolean): void;
@@ -362,6 +377,26 @@ interface PlanStore {
   schnappschuss(): void;
   rueckgaengig(): void;
   wiederholen(): void;
+  /**
+   * Fasst alles, was `arbeit` anstellt, zu **einem** Schritt zusammen.
+   *
+   * Der Assistent stellt auf einen Satz hin zwanzig Dinge um. Ohne diese
+   * Klammer bräuchte man zwanzigmal Strg+Z, um ihn zurückzunehmen – und sähe
+   * zwischendurch Zustände, die niemand wollte.
+   *
+   * Verschachtelt sich das (eine geklammerte Aktion ruft eine andere auf),
+   * zählt nur die äußerste; deshalb eine Tiefe und kein Schalter.
+   */
+  klammereZusammen<T>(arbeit: () => T): T;
+  /**
+   * Dasselbe für Abläufe mit Wartezeit dazwischen.
+   *
+   * Eine Runde des Assistenten wartet zwischen den Handgriffen auf die
+   * Antwort der API; `klammereZusammen` mit seinem try/finally passt darauf
+   * nicht. Wer öffnet, **muss** schließen – am besten in einem `finally`.
+   */
+  oeffneKlammer(): void;
+  schliesseKlammer(): void;
 
   // ------------------------------------------------------------- Elemente
   fuegeElementHinzu(vorlage: BibliothekEintrag, x: number, y: number): string;
@@ -423,6 +458,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   seitenverhaeltnisHalten: false,
   vergangenheit: [],
   zukunft: [],
+  klammertiefe: 0,
+  klammerFrisch: true,
 
   // =========================================================== Projektdaten
   setzeProjekt(projekt, alsGeladen = true) {
@@ -961,10 +998,37 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   // =============================================================== Historie
   schnappschuss() {
+    // In einer angebrochenen Klammer steht der Eintrag schon; ein zweiter
+    // wäre ein zusätzliches Strg+Z mitten in einer Aktion, die eine ist.
+    const { klammertiefe, klammerFrisch } = get();
+    if (klammertiefe > 0 && !klammerFrisch) return;
     set((s) => ({
       vergangenheit: [...s.vergangenheit, structuredClone(s.projekt)].slice(-HISTORIE_TIEFE),
       zukunft: [],
+      klammerFrisch: false,
     }));
+  },
+
+  oeffneKlammer() {
+    const tiefe = get().klammertiefe;
+    // Nur die äußerste Klammer setzt zurück – eine innere darf den schon
+    // gelegten Eintrag nicht für frisch erklären.
+    set(tiefe === 0 ? { klammertiefe: 1, klammerFrisch: true } : { klammertiefe: tiefe + 1 });
+  },
+
+  schliesseKlammer() {
+    set({ klammertiefe: Math.max(0, get().klammertiefe - 1) });
+  },
+
+  klammereZusammen(arbeit) {
+    get().oeffneKlammer();
+    try {
+      return arbeit();
+    } finally {
+      // Auch wenn die Arbeit mit einem Fehler abbricht: Bliebe die Klammer
+      // offen, käme ab da nichts mehr in die Historie.
+      get().schliesseKlammer();
+    }
   },
 
   rueckgaengig() {
@@ -1604,10 +1668,22 @@ function aendere(
   get: () => PlanStore,
   wandeln: (projekt: Projekt) => Projekt,
 ): void {
-  const { projekt, vergangenheit } = get();
+  const { projekt, vergangenheit, klammertiefe, klammerFrisch } = get();
+  const naechstes = { ...wandeln(projekt), geaendertAm: Date.now() };
+
+  // In einer angebrochenen Klammer nichts eintragen: Dort steht schon der
+  // Stand von vor der ganzen Aktion, und der ist es, auf den Strg+Z führen
+  // soll. Die **erste** Änderung in einer Klammer legt ihn an – vorher nicht,
+  // sonst bekäme auch eine Runde ohne Änderung einen leeren Schritt.
+  if (klammertiefe > 0 && !klammerFrisch) {
+    set({ projekt: naechstes });
+    return;
+  }
+
   set({
     vergangenheit: [...vergangenheit, structuredClone(projekt)].slice(-HISTORIE_TIEFE),
     zukunft: [],
-    projekt: { ...wandeln(projekt), geaendertAm: Date.now() },
+    projekt: naechstes,
+    klammerFrisch: false,
   });
 }

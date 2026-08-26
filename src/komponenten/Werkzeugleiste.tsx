@@ -12,6 +12,7 @@ import { useSyncStore } from '../zustand/syncStore';
 import { NeuesProjektDialog, ProjekteDialog } from './ProjektDialog';
 import { PlanImportDialog } from './PlanImportDialog';
 import { SyncDialog } from './SyncDialog';
+import { AssistentKnopf } from './Assistentenfenster';
 import {
   SymbolAbgleich,
   SymbolAneinander,
@@ -315,6 +316,9 @@ export function Werkzeugleiste() {
           >
             Warengruppen
           </button>
+
+          <span className="trenner" />
+          <AssistentKnopf />
 
           <span className="trenner" />
           <span className="leisten-titel">Grundriss</span>

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Assistentenfenster } from './komponenten/Assistentenfenster';
 import { Eigenschaftenfenster } from './komponenten/Eigenschaftenfenster';
 import { Elementbibliothek } from './komponenten/Elementbibliothek';
 import { Warengruppenfenster } from './komponenten/Warengruppenfenster';
@@ -17,6 +18,7 @@ import {
   merkeZuletztGeoeffnet,
   speichereProjekt,
 } from './speicher/projektArchiv';
+import { useAssistentStore } from './zustand/assistentStore';
 import { usePlanStore } from './zustand/planStore';
 
 /** Wartezeit, bevor nach einer Änderung automatisch gespeichert wird. */
@@ -106,14 +108,16 @@ export default function App() {
   }, [projekt, geladenerStand, geladen]);
 
   const linkerReiter = usePlanStore((s) => s.linkerReiter);
+  const assistentOffen = useAssistentStore((s) => s.offen);
 
   return (
     <div className="app">
       <Werkzeugleiste />
-      <div className="arbeitsbereich">
+      <div className={`arbeitsbereich${assistentOffen ? ' mit-assistent' : ''}`}>
         {linkerReiter === 'warengruppen' ? <Warengruppenfenster /> : <Elementbibliothek />}
         <Zeichenflaeche />
         <Eigenschaftenfenster />
+        {assistentOffen && <Assistentenfenster />}
       </div>
       <Statusleiste />
     </div>

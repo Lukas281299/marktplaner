@@ -63,6 +63,7 @@ Zusammenführen beim Abgleich und das Vermittlungsprogramm auf dem Server.
 | Einzelnes Feld herausgreifen | **Alt** + Klick |
 | Lückenlos aneinanderreihen | auswählen, dann **Aneinanderreihen** |
 | Abstand messen | Werkzeug **Maß**, von Punkt zu Punkt ziehen |
+| Etwas sagen statt klicken | Knopf „Assistent" in der Werkzeugleiste (einmal einrichten) |
 
 ## Grundriss und Räume
 
@@ -161,6 +162,33 @@ Die Einrichtung dauert etwa zehn Minuten und ist Schritt für Schritt in
 Wer entscheidet was, steht in `src/speicher/abgleich.ts`; diese Datei rechnet nur
 und ist vollständig durch Prüfungen abgedeckt.
 
+## Der Assistent
+
+Auf Wunsch lässt sich der Marktplaner ansprechen statt anklicken: *„Schieb die
+Kassen zwei Meter nach unten"*, *„Welche Warengruppen fehlen noch?"*. Solange
+das nicht eingerichtet ist, verlässt keine Zeile den Rechner.
+
+Die Einrichtung dauert etwa zehn Minuten und steht Schritt für Schritt in
+[assistent/LIESMICH.md](assistent/LIESMICH.md). Kurz gefasst:
+
+- Ein zweites winziges Programm (`assistent/worker.js`) läuft bei **Cloudflare**
+  und hält den Anthropic-Schlüssel. Die App kennt ihn nicht – sie liegt
+  öffentlich auf GitHub Pages, und was im Browser steht, ist auslesbar.
+- Der Worker ist ein **reiner Durchreicher**. Was der Assistent kann und wie er
+  denkt, steht in `src/assistent/` – sonst müsste der Worker bei jeder neuen
+  Funktion neu eingefügt werden.
+- Die **Werkzeugschleife läuft im Browser**, denn dort liegt der Plan. Der
+  Worker sieht nur Nachrichten hin und Nachrichten her.
+- Kein Werkzeug fasst die Daten selbst an: Jedes ruft dieselbe Store-Aktion
+  auf wie ein Klick. Dadurch verhält sich der Assistent zwangsläufig wie die
+  Handarbeit, samt Einrasten und Kopfgondel-Ausrichtung.
+- **Ein Auftrag ist ein Strg+Z.** Eine Runde wird in eine Historienklammer
+  gefasst (`oeffneKlammer`/`schliesseKlammer` im `planStore`), die *faul*
+  einträgt: Der Schritt entsteht bei der ersten Änderung, nicht beim Öffnen –
+  eine Runde, die nur eine Frage beantwortet, legt gar keinen an.
+- Drei Riegel vor dem Schlüssel: erlaubte Herkunft, ein Zugangswort und ein
+  Tageslimit als Kostenbremse.
+
 ## Veröffentlichung im Web
 
 Bei jedem Push auf `main` baut GitHub den Marktplaner und stellt ihn auf GitHub
@@ -199,9 +227,14 @@ src/
 │   ├── abgleich.ts        entscheidet, was geholt, geschickt, gelöscht wird
 │   ├── syncClient.ts      spricht mit dem Server
 │   └── wandlung.ts        bringt ältere Planungen auf das aktuelle Modell
+├── assistent/             der KI-Assistent
+│   ├── werkzeuge.ts       was er tun kann – jedes Werkzeug ruft eine Store-Aktion
+│   ├── gespraech.ts       Auftrag, Worker-Aufruf und die Werkzeugschleife
+│   └── planbild.ts        was er vom Plan zu sehen bekommt
 ├── zustand/
 │   ├── planStore.ts       zentraler Datenspeicher inkl. Rückgängig/Wiederholen
 │   ├── syncStore.ts       Zustand des Abgleichs
+│   ├── assistentStore.ts  Gesprächsverlauf des Assistenten
 │   └── statusStore.ts     nur die Mausposition (aus Geschwindigkeitsgründen)
 └── komponenten/           Oberfläche
     ├── Werkzeugleiste.tsx
@@ -211,6 +244,8 @@ src/
     ├── Dialog.tsx         Grundgerüst aller Dialoge
     ├── ProjektDialog.tsx
     ├── SyncDialog.tsx     Einrichtung und Stand des Abgleichs
+    ├── Assistentenfenster.tsx  die Spalte des Assistenten
+    ├── AssistentDialog.tsx     Adresse und Zugangswort des Workers
     ├── Feld.tsx           wiederverwendbare Eingabefelder
     ├── Symbole.tsx        alle Schaltflächen-Symbole
     └── zeichenflaeche/
@@ -225,6 +260,10 @@ src/
 
 sync/
 ├── worker.js              das Programm, das bei Cloudflare läuft
+└── LIESMICH.md            Einrichtung Schritt für Schritt
+
+assistent/
+├── worker.js              hält den Anthropic-Schlüssel, reicht sonst nur durch
 └── LIESMICH.md            Einrichtung Schritt für Schritt
 ```
 

@@ -216,6 +216,51 @@ export async function speichereSyncZugang(zugang: SyncZugang): Promise<void> {
   await datenbank.put('einstellungen', zugang, 'syncZugang');
 }
 
+/**
+ * Wie der Assistent an seinen Worker kommt.
+ *
+ * Der Schluessel selbst steht **nicht** hier, sondern beim Worker. Hier liegt
+ * nur, wo er zu finden ist und mit welchem Wort man dort vorgelassen wird -
+ * siehe `assistent/worker.js`.
+ */
+export interface AssistentZugang {
+  adresse: string;
+  wort: string;
+}
+
+export async function holeAssistentZugang(): Promise<AssistentZugang | undefined> {
+  const datenbank = await db();
+  const wert = (await datenbank.get('einstellungen', 'assistentZugang')) as
+    | AssistentZugang
+    | undefined;
+  return wert?.adresse && wert?.wort ? wert : undefined;
+}
+
+export async function speichereAssistentZugang(zugang: AssistentZugang): Promise<void> {
+  const datenbank = await db();
+  await datenbank.put('einstellungen', zugang, 'assistentZugang');
+}
+
+export async function loescheAssistentZugang(): Promise<void> {
+  const datenbank = await db();
+  await datenbank.delete('einstellungen', 'assistentZugang');
+}
+
+/**
+ * Eine Kennung fuer dieses Geraet, an der das Tageslimit haengt.
+ *
+ * Nicht der Geraetename: Der darf Umlaute und Leerzeichen enthalten, und der
+ * Worker laesst nur Buchstaben, Ziffern, Strich und Unterstrich durch.
+ */
+export async function holeGeraetekennung(): Promise<string> {
+  const datenbank = await db();
+  const wert = await datenbank.get('einstellungen', 'geraetekennung');
+  if (typeof wert === 'string' && /^[a-zA-Z0-9_-]{4,64}$/.test(wert)) return wert;
+  const kennung = 'g-' + Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+  await datenbank.put('einstellungen', kennung, 'geraetekennung');
+  return kennung;
+}
+
 export async function loescheSyncZugang(): Promise<void> {
   const datenbank = await db();
   await datenbank.delete('einstellungen', 'syncZugang');

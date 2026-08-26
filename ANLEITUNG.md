@@ -27,9 +27,10 @@ Rechnern weiterbearbeiten.
 11. [Bestehenden Plan einlesen](#11-bestehenden-plan-einlesen)
 12. [Speichern, Sichern, Exportieren](#12-speichern-sichern-exportieren)
 13. [Abgleich zwischen mehreren Rechnern](#13-abgleich-zwischen-mehreren-rechnern)
-14. [Die Symbolbibliothek](#14-die-symbolbibliothek)
-15. [Alle Tastenkürzel](#15-alle-tastenkürzel)
-16. [Was noch nicht geht](#16-was-noch-nicht-geht)
+14. [Der Assistent](#14-der-assistent)
+15. [Die Symbolbibliothek](#15-die-symbolbibliothek)
+16. [Alle Tastenkürzel](#16-alle-tastenkürzel)
+17. [Was noch nicht geht](#17-was-noch-nicht-geht)
 
 ---
 
@@ -1147,7 +1148,76 @@ sich sofort anstoßen.
 
 ---
 
-## 14. Die Symbolbibliothek
+## 14. Der Assistent
+
+Über **Assistent** in der Werkzeugleiste öffnet sich rechts eine Spalte, in der
+man dem Marktplaner sagen kann, was er tun soll — statt es zu klicken.
+
+Er kann **alles, was du auch kannst.** Nicht ähnliches: dieselben Funktionen.
+Jeder seiner Handgriffe ruft genau die Aktion auf, die auch dein Klick auslöst,
+samt Einrasten, Kopfgondel-Ausrichtung und Feldaufteilung.
+
+### Was du ihm sagen kannst
+
+| Art | Beispiel |
+|---|---|
+| Nachsehen | *Was steht alles in der Molkerei?* |
+| Prüfen | *Welche Warengruppen fehlen noch im Markt?* |
+| Einsetzen | *Setz mir eine Gondel mit 6 Metern bei 1200/800.* |
+| Umstellen | *Schieb die Kassen zwei Meter nach unten.* |
+| Ausrichten | *Richte die vier Regale links bündig aus.* |
+| Beschriften | *Zug bei den Konserven: Meter 1–3 Suppen, 4–6 Fertiggerichte.* |
+| Abhaken | *Setz die Abteilung Nonfood auf grau, die führen wir nicht.* |
+
+Hast du vorher etwas im Plan **angeklickt**, meint er das: *„dreh das mal um
+90 Grad"* braucht keine weitere Erklärung.
+
+### Er handelt, statt zu fragen
+
+Ein Assistent, der jeden Schritt bestätigen lässt, ist langsamer als es selbst
+zu tun. Deshalb führt er Aufträge aus, ohne nachzufragen — möglich ist das nur
+wegen der folgenden Regel:
+
+> **Eine Antwort ist ein Strg+Z.** Egal, ob er zwei Möbel angefasst hat oder
+> zwanzig: **ein** Druck nimmt die ganze Antwort zurück. Ein Fehlgriff kostet
+> dich einen Tastendruck.
+
+Nachgefragt wird nur, wenn ein Auftrag wirklich zwei ganz verschiedene Pläne
+ergeben könnte.
+
+### Zusehen
+
+Während er arbeitet, stehen seine Handgriffe untereinander in der Spalte —
+`element_einfuegen`, `elemente_verschieben` und so fort, jeweils mit dem, was
+dabei herauskam. Was er anfasst, wird im Plan **ausgewählt**, du siehst also
+mit, worum es geht. **Anhalten** bricht mittendrin ab; auch dann gilt das eine
+Strg+Z.
+
+Ein misslungener Handgriff steht **rot** und ausgeschrieben da. Das ist
+Absicht: Ein „erledigt" auf etwas, das an einem gesperrten Möbel abgeprallt
+ist, wäre schlimmer als eine Fehlermeldung.
+
+### Einrichten
+
+Der Assistent braucht einen eigenen kleinen Server bei Cloudflare — dort liegt
+der Anthropic-Schlüssel. In der App liegt er **nicht**: Der Marktplaner steht
+öffentlich im Netz, und was im Browser steht, kann ausgelesen werden.
+
+Die Einrichtung steht Schritt für Schritt in `assistent/LIESMICH.md` und dauert
+rund zehn Minuten. Danach trägst du unter **Einrichten** einmal Adresse und
+Zugangswort ein.
+
+Oben in der Spalte lässt sich zwischen **Sonnet** (schnell, für den Alltag) und
+**Opus** (gründlicher, langsamer) umschalten. Unten rechts steht, wie viele
+Anfragen heute gelaufen sind — das Tageslimit am Worker ist eine Kostenbremse,
+kein Urteil.
+
+Das Gespräch gehört **nicht** zur Planung: Es wird nicht mitgespeichert und
+nicht abgeglichen. `⟲` beginnt von vorn.
+
+---
+
+## 15. Die Symbolbibliothek
 
 Alle Symbole sind aus den Wanzl- und WSL-Unterlagen nachgezeichnet und tragen
 echte Maße.
@@ -1228,7 +1298,7 @@ keine Bögen — die haben keine Schwenktüren.
 
 ---
 
-## 15. Alle Tastenkürzel
+## 16. Alle Tastenkürzel
 
 ### Datei und Bearbeiten
 
@@ -1282,7 +1352,7 @@ keine Bögen — die haben keine Schwenktüren.
 
 ---
 
-## 16. Was noch nicht geht
+## 17. Was noch nicht geht
 
 **Der Gebäudeumriss ist ein Rechteck um alle Wandzüge.** Die Wandzüge selbst
 sind exakt — sie kommen unverändert aus dem Plan. Sie zu einer einzigen
