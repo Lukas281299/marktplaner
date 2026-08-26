@@ -116,12 +116,16 @@ Cloudflare es nicht mehr an.
 Ruf die Adresse aus Schritt 1 im Browser auf. Dort muss stehen:
 
 ```json
-{"dienst":"marktplaner-assistent","bereit":true,"version":1,
- "schluessel":true,"zugang":true,"ablage":true}
+{"dienst":"marktplaner-assistent","bereit":true,"version":2,
+ "schluessel":true,"zugang":true,"ablage":true,"herkunftOk":null}
 ```
 
 Steht irgendwo `false`, fehlt genau das: `schluessel` und `zugang` kommen aus
 Schritt 4, `ablage` aus Schritt 3.
+
+`"herkunftOk":null` ist **richtig so**: Beim Aufruf aus der Adressleiste
+schickt der Browser keine Herkunft mit, also kann der Worker dazu nichts
+sagen. Geprüft wird sie beim Verbinden in Schritt 6.
 
 ---
 
@@ -169,7 +173,7 @@ handeln, statt zu fragen — ein Fehlgriff kostet dich einen Tastendruck.
 | „Am Worker fehlt der KV-Namensraum MARKTPLANER" | Schritt 3 fehlt oder der Name ist nicht exakt `MARKTPLANER`. |
 | „Das Zugangswort stimmt nicht" | In der App steht ein anderes als am Worker. Auf Leerzeichen am Ende achten. |
 | „Der hinterlegte Schlüssel wird nicht angenommen" | Der Anthropic-Schlüssel ist abgelaufen oder falsch kopiert. |
-| „Nicht erlaubt" (403) | `ERLAUBTE_HERKUNFT` passt nicht zur Adresse, unter der du den Marktplaner aufrufst — ohne Pfad am Ende, also `https://lukas281299.github.io`. |
+| „Der Worker weist diese Seite ab" | `ERLAUBTE_HERKUNFT` passt nicht zur Adresse, unter der du den Marktplaner aufrufst — ohne Pfad am Ende, also `https://lukas281299.github.io`. Die Meldung nennt den richtigen Wert. |
 | „Für heute ist Schluss" | Das Tageslimit ist erreicht. In Schritt 4 höher setzen, oder bis morgen warten. |
 | „Gerade zu viele Anfragen" | Anthropic bremst. Eine Minute warten. |
 

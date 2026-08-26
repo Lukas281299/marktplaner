@@ -22,7 +22,7 @@
  *   3. Tageslimit – falls die ersten beiden doch fallen, ist der Schaden
  *      auf einen Tag gedeckelt.
  *
- *   GET  /                 →  kurze Statusmeldung
+ *   GET  /                 →  kurze Statusmeldung (offen, zum Nachsehen)
  *   POST /frage            ←  { zugang, geraet, modell, system, nachrichten,
  *                               werkzeuge }
  *                          →  { inhalt, stopGrund, verbrauch, kontingent }
@@ -47,6 +47,18 @@ const MODELLE = ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'
 
 /* --------------------------------------------------------------- Herkunft */
 
+/** Darf diese Herkunft fragen? */
+function herkunftErlaubt(anfrage, umgebung) {
+  const herkunft = anfrage.headers.get('Origin') ?? '';
+  const erlaubt = (umgebung.ERLAUBTE_HERKUNFT ?? '')
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
+  // Localhost mit beliebigem Port, damit die Entwicklung nicht blockiert ist.
+  if (/^http:\/\/localhost(:\d+)?$/.test(herkunft)) return true;
+  return erlaubt.includes(herkunft);
+}
+
 /**
  * Die Kopfzeilen für die Antwort – und zugleich die Türsteherfunktion.
  *
@@ -56,18 +68,9 @@ const MODELLE = ['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'
  * dafür sind Zugangswort und Tageslimit da.
  */
 function kopfzeilen(anfrage, umgebung) {
-  const herkunft = anfrage.headers.get('Origin') ?? '';
-  const erlaubt = (umgebung.ERLAUBTE_HERKUNFT ?? '')
-    .split(',')
-    .map((h) => h.trim())
-    .filter(Boolean);
-  // Localhost mit beliebigem Port, damit die Entwicklung nicht blockiert ist.
-  const eigenerRechner = /^http:\/\/localhost(:\d+)?$/.test(herkunft);
-
-  if (!eigenerRechner && !erlaubt.includes(herkunft)) return null;
-
+  if (!herkunftErlaubt(anfrage, umgebung)) return null;
   return {
-    'Access-Control-Allow-Origin': herkunft,
+    'Access-Control-Allow-Origin': anfrage.headers.get('Origin') ?? '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Max-Age': '86400',
@@ -154,27 +157,46 @@ function ablageHolen(umgebung) {
 
 export default {
   async fetch(anfrage, umgebung) {
-    const kopf = kopfzeilen(anfrage, umgebung);
-
-    if (anfrage.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: kopf ?? {} });
-    }
-    if (!kopf) return new Response('Nicht erlaubt.', { status: 403 });
-
     const pfad = new URL(anfrage.url).pathname;
 
+    /**
+     * Die Statusseite steht **vor** dem Türsteher und ist absichtlich offen.
+     *
+     * Sie ist zum Nachsehen im Browser da, und ein Aufruf aus der Adressleiste
+     * schickt gar keinen `Origin` mit – hinter der Prüfung antwortete
+     * ausgerechnet die Seite mit „Nicht erlaubt", die einem sagen soll, ob
+     * alles richtig eingerichtet ist. Geheim ist hier nichts: nur, ob die
+     * Einträge gesetzt sind, nicht was darin steht.
+     */
     if (anfrage.method === 'GET' && pfad === '/') {
       return antwort(
         {
           dienst: 'marktplaner-assistent',
           bereit: true,
-          version: 1,
+          version: 2,
           schluessel: !!umgebung.ANTHROPIC_API_KEY,
           zugang: !!umgebung.ASSISTENT_ZUGANG,
           ablage: !!umgebung.MARKTPLANER && typeof umgebung.MARKTPLANER.get === 'function',
+          // Kommt die Frage aus einer Seite, darf sie auch fragen? Beim Aufruf
+          // aus der Adressleiste gibt es keine Herkunft – dann steht hier null.
+          herkunftOk: anfrage.headers.get('Origin')
+            ? herkunftErlaubt(anfrage, umgebung)
+            : null,
         },
         200,
-        kopf,
+        { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' },
+      );
+    }
+
+    const kopf = kopfzeilen(anfrage, umgebung);
+
+    if (anfrage.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: kopf ?? {} });
+    }
+    if (!kopf) {
+      return new Response(
+        'Nicht erlaubt: Diese Herkunft steht nicht in ERLAUBTE_HERKUNFT.',
+        { status: 403 },
       );
     }
 

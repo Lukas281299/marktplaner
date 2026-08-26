@@ -300,6 +300,7 @@ export async function pruefeZugang(
     schluessel?: boolean;
     zugang?: boolean;
     ablage?: boolean;
+    herkunftOk?: boolean | null;
   } | null;
 
   if (daten?.dienst !== 'marktplaner-assistent') {
@@ -309,6 +310,15 @@ export async function pruefeZugang(
   if (!daten.zugang) return { gut: false, meldung: 'Am Worker fehlt das ASSISTENT_ZUGANG.' };
   if (!daten.ablage) {
     return { gut: false, meldung: 'Am Worker fehlt der KV-Namensraum MARKTPLANER.' };
+  }
+  // `false` heißt: Der Worker läuft, würde diese Seite aber abweisen. Ohne
+  // diese Prüfung meldete das Einrichten „bereit", und erst die erste Frage
+  // liefe in ein nacktes „Nicht erlaubt".
+  if (daten.herkunftOk === false) {
+    return {
+      gut: false,
+      meldung: `Der Worker weist diese Seite ab. Trag unter ERLAUBTE_HERKUNFT genau ${window.location.origin} ein.`,
+    };
   }
   return { gut: true, meldung: 'Der Worker ist bereit.' };
 }
