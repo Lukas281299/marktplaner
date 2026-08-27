@@ -157,8 +157,14 @@ function feldplaetze(felder: Regalfeld[], faktor: number): Feldplatz[] {
  */
 export function einheitenTeile(element: PlanElement): number[] {
   if (element.form === 'wt100') return [];
-  const satz = modulsatzFuer(element.form);
-  if (!satz) return [];
+  // Entweder das Möbel gehört einem System mit festen Rastern an – oder es
+  // führt sein eigenes Maß als Achsmaß. Beides heißt: Es besteht aus
+  // Einheiten, und die gehören im Plan sichtbar getrennt.
+  //
+  // Ohne den zweiten Fall wurden drei aneinandergehängte Pflanzregale als
+  // ein Klotz von 1,97 m gezeichnet. Im Modell waren es drei Elemente, im
+  // Plan sah man eines – und damit sah das Anfügen aus, als täte es nichts.
+  if (!modulsatzFuer(element.form) && !element.achsmass) return [];
   // Die vordere Seite gibt die Einheiten vor. Getrennt einteilen lässt sich
   // nur der Regalzug, und der ist hier schon abgebogen.
   return felderVon(element, 'unten').map((feld) => feld.breite);
@@ -203,7 +209,7 @@ export function einheitenNaehte(element: PlanElement, b: number): number[] {
   // Feldgrenzen, bei der Truhe die Module à 625 mm. Eine zweite Naht läge
   // dort auf denselben Koordinaten und macht den Strich nur schwerer.
   if (element.form === 'wt100' || element.form === 'tkTruhe') return [];
-  if (!modulsatzFuer(element.form)) return [];
+  if (!modulsatzFuer(element.form) && !element.achsmass) return [];
 
   const abschnitte = zeichenAbschnitte(element);
   if (abschnitte.length < 2) return [];

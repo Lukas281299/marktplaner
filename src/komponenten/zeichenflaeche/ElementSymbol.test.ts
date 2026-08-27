@@ -991,3 +991,38 @@ describe('Aktionsfläche beschriftet sich selbst', () => {
     expect(texte).toHaveLength(0);
   });
 });
+
+describe('Möbel mit eigenem Achsmaß', () => {
+  /**
+   * Ein Möbel, das keinem System mit festen Rastern angehört, aber sein
+   * eigenes Maß führt – so wie die Blumenmöbel.
+   */
+  const reihe = (breite: number, achsmass: number, felder: number) =>
+    ({
+      id: 'b', vorlageId: 'blumen', ebeneId: 'einrichtung', name: 'Pflanzregal',
+      kategorie: 'blumen', x: 0, y: 0, breite, tiefe: 56, hoehe: 155, drehung: 0,
+      form: 'rechteck', farbe: '#b6dfa6', beschriftung: '', beschriftungSichtbar: false,
+      schriftgroesse: 12, gesperrt: false, reihenfolge: 0, achsmass,
+      felderUnten: Array.from({ length: felder }, () => ({ breite: achsmass })),
+    }) as unknown as PlanElement;
+
+  it('trennt seine Einheiten sichtbar', () => {
+    // Drei aneinandergehängte Pflanzregale wurden als ein Klotz von 1,97 m
+    // gezeichnet: im Modell drei Elemente, im Plan eines. Damit sah das
+    // Anfügen aus, als täte es nichts.
+    const naehte = einheitenNaehte(reihe(197.1, 65.7, 3), 197.1);
+    expect(naehte).toHaveLength(2);
+    expect(naehte[0]).toBeCloseTo(65.7, 1);
+    expect(naehte[1]).toBeCloseTo(131.4, 1);
+  });
+
+  it('lässt ein einzelnes Möbel ungeteilt', () => {
+    expect(einheitenNaehte(reihe(65.7, 65.7, 1), 65.7)).toEqual([]);
+  });
+
+  it('teilt gar nichts ohne Achsmaß und ohne Modulsatz', () => {
+    // Ein frei gezogenes Rechteck ist ein Möbel und keine Reihe.
+    const frei = { ...reihe(200, 65.7, 1), achsmass: undefined, felderUnten: undefined };
+    expect(einheitenNaehte(frei as PlanElement, 200)).toEqual([]);
+  });
+});
