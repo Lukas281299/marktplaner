@@ -200,3 +200,27 @@ export function zerlegeInModule(breite: number, satz: Modulsatz): number[] {
   }
   return teile.sort((a, b) => b - a);
 }
+
+/**
+ * Ein Satz aus dem eigenen Achsmaß eines Möbels.
+ *
+ * Für Möbel, die keinem System mit festen Rastern angehören, sich aber
+ * trotzdem in Reihe stellen lassen: Blumenmöbel etwa stehen zu dritt
+ * nebeneinander, und dann will man sie am Möbel verlängern statt drei
+ * einzelne hinzustellen und auszurichten.
+ *
+ * Der Satz hat genau **eine** Länge – die des Möbels selbst. Etwas anderes
+ * gäbe es auch nicht: Ein Pflanzregal ist 65,7 cm breit, und ein zweites
+ * daneben ist wieder 65,7 cm breit. Ein Satz mit allen Blumenmaßen darin
+ * würde anbieten, an ein Pflanzregal eine Blumeninsel anzuhängen.
+ */
+export function satzAusAchsmass(achsmass: number | undefined): Modulsatz | undefined {
+  if (!achsmass || achsmass <= 0) return undefined;
+  return {
+    einheit: 'Element',
+    mehrzahl: 'Elemente',
+    laengen: [achsmass],
+    herkunft: 'Das Möbel selbst – ein weiteres derselben Breite',
+    knopf: meter,
+  };
+}

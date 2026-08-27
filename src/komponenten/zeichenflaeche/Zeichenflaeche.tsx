@@ -1424,8 +1424,8 @@ export function Zeichenflaeche() {
               y={auswahlrahmen.y}
               width={auswahlrahmen.breite}
               height={auswahlrahmen.hoehe}
-              fill={RAHMENFARBEN[werkzeug].fuellung}
-              stroke={RAHMENFARBEN[werkzeug].linie}
+              fill={rahmenfarbe(werkzeug).fuellung}
+              stroke={rahmenfarbe(werkzeug).linie}
               strokeWidth={1.5 / zoom}
               dash={werkzeug === 'auswahl' ? undefined : [10 / zoom, 6 / zoom]}
             />
@@ -1491,7 +1491,21 @@ export function Zeichenflaeche() {
 }
 
 /** Die Farbe des aufgezogenen Rahmens sagt, was gleich passiert. */
-const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> = {
+/**
+ * Die Farbe des Rahmens, den man gerade aufzieht.
+ *
+ * **Mit Rückfall.** Ein Werkzeug ohne Eintrag riss hier die ganze
+ * Zeichenfläche mit: `RAHMENFARBEN[werkzeug].fuellung` ist bei einem
+ * unbekannten Werkzeug ein Zugriff auf `undefined`, und React räumt daraufhin
+ * den ganzen Baum ab. Genau das passierte beim freien Textfeld – es kam
+ * später dazu und wurde hier vergessen. Ein fehlender Eintrag darf höchstens
+ * eine falsche Farbe bedeuten.
+ */
+export function rahmenfarbe(werkzeug: Werkzeug): { fuellung: string; linie: string } {
+  return RAHMENFARBEN[werkzeug] ?? RAHMENFARBEN.auswahl;
+}
+
+export const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> = {
   auswahl: { fuellung: 'rgba(10,132,255,0.12)', linie: '#0a84ff' },
   umriss: { fuellung: 'rgba(10,132,255,0.12)', linie: '#0a84ff' },
   flaecheAnfuegen: { fuellung: 'rgba(46,160,67,0.16)', linie: '#2ea043' },
@@ -1500,6 +1514,11 @@ const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> = {
   wand: { fuellung: 'transparent', linie: '#66707c' },
   oeffnung: { fuellung: 'transparent', linie: '#66707c' },
   messen: { fuellung: 'transparent', linie: '#2f3b49' },
+  // Das Textfeld wird gesetzt, nicht aufgezogen – der Rahmen blitzt nur kurz
+  // auf, während die Taste unten ist.
+  textfeld: { fuellung: 'transparent', linie: '#0a84ff' },
+  grundrissZeichnen: { fuellung: 'rgba(10,132,255,0.12)', linie: '#0a84ff' },
+  verkaufsflaeche: { fuellung: 'rgba(46,160,67,0.16)', linie: '#2ea043' },
 };
 
 /**

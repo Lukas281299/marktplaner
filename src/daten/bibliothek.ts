@@ -722,6 +722,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-pflanzregal-niedrig',
       name: 'Pflanzregal niedrig',
       breite: 65.7,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 65.7,
       tiefe: 56,
       hoehe: 102.5,
       form: 'rechteck',
@@ -733,6 +736,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-pflanzregal-mittel',
       name: 'Pflanzregal mittel',
       breite: 65.7,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 65.7,
       tiefe: 56,
       hoehe: 128,
       form: 'rechteck',
@@ -744,6 +750,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-pflanzregal-hoch',
       name: 'Pflanzregal hoch',
       breite: 65.7,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 65.7,
       tiefe: 56,
       hoehe: 155,
       form: 'rechteck',
@@ -757,6 +766,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-schnittblumen-saeule',
       name: 'Schnittblumen-Säule',
       breite: 41,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 41,
       tiefe: 51.5,
       hoehe: 88,
       form: 'rechteck',
@@ -768,6 +780,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-insel-quadrat',
       name: 'Blumeninsel quadratisch',
       breite: 143,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 143,
       tiefe: 143,
       hoehe: 62.5,
       form: 'rechteck',
@@ -779,6 +794,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-display-kasse',
       name: 'Blumendisplay Kasse',
       breite: 61,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 61,
       tiefe: 73,
       hoehe: 147,
       form: 'rechteck',
@@ -792,6 +810,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-topf-gerade',
       name: 'Topfblumen-Präsenter gerade',
       breite: 91,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 91,
       tiefe: 78,
       hoehe: 145,
       form: 'rechteck',
@@ -820,6 +841,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-treppe-2',
       name: 'Blumentreppe 2-stufig',
       breite: 100,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 100,
       tiefe: 66.6,
       hoehe: 73.5,
       form: 'rechteck',
@@ -831,6 +855,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-treppe-3',
       name: 'Blumentreppe 3-stufig',
       breite: 100,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 100,
       tiefe: 100,
       hoehe: 73.5,
       form: 'rechteck',
@@ -844,6 +871,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-wanne-mini',
       name: 'Bewässerungswanne klein',
       breite: 63,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 63,
       tiefe: 55.3,
       hoehe: 54.9,
       form: 'rechteck',
@@ -855,6 +885,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-wanne-maxi',
       name: 'Bewässerungswanne groß',
       breite: 126,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 126,
       tiefe: 55.3,
       hoehe: 59.4,
       form: 'rechteck',
@@ -866,6 +899,9 @@ function blumenEintraege(): BibliothekEintrag[] {
       id: 'blumen-wagen',
       name: 'Blumenwagen',
       breite: 149,
+      // Sein eigenes Maß als Raster: So lässt es sich am Möbel verlängern,
+      // statt drei einzelne hinzustellen und auszurichten.
+      achsmass: 149,
       tiefe: 82.6,
       hoehe: 152,
       form: 'rechteck',

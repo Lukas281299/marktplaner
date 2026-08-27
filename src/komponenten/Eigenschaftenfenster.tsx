@@ -7,7 +7,7 @@ import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flae
 import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { summe } from '../logik/feldaufteilung';
-import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
+import { modulName, modulsatzFuer, satzAusAchsmass, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
@@ -1595,7 +1595,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         const ziel =
           zuege.length === 1 ? zuege[0] : ausgewaehlte.length === 1 ? ausgewaehlte[0] : null;
         if (!ziel) return null;
-        const satz = modulsatzFuer(ziel.form);
+        // Kein fester Satz? Dann tut es das eigene Achsmaß. Damit lassen
+        // sich auch Möbel verlängern, die keinem System mit Rastern
+        // angehören – Blumenmöbel etwa stehen zu dritt nebeneinander.
+        const satz = modulsatzFuer(ziel.form) ?? satzAusAchsmass(ziel.achsmass);
         if (satz) return <Feldaufteilung element={ziel} satz={satz} einheit={einheit} />;
         // Eine Aktionsfläche hat keine Felder und trägt keine Warengruppe:
         // Sie schreibt ihren Namen selbst in die Mitte, dazu ihre Zahlen in
