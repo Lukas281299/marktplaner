@@ -196,6 +196,25 @@ Auf Wunsch kommt eine **Beispielseite** mit – eine fertige HTML-Datei mit
 klickbaren Kamerasymbolen. Wer die andere Anwendung baut, hat sonst nur eine
 Datei und muss raten, wie das Koordinatensystem gemeint ist.
 
+## Warengruppen messen in Zentimetern
+
+Was unter einem Zug steht, gehört zu einer **Strecke** und nicht zu einem Feld
+(`logik/warengruppe.ts`). Der Unterschied ist nicht kosmetisch: Ein Feld ist
+eine bauliche Größe — ein Regalboden im Achsmaß —, ein Sortiment richtet sich
+nicht danach. Teilen sich zwei Sortimente drei Meter, läuft die Grenze mitten
+durch ein Feld. Solange beides in Feldern zählte, ging das nur, indem man die
+Felder umbaute; danach zeigte der Plan ein Möbel mit zwei Böden statt drei.
+
+- Gespeichert wird in der **Achse des Möbels**, nicht in Leserichtung. Gedreht
+  wird erst beim Zeichnen — sonst müsste jede Drehung die Daten umschreiben.
+- Die Felder sind für die Beschriftung nur noch **Rastpunkte**: Beim Ziehen
+  einer Grenze rasten Feldgrenzen, Hälften und Viertel ein.
+- Grenzen zwei Abschnitte aneinander, wandern ihre Kanten **gemeinsam** —
+  sonst risse beim Ziehen ein Loch auf oder sie überlappten sich.
+- Fassung 15 rechnet alte Pläne um. Zwei Feinheiten stecken darin: Gezählt
+  wurde in Leserichtung (an einem gedrehten Möbel also andersherum), und eine
+  Strecke endete an der nächsten Beschriftung.
+
 ## Der Assistent
 
 Auf Wunsch lässt sich der Marktplaner ansprechen statt anklicken: *„Schieb die
@@ -249,6 +268,7 @@ src/
 │   ├── waende.ts          Wandachsen finden – wo sitzt eine Tür?
 │   ├── einrasten.ts       Einrasten am Raster/an Nachbarn, Hilfslinien, Abstände
 │   ├── flaechen.ts        Flächenübersicht, Verkaufs- und Nebenflächen
+│   ├── warengruppe.ts     Beschriftungen als Strecken in Zentimetern
 │   ├── tastatur.ts        alle Tastenkombinationen
 │   ├── bildExport.ts      PNG-Export
 │   ├── planAufnahme.ts    Plan in wählbarer Auflösung aufnehmen

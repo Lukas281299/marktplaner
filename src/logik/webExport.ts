@@ -62,9 +62,9 @@ function moebeldaten(projekt: Projekt) {
     breite: Math.round(el.breite),
     tiefe: Math.round(el.tiefe),
     drehung: Math.round(el.drehung),
-    warengruppen: [...(el.felderUnten ?? []), ...(el.felderOben ?? [])]
-      .map((f) => f.warengruppe?.text)
-      .filter((t): t is string => !!t),
+    warengruppen: [...(el.warengruppenUnten ?? []), ...(el.warengruppenOben ?? [])]
+      .map((a) => a.text.trim())
+      .filter(Boolean),
   }));
 }
 

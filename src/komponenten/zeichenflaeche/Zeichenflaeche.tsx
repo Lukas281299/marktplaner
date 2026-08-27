@@ -25,6 +25,7 @@ import { usePlanStore, type Werkzeug } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Warengruppenmarkierung } from './Warengruppenmarkierung';
+import { Warengruppengriffe } from './Warengruppengriffe';
 import { Eckanfasser } from './Eckanfasser';
 import { Gebaeude } from './Gebaeude';
 import { Planvorlage } from './Planvorlage';
@@ -1238,6 +1239,13 @@ export function Zeichenflaeche() {
             elemente={projekt.elemente}
             zoom={zoom}
           />
+
+          {/* Die Griffe an den Grenzen zwischen zwei Warengruppen. Nur am
+              ausgewählten Möbel – über einem ganzen Markt wären es hunderte
+              Punkte, und der Plan wäre nicht mehr zu lesen. */}
+          {werkzeug === 'auswahl' && (
+            <Warengruppengriffe elemente={projekt.elemente} auswahl={auswahl} zoom={zoom} />
+          )}
 
           {beschriftungen !== 'aus' &&
             sichtbareElemente.map((el) => (

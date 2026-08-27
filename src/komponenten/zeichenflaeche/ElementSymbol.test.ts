@@ -12,7 +12,7 @@ import {
   zeichneWarengruppen,
 } from './ElementSymbol';
 import { BIBLIOTHEK } from '../../daten/bibliothek';
-import type { Grundform, PlanElement } from '../../typen/modell';
+import type { Grundform, PlanElement , Warengruppenabschnitt } from '../../typen/modell';
 
 /**
  * Prüfungen für die Zeichenfunktion der Symbole.
@@ -737,7 +737,17 @@ const bau = (el: Partial<PlanElement> & { form: Grundform; breite: number }) =>
 describe('Warengruppen unter dem Zug', () => {
   const TIEFE = 127;
 
-  const zug = (felder: Record<string, unknown>[], oben?: Record<string, unknown>[]) =>
+  /**
+   * Ein Zug mit Feldern und – getrennt davon – seinen Warengruppen.
+   *
+   * Getrennt, weil es das seit Fassung 15 ist: Die Felder sagen, wie das
+   * Möbel gebaut ist, die Abschnitte, was darauf steht.
+   */
+  const zug = (
+    felder: Record<string, unknown>[],
+    band: Warengruppenabschnitt[] = [],
+    oben?: { felder: Record<string, unknown>[]; band: Warengruppenabschnitt[] },
+  ) =>
     bau({
       form: 'wt100',
       breite: 500,
@@ -745,27 +755,19 @@ describe('Warengruppen unter dem Zug', () => {
       beidseitig: Boolean(oben),
       achsmass: 100,
       felderUnten: felder,
-      felderOben: oben,
+      felderOben: oben?.felder,
+      warengruppenUnten: band,
+      warengruppenOben: oben?.band,
     } as unknown as Parameters<typeof bau>[0]);
 
-  const gruppe = (text: string, felder: number) => ({ breite: 100, warengruppe: { text, felder } });
+  /** Fünf Meter Regal, in Feldern zu einem Meter. */
+  const meter = (anzahl: number) => Array.from({ length: anzahl }, () => ({ breite: 100 }));
+  const wg = (von: number, bis: number, text: string): Warengruppenabschnitt => ({ von, bis, text });
 
   it('setzt die Beschriftung mittig unter ihre Strecke', () => {
-    // „Ketchup" über die Felder 3 bis 5 steht in deren Mitte – bei 3,50 m.
+    // „Ketchup" von 2,00 bis 5,00 m steht in deren Mitte – bei 3,50 m.
     const { ctx, texte } = schreiber();
-    zeichneWarengruppen(
-      ctx,
-      zug([
-        { breite: 100 },
-        { breite: 100 },
-        gruppe('Ketchup', 3),
-        { breite: 100 },
-        { breite: 100 },
-      ]),
-      500,
-      TIEFE,
-      1,
-    );
+    zeichneWarengruppen(ctx, zug(meter(5), [wg(200, 500, 'Ketchup')]), 500, TIEFE, 1);
     expect(texte).toHaveLength(1);
     expect(texte[0].text).toBe('Ketchup');
     expect(texte[0].x).toBeCloseTo(350, 1);
@@ -775,7 +777,7 @@ describe('Warengruppen unter dem Zug', () => {
 
   it('schreibt sie einmal und nicht je Feld', () => {
     const { ctx, texte } = schreiber();
-    zeichneWarengruppen(ctx, zug([gruppe('Ketchup', 3), { breite: 100 }, { breite: 100 }]), 300, TIEFE, 1);
+    zeichneWarengruppen(ctx, zug(meter(3), [wg(0, 300, 'Ketchup')]), 300, TIEFE, 1);
     expect(texte.filter((t) => t.text === 'Ketchup')).toHaveLength(1);
   });
 
@@ -784,7 +786,7 @@ describe('Warengruppen unter dem Zug', () => {
     const { ctx, texte } = schreiber();
     zeichneWarengruppen(
       ctx,
-      zug([{ breite: 100 }, { breite: 100 }], [gruppe('Senf', 2), { breite: 100 }]),
+      zug(meter(2), [], { felder: meter(2), band: [wg(0, 200, 'Senf')] }),
       200,
       TIEFE,
       1,
@@ -797,7 +799,7 @@ describe('Warengruppen unter dem Zug', () => {
     // Ein Strich an jedem Ende, dazwischen eine Linie, die der Text
     // unterbricht – sonst sieht niemand, wie weit „Ketchup" gilt.
     const { ctx, striche } = schreiber();
-    zeichneWarengruppen(ctx, zug([gruppe('Ketchup', 3), { breite: 100 }, { breite: 100 }]), 300, TIEFE, 1);
+    zeichneWarengruppen(ctx, zug(meter(3), [wg(0, 300, 'Ketchup')]), 300, TIEFE, 1);
     const senkrecht = striche.filter((st) => Math.abs(st[0] - st[2]) < 0.01);
     expect(senkrecht.map((st) => Math.round(st[0]))).toEqual([0, 300]);
     const waagerecht = striche.filter((st) => Math.abs(st[1] - st[3]) < 0.01);
@@ -807,16 +809,25 @@ describe('Warengruppen unter dem Zug', () => {
     expect(waagerecht[1][0]).toBeGreaterThan(150);
   });
 
-  it('lässt die Klammer über einem einzelnen Feld weg', () => {
-    // Dort ist nichts zu erklären, und der Plan hat genug Striche.
+  it('lässt die Klammer über genau einem Feld weg', () => {
+    // Dort zeigen die Feldgrenzen schon alles, und der Plan hat genug Striche.
     const { ctx, striche } = schreiber();
-    zeichneWarengruppen(ctx, zug([gruppe('Senf', 1), { breite: 100 }]), 200, TIEFE, 1);
+    zeichneWarengruppen(ctx, zug(meter(2), [wg(0, 100, 'Senf')]), 200, TIEFE, 1);
     expect(striche).toHaveLength(0);
+  });
+
+  it('klammert eine Strecke, die mitten in einem Feld endet', () => {
+    // Hier ist sie am nötigsten: Ohne Klammer sähe niemand, dass „Senf" schon
+    // nach anderthalb Metern aufhört und nicht erst an der Feldgrenze.
+    const { ctx, striche } = schreiber();
+    zeichneWarengruppen(ctx, zug(meter(3), [wg(0, 150, 'Senf')]), 300, TIEFE, 1);
+    const senkrecht = striche.filter((st) => Math.abs(st[0] - st[2]) < 0.01);
+    expect(senkrecht.map((st) => Math.round(st[0]))).toEqual([0, 150]);
   });
 
   it('bricht einen zu langen Namen um', () => {
     const { ctx, texte } = schreiber();
-    zeichneWarengruppen(ctx, zug([gruppe('Ketchup und Grillsoßen', 1), { breite: 100 }]), 200, TIEFE, 1);
+    zeichneWarengruppen(ctx, zug(meter(2), [wg(0, 100, 'Ketchup und Grillsoßen')]), 200, TIEFE, 1);
     // Ein Feld ist 1,00 m breit, mehr als ein Wort passt hier nicht.
     expect(texte.map((t) => t.text)).toEqual(['Ketchup', 'und', 'Grillsoßen']);
     expect(texte[1].y).toBeGreaterThan(texte[0].y);
@@ -825,7 +836,7 @@ describe('Warengruppen unter dem Zug', () => {
   it('blendet sich beim Herauszoomen aus', () => {
     // Wie jede Beschriftung, die zur Zeichnung gehört.
     const { ctx, texte } = schreiber();
-    zeichneWarengruppen(ctx, zug([gruppe('Ketchup', 1), { breite: 100 }]), 200, TIEFE, 0.01);
+    zeichneWarengruppen(ctx, zug(meter(2), [wg(0, 100, 'Ketchup')]), 200, TIEFE, 0.01);
     expect(texte).toHaveLength(0);
   });
 });
@@ -838,19 +849,23 @@ describe('Beschriftungen bleiben lesbar', () => {
    * unter der Seite, zu der sie gehört. Lesen können muss man sie trotzdem:
    * Ab einer halben Drehung stünde sie sonst auf dem Kopf.
    */
-  const zug = (drehung: number, felder: Record<string, unknown>[]) =>
+  const zug = (
+    drehung: number,
+    band: Warengruppenabschnitt[],
+    felder: Record<string, unknown>[] = [{ breite: 100 }, { breite: 100 }],
+  ) =>
     ({
       id: 'x', vorlageId: 'x', ebeneId: 'einrichtung', name: 'x', kategorie: 'regale',
       x: 0, y: 0, breite: 200, tiefe: TIEFE, hoehe: 180, drehung, farbe: '#888',
       beschriftung: '', beschriftungSichtbar: false, schriftgroesse: 12,
       gesperrt: false, reihenfolge: 0, form: 'wt100', achsmass: 100,
       felderUnten: felder,
+      warengruppenUnten: band,
     }) as unknown as PlanElement;
 
-  const gruppe = [{ breite: 100, warengruppe: { text: 'Senf', felder: 2 } }, { breite: 100 }];
-  // Dieselbe Strecke für ein Möbel, das andersherum läuft: Dort ist das
-  // letzte Feld der Liste das linke im Bild, und dort fängt die Strecke an.
-  const gruppeRueck = [{ breite: 100 }, { breite: 100, warengruppe: { text: 'Senf', felder: 2 } }];
+  // Zwei Meter Senf über das ganze Möbel – gespeichert immer gleich, egal wie
+  // das Möbel steht. Gedreht wird erst beim Zeichnen.
+  const gruppe: Warengruppenabschnitt[] = [{ von: 0, bis: 200, text: 'Senf' }];
 
   it('lässt aufrechte Schrift in Ruhe', () => {
     const { ctx, wendungen } = schreiber();
@@ -860,7 +875,7 @@ describe('Beschriftungen bleiben lesbar', () => {
 
   it('wendet die Beschriftung bei einer halben Drehung', () => {
     const { ctx, wendungen, texte } = schreiber();
-    zeichneWarengruppen(ctx, zug(180, gruppeRueck), 200, TIEFE, 1);
+    zeichneWarengruppen(ctx, zug(180, gruppe), 200, TIEFE, 1);
     expect(wendungen).toHaveLength(1);
     expect(wendungen[0].winkel).toBeCloseTo(Math.PI, 5);
     // Um die eigene Mitte: waagerecht die Mitte der Strecke …
@@ -896,7 +911,7 @@ describe('Beschriftungen bleiben lesbar', () => {
     const { ctx, wendungen } = schreiber();
     zeichneFeldnotizen(
       ctx,
-      zug(180, [
+      zug(180, [], [
         { breite: 100, notiz: '5+' },
         { breite: 100, notiz: '4+' },
       ]),

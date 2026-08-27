@@ -231,25 +231,38 @@ export interface Regalfeld {
   leer?: boolean;
   /** Bis zu drei Zeilen, die im Feld stehen – siehe `logik/feldnotiz.ts`. */
   notiz?: string;
+}
+
+/**
+ * Eine Warengruppen-Beschriftung auf einer Strecke des Möbels.
+ *
+ * **Gemessen wird in Zentimetern, nicht in Feldern.** Ein Feld ist eine
+ * bauliche Größe – ein Regalboden im Achsmaß des Systems. Ein Sortiment
+ * richtet sich nicht danach: Zwei Sortimente teilen sich drei Meter, und die
+ * Grenze läuft dann mitten durch ein Feld. Solange beides dieselbe Einheit
+ * benutzte, ließ sich das eine nicht ändern, ohne das andere zu verfälschen –
+ * wer die Felder umbaute, um beschriften zu können, zeichnete ein Möbel, das
+ * es so nicht gibt.
+ *
+ * `von` und `bis` zählen ab dem **Anfang des Möbels in der gespeicherten
+ * Achse**, nicht in Leserichtung des Plans. Gedreht wird erst beim Zeichnen
+ * (siehe `logik/warengruppe.ts`); sonst müsste jede Drehung die Daten
+ * umschreiben.
+ */
+export interface Warengruppenabschnitt {
+  /** Anfang in cm, ab dem Anfang des Möbels. */
+  von: number;
+  /** Ende in cm. Immer größer als `von`. */
+  bis: number;
+  text: string;
   /**
-   * Die Warengruppe, die unter dem Zug steht – siehe `logik/warengruppe.ts`.
+   * Schrifthöhe in cm, falls sie von Hand eingestellt wurde.
    *
-   * Sie hängt am **ersten** Feld ihrer Strecke und gilt über `felder` Felder.
-   * So steht „Ketchup" über drei laufende Meter einmal da und nicht dreimal.
+   * Ohne Angabe nimmt der Plan seine übliche Größe. Zu breit wird die
+   * Beschriftung dadurch nie: Sie bricht um und verkleinert sich, bis sie in
+   * ihre Strecke passt – siehe `logik/warengruppe.ts`.
    */
-  warengruppe?: {
-    text: string;
-    /** Über wie viele Felder sie gilt – dieses mitgezählt. */
-    felder: number;
-    /**
-     * Schrifthöhe in cm, falls sie von Hand eingestellt wurde.
-     *
-     * Ohne Angabe nimmt der Plan seine übliche Größe. Zu breit wird die
-     * Beschriftung dadurch nie: Sie bricht um und verkleinert sich, bis sie
-     * in ihre Strecke passt – siehe `logik/warengruppe.ts`.
-     */
-    schrift?: number;
-  };
+  schrift?: number;
 }
 
 /** Ein tatsächlich auf dem Plan platziertes Element. */
@@ -433,6 +446,19 @@ export interface PlanElement {
    * endet dann früher, und man sieht die Stufe im Plan.
    */
   felderOben?: Regalfeld[];
+
+  /**
+   * Die Warengruppen der Vorderseite, als Strecken in Zentimetern.
+   *
+   * Getrennt von den Feldern, weil es verschiedene Dinge sind: Die Felder
+   * sagen, wie das Möbel **gebaut** ist, die Abschnitte, was **darauf steht**.
+   * Deshalb darf eine Grenze zwischen zwei Sortimenten mitten durch ein Feld
+   * laufen.
+   */
+  warengruppenUnten?: Warengruppenabschnitt[];
+
+  /** Dasselbe für die Rückseite. Nur bei beidseitigen Möbeln. */
+  warengruppenOben?: Warengruppenabschnitt[];
   /**
    * Dürfen die beiden Seiten verschieden eingeteilt sein?
    *
@@ -770,6 +796,7 @@ export interface Projekt {
  *  12 – Aktionsflächen sind eine eigene Grundform
  *  13 – abgehakte Warengruppen je Markt
  *  14 – Warengruppen als Band unter einer Auswahl (wieder aufgegeben)
+ *  15 – Warengruppen messen in Zentimetern statt in Feldern
  *
  * Fassung 5 braucht keinen Umwandlungsschritt: Beide Felder sind wahlfrei.
  * Eine ältere Planung hat kein Achsmaß und keinen Hintergrund, und genau das
@@ -820,4 +847,4 @@ export interface Projekt {
  * Auswahl von Möbeln, statt sie an ein einzelnes Feld zu hängen. Ein neues
  * Feld ohne Umwandlung: Was nicht dasteht, gibt es nicht.
  */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;

@@ -6,6 +6,8 @@ import {
   namenIm,
   ohneZugeordneteFelder,
   umgeschaltet,
+  feldkanten,
+  warengruppenVon,
 } from './warengruppenzuordnung';
 import { felderVon } from './regalseiten';
 import type { Feldbezug, PlanElement } from '../typen/modell';
@@ -55,11 +57,30 @@ const f = (feld: number, seite: 'oben' | 'unten' = 'unten'): Feldbezug => ({
   feld,
 });
 
-/** Die Warengruppen einer Seite, kurz aufgeschrieben. */
-const gruppen = (elemente: PlanElement[], seite: 'oben' | 'unten' = 'unten') =>
-  felderVon(elemente[0], seite).map((feld) =>
-    feld.warengruppe ? `${feld.warengruppe.text}/${feld.warengruppe.felder}` : '—',
-  );
+/**
+ * Die Warengruppen einer Seite, kurz aufgeschrieben – ein Eintrag je Feld.
+ *
+ * Gespeichert wird in Zentimetern; hier wird zurück auf Felder gerechnet,
+ * damit die Prüfungen lesbar bleiben. `Eier/4` heißt: ab diesem Feld, über
+ * vier Felder. Passt eine Strecke nicht auf Feldgrenzen, steht ein `~` dabei –
+ * dann sagt der Test selbst, dass es nicht mehr feldweise aufgeht.
+ */
+const gruppen = (elemente: PlanElement[], seite: 'oben' | 'unten' = 'unten') => {
+  const felder = felderVon(elemente[0], seite);
+  const kanten = feldkanten(felder);
+  const zeilen = felder.map(() => '—');
+
+  for (const a of warengruppenVon(elemente[0], seite)) {
+    const von = kanten.findIndex((k) => Math.abs(k - a.von) < 0.5);
+    const bis = kanten.findIndex((k) => Math.abs(k - a.bis) < 0.5);
+    if (von < 0 || bis < 0) {
+      zeilen[0] = `~${a.text}/${a.von}-${a.bis}`;
+      continue;
+    }
+    zeilen[von] = `${a.text}/${bis - von}`;
+  }
+  return zeilen;
+};
 
 describe('Markieren', () => {
   it('nimmt einen Meter auf und wieder heraus', () => {
@@ -110,11 +131,14 @@ describe('Zuordnen schreibt in die Felder', () => {
     expect(gruppen(zwei)).toEqual(['Eier/3', '—', '—', '—', '—', '—']);
   });
 
-  it('hängt den Text bei einem gedrehten Zug ans andere Ende', () => {
-    // An der unteren Wand läuft die eigene Achse von rechts nach links; der
-    // erste Meter im Bild ist dort der mit der höchsten Nummer.
-    const neu = mitZugeordnetenFeldern([gondel({ drehung: 180 })], [f(0), f(1)], 'Eier');
-    expect(gruppen(neu)).toEqual(['—', 'Eier/2', '—', '—', '—', '—']);
+  it('schreibt dieselbe Strecke, egal wie das Möbel steht', () => {
+    // Gespeichert wird in der Achse des Möbels; gedreht wird erst beim
+    // Zeichnen. Vorher hing der Text am ersten Meter **im Bild** und wanderte
+    // dadurch mit der Drehung – die Daten hingen an der Ansicht.
+    const gerade = mitZugeordnetenFeldern([gondel()], [f(0), f(1)], 'Eier');
+    const gedreht = mitZugeordnetenFeldern([gondel({ drehung: 180 })], [f(0), f(1)], 'Eier');
+    expect(warengruppenVon(gedreht[0], 'unten')).toEqual(warengruppenVon(gerade[0], 'unten'));
+    expect(gruppen(gedreht)).toEqual(['Eier/2', '—', '—', '—', '—', '—']);
   });
 
   it('schreibt auf der Rückseite in deren eigene Felder', () => {

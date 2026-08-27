@@ -1,4 +1,9 @@
-import type { PlanElement, Projekt, Punkt } from '../typen/modell';
+import type {
+  PlanElement,
+  Projekt,
+  Punkt,
+  Warengruppenabschnitt,
+} from '../typen/modell';
 
 /**
  * Was der Assistent vom Plan zu sehen bekommt.
@@ -46,20 +51,20 @@ function meter(wert: number): string {
 /**
  * Die Warengruppen einer Seite als ein Text.
  *
- * Steht eine Beschriftung über mehrere Felder, wird sie einmal genannt und
- * die Zahl der Meter dahinter: `Eier (2 F.)`. Genau so steht sie auch im
- * Feld – der Assistent soll dasselbe Bild haben wie die Gondelübersicht.
+ * Mit ihren Strecken in Metern: `0,00-1,50 Ketchup`. So steht es auch in der
+ * Gondelübersicht – der Assistent soll dasselbe Bild haben wie der Nutzer,
+ * und er schreibt über dieselben Meterwerte zurück.
  */
-function seitentext(felder: { breite: number; leer?: boolean; warengruppe?: { text: string; felder: number } }[] | undefined): string {
-  if (!felder || felder.length === 0) return '';
-  const teile: string[] = [];
-  felder.forEach((f, i) => {
-    if (f.warengruppe?.text) {
-      const spanne = f.warengruppe.felder > 1 ? ` (${f.warengruppe.felder} F.)` : '';
-      teile.push(`${i + 1}: ${f.warengruppe.text}${spanne}`);
-    }
-  });
-  return teile.join('; ');
+function seitentext(abschnitte: Warengruppenabschnitt[] | undefined): string {
+  if (!abschnitte || abschnitte.length === 0) return '';
+  return abschnitte
+    .map((a) => `${meterkurz(a.von)}-${meterkurz(a.bis)} ${a.text.replace(/\n/g, ' ')}`)
+    .join('; ');
+}
+
+/** `150` → `1,50`. Ohne Einheit – die steht in der Überschrift. */
+function meterkurz(cm: number): string {
+  return (cm / 100).toFixed(2).replace('.', ',');
 }
 
 /**
@@ -84,8 +89,8 @@ export function elementzeile(el: PlanElement): string {
   if (el.beschriftung) teile.push(`Text "${el.beschriftung}"`);
   if (el.warengruppe) teile.push(`WG "${el.warengruppe}"`);
 
-  const unten = seitentext(el.felderUnten);
-  const oben = seitentext(el.felderOben);
+  const unten = seitentext(el.warengruppenUnten);
+  const oben = seitentext(el.warengruppenOben);
   if (unten) teile.push(`unten[${unten}]`);
   if (oben) teile.push(`oben[${oben}]`);
 

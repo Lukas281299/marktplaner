@@ -583,22 +583,44 @@ Unter dem Regal steht im Plan, was dort verkauft wird. Diese Beschriftung
 gehört nicht zu einem Feld, sondern zu einer **Strecke**: Bekommt Ketchup drei
 laufende Meter, soll der Name einmal dastehen und nicht dreimal.
 
-So trägst du ihn ein:
+**Gemessen wird in Metern, nicht in Feldern.** Das ist der Unterschied zu
+früher, und er ist wichtig: Ein Feld ist eine bauliche Größe — ein Regalboden
+im Achsmaß des Systems. Ein Sortiment richtet sich nicht danach. Teilen sich
+zwei Sortimente drei Meter, läuft die Grenze mitten durch das mittlere Feld.
 
-1. Das **erste** Feld der Strecke suchen — bei Ketchup also den ersten der
-   drei Meter.
-2. In das Feld *Warengruppe* darunter den Namen schreiben.
-3. Im kleinen Kästchen daneben einstellen, über **wie viele Felder** er gilt
-   — **×3** heißt: über drei Felder.
+Unter den Feldern steht dafür der Block **Warengruppen**, eine Zeile je
+Abschnitt:
 
-Im Plan steht der Name dann einmal, mittig über der Strecke, mit einer
+| | |
+|---|---|
+| **0,00 – 1,50** | von wo bis wo, in Metern ab dem Anfang des Möbels |
+| **Ketchup** | der Name. Umschalt+Eingabe setzt einen Umbruch von Hand |
+| **normal** | wie groß er im Plan steht |
+| **×** | diese Beschriftung entfernen |
+
+Im Plan steht der Name dann einmal, mittig über seiner Strecke, mit einer
 **Klammer** an beiden Enden: ein Strich links, ein Strich rechts, dazwischen
-eine Linie, die der Text unterbricht. Über einem einzelnen Feld bleibt die
-Klammer weg — dort ist nichts zu erklären.
+eine Linie, die der Text unterbricht. Über genau einem Feld bleibt sie weg —
+dort zeigen die Feldgrenzen schon alles.
 
-Die folgenden Felder zeigen statt eines Eingabefelds den Hinweis
-*↳ Ketchup*. Zwei Beschriftungen an derselben Stelle kann es also nicht geben:
-Schreibst du mitten in eine Strecke etwas Neues, endet die vorige dort.
+### Grenzen ziehen
+
+Zahlen eintippen geht, ist aber selten nötig: Wähle das Möbel aus, und auf
+jeder Grenze sitzt ein **blauer Punkt**. Ziehst du ihn, wandert die Grenze —
+und der Nachbar wandert mit, damit kein Loch aufreißt und sich nichts
+überlappt.
+
+Der Punkt **rastet ein**, und zwar auf Feldgrenzen, Hälften und Vierteln.
+Damit sitzen die üblichen Fälle ohne Zielen: Drei Meter zu zweit geteilt sind
+anderthalb, und anderthalb ist je nach Bau eine Feldgrenze oder die Mitte
+eines Feldes.
+
+Ein ganzes Ziehen ist **ein** Strg+Z, egal wie lange du den Punkt bewegt hast.
+
+> **Ein Abschnitt verschwindet nicht unter der Hand.** Ziehst du eine Grenze
+> über den Nachbarn hinweg, bleibt ihm ein Rest von zehn Zentimetern. Wer ihn
+> loswerden will, drückt das **×** in seiner Zeile — das ist eine Entscheidung
+> und kein Ausrutscher.
 
 ### Warengruppen zuordnen
 
@@ -622,14 +644,15 @@ Suchen klappt alles auf, sonst sähe man die Treffer nicht.
 3. **Enter** drücken. Erst jetzt erscheint die Schrift.
 
 Über die ganze Strecke steht **ein** Name mit einem Strich an jedem Ende —
-nicht viermal „Eier" über vier Metern. Auch bei einem einzelnen Meter läuft es
-so; dort bleibt die Klammer weg. Nach Enter ist die Markierung weg.
+nicht viermal „Eier" über vier Metern. Nach Enter ist die Markierung weg.
 
-**Geschrieben wird in dieselben Felder, die du von Hand füllst.** Der Text
-landet im Feld *Warengruppe* des ersten Meters der Strecke, mit der Angabe,
-über wie viele Meter er gilt — genau das, was du sonst dort eintippst. Es gibt
-also nur **eine** Beschriftung und nicht zwei Sorten: Wer sie nachbessern
-will, findet sie dort, wo sie immer stand.
+**Geschrieben wird in dieselben Abschnitte, die du von Hand füllst.** Der Text
+landet als Strecke im Block *Warengruppen* — genau das, was du sonst dort
+einträgst. Es gibt also nur **eine** Beschriftung und nicht zwei Sorten: Wer
+sie nachbessern will, findet sie dort, wo sie immer stand.
+
+Das Anklicken trifft dabei immer ganze Meter. Soll die Grenze dazwischen
+liegen, ziehst du sie hinterher an ihren Platz — siehe oben.
 
 Ordnest du derselben Strecke noch einen Namen zu, wächst er in denselben Text
 hinein: **„Eier, Butter"**. Wird der Text zu lang, bricht er um und stapelt
@@ -644,8 +667,8 @@ hineinzuklicken:
 **Esc** räumt schrittweise auf: erst die Markierung, dann den aufgenommenen
 Namen.
 
-Von Hand geht weiterhin alles: Das Feld *Warengruppe* im Eigenschaftenfenster
-nimmt jeden Text.
+Von Hand geht weiterhin alles: Der Block *Warengruppen* im
+Eigenschaftenfenster nimmt jeden Text und jede Strecke.
 
 **Abgehakt wird von Hand.** Vor jedem Eintrag steht ein Punkt, und ein Klick
 darauf schaltet ihn weiter:

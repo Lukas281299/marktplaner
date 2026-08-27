@@ -101,10 +101,10 @@ function projektMitMoebel(): Projekt {
         schriftgroesse: 12,
         gesperrt: false,
         reihenfolge: 1,
-        felderUnten: [
-          { breite: 125, warengruppe: { text: 'Joghurt', felder: 2 } },
-          { breite: 125 },
-          { breite: 125, warengruppe: { text: 'Butter', felder: 1 } },
+        felderUnten: [{ breite: 125 }, { breite: 125 }, { breite: 125 }],
+        warengruppenUnten: [
+          { von: 0, bis: 250, text: 'Joghurt' },
+          { von: 250, bis: 375, text: 'Butter' },
         ],
       },
     ],

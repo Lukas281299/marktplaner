@@ -1,6 +1,8 @@
 import { AKTION_TEXT, SAISON_TEXT, WT_GRAU, WT_GRAU_ALT } from '../daten/bibliothek';
 import { mitAusgerichtetenKoepfen } from '../logik/kopfgondel';
 import { mitZugeordnetenFeldern } from '../logik/warengruppenzuordnung';
+import { laeuftRueckwaerts } from '../logik/beschriftung';
+import { geordnet } from '../logik/warengruppe';
 import { grundfelder } from '../logik/regalseiten';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
@@ -12,6 +14,7 @@ import {
   type Projekt,
   type Raum,
   type Regalfeld,
+  type Warengruppenabschnitt,
 } from '../typen/modell';
 
 /**
@@ -87,7 +90,10 @@ export function wandleProjekt(roh: unknown): Projekt {
         .map(beschrifteAktionsflaeche)
         .map(machZurFlaeche),
       ),
-    ),
+    // Fassung 15: Die Warengruppen messen jetzt in Zentimetern. Zuletzt,
+    // damit die Bänder aus Fassung 14 vorher wieder in den Feldern liegen –
+    // sonst gingen genau die verloren, die den Umweg mitgemacht haben.
+    ).map(aufsMeterband),
   };
 }
 
@@ -116,6 +122,107 @@ function loeseBaenderAuf(baender: AltesBand[] | undefined, elemente: PlanElement
     ergebnis = mitZugeordnetenFeldern(ergebnis, felder, text);
   }
   return ergebnis;
+}
+
+/** So sah eine Warengruppe am Feld bis Fassung 14 aus. */
+interface AlteFeldgruppe {
+  text?: string;
+  felder?: number;
+  schrift?: number;
+}
+
+/**
+ * Fassung 15: Die Warengruppen messen in Zentimetern statt in Feldern.
+ *
+ * Vorher hing eine Beschriftung am ersten Feld ihrer Strecke und zählte, über
+ * wie viele Felder sie reicht. Das ging so lange gut, wie sich jedes
+ * Sortiment an die Feldgrenzen hielt – zwei Sortimente auf drei Metern tun
+ * das nicht.
+ *
+ * Zwei Feinheiten, ohne die die Umwandlung Beschriftungen verschieben würde:
+ *
+ * **Gezählt wurde in Leserichtung.** „Ketchup über drei Felder" hieß: dieses
+ * und die zwei rechts daneben **im Bild**. An einem rückwärts laufenden Möbel
+ * sind das in der gespeicherten Achse die zwei davor.
+ *
+ * **Eine Strecke endete an der nächsten Beschriftung.** Eine Angabe von fünf
+ * Feldern an einem Zug mit dreien war kein Fehler, sondern ein hinterher
+ * gekürzter Zug.
+ */
+function aufsMeterband(element: PlanElement): PlanElement {
+  const alt = element as PlanElement & {
+    felderUnten?: (Regalfeld & { warengruppe?: AlteFeldgruppe })[];
+    felderOben?: (Regalfeld & { warengruppe?: AlteFeldgruppe })[];
+  };
+  const hatAlte =
+    [...(alt.felderUnten ?? []), ...(alt.felderOben ?? [])].some((f) => f?.warengruppe?.text);
+  // Schon umgestellt oder nie beschriftet: nichts zu tun.
+  if (!hatAlte && !element.warengruppenUnten && !element.warengruppenOben) return element;
+
+  const rueckwaerts = laeuftRueckwaerts(element.drehung ?? 0);
+  const ergebnis: PlanElement = {
+    ...element,
+    felderUnten: alt.felderUnten?.map(ohneAlteGruppe),
+    felderOben: alt.felderOben?.map(ohneAlteGruppe),
+  };
+  if (alt.felderUnten && !element.warengruppenUnten) {
+    ergebnis.warengruppenUnten = bandAus(alt.felderUnten, rueckwaerts);
+  }
+  if (alt.felderOben && !element.warengruppenOben) {
+    ergebnis.warengruppenOben = bandAus(alt.felderOben, rueckwaerts);
+  }
+  return ergebnis;
+}
+
+function ohneAlteGruppe(feld: Regalfeld & { warengruppe?: AlteFeldgruppe }): Regalfeld {
+  const { warengruppe: _weg, ...rest } = feld;
+  return rest;
+}
+
+/** Rechnet die Feldbeschriftungen einer Seite in Zentimeterstrecken um. */
+function bandAus(
+  felder: (Regalfeld & { warengruppe?: AlteFeldgruppe })[],
+  rueckwaerts: boolean,
+): Warengruppenabschnitt[] {
+  // Die Kante links von jedem Feld, in der gespeicherten Achse.
+  const kanten: number[] = [0];
+  for (const feld of felder) kanten.push(kanten[kanten.length - 1] + (feld.breite || 0));
+  const gesamt = kanten[kanten.length - 1];
+
+  // In Leserichtung durchgehen – so war die Feldzahl gemeint.
+  const reihe = rueckwaerts ? [...felder].reverse() : felder;
+  const zurueck = (i: number) => (rueckwaerts ? felder.length - 1 - i : i);
+
+  const naechste = (ab: number) => {
+    for (let i = ab; i < reihe.length; i++) {
+      if (reihe[i]?.warengruppe?.text?.trim()) return i;
+    }
+    return reihe.length;
+  };
+
+  const abschnitte: Warengruppenabschnitt[] = [];
+  for (let i = 0; i < reihe.length; i++) {
+    const gruppe = reihe[i]?.warengruppe;
+    const text = gruppe?.text?.trim();
+    if (!text) continue;
+
+    const gewuenscht = i + Math.max(1, Math.round(gruppe?.felder ?? 1)) - 1;
+    const bis = Math.min(gewuenscht, reihe.length - 1, naechste(i + 1) - 1);
+
+    // Zurück in die gespeicherte Achse: Dort ist der Anfang der Strecke die
+    // kleinere der beiden Feldnummern.
+    const a = zurueck(i);
+    const b = zurueck(bis);
+    const erstes = Math.min(a, b);
+    const letztes = Math.max(a, b);
+    abschnitte.push({
+      von: kanten[erstes],
+      bis: kanten[letztes + 1] ?? gesamt,
+      text,
+      ...(gruppe?.schrift ? { schrift: gruppe.schrift } : {}),
+    });
+  }
+  return geordnet(abschnitte, gesamt);
 }
 
 /**

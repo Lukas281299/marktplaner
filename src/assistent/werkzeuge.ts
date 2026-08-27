@@ -1,7 +1,9 @@
 import { BIBLIOTHEK, findeVorlage } from '../daten/bibliothek';
 import { alleNamen } from '../daten/warengruppen';
 import { gesamtUmgrenzung } from '../logik/geometrie';
-import { felderVon, seitenVon } from '../logik/regalseiten';
+import { felderVon, seitenbreite, seitenVon } from '../logik/regalseiten';
+import { mitAbschnitt } from '../logik/warengruppe';
+import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { abteilungsstand, gruppenstand, pfadVon, standVon } from '../logik/sortiment';
 import type { Standwert } from '../logik/sortiment';
 import { usePlanStore } from '../zustand/planStore';
@@ -217,8 +219,8 @@ const PLAN_LESEN: Werkzeug = {
     if (eingabe.warengruppe) {
       const suche = String(eingabe.warengruppe).toLowerCase();
       const trifft = (el: PlanElement) =>
-        [...(el.felderUnten ?? []), ...(el.felderOben ?? [])].some((f) =>
-          f.warengruppe?.text.toLowerCase().includes(suche),
+        [...(el.warengruppenUnten ?? []), ...(el.warengruppenOben ?? [])].some((a) =>
+          a.text.toLowerCase().includes(suche),
         ) ||
         (el.warengruppe ?? '').toLowerCase().includes(suche) ||
         Object.values(el.kopfgondeln ?? {}).some((t) => (t ?? '').toLowerCase().includes(suche));
@@ -599,7 +601,7 @@ const ELEMENTE_GRUPPIEREN: Werkzeug = {
 const WARENGRUPPE_SETZEN: Werkzeug = {
   name: 'warengruppe_setzen',
   beschreibung:
-    'Schreibt eine Warengruppe unter bestimmte Meter eines Möbels. Die Felder werden je Seite von 1 an gezählt. Über mehrere Felder steht der Text einmal mit einer Klammer darunter – genau wie von Hand eingetragen. Ein leerer Text löscht die Beschriftung.',
+    'Schreibt eine Warengruppe auf eine Strecke eines Möbels. Gemessen wird in Metern ab dem Anfang des Möbels – eine Grenze darf mitten durch ein Feld laufen. Was auf der Strecke stand, weicht. Ein leerer Text löscht.',
   schreibt: true,
   schema: {
     type: 'object',
@@ -611,47 +613,40 @@ const WARENGRUPPE_SETZEN: Werkzeug = {
         description:
           'Bei beidseitigen Gondeln die Seite. Einseitige Möbel haben nur "unten". Ohne Angabe: unten.',
       },
-      vonFeld: { type: 'number', description: 'Erstes Feld, ab 1 gezählt.' },
-      bisFeld: { type: 'number', description: 'Letztes Feld. Ohne Angabe wie vonFeld.' },
-      text: { type: 'string', description: 'Der Name. Leer löscht.' },
+      von: { type: 'number', description: 'Anfang in Metern ab dem Anfang des Möbels.' },
+      bis: { type: 'number', description: 'Ende in Metern.' },
+      text: { type: 'string', description: 'Der Name. Leer löscht die Strecke.' },
     },
-    required: ['id', 'vonFeld', 'text'],
+    required: ['id', 'von', 'bis', 'text'],
   },
   fuehreAus(eingabe, s) {
     const el = einElement(eingabe.id, s);
     const seite = seiteVon(el, eingabe.seite);
-    // `felderVon` und nicht `el.felderUnten`: Ein frisch eingesetztes Möbel
-    // hat noch keine eigene Liste, sondern nur die Einteilung, die sich aus
-    // seinem Modulsatz ergibt. Die ist es, in die geschrieben werden soll.
-    const felder = felderVon(el, seite);
-    if (felder.length === 0) fehler(`"${el.name}" hat keine Felder zum Beschriften.`);
+    const gesamt = seitenbreite(felderVon(el, seite));
+    if (gesamt <= 0) fehler(`"${el.name}" hat keine Strecke zum Beschriften.`);
 
-    const von = Math.floor(zahl(eingabe.vonFeld, 'vonFeld'));
-    const bis = eingabe.bisFeld === undefined ? von : Math.floor(zahl(eingabe.bisFeld, 'bisFeld'));
-    if (von < 1 || bis < von || bis > felder.length) {
-      fehler(`Die Felder ${von} bis ${bis} gibt es nicht – "${el.name}" hat ${felder.length}.`);
+    // Der Assistent rechnet in Metern, gespeichert wird in Zentimetern.
+    const von = zahl(eingabe.von, 'von') * 100;
+    const bis = zahl(eingabe.bis, 'bis') * 100;
+    if (Math.min(von, bis) < -1 || Math.max(von, bis) > gesamt + 1) {
+      fehler(
+        `Die Strecke ${eingabe.von}–${eingabe.bis} m liegt nicht auf "${el.name}" – ` +
+          `das Möbel ist ${(gesamt / 100).toFixed(2)} m lang.`,
+      );
     }
 
     const text = String(eingabe.text ?? '').trim();
-    const neue = felder.map((f, i) => {
-      const drin = i >= von - 1 && i <= bis - 1;
-      if (!drin) return f;
-      // Nur das erste Feld der Strecke trägt den Text; die übrigen werden
-      // geleert, sonst stünde derselbe Name mehrfach untereinander.
-      if (i === von - 1 && text) {
-        return { ...f, warengruppe: { text, felder: bis - von + 1 } };
-      }
-      const { warengruppe: _weg, ...rest } = f;
-      return rest;
-    });
-
-    s.setzeSeitenfelder(el.id, seite, neue);
+    s.setzeWarengruppen(
+      el.id,
+      seite,
+      mitAbschnitt(warengruppenVon(el, seite), gesamt, { von, bis, text }),
+    );
     zeige([el.id], s);
 
-    const spanne = bis > von ? `Feld ${von}–${bis}` : `Feld ${von}`;
+    const strecke = `${(Math.min(von, bis) / 100).toFixed(2)}–${(Math.max(von, bis) / 100).toFixed(2)} m`;
     return text
-      ? `"${text}" steht jetzt an "${el.name}" (${seite}, ${spanne}).`
-      : `Beschriftung an "${el.name}" (${seite}, ${spanne}) gelöscht.`;
+      ? `"${text}" steht jetzt an "${el.name}" (${seite}, ${strecke}).`
+      : `Die Strecke ${strecke} an "${el.name}" (${seite}) ist jetzt frei.`;
   },
 };
 

@@ -132,47 +132,60 @@ describe('Warengruppen schreiben', () => {
     usePlanStore.getState().setzeProjekt(neuesProjekt());
   });
 
-  it('schreibt einen Namen über mehrere Meter – einmal, mit Spanne', () => {
+  /** Die Abschnitte der Vorderseite, kurz aufgeschrieben. */
+  const band = () =>
+    (store().projekt.elemente[0].warengruppenUnten ?? []).map(
+      (a) => `${a.von}-${a.bis} ${a.text}`,
+    );
+
+  it('schreibt einen Namen über eine Strecke in Metern', () => {
     const [id] = setze('regal-gondel-frei');
     tue('felder_setzen', { id, breiten: [125, 125, 125, 125] });
-    const ergebnis = tue('warengruppe_setzen', { id, vonFeld: 2, bisFeld: 4, text: 'Butter' });
+    const ergebnis = tue('warengruppe_setzen', { id, von: 1.25, bis: 5, text: 'Butter' });
 
     expect(ergebnis.fehlgeschlagen).toBe(false);
-    const felder = store().projekt.elemente[0].felderUnten!;
-    expect(felder[1].warengruppe).toEqual({ text: 'Butter', felder: 3 });
-    // Die übrigen Felder der Strecke bleiben leer, sonst stünde der Name dreimal.
-    expect(felder[2].warengruppe).toBeUndefined();
-    expect(felder[3].warengruppe).toBeUndefined();
+    expect(band()).toEqual(['125-500 Butter']);
+  });
+
+  it('setzt eine Grenze mitten in ein Feld – darum ging es', () => {
+    const [id] = setze('regal-gondel-frei');
+    tue('felder_setzen', { id, breiten: [100, 100, 100] });
+    tue('warengruppe_setzen', { id, von: 0, bis: 1.5, text: 'Ketchup' });
+    tue('warengruppe_setzen', { id, von: 1.5, bis: 3, text: 'Senf' });
+
+    expect(band()).toEqual(['0-150 Ketchup', '150-300 Senf']);
+    // Und die Felder sind unangetastet: Das Möbel hat weiter drei Böden.
+    expect(store().projekt.elemente[0].felderUnten!.map((f) => f.breite)).toEqual([100, 100, 100]);
   });
 
   it('beschriftet ein frisch gesetztes Möbel ohne eigene Feldliste', () => {
     const [id] = setze('regal-gondel-frei');
     expect(store().projekt.elemente[0].felderUnten).toBeUndefined();
-    const ergebnis = tue('warengruppe_setzen', { id, vonFeld: 1, text: 'Eier' });
+    const ergebnis = tue('warengruppe_setzen', { id, von: 0, bis: 1.25, text: 'Eier' });
     expect(ergebnis.fehlgeschlagen).toBe(false);
-    expect(store().projekt.elemente[0].felderUnten![0].warengruppe?.text).toBe('Eier');
+    expect(band()).toEqual(['0-125 Eier']);
   });
 
   it('löscht bei leerem Text', () => {
     const [id] = setze('regal-gondel-frei');
-    tue('warengruppe_setzen', { id, vonFeld: 1, text: 'Eier' });
-    tue('warengruppe_setzen', { id, vonFeld: 1, text: '' });
-    expect(store().projekt.elemente[0].felderUnten![0].warengruppe).toBeUndefined();
+    tue('warengruppe_setzen', { id, von: 0, bis: 1.25, text: 'Eier' });
+    tue('warengruppe_setzen', { id, von: 0, bis: 1.25, text: '' });
+    expect(band()).toEqual([]);
   });
 
   it('weist die obere Seite an einem einseitigen Möbel ab', () => {
     const [id] = setze('regal-frei');
-    const ergebnis = tue('warengruppe_setzen', { id, seite: 'oben', vonFeld: 1, text: 'Eier' });
+    const ergebnis = tue('warengruppe_setzen', { id, seite: 'oben', von: 0, bis: 1, text: 'Eier' });
     expect(ergebnis.fehlgeschlagen).toBe(true);
     expect(ergebnis.text).toContain('einseitig');
   });
 
-  it('weist ein Feld ab, das es nicht gibt', () => {
+  it('weist eine Strecke ab, die nicht auf dem Möbel liegt', () => {
     const [id] = setze('regal-gondel-frei');
     tue('felder_setzen', { id, breiten: [125, 125] });
-    const ergebnis = tue('warengruppe_setzen', { id, vonFeld: 3, text: 'Eier' });
+    const ergebnis = tue('warengruppe_setzen', { id, von: 0, bis: 9, text: 'Eier' });
     expect(ergebnis.fehlgeschlagen).toBe(true);
-    expect(ergebnis.text).toContain('gibt es nicht');
+    expect(ergebnis.text).toContain('liegt nicht auf');
   });
 });
 
@@ -256,10 +269,10 @@ describe('Lesen', () => {
     usePlanStore.getState().setzeProjekt(neuesProjekt());
   });
 
-  it('filtert nach Warengruppe – auch über die Felder', () => {
+  it('filtert nach Warengruppe – auch über die Abschnitte', () => {
     const [gondel] = setze('regal-gondel-frei', 1000, 1000);
     setze('regal-frei', 2000, 1000);
-    tue('warengruppe_setzen', { id: gondel, vonFeld: 1, text: 'Eier' });
+    tue('warengruppe_setzen', { id: gondel, von: 0, bis: 1.25, text: 'Eier' });
 
     const ergebnis = tue('plan_lesen', { warengruppe: 'eier' });
     expect(ergebnis.text).toContain('1 Elemente');

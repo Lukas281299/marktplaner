@@ -1,11 +1,16 @@
-import { laeuftRueckwaerts } from './beschriftung';
 import { felderVon, seitenbreite, type Seite } from './regalseiten';
-import type { Feldbezug, PlanElement, Regalfeld } from '../typen/modell';
+import { mitAbschnitt, ohneStrecke } from './warengruppe';
+import type {
+  Feldbezug,
+  PlanElement,
+  Regalfeld,
+  Warengruppenabschnitt,
+} from '../typen/modell';
 
 /**
  * Warengruppen den Metern zuordnen – durch Anklicken und Enter.
  *
- * Geschrieben wird in **dieselben Felder**, die man in der Gondelübersicht
+ * Geschrieben wird in **dieselben Abschnitte**, die man in der Gondelübersicht
  * von Hand füllt. Das ist der ganze Trick: Es gibt nur eine Beschriftung und
  * nicht zwei Sorten davon. Wer sie nachbessern will, findet sie dort, wo sie
  * immer stand; wer sie loswerden will, drückt Strg+Z oder Entf.
@@ -13,7 +18,11 @@ import type { Feldbezug, PlanElement, Regalfeld } from '../typen/modell';
  * Markiert wird auf **Meter** und nicht auf Möbel: Eine Gondel ist ein
  * einziges Element mit sechs Feldern, und die tragen verschiedene
  * Warengruppen.
- */
+ *
+ * Die Felder sind dabei nur der bequeme Weg zur Strecke – gespeichert wird
+ * sie in Zentimetern (siehe `logik/warengruppe.ts`). Wer danach die Grenze
+ * zwischen zwei Sortimenten mitten in ein Feld ziehen will, kann das; die
+ * Zuordnung per Klick trifft nur die üblichen Fälle auf Anhieb.
 
 /** Wie die Namen in einem Feld verbunden werden. */
 const TRENNER = ', ';
@@ -53,12 +62,10 @@ export function namenIm(text: string | undefined): string[] {
  * denselben. Liegen Lücken dazwischen, entstehen mehrere Strecken – dort
  * gehört ja auch etwas anderes hin.
  *
- * Steht auf einer Strecke schon ein Name, kommt der neue mit Komma dazu:
- * „Eier, Butter". Zweimal derselbe kommt nicht dazu.
- *
- * Der Text hängt am **ersten Meter der Strecke im Bild** – bei einem Zug an
- * der unteren Wand ist das der mit der höchsten Nummer. Dieselbe Regel wie
- * beim Tippen von Hand, siehe `logik/warengruppe.ts`.
+ * Steht auf **genau derselben** Strecke schon ein Name, kommt der neue mit
+ * Komma dazu: „Eier, Butter". Zweimal derselbe kommt nicht dazu. Auf einer
+ * anderen Strecke ersetzt er, was dort stand – wer etwas Neues hinschreibt,
+ * meint, dass es dort jetzt gilt.
  */
 export function mitZugeordnetenFeldern(
   elemente: PlanElement[],
@@ -68,28 +75,21 @@ export function mitZugeordnetenFeldern(
   const text = name.trim();
   if (!text || markierung.length === 0) return elemente;
 
-  return wandleMarkierte(elemente, markierung, (felder, von, bis, rueckwaerts) => {
-    const anker = rueckwaerts ? bis : von;
-    const neu = [...felder];
-
-    // Was in der Strecke sonst noch steht, weicht dem einen Text: Zwei
-    // Beschriftungen auf derselben Strecke kann der Plan nicht zeigen.
-    for (let i = von; i <= bis; i++) {
-      if (i !== anker) neu[i] = { ...neu[i], warengruppe: undefined };
-    }
-
-    const alt = neu[anker].warengruppe;
-    const schon = namenIm(alt?.text);
+  return wandleMarkierte(elemente, markierung, (abschnitte, gesamt, von, bis) => {
+    // Liegt dort schon genau diese Strecke, wächst ihr Text – sonst weicht sie.
+    const gleiche = abschnitte.find((a) => nah(a.von, von) && nah(a.bis, bis));
+    const schon = namenIm(gleiche?.text);
     const klein = text.toLocaleLowerCase('de-DE');
     const zusammen = schon.some((n) => n.toLocaleLowerCase('de-DE') === klein)
-      ? alt!.text
+      ? gleiche!.text
       : [...schon, text].join(TRENNER);
 
-    neu[anker] = {
-      ...neu[anker],
-      warengruppe: { ...alt, text: zusammen, felder: bis - von + 1 },
-    };
-    return neu;
+    return mitAbschnitt(abschnitte, gesamt, {
+      ...(gleiche ?? {}),
+      von,
+      bis,
+      text: zusammen,
+    });
   });
 }
 
@@ -99,24 +99,36 @@ export function ohneZugeordneteFelder(
   markierung: Feldbezug[],
 ): PlanElement[] {
   if (markierung.length === 0) return elemente;
+  return wandleMarkierte(elemente, markierung, (abschnitte, gesamt, von, bis) =>
+    ohneStrecke(abschnitte, gesamt, von, bis),
+  );
+}
 
-  return wandleMarkierte(elemente, markierung, (felder, von, bis) => {
-    const neu = [...felder];
-    for (let i = von; i <= bis; i++) neu[i] = { ...neu[i], warengruppe: undefined };
-    return neu;
-  });
+/** Zwei Zentimeterwerte, die dasselbe meinen. */
+function nah(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.5;
 }
 
 /**
  * Der gemeinsame Weg: markierte Meter je Seite zu Strecken bündeln.
  *
  * Beide Schritte oben tun dasselbe – sie suchen die zusammenhängenden Stücke
- * einer Seite und ändern deren Felder. Nur was sie damit tun, ist verschieden.
+ * einer Seite und rechnen sie in Zentimeter um. Nur was sie damit tun, ist
+ * verschieden.
+ *
+ * Gerechnet wird in der **gespeicherten** Achse des Möbels. Die Leserichtung
+ * spielt hier keine Rolle mehr: Ein zusammenhängendes Stück Felder ist auch
+ * rückwärts dasselbe Stück, und gedreht wird erst beim Zeichnen.
  */
 function wandleMarkierte(
   elemente: PlanElement[],
   markierung: Feldbezug[],
-  wandeln: (felder: Regalfeld[], von: number, bis: number, rueckwaerts: boolean) => Regalfeld[],
+  wandeln: (
+    abschnitte: Warengruppenabschnitt[],
+    gesamtbreite: number,
+    von: number,
+    bis: number,
+  ) => Warengruppenabschnitt[],
 ): PlanElement[] {
   // Nach Möbel und Seite bündeln – eine Strecke läuft nie über beides hinweg.
   const gruppen = new Map<string, { element: string; seite: Seite; felder: number[] }>();
@@ -133,17 +145,49 @@ function wandleMarkierte(
     for (const gruppe of gruppen.values()) {
       if (gruppe.element !== element.id) continue;
 
-      const rueckwaerts = laeuftRueckwaerts(element.drehung);
-      let felder = felderVon(geaendert, gruppe.seite);
+      const felder = felderVon(geaendert, gruppe.seite);
+      const kanten = feldkanten(felder);
+      const gesamt = kanten[kanten.length - 1];
+      let abschnitte = warengruppenVon(geaendert, gruppe.seite);
 
       for (const [von, bis] of stuecke(gruppe.felder, felder.length)) {
-        felder = wandeln(felder, von, bis, rueckwaerts);
+        abschnitte = wandeln(abschnitte, gesamt, kanten[von], kanten[bis + 1]);
       }
 
-      geaendert = mitSeite(geaendert, gruppe.seite, felder);
+      geaendert = mitWarengruppen(geaendert, gruppe.seite, abschnitte);
     }
     return geaendert;
   });
+}
+
+/** Die Kanten der Felder, in Zentimetern ab dem Anfang des Möbels. */
+export function feldkanten(felder: Regalfeld[]): number[] {
+  const kanten = [0];
+  for (const feld of felder) kanten.push(kanten[kanten.length - 1] + (feld.breite || 0));
+  return kanten;
+}
+
+/** Die Abschnitte einer Seite. */
+export function warengruppenVon(
+  element: PlanElement,
+  seite: Seite,
+): Warengruppenabschnitt[] {
+  return (seite === 'oben' ? element.warengruppenOben : element.warengruppenUnten) ?? [];
+}
+
+/** Schreibt die Abschnitte einer Seite zurück. */
+export function mitWarengruppen(
+  element: PlanElement,
+  seite: Seite,
+  abschnitte: Warengruppenabschnitt[],
+): PlanElement {
+  const sauber = abschnitte.length > 0 ? abschnitte : undefined;
+  if (seite === 'oben') {
+    // Nur beidseitige Möbel haben eine Rückseite; sonst hinge die Liste dort
+    // unsichtbar herum und käme zurück, sobald jemand das Möbel umstellt.
+    return { ...element, warengruppenOben: element.beidseitig ? sauber : undefined };
+  }
+  return { ...element, warengruppenUnten: sauber };
 }
 
 /** Zusammenhängende Stücke einer Nummernliste, als [von, bis]. */
@@ -157,26 +201,6 @@ function stuecke(nummern: number[], anzahl: number): [number, number][] {
     else ergebnis.push([nummer, nummer]);
   }
   return ergebnis;
-}
-
-/**
- * Schreibt eine Feldliste an ihre Seite zurück.
- *
- * Die alte Liste `felder` bleibt als Spiegel der Vorderseite stehen – wie im
- * Speicher auch, damit nichts stehenbleibt, was noch nach ihr greift.
- */
-function mitSeite(element: PlanElement, seite: Seite, felder: Regalfeld[]): PlanElement {
-  const andere = seite === 'oben' ? 'unten' : 'oben';
-  const gegen = felderVon(element, andere);
-  const oben = seite === 'oben' ? felder : gegen;
-  const unten = seite === 'unten' ? felder : gegen;
-
-  return {
-    ...element,
-    felderUnten: unten,
-    felderOben: element.beidseitig ? oben : undefined,
-    felder: unten.map((f) => f.breite),
-  };
 }
 
 // ----------------------------------------------------- Lage für die Marke
@@ -228,4 +252,105 @@ export function feldlage(element: PlanElement, seite: Seite, feld: number): Feld
     drehung: element.drehung,
     seite,
   };
+}
+
+/* ------------------------------------------------- Griffe an den Grenzen */
+
+/** Ein Griff an der Kante eines Abschnitts, in Weltkoordinaten. */
+export interface Grenzgriff {
+  element: string;
+  seite: Seite;
+  /** Die Stelle des Abschnitts in der gespeicherten Liste. */
+  index: number;
+  kante: 'von' | 'bis';
+  /** Wo er im Plan sitzt. */
+  x: number;
+  y: number;
+  drehung: number;
+  /** Der Zentimeterwert, an dem die Kante gerade steht. */
+  wert: number;
+}
+
+/**
+ * Die Griffe, mit denen sich die Grenzen eines Möbels ziehen lassen.
+ *
+ * Einer je Kante jedes Abschnitts. Grenzen zwei Abschnitte aneinander, fallen
+ * ihre Griffe zusammen – gezeigt wird dann nur einer, und der zieht beide
+ * Kanten gemeinsam (siehe `mitVerschobenerKante`).
+ *
+ * Die Rechnung steht hier und nicht in der Zeichenfläche, damit sie sich
+ * prüfen lässt: Ein Griff, der zwei Zentimeter neben seiner Grenze sitzt,
+ * fällt beim Ansehen nicht auf und beim Ziehen sofort.
+ */
+export function grenzgriffe(element: PlanElement): Grenzgriff[] {
+  const griffe: Grenzgriff[] = [];
+
+  for (const seite of element.beidseitig ? (['unten', 'oben'] as const) : (['unten'] as const)) {
+    const felder = felderVon(element, seite);
+    const gesamt = seitenbreite(felder);
+    if (gesamt <= 0) continue;
+
+    const abschnitte = warengruppenVon(element, seite);
+    const gesehen = new Set<number>();
+
+    abschnitte.forEach((abschnitt, index) => {
+      for (const kante of ['von', 'bis'] as const) {
+        const wert = abschnitt[kante];
+        // Zwei Abschnitte, die aneinandergrenzen, teilen sich einen Griff.
+        const schluessel = Math.round(wert * 2);
+        if (gesehen.has(schluessel)) continue;
+        gesehen.add(schluessel);
+
+        const lage = punktAufSeite(element, seite, wert, gesamt);
+        griffe.push({ element: element.id, seite, index, kante, wert, ...lage });
+      }
+    });
+  }
+  return griffe;
+}
+
+/**
+ * Wo ein Zentimeterwert der Möbelachse im Plan liegt.
+ *
+ * Auf der Vorderkante der Seite, dort wo auch die Beschriftung anfängt – der
+ * Griff soll auf der Grenze sitzen, die er verschiebt, und nicht daneben.
+ */
+export function punktAufSeite(
+  element: PlanElement,
+  seite: Seite,
+  cm: number,
+  gesamt = seitenbreite(felderVon(element, seite)),
+): { x: number; y: number; drehung: number } {
+  const faktor = gesamt > 0 ? element.breite / gesamt : 1;
+  const mx = cm * faktor - element.breite / 2;
+  const my = seite === 'oben' ? -element.tiefe / 2 : element.tiefe / 2;
+
+  const bogen = (element.drehung * Math.PI) / 180;
+  const cos = Math.cos(bogen);
+  const sin = Math.sin(bogen);
+  return {
+    x: element.x + mx * cos - my * sin,
+    y: element.y + mx * sin + my * cos,
+    drehung: element.drehung,
+  };
+}
+
+/**
+ * Rechnet einen Punkt im Plan zurück auf die Achse eines Möbels.
+ *
+ * Das Gegenstück zu `punktAufSeite` – beim Ziehen kommt eine Mausposition
+ * herein und muss zu einem Zentimeterwert werden.
+ */
+export function cmAufSeite(element: PlanElement, seite: Seite, punkt: { x: number; y: number }): number {
+  const gesamt = seitenbreite(felderVon(element, seite));
+  const faktor = gesamt > 0 ? element.breite / gesamt : 1;
+
+  const bogen = (-element.drehung * Math.PI) / 180;
+  const cos = Math.cos(bogen);
+  const sin = Math.sin(bogen);
+  const dx = punkt.x - element.x;
+  const dy = punkt.y - element.y;
+  // Zurückgedreht in die Achse des Möbels; die Tiefe spielt keine Rolle.
+  const mx = dx * cos - dy * sin;
+  return (mx + element.breite / 2) / (faktor || 1);
 }

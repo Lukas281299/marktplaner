@@ -10,7 +10,8 @@ import { summe } from '../logik/feldaufteilung';
 import { modulName, modulsatzFuer, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/regalseiten';
-import { GRUPPE_GROESSEN, GRUPPE_NORMAL, gruppenspannen } from '../logik/warengruppe';
+import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
+import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -29,6 +30,7 @@ import type {
   Regalfeld,
   Verkaufsflaeche,
   Wand,
+  Warengruppenabschnitt,
 } from '../typen/modell';
 import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
 import {
@@ -844,7 +846,6 @@ function Seitenaufteilung({
                   element={element}
                   seite={welche}
                   feld={i}
-                  zeile={zeile}
                   mehrere={notizseiten.length > 1}
                 />
               ))}
@@ -872,6 +873,169 @@ function Seitenaufteilung({
           </button>
         ))}
       </div>
+
+      {notizseiten.map((welche) => (
+        <Warengruppenband key={welche} element={element} seite={welche} mitTitel={notizseiten.length > 1} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Die Warengruppen einer Seite, als Strecken in Zentimetern.
+ *
+ * Eigener Block und nicht in der Feldzeile: Eine Beschriftung gehört nicht zu
+ * einem Feld, seit sie in Zentimetern misst. Zwei Sortimente auf drei Metern
+ * teilen sich das mittlere – wer sie in die Feldzeile schriebe, müsste sich
+ * für eines entscheiden.
+ *
+ * Die Werte stehen in **Metern**, weil man in Metern über einen Markt spricht:
+ * „anderthalb Meter Ketchup" und nicht „150 Zentimeter".
+ */
+function Warengruppenband({
+  element,
+  seite,
+  mitTitel,
+}: {
+  element: PlanElement;
+  seite: Seite;
+  mitTitel: boolean;
+}) {
+  const felder = felderVon(element, seite);
+  const gesamt = summe(felder.map((f) => f.breite));
+  const abschnitte = geordnet(warengruppenVon(element, seite), gesamt);
+
+  const setze = (neu: Warengruppenabschnitt[]) => {
+    usePlanStore.getState().setzeWarengruppen(element.id, seite, neu);
+  };
+  const aendere = (index: number, werte: Partial<Warengruppenabschnitt>) =>
+    setze(abschnitte.map((a, i) => (i === index ? { ...a, ...werte } : a)));
+
+  /** Der nächste freie Platz – am liebsten hinter dem letzten Abschnitt. */
+  const naechsteLuecke = (): Warengruppenabschnitt => {
+    const letztes = abschnitte[abschnitte.length - 1];
+    const von = letztes ? letztes.bis : 0;
+    const bis = Math.min(gesamt, von + (felder[0]?.breite ?? 100));
+    return { von, bis, text: '' };
+  };
+
+  const voll = abschnitte.length > 0 && abschnitte[abschnitte.length - 1].bis >= gesamt - 1;
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="kennzahl" style={{ marginBottom: 4 }}>
+        <span>{mitTitel ? `Warengruppen ${seite === 'oben' ? 'Rückseite' : 'Vorderseite'}` : 'Warengruppen'}</span>
+        <span className="kennzahl-wert">
+          {abschnitte.length === 0 ? 'keine' : `${abschnitte.length}`}
+        </span>
+      </div>
+
+      {abschnitte.length === 0 && (
+        <p className="hinweis" style={{ margin: '0 0 4px' }}>
+          Noch nichts eingetragen. Im Plan geht es schneller: Meter anklicken und Eingabe drücken.
+        </p>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {abschnitte.map((abschnitt, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <input
+              type="number"
+              step="0.05"
+              min="0"
+              max={gesamt / 100}
+              style={{ width: 52, fontSize: 12 }}
+              title="Anfang, in Metern ab dem Anfang des Möbels"
+              value={(abschnitt.von / 100).toFixed(2)}
+              onFocus={() => usePlanStore.getState().schnappschuss()}
+              onChange={(e) => aendere(i, { von: Number(e.target.value) * 100 })}
+            />
+            <span className="kategorie-anzahl">–</span>
+            <input
+              type="number"
+              step="0.05"
+              min="0"
+              max={gesamt / 100}
+              style={{ width: 52, fontSize: 12 }}
+              title="Ende, in Metern"
+              value={(abschnitt.bis / 100).toFixed(2)}
+              onFocus={() => usePlanStore.getState().schnappschuss()}
+              onChange={(e) => aendere(i, { bis: Number(e.target.value) * 100 })}
+            />
+            <input
+              type="text"
+              list="warengruppen-vorrat"
+              style={{ flex: 1, fontSize: 12, minWidth: 0 }}
+              value={abschnitt.text}
+              placeholder="Warengruppe"
+              title={
+                'Steht unter dem Zug im Plan. Für einen Umbruch von Hand ' +
+                'Umschalt+Eingabe drücken.'
+              }
+              onFocus={() => usePlanStore.getState().schnappschuss()}
+              onKeyDown={(e) => {
+                // Umschalt+Eingabe setzt einen Umbruch – in einer Zeile geht
+                // das sonst nicht, und der Text soll ihn tragen dürfen.
+                if (e.key !== 'Enter' || !e.shiftKey) return;
+                e.preventDefault();
+                const ziel = e.currentTarget;
+                const vorn = ziel.value.slice(0, ziel.selectionStart ?? ziel.value.length);
+                const hinten = ziel.value.slice(ziel.selectionEnd ?? ziel.value.length);
+                aendere(i, { text: `${vorn}\n${hinten}` });
+              }}
+              onChange={(e) => aendere(i, { text: e.target.value })}
+            />
+            <select
+              style={{ fontSize: 12, width: 78 }}
+              value={String(abschnitt.schrift ?? GRUPPE_NORMAL)}
+              title={
+                'Wie groß der Name im Plan steht. Über sein Möbel hinaus wächst er nie — ' +
+                'zu breit bricht er um und wird notfalls kleiner.'
+              }
+              onChange={(e) => {
+                usePlanStore.getState().schnappschuss();
+                aendere(i, { schrift: Number(e.target.value) });
+              }}
+            >
+              {GRUPPE_GROESSEN.map((g) => (
+                <option key={g.hoehe} value={String(g.hoehe)}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="knopf knopf-nur-symbol"
+              title="Diese Beschriftung entfernen"
+              onClick={() => {
+                usePlanStore.getState().schnappschuss();
+                setze(abschnitte.filter((_, j) => j !== i));
+              }}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {!voll && (
+        <button
+          className="knopf"
+          style={{ marginTop: 4, width: '100%' }}
+          onClick={() => {
+            usePlanStore.getState().schnappschuss();
+            setze([...abschnitte, naechsteLuecke()]);
+          }}
+        >
+          + Warengruppe
+        </button>
+      )}
+
+      {abschnitte.length > 0 && (
+        <p className="hinweis" style={{ marginTop: 4, marginBottom: 0 }}>
+          Im Plan lässt sich jede Grenze auch <strong>ziehen</strong> – sie rastet auf Feldgrenzen,
+          Hälften und Vierteln ein.
+        </p>
+      )}
     </div>
   );
 }
@@ -946,7 +1110,6 @@ function Elementbeschriftung({ element }: { element: PlanElement }) {
             element={element}
             seite={seite}
             feld={0}
-            zeile={0}
             mehrere={seiten.length > 1}
           />
         ))}
@@ -987,14 +1150,18 @@ function Kopfbeschriftung({ element, seite }: { element: PlanElement; seite: Kop
         <span className="kennzahl-wert">{kopf.name}</span>
       </div>
       <div style={{ display: 'flex' }}>
-        <Feldeingaben element={kopf} seite="unten" feld={0} zeile={0} mehrere={false} />
+        <Feldeingaben element={kopf} seite="unten" feld={0} mehrere={false} />
       </div>
     </div>
   );
 }
 
 /**
- * Was in einem Feld steht: die Notiz im Regal und die Warengruppe darunter.
+ * Was in einem Feld steht: die Notiz im Regal.
+ *
+ * Die Warengruppe stand hier einmal daneben. Sie ist ausgezogen, seit sie in
+ * Zentimetern misst: Eine Grenze zwischen zwei Sortimenten darf mitten durch
+ * ein Feld laufen, und dann gehört sie keinem der beiden.
  *
  * Eigene Komponente, weil sie ihre Seite selbst kennt: Bei einer Doppeltruhe
  * stehen hier zwei nebeneinander, bei einer Gondel steht je eine in ihrem
@@ -1004,15 +1171,12 @@ function Feldeingaben({
   element,
   seite,
   feld,
-  zeile,
   mehrere,
 }: {
   element: PlanElement;
   seite: Seite;
   /** Die Nummer in der gespeicherten Liste. */
   feld: number;
-  /** Die Nummer im Fenster – von links nach rechts im Plan gezählt. */
-  zeile: number;
   mehrere: boolean;
 }) {
   const felder = felderVon(element, seite);
@@ -1028,23 +1192,11 @@ function Feldeingaben({
         felder.map((f, j) => (j === feld ? { ...f, ...werte } : f)),
       );
 
-  // Deckt eine Beschriftung von weiter links dieses Feld schon ab? Dann steht
-  // hier kein zweites Eingabefeld – zwei Beschriftungen an derselben Stelle
-  // wären eine Frage, die der Plan nicht beantworten kann.
-  const gedeckt = gruppenspannen(felder, laeuftRueckwaerts(element.drehung)).find(
-    (sp) => feld >= sp.von && feld <= sp.bis && feld !== sp.anker,
-  );
-  const gruppe = eintrag.warengruppe;
-  // So viele Felder liegen von hier aus noch rechts im Plan – weiter kann
-  // eine Beschriftung nicht reichen.
-  const rest = felder.length - zeile;
-
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
-      {/* Notiz und Warengruppe nebeneinander: Untereinander wurde aus einem
-          Zug von sechs Feldern eine Bildlaufleiste ohne Ende. Stehen zwei
-          Seiten nebeneinander – bei einer Doppeltruhe –, ist dafür kein Platz,
-          dann rücken sie wieder untereinander. */}
+      {/* Nur noch die Notiz: Die Warengruppen stehen in einer eigenen Liste
+          unter den Feldern. Sie gehören nicht zu einem Feld, seit sie in
+          Zentimetern messen – eine Grenze darf mitten durch eines laufen. */}
       <div
         style={{
           display: 'flex',
@@ -1084,106 +1236,8 @@ function Feldeingaben({
           onChange={(e) => setze({ notiz: e.target.value || undefined })}
         />
 
-        {gedeckt ? (
-          // Einzeilig und abgeschnitten: Der Hinweis sagt nur, wozu das Feld
-          // gehört. Zwei Zeilen dafür wären an sechs Feldern ein halbes Fenster.
-          <p
-            className="hinweis"
-            style={{
-              margin: '4px 0 0',
-              flex: 1,
-              minWidth: 0,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-            title={`Dieses Feld gehört zur Beschriftung „${gedeckt.text.replace('\n', ' ')}“`}
-          >
-            ↳ {gedeckt.text.replace('\n', ' ')}
-          </p>
-        ) : (
-          <input
-            type="text"
-            list="warengruppen-vorrat"
-            style={{ flex: 1, fontSize: 12, minWidth: 0 }}
-            value={gruppe?.text ?? ''}
-            placeholder="Warengruppe"
-            title={
-              'Steht unter dem Zug im Plan. Für einen Umbruch von Hand ' +
-              'Umschalt+Eingabe drücken.'
-            }
-            onFocus={() => usePlanStore.getState().schnappschuss()}
-            onKeyDown={(e) => {
-              // Umschalt+Eingabe setzt einen Umbruch – in einer Zeile geht das
-              // sonst nicht, und der Text soll ihn tragen dürfen.
-              if (e.key !== 'Enter' || !e.shiftKey) return;
-              e.preventDefault();
-              const ziel = e.currentTarget;
-              const vorn = ziel.value.slice(0, ziel.selectionStart ?? ziel.value.length);
-              const hinten = ziel.value.slice(ziel.selectionEnd ?? ziel.value.length);
-              setze({ warengruppe: { text: `${vorn}\n${hinten}`, felder: gruppe?.felder ?? 1 } });
-            }}
-            onChange={(e) =>
-              setze({
-                warengruppe: e.target.value
-                  ? { text: e.target.value, felder: gruppe?.felder ?? 1 }
-                  : undefined,
-              })
-            }
-          />
-        )}
       </div>
 
-      {/* Weite und Größe der Warengruppe – eine Zeile, und nur dort, wo eine
-          Warengruppe steht. Das ist höchstens jedes zweite, dritte Feld. */}
-      {!gedeckt && gruppe?.text ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {rest > 1 && (
-            <>
-              <span className="kategorie-anzahl">gilt für</span>
-              <select
-                style={{ fontSize: 12 }}
-                value={String(Math.min(gruppe.felder, rest))}
-                title="Über wie viele Felder die Beschriftung gilt. Sie steht trotzdem nur einmal da."
-                onChange={(e) => {
-                  usePlanStore.getState().schnappschuss();
-                  setze({
-                    warengruppe: { ...gruppe, felder: Number(e.target.value) },
-                  });
-                }}
-              >
-                {Array.from({ length: rest }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={String(n)}>
-                    {n} {n === 1 ? 'Feld' : 'Felder'}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          <span className="kategorie-anzahl" style={{ marginLeft: rest > 1 ? 6 : 0 }}>
-            Schrift
-          </span>
-          <select
-            style={{ fontSize: 12, flex: 1, minWidth: 0 }}
-            value={String(gruppe.schrift ?? GRUPPE_NORMAL)}
-            title={
-              'Wie groß der Name im Plan steht. Über sein Möbel hinaus wächst er nie — ' +
-              'zu breit bricht er um und wird notfalls kleiner.'
-            }
-            onChange={(e) => {
-              usePlanStore.getState().schnappschuss();
-              setze({ warengruppe: { ...gruppe, schrift: Number(e.target.value) } });
-            }}
-          >
-            {GRUPPE_GROESSEN.map((g) => (
-              <option key={g.hoehe} value={String(g.hoehe)}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -38,10 +38,13 @@ import {
   type Standwert,
 } from '../logik/sortiment';
 import {
+  mitWarengruppen,
   mitZugeordnetenFeldern,
   ohneZugeordneteFelder,
   umgeschaltet,
+  warengruppenVon,
 } from '../logik/warengruppenzuordnung';
+import { geordnet, mitVerschobenerKante } from '../logik/warengruppe';
 import { feldUnterPunkt } from '../logik/feldtreffer';
 import type {
   BibliothekEintrag,
@@ -56,6 +59,7 @@ import type {
   Feldbezug,
   Punkt,
   Regalfeld,
+  Warengruppenabschnitt,
   Raum,
   Raumart,
   Verkaufsflaeche,
@@ -403,6 +407,31 @@ export interface PlanStore {
   aendereElemente(ids: string[], werte: Partial<PlanElement>, mitHistorie?: boolean): void;
   /** Setzt die Feldaufteilung eines Zugs; die Breite folgt der Summe. */
   setzeSeitenfelder(id: string, seite: Seite, felder: Regalfeld[]): void;
+
+  /**
+   * Setzt die Warengruppen-Abschnitte einer Seite.
+   *
+   * Getrennt von `setzeSeitenfelder`, weil es verschiedene Dinge sind: Die
+   * Felder sagen, wie das Möbel gebaut ist, die Abschnitte, was darauf steht.
+   * Eine Grenze zwischen zwei Sortimenten darf mitten durch ein Feld laufen.
+   */
+  setzeWarengruppen(id: string, seite: Seite, abschnitte: Warengruppenabschnitt[]): void;
+
+  /**
+   * Zieht eine Kante eines Abschnitts an eine neue Stelle.
+   *
+   * `ziel` ist ein Zentimeterwert in der **gespeicherten** Achse des Möbels.
+   * Was daraus wird, entscheidet `mitVerschobenerKante`: Grenzt die Kante an
+   * einen Nachbarn, wandern beide gemeinsam.
+   */
+  verschiebeWarengruppenkante(
+    id: string,
+    seite: Seite,
+    index: number,
+    kante: 'von' | 'bis',
+    ziel: number,
+    mitHistorie?: boolean,
+  ): void;
   /** Setzt oder entfernt die Kopfgondel an einem Ende eines Zugs. */
   setzeKopfgondel(id: string, seite: Kopfseite, an: boolean): void;
   /** Zieht eine Ecke eines frei geformten Elements an eine neue Stelle. */
@@ -1105,6 +1134,38 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     });
     if (mitHistorie) aendere(set, get, wandeln);
     else set((s) => ({ projekt: wandeln(s.projekt) }));
+  },
+
+  setzeWarengruppen(id, seite, abschnitte) {
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: p.elemente.map((el) => {
+        if (el.id !== id) return el;
+        const breite = seitenbreite(felderVon(el, seite));
+        return mitWarengruppen(el, seite, geordnet(abschnitte, breite));
+      }),
+    }));
+  },
+
+  verschiebeWarengruppenkante(id, seite, index, kante, ziel, mitHistorie = true) {
+    const wandeln = (p: Projekt): Projekt => ({
+      ...p,
+      elemente: p.elemente.map((el) => {
+        if (el.id !== id) return el;
+        const breite = seitenbreite(felderVon(el, seite));
+        return mitWarengruppen(
+          el,
+          seite,
+          mitVerschobenerKante(warengruppenVon(el, seite), breite, index, kante, ziel),
+        );
+      }),
+    });
+
+    // Beim Ziehen ohne Historie: Sonst läge nach einer Bewegung für jeden
+    // Mausschritt ein eigener Schritt darin. Der Schnappschuss kommt vom
+    // Anfasser, bevor er losläuft.
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set({ projekt: { ...wandeln(get().projekt), geaendertAm: Date.now() } });
   },
 
   setzeSeitenfelder(id, seite, neueFelder) {

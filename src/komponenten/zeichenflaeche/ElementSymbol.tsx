@@ -21,6 +21,7 @@ import {
   gruppenspannen,
   textImKasten,
 } from '../../logik/warengruppe';
+import { feldkanten } from '../../logik/warengruppenzuordnung';
 import type { Grundform, PlanElement, Regalfeld } from '../../typen/modell';
 
 /**
@@ -358,6 +359,14 @@ const GRUPPE_GROESSTE = GRUPPE_GROESSEN[GRUPPE_GROESSEN.length - 1].hoehe;
  * Bei einer Gondel steht die Beschriftung der Vorderseite unter dem Möbel,
  * die der Rückseite darüber – auf der Seite, auf der man davorsteht.
  */
+/** Liegen beide Enden auf Feldkanten, und liegt genau eine dazwischen? */
+function istGenauEinFeld(von: number, bis: number, kanten: number[]): boolean {
+  const auf = (wert: number) => kanten.findIndex((k) => Math.abs(k - wert) < 0.5);
+  const a = auf(von);
+  const b = auf(bis);
+  return a >= 0 && b >= 0 && Math.abs(a - b) === 1;
+}
+
 export function zeichneWarengruppen(
   ctx: Konva.Context,
   element: PlanElement,
@@ -389,21 +398,24 @@ export function zeichneWarengruppen(
   const kopf = laeuftRueckwaerts(element.drehung);
   const seiten = element.beidseitig
     ? [
-        { felder: oben, vorn: false },
-        { felder: unten, vorn: true },
+        { felder: oben, abschnitte: element.warengruppenOben, vorn: false },
+        { felder: unten, abschnitte: element.warengruppenUnten, vorn: true },
       ]
-    : [{ felder: unten, vorn: true }];
+    : [{ felder: unten, abschnitte: element.warengruppenUnten, vorn: true }];
 
   for (const seite of seiten) {
-    const plaetze = feldplaetze(seite.felder, faktor);
+    // Die Strecken stehen in Zentimetern des Möbels; `faktor` bringt sie auf
+    // die gezeichnete Länge. Deshalb braucht es hier keine Feldplätze mehr –
+    // eine Grenze darf ja mitten durch ein Feld laufen.
+    const gesamt = seitenbreite(seite.felder);
+    // Die Feldkanten in Leserichtung – daran entscheidet sich, ob eine
+    // Klammer nötig ist.
+    const kanten = feldkanten(seite.felder).map((k: number) => (kopf ? gesamt - k : k));
 
-    for (const spanne of gruppenspannen(seite.felder, kopf)) {
-      const erstes = plaetze[spanne.von];
-      const letztes = plaetze[spanne.bis];
-      if (!erstes || !letztes) continue;
-
-      const links = erstes.x;
-      const rechts = letztes.x + letztes.weite;
+    for (const spanne of gruppenspannen(seite.abschnitte, gesamt, kopf)) {
+      const links = spanne.von * faktor;
+      const rechts = spanne.bis * faktor;
+      if (rechts - links <= 0) continue;
       const mitte = (links + rechts) / 2;
 
       // Umgebrochen und notfalls verkleinert, bis es in die Strecke passt.
@@ -433,7 +445,14 @@ export function zeichneWarengruppen(
         });
         ctx.setAttr('textAlign', 'left');
 
-        if (spanne.bis <= spanne.von) return;
+        // Keine Klammer, wo die Strecke **genau ein Feld** ist: Dort zeigen
+        // die Feldgrenzen schon, wie weit der Name gilt, und der Plan hat
+        // genug Striche.
+        //
+        // Überall sonst braucht es sie, und zwar dringender als früher: Seit
+        // die Strecken in Zentimetern messen, kann eine mitten in einem Feld
+        // enden. Ohne Klammer sähe niemand, wo.
+        if (istGenauEinFeld(spanne.von, spanne.bis, kanten)) return;
 
         // Die Klammer liegt auf der ersten Zeile, der Text schneidet sie frei.
         const y = anfang + zeilenhoehe / 2;

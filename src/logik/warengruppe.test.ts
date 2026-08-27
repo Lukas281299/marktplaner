@@ -1,235 +1,208 @@
 import { describe, expect, it } from 'vitest';
 import {
-  GRUPPE_NORMAL,
-  KLEINSTE_SCHRIFT,
-  gruppenZeilen,
-  gruppensatz,
+  eingerastet,
+  geordnet,
   gruppenspannen,
-  textImKasten,
+  KLEINSTER_ABSCHNITT,
+  mitAbschnitt,
+  mitVerschobenerKante,
+  ohneStrecke,
+  rastpunkte,
 } from './warengruppe';
-import type { Regalfeld } from '../typen/modell';
+import type { Regalfeld, Warengruppenabschnitt } from '../typen/modell';
 
 /**
- * Prüfungen für die Warengruppen unter dem Zug.
+ * Prüfungen für die Warengruppen auf dem Meterband.
  *
- * Zwei Dinge dürfen nicht schiefgehen, weil man beide im Plan nicht sieht:
- * Eine Beschriftung darf nicht weiter reichen, als der Nutzer gemeint hat –
- * sonst steht Ketchup über der Mayonnaise. Und ein Name darf nicht
- * abgeschnitten werden: Aus „Grillsoßen" würde „Grillso", und das liest sich
- * wie eine Angabe.
+ * Der Fall, der zu dieser Rechnung geführt hat, steht ganz unten: drei Meter,
+ * zwei Sortimente, Grenze mitten durch ein Feld. Vorher ging das nur, indem
+ * man die Felder umbaute – und dann zeigte der Plan ein Möbel, das es nicht
+ * gibt.
  */
 
-/** Zehn Punkte je Zeichen – so misst hier die Leinwand. */
-const messen = (text: string) => text.length * 10;
+const A = (von: number, bis: number, text: string): Warengruppenabschnitt => ({ von, bis, text });
+const felder = (...breiten: number[]): Regalfeld[] => breiten.map((breite) => ({ breite }));
 
-const felder = (...eintraege: (string | null)[]): Regalfeld[] =>
-  eintraege.map((e) => {
-    if (!e) return { breite: 100 };
-    const [text, felder] = e.split('/');
-    return { breite: 100, warengruppe: { text, felder: Number(felder ?? 1) } };
+describe('Ordnen', () => {
+  it('sortiert nach Anfang', () => {
+    const liste = geordnet([A(200, 300, 'Senf'), A(0, 200, 'Ketchup')], 300);
+    expect(liste.map((a) => a.text)).toEqual(['Ketchup', 'Senf']);
   });
 
-describe('Strecke einer Beschriftung', () => {
-  it('reicht über so viele Felder, wie eingestellt sind', () => {
-    expect(gruppenspannen(felder('Ketchup/3', null, null))).toEqual([
-      { von: 0, bis: 2, anker: 0, text: 'Ketchup', schrift: undefined },
-    ]);
+  it('wirft leere Texte weg', () => {
+    expect(geordnet([A(0, 100, '  '), A(100, 200, 'Senf')], 200)).toHaveLength(1);
   });
 
-  it('endet an der nächsten Beschriftung', () => {
-    // Wer Ketchup drei Felder gibt und ins zweite Senf schreibt, meint das
-    // zweite als Anfang von Senf – nicht zwei Namen an derselben Stelle.
-    expect(gruppenspannen(felder('Ketchup/3', 'Senf/1', null))).toEqual([
-      { von: 0, bis: 0, anker: 0, text: 'Ketchup', schrift: undefined },
-      { von: 1, bis: 1, anker: 1, text: 'Senf', schrift: undefined },
-    ]);
+  it('beschneidet auf das Möbel, wenn es gekürzt wurde', () => {
+    // Ein Zug von 6 auf 4 m gezogen: Die hintere Beschriftung hängt im Nichts.
+    const liste = geordnet([A(0, 300, 'Ketchup'), A(300, 600, 'Senf')], 400);
+    expect(liste).toHaveLength(2);
+    expect(liste[1]).toMatchObject({ von: 300, bis: 400 });
   });
 
-  it('endet am letzten Feld', () => {
-    // Eine zu große Angabe ist kein Fehler: Der Zug wurde hinterher gekürzt.
-    expect(gruppenspannen(felder('Ketchup/9', null))).toEqual([
-      { von: 0, bis: 1, anker: 0, text: 'Ketchup', schrift: undefined },
-    ]);
+  it('wirft weg, was nach dem Kürzen ganz draußen liegt', () => {
+    const liste = geordnet([A(0, 300, 'Ketchup'), A(400, 600, 'Senf')], 350);
+    expect(liste.map((a) => a.text)).toEqual(['Ketchup']);
   });
 
-  it('deckt ohne Angabe genau ein Feld ab', () => {
-    expect(gruppenspannen(felder('Senf'))).toEqual([
-      { von: 0, bis: 0, anker: 0, text: 'Senf', schrift: undefined },
-    ]);
-
-    // Und rückwärts, wie an der unteren Wand: Die Strecke zählt weiter nach
-    // rechts im Bild – also in der gespeicherten Liste nach vorn.
-    expect(gruppenspannen(felder(null, null, 'Ketchup/3'), true)).toEqual([
-      { von: 0, bis: 2, anker: 2, text: 'Ketchup', schrift: undefined },
-    ]);
-    // Und die nächste Beschriftung schneidet auch hier ab – nur eben die,
-    // die im Bild rechts folgt.
-    expect(gruppenspannen(felder(null, 'Senf/2', 'Ketchup/2'), true)).toEqual([
-      { von: 2, bis: 2, anker: 2, text: 'Ketchup', schrift: undefined },
-      { von: 0, bis: 1, anker: 1, text: 'Senf', schrift: undefined },
-    ]);
-  });
-
-  it('übergeht leeren Text', () => {
-    expect(gruppenspannen(felder('   /2', null))).toEqual([]);
-    expect(gruppenspannen(felder(null, null))).toEqual([]);
+  it('löst Überlappungen zugunsten des früheren auf', () => {
+    const liste = geordnet([A(0, 200, 'Ketchup'), A(150, 300, 'Senf')], 300);
+    expect(liste[0]).toMatchObject({ von: 0, bis: 200 });
+    expect(liste[1]).toMatchObject({ von: 200, bis: 300 });
   });
 });
 
-describe('Umbruch einer Beschriftung', () => {
-  it('lässt einen kurzen Namen in einer Zeile', () => {
-    expect(gruppenZeilen('Ketchup', 200, messen)).toEqual(['Ketchup']);
-  });
-
-  it('bricht an der Wortgrenze um, wenn es zu breit wird', () => {
-    expect(gruppenZeilen('Ketchup und Grillsoßen', 130, messen)).toEqual([
-      'Ketchup und',
-      'Grillsoßen',
+describe('Spannen in Leserichtung', () => {
+  it('gibt sie vorwärts unverändert zurück', () => {
+    const spannen = gruppenspannen([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300, false);
+    expect(spannen.map((s) => [s.von, s.bis, s.text])).toEqual([
+      [0, 150, 'Ketchup'],
+      [150, 300, 'Senf'],
     ]);
   });
 
-  it('achtet einen Umbruch von Hand', () => {
-    // Wer selbst trennt, weiß besser, wo.
-    expect(gruppenZeilen('Wein\nund Spirituosen', 9999, messen)).toEqual([
-      'Wein',
-      'und Spirituosen',
+  it('spiegelt sie an einem rückwärts laufenden Möbel', () => {
+    // An der unteren Wand läuft die Achse andersherum. Ketchup steht dort
+    // rechts im Bild – sonst reichte es nach links über den Nachbarn.
+    const spannen = gruppenspannen([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300, true);
+    expect(spannen.map((s) => [s.von, s.bis, s.text])).toEqual([
+      [0, 150, 'Senf'],
+      [150, 300, 'Ketchup'],
     ]);
   });
 
-  it('schneidet ein zu langes Wort nicht ab', () => {
-    // Lieber steht es über, als dass eine falsche Angabe im Plan steht.
-    expect(gruppenZeilen('Grundnahrungsmittel', 50, messen)).toEqual(['Grundnahrungsmittel']);
+  it('merkt sich, welcher Abschnitt in der gespeicherten Liste gemeint ist', () => {
+    const spannen = gruppenspannen([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300, true);
+    // Im Bild steht Senf zuerst, gespeichert ist es das zweite.
+    expect(spannen[0].index).toBe(1);
+    expect(spannen[1].index).toBe(0);
+  });
+});
+
+describe('Schreiben', () => {
+  it('legt eine Beschriftung auf eine freie Strecke', () => {
+    const liste = mitAbschnitt([], 300, A(0, 150, 'Ketchup'));
+    expect(liste).toEqual([{ von: 0, bis: 150, text: 'Ketchup' }]);
   });
 
-  it('macht aus leerem Text keine Zeile', () => {
-    expect(gruppenZeilen('', 200, messen)).toEqual([]);
-    expect(gruppenZeilen('  \n ', 200, messen)).toEqual([]);
+  it('kürzt, was in die neue Strecke hineinragt', () => {
+    const liste = mitAbschnitt([A(0, 300, 'Ketchup')], 300, A(150, 300, 'Senf'));
+    expect(liste).toEqual([
+      { von: 0, bis: 150, text: 'Ketchup' },
+      { von: 150, bis: 300, text: 'Senf' },
+    ]);
   });
 
-  it('lässt eine gewollte Leerzeile in der Mitte stehen', () => {
-    expect(gruppenZeilen('Aktion\n\nSüßwaren', 9999, messen)).toEqual([
-      'Aktion',
-      '',
-      'Süßwaren',
+  it('teilt einen Abschnitt, der die neue Strecke umschließt', () => {
+    const liste = mitAbschnitt([A(0, 300, 'Ketchup')], 300, A(100, 200, 'Senf'));
+    expect(liste).toEqual([
+      { von: 0, bis: 100, text: 'Ketchup' },
+      { von: 100, bis: 200, text: 'Senf' },
+      { von: 200, bis: 300, text: 'Ketchup' },
+    ]);
+  });
+
+  it('löscht bei leerem Text, statt zu schreiben', () => {
+    const liste = mitAbschnitt([A(0, 300, 'Ketchup')], 300, A(100, 200, ''));
+    expect(liste).toEqual([
+      { von: 0, bis: 100, text: 'Ketchup' },
+      { von: 200, bis: 300, text: 'Ketchup' },
+    ]);
+  });
+
+  it('räumt eine Strecke frei', () => {
+    const liste = ohneStrecke([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300, 100, 200);
+    expect(liste).toEqual([
+      { von: 0, bis: 100, text: 'Ketchup' },
+      { von: 200, bis: 300, text: 'Senf' },
     ]);
   });
 });
 
-describe('Beschriftung in die Strecke einpassen', () => {
-  /** Zehn Punkte je Zeichen bei Schrifthöhe 20 – linear wie eine echte Schrift. */
-  const miss = (text: string, schrift: number) => text.length * 10 * (schrift / 20);
-
-  it('lässt eine passende Beschriftung in voller Größe', () => {
-    const satz = gruppensatz('Senf', 400, GRUPPE_NORMAL, miss);
-    expect(satz.schrift).toBe(GRUPPE_NORMAL);
-    expect(satz.zeilen).toEqual(['Senf']);
+describe('Rastpunkte', () => {
+  it('nimmt Feldgrenzen, Hälften und Viertel', () => {
+    expect(rastpunkte(felder(100))).toEqual([0, 25, 50, 75, 100]);
   });
 
-  it('bricht um, bevor es verkleinert', () => {
-    // Umbrechen kostet nichts an Lesbarkeit, Verkleinern schon.
-    const satz = gruppensatz('Ketchup und Grillsoßen', 130, 20, miss);
-    expect(satz.zeilen.length).toBeGreaterThan(1);
-    expect(satz.schrift).toBe(20);
+  it('läuft über mehrere Felder durch', () => {
+    expect(rastpunkte(felder(100, 100))).toContain(150);
+    expect(rastpunkte(felder(100, 100))).toContain(200);
   });
 
-  it('verkleinert ein einzelnes zu langes Wort, bis es passt', () => {
-    // „Grundnahrungsmittel" lässt sich nicht umbrechen. Statt über den
-    // Nachbarn zu ragen, wird es kleiner.
-    const breite = 100;
-    const satz = gruppensatz('Grundnahrungsmittel', breite, 20, miss);
-    expect(satz.zeilen).toEqual(['Grundnahrungsmittel']);
-    expect(satz.schrift).toBeLessThan(20);
-    expect(miss(satz.zeilen[0], satz.schrift)).toBeLessThanOrEqual(breite + 0.01);
+  it('kommt auch mit krummen Feldern zurecht', () => {
+    // Das A1333 des wire tech ist nicht glatt teilbar.
+    const punkte = rastpunkte(felder(133.3));
+    expect(punkte[0]).toBe(0);
+    expect(punkte[punkte.length - 1]).toBeCloseTo(133.5, 1);
   });
 
-  it('hält keine Zeile breiter als ihre Strecke', () => {
-    // Die eigentliche Zusage: Was hier herauskommt, passt.
-    const faelle: [string, number][] = [
-      ['Ketchup, Grillsoßen', 300],
-      ['Wein und Spirituosen', 120],
-      ['Grundnahrungsmittel', 90],
-      ['Aktion', 40],
-      ['Molkereiprodukte\nund Käse', 150],
-    ];
-    for (const [text, breite] of faelle) {
-      const satz = gruppensatz(text, breite, GRUPPE_NORMAL, miss);
-      for (const zeile of satz.zeilen) {
-        // Passt – oder die Schrift steht schon an der Untergrenze. Weiter
-        // schrumpfen hieße, sie unlesbar zu machen.
-        const passt = miss(zeile, satz.schrift) <= breite + 0.01;
-        expect(passt || satz.schrift <= KLEINSTE_SCHRIFT + 0.01).toBe(true);
-      }
-    }
-  });
-
-  it('schrumpft nicht ins Unlesbare', () => {
-    // Ein Feld von vier Zentimetern kann keinen Namen tragen. Dann steht er
-    // lieber ein wenig über – das sieht man und kann ihn kürzen.
-    const satz = gruppensatz('Wein und Spirituosen', 4, 20, miss);
-    expect(satz.schrift).toBeGreaterThanOrEqual(KLEINSTE_SCHRIFT - 0.01);
-  });
-
-  it('passt ein langes Wort auf ein schmales Feld noch ein', () => {
-    // Der Fall, der die Untergrenze fast erreicht: 19 Zeichen auf 90 cm.
-    const satz = gruppensatz('Grundnahrungsmittel', 90, GRUPPE_NORMAL, miss);
-    expect(miss(satz.zeilen[0], satz.schrift)).toBeLessThanOrEqual(90.01);
-    expect(satz.schrift).toBeGreaterThan(KLEINSTE_SCHRIFT);
-  });
-
-  it('nimmt die eingestellte Größe als Ausgangspunkt', () => {
-    expect(gruppensatz('Senf', 400, 14, miss).schrift).toBe(14);
-    expect(gruppensatz('Senf', 400, 28, miss).schrift).toBe(28);
-  });
-
-  it('kommt mit einer Strecke ohne Breite zurecht', () => {
-    // Kann beim Zeichnen vorkommen, bevor die Größe steht.
-    expect(gruppensatz('Senf', 0, 20, miss).schrift).toBe(20);
+  it('rastet nur ein, was nah genug ist', () => {
+    const punkte = [0, 50, 100];
+    expect(eingerastet(48, punkte, 10)).toBe(50);
+    expect(eingerastet(70, punkte, 10)).toBe(70);
   });
 });
 
-describe('Text in einen Kasten setzen', () => {
-  /** Zehn Punkte je Zeichen bei Schrifthöhe 20 – linear wie eine echte Schrift. */
-  const miss = (text: string, schrift: number) => text.length * 10 * (schrift / 20);
-  const passt = (satz: { zeilen: string[]; schrift: number }, breite: number, hoehe: number) =>
-    satz.zeilen.every((z) => miss(z, satz.schrift) <= breite + 0.01) &&
-    satz.zeilen.length * satz.schrift * 1.2 <= hoehe + 0.01;
+describe('Kante ziehen', () => {
+  const zwei = () => [A(0, 150, 'Ketchup'), A(150, 300, 'Senf')];
 
-  it('lässt einen passenden Text in voller Größe', () => {
-    const satz = textImKasten('Text', 400, 200, 30, miss);
-    expect(satz.schrift).toBe(30);
-    expect(satz.zeilen).toEqual(['Text']);
+  it('nimmt den Nachbarn mit, statt ein Loch zu reißen', () => {
+    const liste = mitVerschobenerKante(zwei(), 300, 0, 'bis', 200);
+    expect(liste).toEqual([
+      { von: 0, bis: 200, text: 'Ketchup' },
+      { von: 200, bis: 300, text: 'Senf' },
+    ]);
   });
 
-  it('verkleinert, wenn der Umbruch zu hoch wird', () => {
-    // Der Fall, um den es geht: In die Breite passt es nach dem Umbruch, in
-    // die Höhe nicht mehr – zwei Zeilen sind doppelt so hoch wie eine.
-    const breite = 226;
-    const hoehe = 52;
-    const satz = textImKasten('Rampe frei halten', breite, hoehe, 37, miss);
-    expect(satz.schrift).toBeLessThan(37);
-    expect(passt(satz, breite, hoehe)).toBe(true);
+  it('zieht auch von der anderen Seite dieselbe Grenze', () => {
+    const liste = mitVerschobenerKante(zwei(), 300, 1, 'von', 100);
+    expect(liste).toEqual([
+      { von: 0, bis: 100, text: 'Ketchup' },
+      { von: 100, bis: 300, text: 'Senf' },
+    ]);
   });
 
-  it('nimmt lieber eine kleinere Zeile als zwei zu hohe', () => {
-    // In einem flachen, breiten Kasten sieht ein Umbruch schlechter aus als
-    // eine Nummer kleiner – und passt dort auch gar nicht hinein.
-    expect(textImKasten('Rampe frei halten', 226, 52, 37, miss).zeilen).toHaveLength(1);
+  it('drückt den Nachbarn nicht unter das Mindestmaß', () => {
+    const liste = mitVerschobenerKante(zwei(), 300, 0, 'bis', 299);
+    expect(liste[1].bis - liste[1].von).toBeGreaterThanOrEqual(KLEINSTER_ABSCHNITT);
   });
 
-  it('hält den Text in seinem Kasten, in beide Richtungen', () => {
-    const faelle: [string, number, number][] = [
-      ['Rampe frei halten', 226, 52],
-      ['Hier später Bake-Off', 300, 40],
-      ['Kurz', 80, 30],
-      ['Ein sehr langer Hinweis über mehrere Wörter', 200, 120],
-    ];
-    for (const [text, breite, hoehe] of faelle) {
-      expect(passt(textImKasten(text, breite, hoehe, 40, miss), breite, hoehe)).toBe(true);
-    }
+  it('lässt sich selbst nicht unter das Mindestmaß drücken', () => {
+    const liste = mitVerschobenerKante(zwei(), 300, 0, 'bis', 1);
+    expect(liste[0].bis - liste[0].von).toBeGreaterThanOrEqual(KLEINSTER_ABSCHNITT);
   });
 
-  it('schrumpft auch hier nicht ins Unlesbare', () => {
-    const satz = textImKasten('Ein sehr langer Hinweis', 20, 6, 30, miss);
-    expect(satz.schrift).toBeGreaterThanOrEqual(KLEINSTE_SCHRIFT - 0.01);
+  it('verlängert einen einzelnen Abschnitt, wenn kein Nachbar anliegt', () => {
+    const liste = mitVerschobenerKante([A(0, 150, 'Ketchup')], 300, 0, 'bis', 250);
+    expect(liste).toEqual([{ von: 0, bis: 250, text: 'Ketchup' }]);
+  });
+
+  it('läuft nicht über das Möbel hinaus', () => {
+    const liste = mitVerschobenerKante([A(0, 150, 'Ketchup')], 300, 0, 'bis', 900);
+    expect(liste[0].bis).toBe(300);
+  });
+
+  it('stößt an einen Nachbarn, der nicht anliegt, statt ihn zu überrennen', () => {
+    // Zwischen den beiden ist eine Lücke: Ketchup darf bis an sie heran.
+    const liste = mitVerschobenerKante([A(0, 100, 'Ketchup'), A(200, 300, 'Senf')], 300, 0, 'bis', 280);
+    expect(liste[0].bis).toBe(200);
+    expect(liste[1]).toMatchObject({ von: 200, bis: 300 });
+  });
+});
+
+describe('Der Fall, um den es ging', () => {
+  it('teilt drei Meter mit drei Feldern auf zwei Sortimente à 1,5 m', () => {
+    const bau = felder(100, 100, 100);
+    let liste = mitAbschnitt([], 300, A(0, 300, 'Ketchup'));
+    liste = mitAbschnitt(liste, 300, A(150, 300, 'Senf'));
+
+    expect(liste).toEqual([
+      { von: 0, bis: 150, text: 'Ketchup' },
+      { von: 150, bis: 300, text: 'Senf' },
+    ]);
+    // Die Grenze liegt mitten in Feld 2 – und ist trotzdem ein Rastpunkt.
+    expect(rastpunkte(bau)).toContain(150);
+    // Und die Felder sind unangetastet geblieben.
+    expect(bau.map((f) => f.breite)).toEqual([100, 100, 100]);
   });
 });
