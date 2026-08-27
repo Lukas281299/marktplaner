@@ -45,6 +45,12 @@ export const KATEGORIEN: Kategorie[] = [
     beschreibung: 'Vitable-Tische, Gondeln, Ecken und Köpfe',
   },
   {
+    id: 'blumen',
+    name: 'Blumen & Pflanzen',
+    farbe: '#b6dfa6',
+    beschreibung: 'Pflanzregale, Blumentreppen, Bewässerungswannen und Präsenter',
+  },
+  {
     id: 'backwaren',
     name: 'Backwaren',
     farbe: '#d8bc98',

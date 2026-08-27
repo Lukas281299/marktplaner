@@ -1,4 +1,4 @@
-import type { BibliothekEintrag, Grundform } from '../typen/modell';
+import type { BibliothekEintrag, Grundform, Punkt } from '../typen/modell';
 
 /**
  * Die mitgelieferte Elementbibliothek.
@@ -694,6 +694,211 @@ function vitableEintraege(): BibliothekEintrag[] {
   return eintraege;
 }
 
+/** Hausfarbe der Blumenabteilung – ein helles Grün. */
+const BLUMEN_GRUEN = '#b6dfa6';
+
+/**
+ * Die Blumen- und Pflanzenmöbel von CMS Metasys.
+ *
+ * Alle Maße stammen von den Produktseiten des Herstellers (Kategorie
+ * Blumenpräsenter, abgerufen im August 2026) und sind hier in Zentimetern.
+ * Die Höhe ist die des Möbels, nicht die der bepflanzten Ware – ein
+ * Pflanzregal von 1,55 m trägt Blumen, die darüber hinausragen.
+ *
+ * Gezeichnet wird die **Stellfläche**, nicht das Möbel im Detail. Ein Plan
+ * beantwortet die Frage, wie viel Platz etwas braucht und ob der Gang noch
+ * passt; wie die Wannen darin liegen, steht im Katalog.
+ */
+function blumenEintraege(): BibliothekEintrag[] {
+  const gemeinsam = {
+    kategorie: 'blumen' as const,
+    farbe: BLUMEN_GRUEN,
+  };
+
+  return [
+    // --- Pflanzregale: dasselbe Gestell in drei Höhen
+    {
+      ...gemeinsam,
+      id: 'blumen-pflanzregal-niedrig',
+      name: 'Pflanzregal niedrig',
+      breite: 65.7,
+      tiefe: 56,
+      hoehe: 102.5,
+      form: 'rechteck',
+      gruppe: 'Pflanzregale',
+      hinweis: 'PR 2017 · Holzrückwand, 2 Kombihalter, große Bodenwanne',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-pflanzregal-mittel',
+      name: 'Pflanzregal mittel',
+      breite: 65.7,
+      tiefe: 56,
+      hoehe: 128,
+      form: 'rechteck',
+      gruppe: 'Pflanzregale',
+      hinweis: 'PR 2018 · Holzrückwand, Kombihalter, große Bodenwanne',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-pflanzregal-hoch',
+      name: 'Pflanzregal hoch',
+      breite: 65.7,
+      tiefe: 56,
+      hoehe: 155,
+      form: 'rechteck',
+      gruppe: 'Pflanzregale',
+      hinweis: 'PR 2019 · Holzrückwand, 3 Kombihalter, große Bodenwanne',
+    },
+
+    // --- Präsenter
+    {
+      ...gemeinsam,
+      id: 'blumen-schnittblumen-saeule',
+      name: 'Schnittblumen-Säule',
+      breite: 41,
+      tiefe: 51.5,
+      hoehe: 88,
+      form: 'rechteck',
+      gruppe: 'Präsenter',
+      hinweis: 'SB 1050 · 3 Ringe, ohne Eimer · fahrbar als SB 1051',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-insel-quadrat',
+      name: 'Blumeninsel quadratisch',
+      breite: 143,
+      tiefe: 143,
+      hoehe: 62.5,
+      form: 'rechteck',
+      gruppe: 'Präsenter',
+      hinweis: 'PR 2008 · Würfel mit Holzdekor, 4 Kombihalter, Mittelwanne 63 × 63',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-display-kasse',
+      name: 'Blumendisplay Kasse',
+      breite: 61,
+      tiefe: 73,
+      hoehe: 147,
+      form: 'rechteck',
+      gruppe: 'Präsenter',
+      hinweis: 'KD 2004 · 4 Ringhalter, A4-Rahmen · bis 12 Halter erweiterbar',
+    },
+
+    // --- Topfblumen: gerade und über Eck
+    {
+      ...gemeinsam,
+      id: 'blumen-topf-gerade',
+      name: 'Topfblumen-Präsenter gerade',
+      breite: 91,
+      tiefe: 78,
+      hoehe: 145,
+      form: 'rechteck',
+      gruppe: 'Topfblumen',
+      hinweis: 'BT 9080 · Mittelelement, 3 Wannen, fahrbar',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-topf-ecke',
+      name: 'Topfblumen-Präsenter Ecke',
+      breite: 78,
+      tiefe: 78,
+      hoehe: 145,
+      form: 'umriss',
+      // Ein Viertelkreis, aus dem Quadrat geschnitten: Der Bogen läuft von
+      // der einen Ecke zur anderen, sodass zwei gerade Elemente über Eck
+      // anschließen.
+      polygon: viertelkreis(78, 78),
+      gruppe: 'Topfblumen',
+      hinweis: 'BT 9082 · Viertelkreiselement, 3 Wannen, fahrbar',
+    },
+
+    // --- Blumentreppen
+    {
+      ...gemeinsam,
+      id: 'blumen-treppe-2',
+      name: 'Blumentreppe 2-stufig',
+      breite: 100,
+      tiefe: 66.6,
+      hoehe: 73.5,
+      form: 'rechteck',
+      gruppe: 'Blumentreppen',
+      hinweis: 'BT 1007 · 2 geschlossene Bewässerungswannen, fahrbar',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-treppe-3',
+      name: 'Blumentreppe 3-stufig',
+      breite: 100,
+      tiefe: 100,
+      hoehe: 73.5,
+      form: 'rechteck',
+      gruppe: 'Blumentreppen',
+      hinweis: 'BT 1010 · 3 geschlossene Bewässerungswannen, fahrbar',
+    },
+
+    // --- Wannen und Wagen
+    {
+      ...gemeinsam,
+      id: 'blumen-wanne-mini',
+      name: 'Bewässerungswanne klein',
+      breite: 63,
+      tiefe: 55.3,
+      hoehe: 54.9,
+      form: 'rechteck',
+      gruppe: 'Wannen und Wagen',
+      hinweis: 'BW 0653 · fahrbar · zwei davon sind so breit wie eine große',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-wanne-maxi',
+      name: 'Bewässerungswanne groß',
+      breite: 126,
+      tiefe: 55.3,
+      hoehe: 59.4,
+      form: 'rechteck',
+      gruppe: 'Wannen und Wagen',
+      hinweis: 'BW 1253 · fahrbar, Holzdekor',
+    },
+    {
+      ...gemeinsam,
+      id: 'blumen-wagen',
+      name: 'Blumenwagen',
+      breite: 149,
+      tiefe: 82.6,
+      hoehe: 152,
+      form: 'rechteck',
+      gruppe: 'Wannen und Wagen',
+      hinweis: 'BW 1826 · ohne Dach, 4 Böden · mit Dach 2,10 m hoch',
+    },
+  ];
+}
+
+/**
+ * Ein Viertelkreis als Polygon, aus einem Rechteck geschnitten.
+ *
+ * Die volle Ecke bleibt links oben stehen, der Bogen läuft von der linken
+ * unteren zur rechten oberen Ecke. So schließen zwei gerade Präsenter über
+ * Eck an, ohne dass eine Lücke bleibt.
+ *
+ * **Die Punkte liegen relativ zum Mittelpunkt** – so erwartet es die
+ * Zeichnung (siehe `ElementSymbol.tsx`). Ein Polygon von null bis Breite
+ * säße um eine halbe Möbelbreite verschoben, und das fällt bei einem
+ * Viertelkreis erst auf, wenn zwei davon über Eck nicht zusammenpassen.
+ */
+function viertelkreis(breite: number, tiefe: number, schritte = 16): Punkt[] {
+  const punkte: Punkt[] = [{ x: -breite / 2, y: -tiefe / 2 }];
+  for (let i = 0; i <= schritte; i++) {
+    const winkel = (Math.PI / 2) * (i / schritte);
+    punkte.push({
+      x: breite * Math.sin(winkel) - breite / 2,
+      y: tiefe * (1 - Math.cos(winkel)) - tiefe / 2,
+    });
+  }
+  return punkte;
+}
+
 export const BIBLIOTHEK: BibliothekEintrag[] = [
   // ---------------------------------------------------------------- Regale
   ...wt100Eintraege(),
@@ -711,6 +916,16 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
 
   // Die Zonenmarkierung für Obst und Gemüse. Kein Möbel, sondern eine Fläche.
   { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'obstgemuese', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche – Zonenmarkierung, kein Möbel', gruppe: 'Frei' },
+
+  // ----------------------------------------------------- Blumen & Pflanzen
+  //
+  // CMS Metasys, Kategorie Blumenpräsenter. Alle Maße von den Produktseiten,
+  // Millimeter dort, Zentimeter hier.
+  //
+  // Die Namen sind **nicht** die des Herstellers: „PR 2017" sagt niemandem
+  // etwas, der einen Markt plant. Die Artikelnummer steht im Hinweis, damit
+  // man sie zum Bestellen wiederfindet.
+  ...blumenEintraege(),
 
   // ------------------------------------------------- Bedienung & SB-Theken
   //

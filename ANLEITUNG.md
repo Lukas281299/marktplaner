@@ -1318,7 +1318,7 @@ schlimmer als ein etwas gröberes.
 
 ## 16. Die Symbolbibliothek
 
-Alle Symbole sind aus den Wanzl- und WSL-Unterlagen nachgezeichnet und tragen
+Alle Symbole sind aus den Unterlagen der Hersteller nachgezeichnet und tragen
 echte Maße.
 
 | Abteilung | Inhalt |
@@ -1328,6 +1328,7 @@ echte Maße.
 | **Tiefkühlung** | Truhen, Schränke, Kombigeräte, Inseln |
 | **Bedienung & SB-Theken** | Blink Standard, Self und SV in vier Farben |
 | **Obst & Gemüse** | Vitable in allen 20 Varianten, beide Achsmaße, Ecken und Abschlüsse |
+| **Blumen & Pflanzen** | CMS Metasys: Pflanzregale, Blumentreppen, Präsenter, Bewässerungswannen |
 | **Backwaren** | BakeOff 3.0, Türme und Eckstücke |
 | **Kassen & Eingang** | Steh-, Sitz- und Doppelkassen, SB-Kassen, Ausgangsanlage |
 | **Aktions- & Sonderflächen** | Aktionsflächen, EPAL und CHEP, Drehständer |

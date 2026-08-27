@@ -256,6 +256,7 @@ src/
 ├── typen/modell.ts        Datenmodell: was ist ein Projekt, ein Element, eine Ebene
 ├── daten/                 mitgelieferte Inhalte
 │   ├── bibliothek.ts      alle Elementvorlagen mit Standardmaßen
+│   │                      (Wanzl, WSL und CMS Metasys, nach Herstellerangaben)
 │   ├── kategorien.ts      die Oberkategorien der Bibliothek
 │   ├── warengruppen.ts    Vorschläge für das Feld „Warengruppe"
 │   ├── raumarten.ts       Raumarten, Farben und was zur Verkaufsfläche zählt
