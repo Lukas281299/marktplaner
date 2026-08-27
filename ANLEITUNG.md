@@ -28,9 +28,10 @@ Rechnern weiterbearbeiten.
 12. [Speichern, Sichern, Exportieren](#12-speichern-sichern-exportieren)
 13. [Abgleich zwischen mehreren Rechnern](#13-abgleich-zwischen-mehreren-rechnern)
 14. [Der Assistent](#14-der-assistent)
-15. [Die Symbolbibliothek](#15-die-symbolbibliothek)
-16. [Alle Tastenkürzel](#16-alle-tastenkürzel)
-17. [Was noch nicht geht](#17-was-noch-nicht-geht)
+15. [Plan ausgeben: PDF und Webanwendung](#15-plan-ausgeben-pdf-und-webanwendung)
+16. [Die Symbolbibliothek](#16-die-symbolbibliothek)
+17. [Alle Tastenkürzel](#17-alle-tastenkürzel)
+18. [Was noch nicht geht](#18-was-noch-nicht-geht)
 
 ---
 
@@ -1217,7 +1218,82 @@ nicht abgeglichen. `⟲` beginnt von vorn.
 
 ---
 
-## 15. Die Symbolbibliothek
+## 15. Plan ausgeben: PDF und Webanwendung
+
+Der Knopf **Ausgeben** in der Werkzeugleiste führt aus dem Programm heraus.
+Zwei Wege, weil es zwei Zwecke gibt.
+
+### PDF – zum Drucken und Verschicken
+
+Papierformat von A4 bis A0, quer oder hoch, dazu wahlweise Titel und Fußzeile
+mit Verkaufsfläche, Anzahl der Möbel und Datum.
+
+Der Plan wird **eingepasst und nicht gedehnt**: Er behält seine
+Seitenverhältnisse und sitzt mittig auf dem Blatt. Ein verzerrter Plan wäre
+kein Plan mehr, sondern eine Zeichnung mit falschen Maßen.
+
+Ein Markt von 800 m² liest sich auf **A3 quer** gut. Für die Wand nimm A1 oder
+A0 und die Auflösung *Fein*.
+
+### SVG – für eine andere Webanwendung
+
+Für den Fall, dass der Plan woanders als Hintergrund dienen soll und etwas
+darauf gelegt wird — Kameras, Sensoren, Zähler.
+
+**Das Entscheidende: Ein Punkt im Bild ist ein Zentimeter im Markt.** Wer eine
+Kamera an die Stelle 1200/800 im Markt setzen will, schreibt in seiner
+Anwendung `x: 1200, y: 800`. Keine Umrechnung, kein Maßstabsfaktor.
+
+Warum das so wichtig ist: Bei einem gewöhnlichen Bild weiß die andere
+Anwendung nicht, wie viele Zentimeter ein Bildpunkt ist. Sie merkt sich die
+Kameras dann in Bildpunkten — und beim nächsten Export mit anderer Auflösung
+oder anderem Zuschnitt sitzen alle zwei Meter daneben. Hier steht der Maßstab
+**in der Datei**.
+
+Zusätzlich stehen im SVG:
+
+| | |
+|---|---|
+| `data-breite-cm`, `data-hoehe-cm` | Die Maße des Plans, direkt am `<svg>`-Element |
+| `data-nullpunkt-x/-y` | Wo die linke obere Ecke im Plan liegt — wichtig bei umgeformten Grundrissen |
+| `<metadata>` | Alle Möbel als JSON: Kennung, Name, Kategorie, Position, Maße, Drehung und ihre Warengruppen |
+
+Damit kann die andere Anwendung auch „die Kamera über der Molkerei" finden,
+ohne dass jemand nachmisst.
+
+### Die Beispielseite
+
+Beim SVG-Export kommt auf Wunsch eine zweite Datei mit: eine fertige
+HTML-Seite mit vier klickbaren Kamerasymbolen. Sie lässt sich direkt im
+Browser öffnen und ist zum Abschauen gedacht — wer die andere Anwendung baut,
+hat sonst nur eine Datei und muss raten, wie das Koordinatensystem gemeint
+ist.
+
+Sie zeigt drei Dinge:
+
+1. wie die Kameras in **Prozent** gesetzt werden, damit sie bei jeder
+   Fenstergröße richtig sitzen,
+2. wo der Klick hingeht (dort kommt der Stream hin),
+3. und umgekehrt: Ein Klick irgendwo auf den Plan schreibt die Stelle in
+   Zentimetern in die Konsole. So findest du die Koordinaten für neue
+   Kameras, ohne zu messen.
+
+### Was beim Ausgeben passiert
+
+Der Plan zoomt kurz auf Normalgröße und springt danach auf deinen Ausschnitt
+zurück. Das muss sein: Beschriftungen werden nur gezeichnet, wenn sie auch
+lesbar wären — herausgezoomt käme ein Plan ohne Warengruppen heraus, und man
+merkte es erst auf dem Blatt. Auswahlrahmen und Anfasser bleiben draußen.
+
+Die **Auflösung** steuert, wie fein gezeichnet wird: *Entwurf* für den
+Bildschirm, *Normal* für den Ausdruck, *Fein* für große Formate. Bei sehr
+großen Märkten deckelt das Programm nach oben ab — jenseits davon geben
+Browser ohne Vorwarnung ein leeres Bild zurück, und ein leeres PDF wäre
+schlimmer als ein etwas gröberes.
+
+---
+
+## 16. Die Symbolbibliothek
 
 Alle Symbole sind aus den Wanzl- und WSL-Unterlagen nachgezeichnet und tragen
 echte Maße.
@@ -1298,7 +1374,7 @@ keine Bögen — die haben keine Schwenktüren.
 
 ---
 
-## 16. Alle Tastenkürzel
+## 17. Alle Tastenkürzel
 
 ### Datei und Bearbeiten
 
@@ -1352,7 +1428,7 @@ keine Bögen — die haben keine Schwenktüren.
 
 ---
 
-## 17. Was noch nicht geht
+## 18. Was noch nicht geht
 
 **Der Gebäudeumriss ist ein Rechteck um alle Wandzüge.** Die Wandzüge selbst
 sind exakt — sie kommen unverändert aus dem Plan. Sie zu einer einzigen

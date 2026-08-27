@@ -64,6 +64,7 @@ Zusammenführen beim Abgleich und das Vermittlungsprogramm auf dem Server.
 | Lückenlos aneinanderreihen | auswählen, dann **Aneinanderreihen** |
 | Abstand messen | Werkzeug **Maß**, von Punkt zu Punkt ziehen |
 | Etwas sagen statt klicken | Knopf „Assistent" in der Werkzeugleiste (einmal einrichten) |
+| Plan als PDF oder für eine andere Webanwendung | Knopf „Ausgeben" in der Werkzeugleiste |
 
 ## Grundriss und Räume
 
@@ -162,6 +163,39 @@ Die Einrichtung dauert etwa zehn Minuten und ist Schritt für Schritt in
 Wer entscheidet was, steht in `src/speicher/abgleich.ts`; diese Datei rechnet nur
 und ist vollständig durch Prüfungen abgedeckt.
 
+## Den Plan herausgeben
+
+Über **Ausgeben** verlässt der Plan das Programm – als PDF zum Drucken oder
+als SVG für eine andere Webanwendung.
+
+Beide zeichnen dieselbe Bühne (`logik/planAufnahme.ts`), nur verschieden groß.
+Dabei wird der Zoom auf 1 gestellt und danach zurückgesetzt: Beschriftungen
+zeichnet der Plan nur, wenn sie auf dem Bildschirm lesbar wären – wer
+herausgezoomt exportiert, bekäme sonst einen Plan ohne Warengruppen.
+
+**PDF** (`logik/pdf.ts`) wird selbst geschrieben, ohne fremde Bibliothek: Ein
+Marktplan ist ein Bild, ein Titel und eine Fußzeile, dafür wären 500 kB
+Abhängigkeit unverhältnismäßig. Die Bildpunkte gehen verlustfrei hinein –
+roh, mit `CompressionStream` gepackt, als `FlateDecode`; JPEG zeigte an den
+feinen Linien eines Grundrisses sofort seine Artefakte. Geprüft wird das
+Ergebnis in `pdf.test.ts` am Ende von pdf.js, also von einem echten Leser.
+
+**SVG** (`logik/webExport.ts`) trägt ein Koordinatensystem in **Zentimetern**:
+Die `viewBox` läuft über die Maße des Grundrisses, ein Punkt ist ein
+Zentimeter. Eine fremde Anwendung, die Kamerasymbole darauflegt, rechnet
+nichts um – und ihre Positionen überleben einen zweiten Export mit anderer
+Auflösung. Bei einem gewöhnlichen Bild säßen sie danach daneben. Die Maße
+stehen zusätzlich als `data-`Attribute am Wurzelelement, alle Möbel als JSON
+im `<metadata>`-Block.
+
+Das Bild ist im SVG eingebettet und nicht als Vektor nachgebaut: Die Zeichnung
+eines Möbels steckt in gut tausend Zeilen Konva-Code, und eine zweite Fassung
+davon wäre nach dem ersten neuen Möbel falsch.
+
+Auf Wunsch kommt eine **Beispielseite** mit – eine fertige HTML-Datei mit
+klickbaren Kamerasymbolen. Wer die andere Anwendung baut, hat sonst nur eine
+Datei und muss raten, wie das Koordinatensystem gemeint ist.
+
 ## Der Assistent
 
 Auf Wunsch lässt sich der Marktplaner ansprechen statt anklicken: *„Schieb die
@@ -217,6 +251,9 @@ src/
 │   ├── flaechen.ts        Flächenübersicht, Verkaufs- und Nebenflächen
 │   ├── tastatur.ts        alle Tastenkombinationen
 │   ├── bildExport.ts      PNG-Export
+│   ├── planAufnahme.ts    Plan in wählbarer Auflösung aufnehmen
+│   ├── pdf.ts             kleiner PDF-Schreiber (Bild, Titel, Fußzeile)
+│   ├── webExport.ts       SVG mit Koordinatensystem in Zentimetern
 │   ├── buehne.ts          Verbindung Werkzeugleiste ↔ Zeichenfläche
 │   ├── abgleichSteuerung.ts  wann von selbst abgeglichen wird
 │   └── id.ts              eindeutige Kennungen
@@ -244,6 +281,7 @@ src/
     ├── Dialog.tsx         Grundgerüst aller Dialoge
     ├── ProjektDialog.tsx
     ├── SyncDialog.tsx     Einrichtung und Stand des Abgleichs
+    ├── ExportDialog.tsx    PDF und SVG herausgeben
     ├── Assistentenfenster.tsx  die Spalte des Assistenten
     ├── AssistentDialog.tsx     Adresse und Zugangswort des Workers
     ├── Feld.tsx           wiederverwendbare Eingabefelder

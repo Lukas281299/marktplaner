@@ -11,6 +11,7 @@ import { usePlanStore } from '../zustand/planStore';
 import { useSyncStore } from '../zustand/syncStore';
 import { NeuesProjektDialog, ProjekteDialog } from './ProjektDialog';
 import { PlanImportDialog } from './PlanImportDialog';
+import { ExportDialog } from './ExportDialog';
 import { SyncDialog } from './SyncDialog';
 import { AssistentKnopf } from './Assistentenfenster';
 import {
@@ -71,7 +72,9 @@ export function Werkzeugleiste() {
     s.projekt.elemente.some((el) => s.auswahl.includes(el.id) && el.gruppeId),
   );
 
-  const [dialog, setDialog] = useState<'neu' | 'oeffnen' | 'abgleich' | 'planImport' | null>(null);
+  const [dialog, setDialog] = useState<
+    'neu' | 'oeffnen' | 'abgleich' | 'planImport' | 'ausgeben' | null
+  >(null);
   const [meldung, setMeldung] = useState('');
   const dateiRef = useRef<HTMLInputElement>(null);
 
@@ -173,6 +176,13 @@ export function Werkzeugleiste() {
             title="Plan als PNG-Bild speichern"
           >
             <SymbolBild /> Bild
+          </button>
+          <button
+            className="knopf"
+            onClick={() => setDialog('ausgeben')}
+            title="Plan als PDF zum Drucken oder als SVG für eine andere Webanwendung"
+          >
+            <SymbolExport /> Ausgeben
           </button>
 
           <span className="trenner" />
@@ -464,6 +474,7 @@ export function Werkzeugleiste() {
       {dialog === 'oeffnen' && <ProjekteDialog schliessen={() => setDialog(null)} />}
       {dialog === 'abgleich' && <SyncDialog schliessen={() => setDialog(null)} />}
       {dialog === 'planImport' && <PlanImportDialog schliessen={() => setDialog(null)} />}
+      {dialog === 'ausgeben' && <ExportDialog schliessen={() => setDialog(null)} />}
     </>
   );
 }
