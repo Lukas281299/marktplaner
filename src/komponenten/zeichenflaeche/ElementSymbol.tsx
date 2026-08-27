@@ -19,6 +19,7 @@ import {
   GRUPPE_NORMAL,
   gruppensatz,
   gruppenspannen,
+  KLEINSTE_SCHRIFT,
   textImKasten,
 } from '../../logik/warengruppe';
 import { feldkanten } from '../../logik/warengruppenzuordnung';
@@ -375,6 +376,31 @@ function istGenauEinFeld(von: number, bis: number, kanten: number[]): boolean {
   return a >= 0 && b >= 0 && Math.abs(a - b) === 1;
 }
 
+/**
+ * Die Farbe der Meterzahl unter einer Warengruppe.
+ *
+ * Rot, weil es die Zahl ist, um die beim Planen gestritten wird – wie viel
+ * Platz ein Sortiment bekommt. Ein dunkles Rot und kein grelles: Es muss auf
+ * dem Ausdruck noch lesbar sein.
+ */
+const METERFARBE = '#b3261e';
+
+/**
+ * Eine Länge in Metern, so kurz wie möglich.
+ *
+ * `4 m` statt `4,00 m`: Die Zahl steht klein unter einem Namen und soll auf
+ * einen Blick lesbar sein. Nachkommastellen nur, wo sie etwas sagen –
+ * `1,88 m` bei einem A1875, aber eben `4 m` bei vier vollen Metern.
+ */
+export function meterText(cm: number): string {
+  const meter = cm / 100;
+  const gerundet = Math.round(meter * 100) / 100;
+  const text = Number.isInteger(gerundet)
+    ? String(gerundet)
+    : gerundet.toFixed(2).replace(/0$/, '').replace('.', ',');
+  return `${text} m`;
+}
+
 export function zeichneWarengruppen(
   ctx: Konva.Context,
   element: PlanElement,
@@ -440,18 +466,36 @@ export function zeichneWarengruppen(
       if (zeilen.length === 0 || !lesbar(satz.schrift, zoom)) continue;
 
       const zeilenhoehe = satz.schrift * 1.15;
-      const hoehe = zeilen.length * zeilenhoehe;
+      // Die Meterzahl darunter: Wie viel Platz ein Sortiment bekommt, ist die
+      // Frage, um die es beim Planen geht – und niemand soll sie am Bildschirm
+      // abmessen müssen. Kleiner als der Name und in Rot, damit beides
+      // auseinanderzuhalten ist.
+      const meterschrift = Math.max(KLEINSTE_SCHRIFT, satz.schrift * 0.62);
+      const meterzeile = lesbar(meterschrift, zoom) ? meterText(spanne.bis - spanne.von) : '';
+      const meterhoehe = meterzeile ? meterschrift * 1.35 : 0;
+
+      const hoehe = zeilen.length * zeilenhoehe + meterhoehe;
       const anfang = seite.vorn ? t + GRUPPE_ABSTAND : -GRUPPE_ABSTAND - hoehe;
 
-      // Gewendet wird um die Mitte des ganzen Blocks, Klammer eingeschlossen:
-      // Er bleibt dadurch unter seiner Seite stehen, und auf dem Bildschirm
-      // sitzt die Klammer wieder neben der ersten Zeile.
+      // Gewendet wird um die Mitte des ganzen Blocks, Klammer und Meterzahl
+      // eingeschlossen: Er bleibt dadurch unter seiner Seite stehen, und auf
+      // dem Bildschirm sitzt die Klammer wieder neben der ersten Zeile.
       lesbarerBlock(ctx, kopf, mitte, anfang + hoehe / 2, () => {
         ctx.setAttr('font', `${satz.schrift}px sans-serif`);
         ctx.setAttr('textAlign', 'center');
         zeilen.forEach((zeile, i) => {
           ctx.fillText(zeile, mitte, anfang + i * zeilenhoehe);
         });
+
+        if (meterzeile) {
+          ctx.setAttr('fillStyle', METERFARBE);
+          ctx.setAttr('font', `${meterschrift}px sans-serif`);
+          ctx.fillText(meterzeile, mitte, anfang + zeilen.length * zeilenhoehe + meterschrift * 0.2);
+          // Zurück auf die Schriftfarbe – der nächste Durchgang zeichnet
+          // wieder einen Namen, und der ist nicht rot.
+          ctx.setAttr('fillStyle', 'rgba(24,32,44,0.92)');
+        }
+
         ctx.setAttr('textAlign', 'left');
 
         // Keine Klammer, wo die Strecke **genau ein Feld** ist: Dort zeigen

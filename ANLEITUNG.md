@@ -621,12 +621,22 @@ Im Plan steht der Name dann einmal, mittig über seiner Strecke, mit einer
 eine Linie, die der Text unterbricht. Über genau einem Feld bleibt sie weg —
 dort zeigen die Feldgrenzen schon alles.
 
+Darunter steht **rot die Länge** der Strecke: *Aufbackware* und darunter
+*1,88 m*. Wie viel Platz ein Sortiment bekommt, ist die Frage, um die es beim
+Planen geht — die soll niemand am Bildschirm abmessen müssen. Volle Meter
+stehen ohne Nachkomma da (*4 m*), krumme mit (*1,88 m*).
+
 ### Grenzen ziehen
 
 Zahlen eintippen geht, ist aber selten nötig: Wähle das Möbel aus, und auf
 jeder Grenze sitzt ein **blauer Punkt**. Ziehst du ihn, wandert die Grenze —
 und der Nachbar wandert mit, damit kein Loch aufreißt und sich nichts
 überlappt.
+
+Das gilt auch für **gruppierte** Möbel: Ein Klick auf eine Gondel wählt Zug
+und Kopfgondeln zusammen aus, und die Punkte erscheinen an allen. Nur bei
+einer sehr großen Auswahl bleiben sie weg — wer den halben Markt anklickt,
+will ihn verschieben und nicht beschriften.
 
 Der Punkt **rastet ein**, und zwar auf Feldgrenzen, Hälften und Vierteln.
 Damit sitzen die üblichen Fälle ohne Zielen: Drei Meter zu zweit geteilt sind

@@ -19,7 +19,7 @@ import type { PlanElement } from '../../typen/modell';
  * zweit geteilt sind anderthalb, und anderthalb ist je nach Bau eine
  * Feldgrenze oder die Mitte eines Feldes.
  *
- * Nur am **ausgewählten** Möbel: Über einem ganzen Markt gelegt wären das
+ * Nur an den **ausgewählten** Möbeln: Über einen ganzen Markt gelegt wären das
  * hunderte Punkte, und der Plan wäre nicht mehr zu lesen.
  */
 
@@ -35,6 +35,16 @@ const GRIFF = 6.5;
 /** Wie weit ein Rastpunkt zieht, in Bildschirmpunkten. */
 const RAST_NAEHE = 12;
 
+/**
+ * So viele Griffe höchstens – darüber wird der Plan unlesbar.
+ *
+ * Eine Zahl und keine Begrenzung auf ein Möbel: Ein Klick auf eine gruppierte
+ * Gondel wählt die **ganze Gruppe**, also Zug und Kopfgondeln zusammen. Wer
+ * die Griffe nur bei genau einem ausgewählten Möbel zeigte, zeigte sie an
+ * gruppierten Möbeln nie – und das ist bei Gondeln der Normalfall.
+ */
+const MAX_GRIFFE = 60;
+
 export function Warengruppengriffe({
   elemente,
   auswahl,
@@ -48,20 +58,19 @@ export function Warengruppengriffe({
   // hier, bevor es losgeht.
   const zieht = useRef(false);
 
-  // Nur bei genau einem ausgewählten Möbel. Bei mehreren gehören die Griffe
-  // niemandem sichtbar, und man verschöbe eine Grenze am falschen Zug.
-  if (auswahl.length !== 1) return null;
-  const element = elemente.find((el) => el.id === auswahl[0]);
-  if (!element || element.gesperrt) return null;
+  if (auswahl.length === 0) return null;
 
-  const griffe = grenzgriffe(element);
-  if (griffe.length === 0) return null;
+  const gemeint = elemente.filter((el) => auswahl.includes(el.id) && !el.gesperrt);
+  const griffe = gemeint.flatMap((el) => grenzgriffe(el).map((g) => ({ griff: g, element: el })));
+  // Bei einer großen Auswahl wären es hunderte Punkte. Dann lieber keine:
+  // Wer den halben Markt auswählt, will ihn verschieben und nicht beschriften.
+  if (griffe.length === 0 || griffe.length > MAX_GRIFFE) return null;
 
   return (
     <Group>
-      {griffe.map((griff) => (
+      {griffe.map(({ griff, element }) => (
         <Circle
-          key={`${griff.seite}-${griff.index}-${griff.kante}`}
+          key={`${element.id}-${griff.seite}-${griff.index}-${griff.kante}`}
           x={griff.x}
           y={griff.y}
           radius={GRIFF / zoom}

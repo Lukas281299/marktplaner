@@ -768,11 +768,31 @@ describe('Warengruppen unter dem Zug', () => {
     // „Ketchup" von 2,00 bis 5,00 m steht in deren Mitte – bei 3,50 m.
     const { ctx, texte } = schreiber();
     zeichneWarengruppen(ctx, zug(meter(5), [wg(200, 500, 'Ketchup')]), 500, TIEFE, 1);
-    expect(texte).toHaveLength(1);
-    expect(texte[0].text).toBe('Ketchup');
-    expect(texte[0].x).toBeCloseTo(350, 1);
+    const name = texte.find((t) => t.text === 'Ketchup')!;
+    expect(name).toBeDefined();
+    expect(name.x).toBeCloseTo(350, 1);
     // Unter dem Möbel, nicht darin.
-    expect(texte[0].y).toBeGreaterThan(TIEFE);
+    expect(name.y).toBeGreaterThan(TIEFE);
+  });
+
+  it('schreibt die Meterzahl unter den Namen', () => {
+    // Wie viel Platz ein Sortiment bekommt, ist die Frage beim Planen –
+    // niemand soll sie am Bildschirm abmessen müssen.
+    const { ctx, texte } = schreiber();
+    zeichneWarengruppen(ctx, zug(meter(5), [wg(200, 500, 'Ketchup')]), 500, TIEFE, 1);
+
+    const name = texte.find((t) => t.text === 'Ketchup')!;
+    const meterzahl = texte.find((t) => t.text === '3 m')!;
+    expect(meterzahl).toBeDefined();
+    // Darunter und in derselben Spalte.
+    expect(meterzahl.y).toBeGreaterThan(name.y);
+    expect(meterzahl.x).toBeCloseTo(name.x, 1);
+  });
+
+  it('schreibt krumme Längen mit Komma', () => {
+    const { ctx, texte } = schreiber();
+    zeichneWarengruppen(ctx, zug(meter(3), [wg(0, 150, 'Senf')]), 300, TIEFE, 1);
+    expect(texte.map((t) => t.text)).toContain('1,5 m');
   });
 
   it('schreibt sie einmal und nicht je Feld', () => {
@@ -791,8 +811,9 @@ describe('Warengruppen unter dem Zug', () => {
       TIEFE,
       1,
     );
-    expect(texte).toHaveLength(1);
-    expect(texte[0].y).toBeLessThan(0);
+    // Name und Meterzahl, beide über dem Möbel.
+    expect(texte.map((t) => t.text)).toEqual(['Senf', '2 m']);
+    expect(texte.every((t) => t.y < 0)).toBe(true);
   });
 
   it('klammert eine Strecke über mehrere Felder ein', () => {
@@ -829,8 +850,10 @@ describe('Warengruppen unter dem Zug', () => {
     const { ctx, texte } = schreiber();
     zeichneWarengruppen(ctx, zug(meter(2), [wg(0, 100, 'Ketchup und Grillsoßen')]), 200, TIEFE, 1);
     // Ein Feld ist 1,00 m breit, mehr als ein Wort passt hier nicht.
-    expect(texte.map((t) => t.text)).toEqual(['Ketchup', 'und', 'Grillsoßen']);
+    // Die Meterzahl steht darunter.
+    expect(texte.map((t) => t.text)).toEqual(['Ketchup', 'und', 'Grillsoßen', '1 m']);
     expect(texte[1].y).toBeGreaterThan(texte[0].y);
+    expect(texte[3].y).toBeGreaterThan(texte[2].y);
   });
 
   it('blendet sich beim Herauszoomen aus', () => {
