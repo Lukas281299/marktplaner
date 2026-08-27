@@ -23,8 +23,14 @@ import type { PlanElement } from '../../typen/modell';
  * hunderte Punkte, und der Plan wäre nicht mehr zu lesen.
  */
 
-/** Radius des Griffs auf dem Bildschirm, in Punkten. */
-const GRIFF = 5;
+/**
+ * Radius des Griffs auf dem Bildschirm, in Punkten.
+ *
+ * Lieber etwas zu groß: Ein Punkt, den man erst suchen muss, wird nicht
+ * benutzt — und dann bleibt die Grenze da, wo das Anklicken sie hingesetzt
+ * hat, statt da, wo sie hingehört.
+ */
+const GRIFF = 6.5;
 
 /** Wie weit ein Rastpunkt zieht, in Bildschirmpunkten. */
 const RAST_NAEHE = 12;
@@ -61,7 +67,10 @@ export function Warengruppengriffe({
           radius={GRIFF / zoom}
           fill="#ffffff"
           stroke="#005ca9"
-          strokeWidth={1.6 / zoom}
+          shadowColor="rgba(0,0,0,0.35)"
+          shadowBlur={3 / zoom}
+          shadowOpacity={1}
+          strokeWidth={2 / zoom}
           draggable
           // Der Griff selbst bleibt, wo der Store ihn hinsetzt – gezogen wird
           // die Grenze, nicht der Kreis. Ohne das liefe er der Grenze davon,

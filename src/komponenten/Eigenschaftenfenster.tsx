@@ -920,99 +920,122 @@ function Warengruppenband({
   };
 
   const voll = abschnitte.length > 0 && abschnitte[abschnitte.length - 1].bis >= gesamt - 1;
+  const meter = (cm: number) => (cm / 100).toFixed(2);
 
   return (
     <div style={{ marginTop: 10 }}>
       <div className="kennzahl" style={{ marginBottom: 4 }}>
-        <span>{mitTitel ? `Warengruppen ${seite === 'oben' ? 'Rückseite' : 'Vorderseite'}` : 'Warengruppen'}</span>
+        <span>
+          {mitTitel ? `Warengruppen ${seite === 'oben' ? 'Rückseite' : 'Vorderseite'}` : 'Warengruppen'}
+        </span>
         <span className="kennzahl-wert">
           {abschnitte.length === 0 ? 'keine' : `${abschnitte.length}`}
         </span>
       </div>
 
       {abschnitte.length === 0 && (
-        <p className="hinweis" style={{ margin: '0 0 4px' }}>
+        <p className="hinweis" style={{ margin: '0 0 6px' }}>
           Noch nichts eingetragen. Im Plan geht es schneller: Meter anklicken und Eingabe drücken.
         </p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {/* Zwei Zeilen je Abschnitt: oben der Name über die ganze Breite, unten
+          die Maße. Nebeneinander waren in dieser Spalte alle vier Felder so
+          schmal, dass man den Namen nicht mehr lesen konnte. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {abschnitte.map((abschnitt, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <input
-              type="number"
-              step="0.05"
-              min="0"
-              max={gesamt / 100}
-              style={{ width: 52, fontSize: 12 }}
-              title="Anfang, in Metern ab dem Anfang des Möbels"
-              value={(abschnitt.von / 100).toFixed(2)}
-              onFocus={() => usePlanStore.getState().schnappschuss()}
-              onChange={(e) => aendere(i, { von: Number(e.target.value) * 100 })}
-            />
-            <span className="kategorie-anzahl">–</span>
-            <input
-              type="number"
-              step="0.05"
-              min="0"
-              max={gesamt / 100}
-              style={{ width: 52, fontSize: 12 }}
-              title="Ende, in Metern"
-              value={(abschnitt.bis / 100).toFixed(2)}
-              onFocus={() => usePlanStore.getState().schnappschuss()}
-              onChange={(e) => aendere(i, { bis: Number(e.target.value) * 100 })}
-            />
-            <input
-              type="text"
-              list="warengruppen-vorrat"
-              style={{ flex: 1, fontSize: 12, minWidth: 0 }}
-              value={abschnitt.text}
-              placeholder="Warengruppe"
-              title={
-                'Steht unter dem Zug im Plan. Für einen Umbruch von Hand ' +
-                'Umschalt+Eingabe drücken.'
-              }
-              onFocus={() => usePlanStore.getState().schnappschuss()}
-              onKeyDown={(e) => {
-                // Umschalt+Eingabe setzt einen Umbruch – in einer Zeile geht
-                // das sonst nicht, und der Text soll ihn tragen dürfen.
-                if (e.key !== 'Enter' || !e.shiftKey) return;
-                e.preventDefault();
-                const ziel = e.currentTarget;
-                const vorn = ziel.value.slice(0, ziel.selectionStart ?? ziel.value.length);
-                const hinten = ziel.value.slice(ziel.selectionEnd ?? ziel.value.length);
-                aendere(i, { text: `${vorn}\n${hinten}` });
-              }}
-              onChange={(e) => aendere(i, { text: e.target.value })}
-            />
-            <select
-              style={{ fontSize: 12, width: 78 }}
-              value={String(abschnitt.schrift ?? GRUPPE_NORMAL)}
-              title={
-                'Wie groß der Name im Plan steht. Über sein Möbel hinaus wächst er nie — ' +
-                'zu breit bricht er um und wird notfalls kleiner.'
-              }
-              onChange={(e) => {
-                usePlanStore.getState().schnappschuss();
-                aendere(i, { schrift: Number(e.target.value) });
-              }}
-            >
-              {GRUPPE_GROESSEN.map((g) => (
-                <option key={g.hoehe} value={String(g.hoehe)}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
-            <button
-              className="knopf knopf-nur-symbol"
-              title="Diese Beschriftung entfernen"
-              onClick={() => {
-                usePlanStore.getState().schnappschuss();
-                setze(abschnitte.filter((_, j) => j !== i));
-              }}
-            >
-              ×
-            </button>
+          <div
+            key={i}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3,
+              paddingLeft: 6,
+              borderLeft: '2px solid var(--rand-stark)',
+            }}
+          >
+            <div style={{ display: 'flex', gap: 3 }}>
+              <input
+                type="text"
+                list="warengruppen-vorrat"
+                style={{ flex: 1, minWidth: 0 }}
+                value={abschnitt.text}
+                placeholder="Warengruppe"
+                title={
+                  'Steht unter dem Möbel im Plan. Für einen Umbruch von Hand ' +
+                  'Umschalt+Eingabe drücken.'
+                }
+                onFocus={() => usePlanStore.getState().schnappschuss()}
+                onKeyDown={(e) => {
+                  // Umschalt+Eingabe setzt einen Umbruch – in einer Zeile geht
+                  // das sonst nicht, und der Text soll ihn tragen dürfen.
+                  if (e.key !== 'Enter' || !e.shiftKey) return;
+                  e.preventDefault();
+                  const ziel = e.currentTarget;
+                  const vorn = ziel.value.slice(0, ziel.selectionStart ?? ziel.value.length);
+                  const hinten = ziel.value.slice(ziel.selectionEnd ?? ziel.value.length);
+                  aendere(i, { text: `${vorn}\\n${hinten}` });
+                }}
+                onChange={(e) => aendere(i, { text: e.target.value })}
+              />
+              <button
+                className="knopf knopf-nur-symbol"
+                title="Diese Beschriftung entfernen"
+                onClick={() => {
+                  usePlanStore.getState().schnappschuss();
+                  setze(abschnitte.filter((_, j) => j !== i));
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span className="kategorie-anzahl">von</span>
+              <input
+                type="number"
+                step="0.05"
+                min="0"
+                max={meter(gesamt)}
+                style={{ width: 56 }}
+                title="Anfang, in Metern ab dem Anfang des Möbels"
+                value={meter(abschnitt.von)}
+                onFocus={() => usePlanStore.getState().schnappschuss()}
+                onChange={(e) => aendere(i, { von: Number(e.target.value) * 100 })}
+              />
+              <span className="kategorie-anzahl">bis</span>
+              <input
+                type="number"
+                step="0.05"
+                min="0"
+                max={meter(gesamt)}
+                style={{ width: 56 }}
+                title="Ende, in Metern"
+                value={meter(abschnitt.bis)}
+                onFocus={() => usePlanStore.getState().schnappschuss()}
+                onChange={(e) => aendere(i, { bis: Number(e.target.value) * 100 })}
+              />
+              <span className="kategorie-anzahl">m</span>
+
+              <select
+                style={{ marginLeft: 'auto', width: 92 }}
+                value={String(abschnitt.schrift ?? GRUPPE_NORMAL)}
+                title={
+                  'Wie groß der Name im Plan steht. Über sein Möbel hinaus wächst er nie — ' +
+                  'zu breit bricht er um und wird notfalls kleiner.'
+                }
+                onChange={(e) => {
+                  usePlanStore.getState().schnappschuss();
+                  aendere(i, { schrift: Number(e.target.value) });
+                }}
+              >
+                {GRUPPE_GROESSEN.map((g) => (
+                  <option key={g.hoehe} value={String(g.hoehe)}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         ))}
       </div>
@@ -1020,7 +1043,7 @@ function Warengruppenband({
       {!voll && (
         <button
           className="knopf"
-          style={{ marginTop: 4, width: '100%' }}
+          style={{ marginTop: 6, width: '100%' }}
           onClick={() => {
             usePlanStore.getState().schnappschuss();
             setze([...abschnitte, naechsteLuecke()]);
@@ -1031,9 +1054,9 @@ function Warengruppenband({
       )}
 
       {abschnitte.length > 0 && (
-        <p className="hinweis" style={{ marginTop: 4, marginBottom: 0 }}>
-          Im Plan lässt sich jede Grenze auch <strong>ziehen</strong> – sie rastet auf Feldgrenzen,
-          Hälften und Vierteln ein.
+        <p className="hinweis" style={{ marginTop: 6, marginBottom: 0 }}>
+          <strong>Im Plan ziehen:</strong> Solange dieses Möbel ausgewählt ist, sitzt auf jeder
+          Grenze ein blauer Punkt. Zieh ihn — er rastet auf Feldgrenzen, Hälften und Vierteln ein.
         </p>
       )}
     </div>
@@ -1114,6 +1137,17 @@ function Elementbeschriftung({ element }: { element: PlanElement }) {
           />
         ))}
       </div>
+
+      {/* Ein Möbel ohne Felder trägt seine Warengruppe genauso – nur ist die
+          Strecke immer seine ganze Breite. */}
+      {seiten.map((seite) => (
+        <Warengruppenband
+          key={`wg-${seite}`}
+          element={element}
+          seite={seite}
+          mitTitel={seiten.length > 1}
+        />
+      ))}
       <Erklaerung titel="Was hier hingehört">
         <p className="hinweis">
           Links steht, was am Möbel steht: <strong>erste Zeile die Zahl der Böden</strong>,
@@ -1152,6 +1186,9 @@ function Kopfbeschriftung({ element, seite }: { element: PlanElement; seite: Kop
       <div style={{ display: 'flex' }}>
         <Feldeingaben element={kopf} seite="unten" feld={0} mehrere={false} />
       </div>
+      {/* Auch der Kopf trägt eine Warengruppe – er ist ein eigenes Möbel und
+          steht im Gang, wo man sie liest. */}
+      <Warengruppenband element={kopf} seite="unten" mitTitel={false} />
     </div>
   );
 }

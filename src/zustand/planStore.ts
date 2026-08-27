@@ -975,7 +975,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     if (auswahl.length < 2) return;
     const id = neueId('gruppe');
     const menge = new Set(auswahl);
-    const name = art === 'gondel' ? 'Gondel' : art === 'zug' ? 'Regalzug' : 'Gruppe';
+    // „Regalzug" nur, wo wirklich Regale stehen. Drei Blumentreppen sind
+    // eine Reihe, und im Gruppennamen soll stehen, was man vor sich hat.
+    const ausgewaehlt = get().projekt.elemente.filter((el) => get().auswahl.includes(el.id));
+    const regalig = ausgewaehlt.some((el) => el.kategorie === 'regale' || el.kategorie === 'kuehlung');
+    const name =
+      art === 'gondel' ? 'Gondel' : art === 'zug' ? (regalig ? 'Regalzug' : 'Reihe') : 'Gruppe';
 
     aendere(set, get, (p) => ({
       ...p,
