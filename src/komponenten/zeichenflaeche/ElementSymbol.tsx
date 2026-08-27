@@ -223,16 +223,18 @@ export function einheitenNaehte(element: PlanElement, b: number): number[] {
 }
 
 /**
- * Schrifthöhen der Feldnotizen im Plan, in cm.
+ * Schrifthöhe der Feldnotizen im Plan, in cm.
  *
  * Feste Größe in der Zeichnung, wie bei jeder Beschriftung, die zum Plan
- * gehört: Beim Herauszoomen schrumpfen sie mit und blenden sich aus, statt
+ * gehört: Beim Herauszoomen schrumpft sie mit und blendet sich aus, statt
  * sich übers Regal zu legen.
  *
- * Die Notiz ist größer als das Maß daneben – man liest sie zuerst, und das
- * Maß steht ohnehin nur da, damit man es nicht nachschlagen muss.
+ * **Notiz und Maß sind gleich groß.** Die Notiz war doppelt so groß – sie
+ * wird ja zuerst gelesen –, aber in einem Feld von einem Meter drängte sich
+ * die Zahl der Böden vor alles andere. Gleich groß stehen beide Ecken ruhig
+ * nebeneinander; welche man zuerst liest, entscheidet ihre Stellung.
  */
-const NOTIZ_HOEHE = 22;
+const NOTIZ_HOEHE = 11;
 const MASS_HOEHE = 11;
 
 /**

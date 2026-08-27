@@ -1240,13 +1240,6 @@ export function Zeichenflaeche() {
             zoom={zoom}
           />
 
-          {/* Die Griffe an den Grenzen zwischen zwei Warengruppen. Nur am
-              ausgewählten Möbel – über einem ganzen Markt wären es hunderte
-              Punkte, und der Plan wäre nicht mehr zu lesen. */}
-          {werkzeug === 'auswahl' && (
-            <Warengruppengriffe elemente={projekt.elemente} auswahl={auswahl} zoom={zoom} />
-          )}
-
           {beschriftungen !== 'aus' &&
             sichtbareElemente.map((el) => (
               <ElementBeschriftung
@@ -1303,6 +1296,17 @@ export function Zeichenflaeche() {
               return neu;
             }}
           />
+
+          {/* Die Griffe an den Grenzen zwischen zwei Warengruppen – **über**
+              dem Auswahlrahmen. Sie sitzen an der Vorderkante des Möbels,
+              genau dort, wo der Rahmen verläuft; eine Ebene tiefer fing er
+              jeden Klick ab, und Ziehen ging überhaupt nicht.
+
+              Nur am ausgewählten Möbel: über einem ganzen Markt wären es
+              hunderte Punkte, und der Plan wäre nicht mehr zu lesen. */}
+          {werkzeug === 'auswahl' && (
+            <Warengruppengriffe elemente={projekt.elemente} auswahl={auswahl} zoom={zoom} />
+          )}
 
           {/* Der Grundriss, der gerade gezeichnet wird */}
           {zeichnetZug(werkzeug) && zeichenzug.length > 0 && (
