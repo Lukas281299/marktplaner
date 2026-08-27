@@ -114,6 +114,7 @@ export type Werkzeug =
   | 'messen'
   | 'grundrissZeichnen'
   | 'verkaufsflaeche'
+  | 'raumZeichnen'
   | 'textfeld';
 
 /**

@@ -50,7 +50,11 @@ const ZOOM_MAX = 4;
  * `schliesseZug`.
  */
 function zeichnetZug(werkzeug: Werkzeug): boolean {
-  return werkzeug === 'grundrissZeichnen' || werkzeug === 'verkaufsflaeche';
+  return (
+    werkzeug === 'grundrissZeichnen' ||
+    werkzeug === 'verkaufsflaeche' ||
+    werkzeug === 'raumZeichnen'
+  );
 }
 
 /**
@@ -146,12 +150,15 @@ export function Zeichenflaeche() {
     const sauber = entdoppele(zug);
     const store = usePlanStore.getState();
     const verkauf = store.werkzeug === 'verkaufsflaeche';
+    const raum = store.werkzeug === 'raumZeichnen';
 
     if (!taugtAlsUmriss(sauber)) {
       setMeldung(
         verkauf
           ? 'Zu wenige Ecken – eine Teilfläche braucht mindestens drei.'
-          : 'Zu wenige Ecken – ein Grundriss braucht mindestens drei.',
+          : raum
+            ? 'Zu wenige Ecken – ein Raum braucht mindestens drei.'
+            : 'Zu wenige Ecken – ein Grundriss braucht mindestens drei.',
       );
       return;
     }
@@ -161,6 +168,19 @@ export function Zeichenflaeche() {
       setZugMaus(null);
       setMeldung(
         `Verkaufsfläche mit ${sauber.length} Ecken markiert. Nächste Teilfläche zeichnen oder Esc.`,
+      );
+      return;
+    }
+
+    // Ein Raum bleibt im Werkzeug: Wer einen Lagerraum abtrennt, trennt
+    // meistens gleich noch den Kühlraum daneben ab. Beendet wird mit Esc –
+    // wie bei den Teilflächen.
+    if (raum) {
+      store.fuegeRaumHinzu(sauber);
+      setZugMaus(null);
+      setMeldung(
+        `Raum mit ${sauber.length} Ecken abgetrennt. Nächsten Raum zeichnen oder Esc. ` +
+          `Die Art stellst du rechts ein.`,
       );
       return;
     }
@@ -1316,7 +1336,7 @@ export function Zeichenflaeche() {
                   ...zeichenzug.flatMap((p) => [p.x, p.y]),
                   ...(zugMaus ? [zugMaus.x, zugMaus.y] : []),
                 ]}
-                stroke="#0a84ff"
+                stroke={zugfarbe(werkzeug)}
                 strokeWidth={1.6 / zoom}
                 listening={false}
                 closed={false}
@@ -1330,8 +1350,8 @@ export function Zeichenflaeche() {
                   y={p.y - (i === 0 ? 6 : 3.5) / zoom}
                   width={(i === 0 ? 12 : 7) / zoom}
                   height={(i === 0 ? 12 : 7) / zoom}
-                  fill={i === 0 ? '#ffffff' : '#0a84ff'}
-                  stroke="#0a84ff"
+                  fill={i === 0 ? '#ffffff' : zugfarbe(werkzeug)}
+                  stroke={zugfarbe(werkzeug)}
                   strokeWidth={1.4 / zoom}
                   listening={false}
                 />
@@ -1492,6 +1512,20 @@ export function Zeichenflaeche() {
 
 /** Die Farbe des aufgezogenen Rahmens sagt, was gleich passiert. */
 /**
+ * Die Farbe des Polygonzugs, den man gerade zeichnet.
+ *
+ * Sie sagt, was daraus wird – der Raum ist violett wie im fertigen Plan, die
+ * Teilfläche grün. Ohne den Unterschied sieht ein halb gezeichneter Raum
+ * genauso aus wie ein halb gezeichneter Grundriss, und beim Zeichnen weiß man
+ * nicht mehr, in welchem Werkzeug man steckt.
+ */
+function zugfarbe(werkzeug: Werkzeug): string {
+  if (werkzeug === 'raumZeichnen') return '#7b6bc4';
+  if (werkzeug === 'verkaufsflaeche') return '#2ea043';
+  return '#0a84ff';
+}
+
+/**
  * Die Farbe des Rahmens, den man gerade aufzieht.
  *
  * **Mit Rückfall.** Ein Werkzeug ohne Eintrag riss hier die ganze
@@ -1519,6 +1553,7 @@ export const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> =
   textfeld: { fuellung: 'transparent', linie: '#0a84ff' },
   grundrissZeichnen: { fuellung: 'rgba(10,132,255,0.12)', linie: '#0a84ff' },
   verkaufsflaeche: { fuellung: 'rgba(46,160,67,0.16)', linie: '#2ea043' },
+  raumZeichnen: { fuellung: 'rgba(140,120,200,0.16)', linie: '#7b6bc4' },
 };
 
 /**
@@ -1546,6 +1581,11 @@ const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinwe
   raum: {
     titel: 'Raum abtrennen',
     hinweis: 'Rechteck aufziehen – Art und Name danach rechts einstellen',
+  },
+  raumZeichnen: {
+    titel: 'Raum frei umfahren',
+    hinweis:
+      'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · Art und Name danach rechts einstellen',
   },
   wand: {
     titel: 'Innenwand ziehen',

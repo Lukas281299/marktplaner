@@ -381,9 +381,18 @@ export function Werkzeugleiste() {
           <button
             className={`knopf${werkzeug === 'raum' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'raum' ? 'auswahl' : 'raum')}
-            title="Einen Raum abtrennen: Lager, Kühlraum, Sozialraum …"
+            title="Einen rechteckigen Raum abtrennen: Lager, Kühlraum, Sozialraum …"
           >
             <SymbolRaum /> Raum abtrennen
+          </button>
+          <button
+            className={`knopf${werkzeug === 'raumZeichnen' ? ' aktiv' : ''}`}
+            onClick={() =>
+              store().setzeWerkzeug(werkzeug === 'raumZeichnen' ? 'auswahl' : 'raumZeichnen')
+            }
+            title="Einen Raum frei umfahren: Ecke für Ecke klicken, zum Schließen auf die erste"
+          >
+            <SymbolUmriss /> Raum frei
           </button>
           <button
             className={`knopf${werkzeug === 'wand' ? ' aktiv' : ''}`}

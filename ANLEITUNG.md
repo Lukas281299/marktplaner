@@ -184,7 +184,25 @@ herausgeschnitten. Für Innenhöfe, Treppenhäuser oder eingerückte Ecken.
 
 ### Raum abtrennen
 
-Ein Rechteck aufziehen. Danach rechts einstellen:
+Zwei Wege, je nach Form:
+
+**Raum abtrennen** — ein Rechteck aufziehen. Der schnelle Weg, und für die
+meisten Lager- und Sozialräume der richtige.
+
+**Raum frei** — Ecke für Ecke umfahren. Für alles, was nicht rechteckig ist:
+ein Lager, das um die Kühlzelle herumgeht, ein Sozialraum unter der Treppe.
+Klicken setzt eine Ecke, Ziehen macht daraus einen Bogen, ein Klick auf die
+erste Ecke oder **Eingabe** schließt den Raum. **Rückschritt** nimmt eine Ecke
+zurück, **Esc** bricht ab.
+
+Der Zug wird dabei **violett** gezeichnet — dieselbe Farbe, die der Raum
+danach hat. So sieht man beim Zeichnen, dass man nicht versehentlich im
+Grundriss-Werkzeug steckt.
+
+Nach dem Schließen bleibt das Werkzeug aktiv: Wer einen Lagerraum abtrennt,
+trennt meistens gleich noch den Kühlraum daneben ab.
+
+Danach rechts einstellen:
 
 - **Name** — steht im Plan
 - **Art des Raums**: Verkaufsraum, Lager, Kühlraum, Sozialraum, Technik,
