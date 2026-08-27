@@ -24,12 +24,16 @@ import type { Regalfeld, Warengruppenabschnitt } from '../typen/modell';
  */
 
 /**
- * Eine Beschriftung mit ihrer Strecke, **in Leserichtung des Plans**.
+ * Eine Beschriftung mit ihrer Strecke, in der **Achse des Möbels**.
  *
- * `von` und `bis` sind Zentimeter ab dem linken Rand des Möbels im Bild.
- * Gespeichert wird dagegen in der Achse des Möbels – steht der Zug an der
- * unteren Wand, läuft seine Achse andersherum, und dann drehen die Spannen
- * sich hier um. Sonst reichte Ketchup nach links über die Mayonnaise.
+ * `von` und `bis` sind Zentimeter ab dem Anfang des Möbels – dieselbe Achse,
+ * in der auch die Felder liegen. Nicht in Leserichtung des Plans: Die
+ * Zeichnung arbeitet im Koordinatensystem des Möbels, das mitgedreht wird.
+ * Wer hier spiegelte, schöbe jede Beschriftung an einem gedrehten Möbel ans
+ * andere Ende.
+ *
+ * Die Leserichtung entscheidet nur, ob der **Text** gewendet wird, damit er
+ * nicht auf dem Kopf steht – das tut `lesbarerBlock` beim Zeichnen.
  */
 export interface Gruppenspanne {
   von: number;
@@ -37,7 +41,7 @@ export interface Gruppenspanne {
   text: string;
   /** Die eingestellte Schrifthöhe in cm, falls es eine gibt. */
   schrift?: number;
-  /** Die Stelle dieses Abschnitts in der **gespeicherten** Liste. */
+  /** Die Stelle dieses Abschnitts in der gespeicherten Liste. */
   index: number;
 }
 
@@ -50,9 +54,16 @@ export const KLEINSTER_ABSCHNITT = 10;
 /**
  * Bringt eine Abschnittsliste in Ordnung.
  *
- * Sortiert, auf das Möbel beschnitten, ohne Überlappungen und ohne leere
- * Texte. Das Ergebnis ist die einzige Form, in der Abschnitte gespeichert
- * werden – alles andere müsste jede lesende Stelle noch einmal prüfen.
+ * Sortiert, auf das Möbel beschnitten und ohne Überlappungen. Das Ergebnis
+ * ist die einzige Form, in der Abschnitte gespeichert werden – alles andere
+ * müsste jede lesende Stelle noch einmal prüfen.
+ *
+ * **Leere Texte bleiben stehen.** Sie sind ein gültiger Zwischenzustand:
+ * Wer eine Warengruppe anlegt, hat einen Moment lang eine Strecke ohne Namen,
+ * und wer einen Namen ändert, löscht ihn dabei kurz ganz. Würden sie hier
+ * weggeworfen, verschwände die Zeile unter der Hand, während man darin tippt
+ * – und der Knopf „+ Warengruppe" täte gar nichts. Gezeichnet werden sie
+ * nicht (siehe `gruppenspannen`), sie stehen also im Plan auch nicht herum.
  *
  * Überlappungen entstehen nicht beim Bearbeiten, sondern beim **Kürzen des
  * Möbels**: Wer einen Zug von sechs auf vier Meter zieht, hat plötzlich eine
@@ -65,7 +76,6 @@ export function geordnet(
   if (!abschnitte || abschnitte.length === 0) return [];
 
   const sauber = abschnitte
-    .filter((a) => a.text.trim().length > 0)
     .map((a) => ({
       ...a,
       text: a.text,
@@ -88,26 +98,29 @@ export function geordnet(
 }
 
 /**
- * Die Beschriftungen einer Seite, jede mit ihrer Strecke im Bild.
+ * Die Beschriftungen einer Seite, jede mit ihrer Strecke.
  *
- * **Gezählt wird in Leserichtung des Plans.** Steht der Zug an der unteren
- * Wand, läuft seine Achse andersherum; dann wird hier gespiegelt. Sonst
- * stünde jede Beschriftung an der falschen Stelle.
+ * **Ohne Spiegelung.** Die Strecken liegen in der Achse des Möbels, und dort
+ * zeichnet auch die Zeichenfläche – ihr Koordinatensystem dreht sich mit dem
+ * Möbel. Eine Spiegelung hier verschöbe an jedem gedrehten Zug alles ans
+ * andere Ende, und zwar so, dass es beim Drehen plötzlich passiert und
+ * niemand weiß, warum.
  */
 export function gruppenspannen(
   abschnitte: Warengruppenabschnitt[] | undefined,
   gesamtbreite: number,
-  rueckwaerts = false,
 ): Gruppenspanne[] {
-  const liste = geordnet(abschnitte, gesamtbreite);
-  const spannen = liste.map((a, index) => ({
-    von: rueckwaerts ? gesamtbreite - a.bis : a.von,
-    bis: rueckwaerts ? gesamtbreite - a.von : a.bis,
-    text: a.text.trim(),
-    schrift: a.schrift,
-    index,
-  }));
-  return rueckwaerts ? spannen.reverse() : spannen;
+  return geordnet(abschnitte, gesamtbreite)
+    .map((a, index) => ({
+      von: a.von,
+      bis: a.bis,
+      text: a.text.trim(),
+      schrift: a.schrift,
+      index,
+    }))
+    // Erst hier fallen die namenlosen weg: Im Modell sind sie ein
+    // Zwischenzustand beim Tippen, im Plan wären sie eine leere Klammer.
+    .filter((s) => s.text.length > 0);
 }
 
 /* ------------------------------------------------------------- Bearbeiten */

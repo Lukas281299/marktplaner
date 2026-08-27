@@ -408,11 +408,12 @@ export function zeichneWarengruppen(
     // die gezeichnete Länge. Deshalb braucht es hier keine Feldplätze mehr –
     // eine Grenze darf ja mitten durch ein Feld laufen.
     const gesamt = seitenbreite(seite.felder);
-    // Die Feldkanten in Leserichtung – daran entscheidet sich, ob eine
-    // Klammer nötig ist.
-    const kanten = feldkanten(seite.felder).map((k: number) => (kopf ? gesamt - k : k));
+    // Die Feldkanten in der Achse des Möbels – daran entscheidet sich, ob
+    // eine Klammer nötig ist. Nicht gespiegelt: Strecken und Felder liegen
+    // in derselben Achse, und gedreht wird das ganze Bild.
+    const kanten = feldkanten(seite.felder);
 
-    for (const spanne of gruppenspannen(seite.abschnitte, gesamt, kopf)) {
+    for (const spanne of gruppenspannen(seite.abschnitte, gesamt)) {
       const links = spanne.von * faktor;
       const rechts = spanne.bis * faktor;
       if (rechts - links <= 0) continue;

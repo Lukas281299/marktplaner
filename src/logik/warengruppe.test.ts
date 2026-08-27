@@ -29,8 +29,16 @@ describe('Ordnen', () => {
     expect(liste.map((a) => a.text)).toEqual(['Ketchup', 'Senf']);
   });
 
-  it('wirft leere Texte weg', () => {
-    expect(geordnet([A(0, 100, '  '), A(100, 200, 'Senf')], 200)).toHaveLength(1);
+  it('behält einen leeren Text – man tippt ihn ja gerade', () => {
+    // Wer „+ Warengruppe" drückt, hat einen Moment lang eine Strecke ohne
+    // Namen. Würde sie hier weggeworfen, täte der Knopf gar nichts.
+    expect(geordnet([A(0, 100, ''), A(100, 200, 'Senf')], 200)).toHaveLength(2);
+  });
+
+  it('zeichnet den leeren aber nicht', () => {
+    // Im Plan wäre er eine leere Klammer.
+    const spannen = gruppenspannen([A(0, 100, ''), A(100, 200, 'Senf')], 200);
+    expect(spannen.map((s) => s.text)).toEqual(['Senf']);
   });
 
   it('beschneidet auf das Möbel, wenn es gekürzt wurde', () => {
@@ -52,30 +60,31 @@ describe('Ordnen', () => {
   });
 });
 
-describe('Spannen in Leserichtung', () => {
-  it('gibt sie vorwärts unverändert zurück', () => {
-    const spannen = gruppenspannen([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300, false);
+describe('Spannen', () => {
+  it('gibt die Strecken in der Achse des Möbels zurück', () => {
+    const spannen = gruppenspannen([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300);
     expect(spannen.map((s) => [s.von, s.bis, s.text])).toEqual([
       [0, 150, 'Ketchup'],
       [150, 300, 'Senf'],
     ]);
   });
 
-  it('spiegelt sie an einem rückwärts laufenden Möbel', () => {
-    // An der unteren Wand läuft die Achse andersherum. Ketchup steht dort
-    // rechts im Bild – sonst reichte es nach links über den Nachbarn.
-    const spannen = gruppenspannen([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300, true);
-    expect(spannen.map((s) => [s.von, s.bis, s.text])).toEqual([
-      [0, 150, 'Senf'],
-      [150, 300, 'Ketchup'],
+  it('merkt sich die Stelle in der gespeicherten Liste', () => {
+    const spannen = gruppenspannen([A(150, 300, 'Senf'), A(0, 150, 'Ketchup')], 300);
+    // Sortiert wird nach Anfang; der Index folgt der geordneten Liste, weil
+    // genau die auch gespeichert wird.
+    expect(spannen.map((s) => [s.text, s.index])).toEqual([
+      ['Ketchup', 0],
+      ['Senf', 1],
     ]);
   });
 
-  it('merkt sich, welcher Abschnitt in der gespeicherten Liste gemeint ist', () => {
-    const spannen = gruppenspannen([A(0, 150, 'Ketchup'), A(150, 300, 'Senf')], 300, true);
-    // Im Bild steht Senf zuerst, gespeichert ist es das zweite.
-    expect(spannen[0].index).toBe(1);
-    expect(spannen[1].index).toBe(0);
+  it('spiegelt nichts – auch nicht an einem gedrehten Möbel', () => {
+    // Die Zeichenfläche dreht das ganze Bild mit dem Möbel. Wer hier
+    // zusätzlich spiegelte, schöbe jede Beschriftung ans andere Ende, und
+    // zwar erst beim Drehen – niemand fände den Grund.
+    const spannen = gruppenspannen([A(0, 100, 'Eier')], 300);
+    expect(spannen[0]).toMatchObject({ von: 0, bis: 100 });
   });
 });
 
