@@ -23,8 +23,15 @@ import { PLAENE, waende, type Balken } from './plan-waende';
 const SCHEMA_VERSION = 15;
 
 const STANDARD_EBENEN = [
-  { id: 'ebene-grund', name: 'Grundriss', sichtbar: true, gesperrt: false, reihenfolge: 0 },
-  { id: 'ebene-moebel', name: 'Möbel', sichtbar: true, gesperrt: false, reihenfolge: 1 },
+  // Muss zu `src/daten/standardProjekt.ts` passen. Erfundene Kennungen
+  // machen alles unsichtbar, was auf ihnen liegt: Was zu einer Ebene
+  // gehoert, die es nicht gibt, wird nirgends gezeichnet.
+  { id: 'gebaeude', name: 'Gebäude & Wände', sichtbar: true, gesperrt: false },
+  { id: 'raeume', name: 'Räume', sichtbar: true, gesperrt: false },
+  { id: 'verkaufsflaeche', name: 'Verkaufsfläche', sichtbar: true, gesperrt: false },
+  { id: 'einrichtung', name: 'Einrichtung', sichtbar: true, gesperrt: false },
+  { id: 'beschriftung', name: 'Beschriftungen', sichtbar: true, gesperrt: false },
+  { id: 'laufwege', name: 'Laufwege', sichtbar: true, gesperrt: false },
 ];
 
 function kennung(vorsatz: string, n: number) {

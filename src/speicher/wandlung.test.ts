@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WT_GRAU } from '../daten/bibliothek';
 import { flaeche, rahmen } from '../logik/polygon';
+import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { SCHEMA_VERSION } from '../typen/modell';
 import { wandleProjekt } from './wandlung';
 
@@ -199,10 +200,11 @@ describe('Fassung 6: eingezeichnete Verkaufsflächen', () => {
 });
 
 describe('neue Fassung', () => {
-  it('lässt eine bereits aktuelle Planung unverändert', () => {
+  it('rührt an einer bereits aktuellen Planung nichts an', () => {
     const aktuell = {
       ...alteFassung(),
       version: SCHEMA_VERSION,
+      ebenen: STANDARD_EBENEN.map((e) => ({ ...e })),
       grundflaeche: {
         umriss: [
           { x: 0, y: 0 },
@@ -212,7 +214,10 @@ describe('neue Fassung', () => {
         wandstaerke: 25,
       },
     };
-    expect(wandleProjekt(aktuell)).toBe(aktuell);
+    // Inhaltlich gleich, nicht dasselbe Objekt: Der Satz Ebenen wird auch
+    // hier durchgesehen, damit eine Datei mit erfundenen Kennungen nicht
+    // die halbe Planung unsichtbar macht.
+    expect(wandleProjekt(aktuell)).toEqual(aktuell);
   });
 
   it('wandelt nicht zweimal', () => {
@@ -407,5 +412,54 @@ describe('Fassung 11: Kopfgondeln schauen in den Gang', () => {
     const frei = { ...kopf, id: 'frei', kopfVon: undefined };
     const neu = wandleProjekt(alteFassung({ elemente: [{ ...zug, kopfgondeln: {} }, frei] }));
     expect(neu.elemente.find((el) => el.id === 'frei')!.drehung).toBe(90);
+  });
+});
+
+describe('Ebenen vervollständigen', () => {
+  /**
+   * Eine Datei mit erfundenen Ebenen macht die halbe Planung unsichtbar.
+   *
+   * Gezeichnet wird nur, was auf einer bekannten Ebene liegt: Wände auf
+   * `gebaeude`, Räume auf `raeume`, Regale auf `einrichtung`. Bringt eine
+   * Datei stattdessen eigene Kennungen mit, ist die Fläche leer und niemand
+   * sieht, woran es liegt – die Ebenenliste steht in keinem Fehlertext.
+   *
+   * Das ist genau passiert: Ein Werkzeug erfand `ebene-grund` und
+   * `ebene-moebel`, und weil die Datei die aktuelle Fassung trug, lief die
+   * Umwandlung gar nicht erst an, die es sonst richtiggestellt hätte.
+   */
+  const mitEbenen = (ebenen: unknown) => ({
+    ...alteFassung(),
+    version: SCHEMA_VERSION,
+    ebenen,
+  });
+
+  it('ergänzt fehlende Ebenen auch in einer aktuellen Datei', () => {
+    const neu = wandleProjekt(
+      mitEbenen([{ id: 'ebene-grund', name: 'Grundriss', sichtbar: true, gesperrt: false }]),
+    );
+    const ids = neu.ebenen.map((e) => e.id);
+    for (const noetig of ['gebaeude', 'raeume', 'verkaufsflaeche', 'einrichtung']) {
+      expect(ids).toContain(noetig);
+    }
+  });
+
+  it('behält eigene Ebenen und ihre Einstellungen', () => {
+    const neu = wandleProjekt(
+      mitEbenen([
+        { id: 'eigene', name: 'Meine Ebene', sichtbar: false, gesperrt: false },
+        { id: 'raeume', name: 'Räume', sichtbar: false, gesperrt: true },
+      ]),
+    );
+    expect(neu.ebenen.find((e) => e.id === 'eigene')?.name).toBe('Meine Ebene');
+    // Wer eine Ebene bewusst ausgeblendet hat, will sie nicht zurück.
+    const raeume = neu.ebenen.find((e) => e.id === 'raeume');
+    expect(raeume?.sichtbar).toBe(false);
+    expect(raeume?.gesperrt).toBe(true);
+  });
+
+  it('verträgt eine Datei ganz ohne Ebenen', () => {
+    const neu = wandleProjekt(mitEbenen(undefined));
+    expect(neu.ebenen.map((e) => e.id)).toContain('einrichtung');
   });
 });

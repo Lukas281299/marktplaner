@@ -57,7 +57,14 @@ const ERSATZ_LAENGE = 2500;
 export function wandleProjekt(roh: unknown): Projekt {
   const projekt = roh as Projekt & { grundflaeche?: AlteGrundflaeche; raeume?: unknown[] };
   const version = typeof projekt?.version === 'number' ? projekt.version : 1;
-  if (version >= SCHEMA_VERSION) return projekt as Projekt;
+  if (version >= SCHEMA_VERSION) {
+    // Auch eine aktuelle Datei kann Ebenen mitbringen, die es nicht gibt –
+    // etwa aus einem Werkzeug, das sie selbst erfunden hat. Was auf einer
+    // unbekannten Ebene liegt, wird nirgends gezeichnet: Wände, Räume und
+    // Regale verschwinden, und niemand sieht, woran es liegt. Deshalb wird
+    // der Satz Ebenen **immer** vervollständigt, nicht nur beim Umwandeln.
+    return { ...(projekt as Projekt), ebenen: ergaenzeEbenen(projekt?.ebenen) };
+  }
 
   return {
     ...(projekt as Projekt),
