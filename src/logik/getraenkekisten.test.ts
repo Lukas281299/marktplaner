@@ -108,3 +108,56 @@ describe('Die Gestelllängen', () => {
     expect(GESTELL_LAENGEN.map((l) => kistenbelegung(l, 'quer', 1).jeReihe)).toEqual([5, 6, 8]);
   });
 });
+
+describe('Mehrere Gestelle hintereinander', () => {
+  /**
+   * Der Fall, um den es geht: Kisten gehen selten glatt in einer Gestelllänge
+   * auf. Auf 2,50 m passen sechs Kästen längs – bleiben 10 cm. Stünden zwei
+   * Gestelle als **zwei Möbel** nebeneinander, klaffte in der Mitte eine
+   * Lücke von 10 cm, und dieselben zwei Meter fünfzig hätten zwölf Kästen
+   * statt der zwölf, die wirklich hinpassen.
+   *
+   * Ein verlängertes Möbel rechnet dagegen über die **ganze** Länge – und
+   * dann laufen die Kisten durch, so wie sie im Markt auch durchlaufen.
+   */
+  it('verliert an jeder Stoßstelle eine Lücke, wenn je Gestell gerechnet wird', () => {
+    const einzeln = kistenbelegung(250, 'laengs', 1, 1);
+    expect(einzeln.jeReihe).toBe(6);
+    expect(einzeln.rest).toBe(10);
+    // Zwei getrennte Gestelle: zweimal sechs, und zweimal 10 cm verschenkt.
+    expect(einzeln.jeReihe * 2).toBe(12);
+  });
+
+  it('gewinnt eine Kiste zurück, wenn über die ganze Länge gerechnet wird', () => {
+    // Dieselben zwei Gestelle als ein Möbel: 500 / 40 = 12 Rest 20.
+    const zusammen = kistenbelegung(500, 'laengs', 1, 1);
+    expect(zusammen.jeReihe).toBe(12);
+    expect(zusammen.rest).toBe(20);
+  });
+
+  it('macht den Unterschied dort sichtbar, wo er groß ist', () => {
+    // Drei Gestelle à 1,50 m quer: einzeln 5 je Gestell = 15.
+    expect(kistenbelegung(150, 'quer', 1, 1).jeReihe).toBe(5);
+    // Zusammen 450 / 30 = 15 – hier geht es glatt auf, kein Verlust.
+    expect(kistenbelegung(450, 'quer', 1, 1).jeReihe).toBe(15);
+
+    // Drei Gestelle à 2,50 m längs: einzeln 6 je Gestell = 18 …
+    expect(kistenbelegung(250, 'laengs', 1, 1).jeReihe).toBe(6);
+    // … zusammen 750 / 40 = 18 Rest 30. Gleich viele, aber der Rest liegt
+    // am Ende statt dreimal mittendrin – und dort stört er niemanden.
+    const lang = kistenbelegung(750, 'laengs', 1, 1);
+    expect(lang.jeReihe).toBe(18);
+    expect(lang.rest).toBe(30);
+  });
+
+  it('rechnet einen gemischten Zug über seine Gesamtlänge', () => {
+    // 1,50 + 2,00 + 2,50 = 6,00 m. Einzeln: 3 + 5 + 6 = 14 Kästen längs.
+    const einzeln =
+      kistenbelegung(150, 'laengs', 1, 1).jeReihe +
+      kistenbelegung(200, 'laengs', 1, 1).jeReihe +
+      kistenbelegung(250, 'laengs', 1, 1).jeReihe;
+    expect(einzeln).toBe(14);
+    // Am Stück: 600 / 40 = 15. Eine Kiste mehr, und keine Lücke dazwischen.
+    expect(kistenbelegung(600, 'laengs', 1, 1).jeReihe).toBe(15);
+  });
+});

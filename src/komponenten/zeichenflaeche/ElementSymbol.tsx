@@ -210,7 +210,15 @@ export function einheitenNaehte(element: PlanElement, b: number): number[] {
   // Regalzug und Tiefkühlinsel zeichnen ihre Teilung selbst – beim Zug die
   // Feldgrenzen, bei der Truhe die Module à 625 mm. Eine zweite Naht läge
   // dort auf denselben Koordinaten und macht den Strich nur schwerer.
-  if (element.form === 'wt100' || element.form === 'tkTruhe') return [];
+  // Das Getränkegestell zeichnet seine Teilung selbst: Eine Naht über die
+  // ganze Tiefe liefe hier durch die Kisten, und die laufen ja gerade durch.
+  if (
+    element.form === 'wt100' ||
+    element.form === 'tkTruhe' ||
+    element.form === 'getraenkegestell'
+  ) {
+    return [];
+  }
   if (!modulsatzFuer(element.form) && !element.achsmass) return [];
 
   const abschnitte = zeichenAbschnitte(element);
@@ -674,6 +682,24 @@ export function zeichneFlaechenangaben(
  * einzeln vor – daran hängt ein gemischter Zug.
  */
 /**
+ * Wo die Stützen eines Getränkezuges stehen, im Zeichenmaß.
+ *
+ * An jeder Gestellgrenze eine – ein Zug aus drei Gestellen à 2 m hat vier.
+ * Die Kisten laufen darüber hinweg: Sie richten sich im Markt nicht danach,
+ * wo ein Gestell aufhört.
+ */
+function gestellstuetzen(element: PlanElement, b: number): number[] {
+  const laenge = element.achsmass ?? 0;
+  if (laenge <= 0 || element.breite <= 0) return [0, b];
+  const faktor = b / element.breite;
+  const punkte: number[] = [];
+  for (let x = 0; x <= element.breite + 0.01; x += laenge) punkte.push(x * faktor);
+  // Das Ende gehört dazu, auch wenn die Länge nicht glatt aufgeht.
+  if (punkte[punkte.length - 1] < b - 0.01) punkte.push(b);
+  return punkte;
+}
+
+/**
  * Ein Getränkegestell mit den Kisten davor.
  *
  * Das Gestell selbst ist im Grundriss fast nichts – zwei Rohre mit
@@ -690,6 +716,7 @@ function zeichneGetraenkegestell(
   b: number,
   t: number,
   kisten: PlanElement['kisten'],
+  stuetzen: number[] = [0, b],
 ): void {
   const lage = kisten?.lage ?? 'laengs';
   const reihen = Math.max(0, Math.round(kisten?.reihen ?? 1));
@@ -710,10 +737,12 @@ function zeichneGetraenkegestell(
     ctx.lineTo(b, y);
   }
 
-  // Eine Raute an jedem Ende – die Stütze mit ihrer Fußplatte.
+  // Eine Raute an jeder Gestellgrenze – die Stütze mit ihrer Fußplatte. Bei
+  // einem verlängerten Zug steht an jeder Stoßstelle eine; die Kisten laufen
+  // darüber hinweg, weil sie im Markt auch durchlaufen.
   const mitte = (gestellVon + gestellBis) / 2;
   const raute = Math.min(GESTELL_STAERKE * 1.6, b / 6);
-  for (const x of [0, b]) {
+  for (const x of stuetzen) {
     ctx.moveTo(x, mitte - raute);
     ctx.lineTo(x + raute, mitte);
     ctx.lineTo(x, mitte + raute);
@@ -751,6 +780,7 @@ export function zeichneForm(
   gespiegelt = false,
   felderOben?: Regalfeld[],
   kisten?: PlanElement['kisten'],
+  stuetzen?: number[],
 ) {
   switch (form) {
     case 'abgerundet': {
@@ -1019,7 +1049,7 @@ export function zeichneForm(
     }
 
     case 'getraenkegestell': {
-      zeichneGetraenkegestell(ctx, b, t, kisten);
+      zeichneGetraenkegestell(ctx, b, t, kisten, stuetzen);
       break;
     }
 
@@ -1941,6 +1971,7 @@ export function ElementSymbol({
           Boolean(element.gespiegelt),
           element.beidseitig ? felderVon(element, 'oben') : undefined,
           element.kisten,
+          gestellstuetzen(element, b),
         );
         // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
         // die ganze Tiefe – so wie beim Regalzug.

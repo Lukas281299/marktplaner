@@ -299,7 +299,7 @@ const WT_TOTE_ZONE = 7;
  * das nach eigener Farbe aus statt nach „nicht eingefärbt", und auf dem
  * Ausdruck verschwand es fast im Papier.
  */
-export const WT_GRAU = '#8c8c8c';
+export const WT_GRAU = '#787878';
 
 /**
  * Die Töne, die es vorher gab.
@@ -308,7 +308,15 @@ export const WT_GRAU = '#8c8c8c';
  * Ein Element, das einen davon trägt, bekommt beim Öffnen den einen Ton.
  * Die beiden letzten sind die freien Regale, die ihr eigenes Beige hatten.
  */
-export const WT_GRAU_ALT = ['#c9c5bd', '#b7b2a8', '#d8d4cc', '#d9d0c1', '#cfc3ad', '#9e9e9e'];
+export const WT_GRAU_ALT = [
+  '#c9c5bd',
+  '#b7b2a8',
+  '#d8d4cc',
+  '#d9d0c1',
+  '#cfc3ad',
+  '#9e9e9e',
+  '#8c8c8c',
+];
 const WT_GRAU_DUNKEL = WT_GRAU;
 const WT_GRAU_HELL = WT_GRAU;
 
@@ -730,6 +738,11 @@ function getraenkeEintraege(): BibliothekEintrag[] {
     form: 'getraenkegestell' as const,
     farbe: GETRAENKE_GRAU,
     beidseitig: true,
+    // Sein eigenes Maß als Raster. Damit lässt sich ein Gestell am Möbel
+    // verlängern – und genau darauf beruht, dass die Kisten durchlaufen:
+    // Ein Zug aus drei Gestellen ist **ein** Möbel, und die Kisten rechnen
+    // über seine ganze Länge statt dreimal von vorn.
+    achsmass: laenge,
     gruppe: 'Preisgestelle',
     hinweis: `Kisten beidseitig davor · ${Math.floor(laenge / KISTE.laenge)} Kästen längs je Reihe`,
   }));

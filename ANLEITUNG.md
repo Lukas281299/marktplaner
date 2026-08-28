@@ -631,6 +631,25 @@ Auf 2,00 m passen also längs fünf Kästen nebeneinander, quer sechs. Zwei
 Reihen quer je Seite machen das Möbel 1,66 m tief — und genau so viel fehlt
 der Gasse daneben.
 
+#### Mehrere Gestelle: die Kisten laufen durch
+
+Kisten gehen selten glatt in einer Gestelllänge auf. Auf 2,50 m passen sechs
+Kästen längs — bleiben 10 cm. Stellst du zwei Gestelle als **zwei Möbel**
+nebeneinander, klafft in der Mitte eine Lücke, und die gibt es im Markt nicht:
+Dort stehen die Kisten durch, egal wo ein Gestell aufhört.
+
+Deshalb verlängerst du das Gestell, statt ein zweites danebenzustellen: Rechts
+im Block **Elemente** steht „+ 2,50 m". Jeder Klick hängt ein weiteres Gestell
+an — und die Kisten rechnen über die **ganze** Länge.
+
+| | Einzeln gestellt | Am Stück verlängert |
+|---|---|---|
+| 2 × 2,50 m | 6 + 6 = 12 Kästen, 10 cm Lücke dazwischen | **12 Kästen**, Rest 20 cm am Ende |
+| 1,50 + 2,00 + 2,50 m | 3 + 5 + 6 = 14 Kästen | **15 Kästen**, lückenlos |
+
+Im Plan siehst du an jeder Gestellgrenze eine **Raute** — das ist die Stütze.
+Die Kisten laufen darüber hinweg.
+
 > **Die Farbe ist heller** als bei den Regalen. Vor einem Gestell steht kein
 > Möbel, sondern gestapelte Ware, und das soll man im Plan auf einen Blick
 > sehen.
