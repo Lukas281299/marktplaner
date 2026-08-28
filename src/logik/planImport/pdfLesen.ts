@@ -1,5 +1,5 @@
 import * as pdfjs from 'pdfjs-dist';
-import arbeiterUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { ARBEITER_URL } from './arbeiter';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import type { Farbe, Planart, PlanSeite, PlanText } from './typen';
 import type { Punkt } from '../../typen/modell';
@@ -18,10 +18,11 @@ import type { Fuellflaeche } from './wandkoerper';
  * denken zu müssen.
  */
 
-// pdf.js lagert das Zerlegen in einen eigenen Arbeiter aus. Vite liefert die
-// Datei über `?url` mit aus, statt sie von einem fremden Server zu holen –
-// das Programm soll auch ohne Netz laufen.
-pdfjs.GlobalWorkerOptions.workerSrc = arbeiterUrl;
+// pdf.js lagert das Zerlegen in einen eigenen Arbeiter aus. Wo er liegt,
+// steht in `arbeiter.ts` – der einzigen Datei hier, die Vite braucht.
+// Außerhalb des Browsers gibt es keinen, und dann rechnet pdf.js im selben
+// Faden weiter.
+if (ARBEITER_URL) pdfjs.GlobalWorkerOptions.workerSrc = ARBEITER_URL;
 
 /** Punkte in Millimeter – PDF rechnet in 1/72 Zoll. */
 const PT_JE_MM = 72 / 25.4;
@@ -412,7 +413,12 @@ export async function liesFuellflaechen(dokument: PDFDocumentProxy): Promise<Fue
     const teilpfade = args[1];
     if (!Array.isArray(teilpfade)) continue;
 
-    for (const roh of teilpfade as ArrayLike<number>[]) {
+    for (const roh of teilpfade as (ArrayLike<number> | null)[]) {
+      // Leere Teilpfade kommen als `null` – bei einem der Pläne 8.122 von
+      // 44.830. Ohne diese Zeile stirbt das Einlesen mitten im Dokument, und
+      // zwar je nach Plan mal ja und mal nein.
+      if (!roh || typeof roh.length !== 'number') continue;
+
       const punkte: Punkt[] = [];
       let x = 0;
       let y = 0;

@@ -15,3 +15,7 @@ dist
 # LIESMICH-Datei trotzdem im Projekt sichtbar, damit klar ist, dass es ihn gibt.
 unterlagen/*
 !unterlagen/LIESMICH.md
+
+# Gebaute Werkzeuge – aus den .ts daneben erzeugt, siehe baue-plan-werkzeug.mjs
+werkzeuge/*.mjs
+!werkzeuge/baue-plan-werkzeug.mjs
