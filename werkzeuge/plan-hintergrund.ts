@@ -108,7 +108,18 @@ const projekt = {
 };
 
 await mkdir(dirname(ziel), { recursive: true });
-await writeFile(ziel, JSON.stringify(projekt), 'utf8');
+// In der Huelle, die der Import erwartet - siehe plan-nach-grundriss.ts.
+await writeFile(
+  ziel,
+  JSON.stringify({
+    format: 'marktplaner',
+    version: SCHEMA_VERSION,
+    exportiertAm: new Date().toISOString(),
+    projekt,
+    eigeneVorlagen: [],
+  }),
+  'utf8',
+);
 console.log(
   `${name}: Hintergrund ${leinwand.width}x${leinwand.height} px, ` +
     `${(breite / 100).toFixed(1)} × ${(hoehe / 100).toFixed(1)} m bei 1:${massstab} -> ${ziel}`,

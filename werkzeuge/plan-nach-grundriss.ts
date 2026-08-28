@@ -102,6 +102,25 @@ export function alsProjekt(balken: Balken[], name: string) {
   };
 }
 
+/**
+ * Das Projekt in die Huelle packen, die der Import erwartet.
+ *
+ * Der Marktplaner liest keine nackten Projekte ein, sondern Austauschdateien
+ * mit `format: 'marktplaner'` - dieselbe Huelle, die "Speichern als JSON"
+ * schreibt. Ohne sie meldet der Import "Diese Datei stammt nicht aus dem
+ * Marktplaner", und das waere eine unnoetig raetselhafte Auskunft fuer eine
+ * Datei, die genau daher stammt.
+ */
+export function austauschdatei(projekt: ReturnType<typeof alsProjekt>) {
+  return {
+    format: 'marktplaner' as const,
+    version: SCHEMA_VERSION,
+    exportiertAm: new Date().toISOString(),
+    projekt,
+    eigeneVorlagen: [],
+  };
+}
+
 /* --------------------------------------------------------- Befehlszeile */
 
 if ((process.argv[1] ?? '').endsWith('plan-nach-grundriss.mjs') && process.argv[2] && process.argv[3]) {
@@ -115,7 +134,7 @@ if ((process.argv[1] ?? '').endsWith('plan-nach-grundriss.mjs') && process.argv[
   const name = process.argv[4] ?? basename(pfad).replace(/\.pdf$/i, '');
   const projekt = alsProjekt(balken, name);
   await mkdir(dirname(process.argv[3]), { recursive: true });
-  await writeFile(process.argv[3], JSON.stringify(projekt), 'utf8');
+  await writeFile(process.argv[3], JSON.stringify(austauschdatei(projekt)), 'utf8');
   const g = projekt.grundflaeche;
   console.log(
     `${name}: ${balken.length} Wandkörper, ` +

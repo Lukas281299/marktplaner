@@ -94,17 +94,38 @@ export function Werkzeugleiste() {
 
   const dateiAuswaehlen = () => dateiRef.current?.click();
 
-  const dateiEingelesen = async (datei: File | undefined) => {
-    if (!datei) return;
-    try {
-      const inhalt = await importiereAusJson(datei);
-      for (const vorlage of inhalt.eigeneVorlagen) await speichereVorlage(vorlage);
-      await speichereProjekt(inhalt.projekt);
-      store().setzeProjekt(inhalt.projekt);
-      melde('Datei eingelesen');
-    } catch (fehler) {
-      window.alert(fehler instanceof Error ? fehler.message : 'Die Datei konnte nicht gelesen werden.');
+  /**
+   * Eingelesene Planungen übernehmen – auch mehrere auf einmal.
+   *
+   * Wer fünf Märkte übergeben bekommt, will nicht fünfmal denselben Dialog
+   * durchklicken. Geöffnet wird am Ende die letzte; die übrigen stehen in
+   * der Liste unter „Öffnen“.
+   *
+   * Eine kaputte Datei hält die anderen nicht auf: Was sich lesen lässt,
+   * wird eingelesen, und am Schluss steht, was nicht ging.
+   */
+  const dateiEingelesen = async (dateien: FileList | null) => {
+    const liste = [...(dateien ?? [])];
+    if (liste.length === 0) return;
+
+    let gelungen = 0;
+    const gescheitert: string[] = [];
+    for (const datei of liste) {
+      try {
+        const inhalt = await importiereAusJson(datei);
+        for (const vorlage of inhalt.eigeneVorlagen) await speichereVorlage(vorlage);
+        await speichereProjekt(inhalt.projekt);
+        store().setzeProjekt(inhalt.projekt);
+        gelungen++;
+      } catch (fehler) {
+        gescheitert.push(`${datei.name}: ${fehler instanceof Error ? fehler.message : 'nicht lesbar'}`);
+      }
     }
+
+    if (gelungen > 0) {
+      melde(gelungen === 1 ? 'Datei eingelesen' : `${gelungen} Planungen eingelesen`);
+    }
+    if (gescheitert.length > 0) window.alert(gescheitert.join('\n'));
     if (dateiRef.current) dateiRef.current.value = '';
   };
 
@@ -160,7 +181,7 @@ export function Werkzeugleiste() {
           >
             <SymbolExport /> JSON
           </button>
-          <button className="knopf" onClick={dateiAuswaehlen} title="JSON-Datei einlesen">
+          <button className="knopf" onClick={dateiAuswaehlen} title="Projektdateien einlesen – auch mehrere auf einmal">
             <SymbolImport /> Import
           </button>
           <button
@@ -475,8 +496,9 @@ export function Werkzeugleiste() {
         ref={dateiRef}
         type="file"
         accept="application/json,.json"
+        multiple
         style={{ display: 'none' }}
-        onChange={(e) => void dateiEingelesen(e.target.files?.[0])}
+        onChange={(e) => void dateiEingelesen(e.target.files)}
       />
 
       {dialog === 'neu' && <NeuesProjektDialog schliessen={() => setDialog(null)} />}
