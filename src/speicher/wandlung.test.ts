@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { WT_GRAU } from '../daten/bibliothek';
 import { flaeche, rahmen } from '../logik/polygon';
 import { SCHEMA_VERSION } from '../typen/modell';
 import { wandleProjekt } from './wandlung';
@@ -230,10 +231,22 @@ describe('Fassung 8: ein Grauton für das Trockensortiment', () => {
   });
 
   it('färbt Wandregal und Gondel auf denselben Ton', () => {
+    // Gegen WT_GRAU geprüft und nicht gegen einen Hexwert: Sonst bricht die
+    // Prüfung jedes Mal, wenn sich der Ton ändert – und sagt dabei nichts
+    // über das, was sie eigentlich sichert.
     const neu = wandleProjekt(alteFassung({
       elemente: [regal('#c9c5bd'), regal('#b7b2a8'), regal('#d8d4cc')],
     }));
-    expect([...new Set(neu.elemente.map((el) => el.farbe))]).toEqual(['#c9c5bd']);
+    expect([...new Set(neu.elemente.map((el) => el.farbe))]).toEqual([WT_GRAU]);
+  });
+
+  it('nimmt das freie Regal und die freie Gondel mit', () => {
+    // Sie hatten ihr eigenes Beige. Im Plan tragen sie dieselbe Ware wie der
+    // Systemzug daneben und sollen nicht anders aussehen.
+    const neu = wandleProjekt(alteFassung({
+      elemente: [regal('#d9d0c1', 'regal'), regal('#cfc3ad', 'regal')],
+    }));
+    expect(neu.elemente.map((el) => el.farbe)).toEqual([WT_GRAU, WT_GRAU]);
   });
 
   it('lässt eine von Hand gesetzte Farbe stehen', () => {

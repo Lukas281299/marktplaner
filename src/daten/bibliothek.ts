@@ -285,15 +285,24 @@ const WT_TOTE_ZONE = 7;
  * Regal steht. Was ein Wandregal von einer Gondel unterscheidet, liest man an
  * der Tiefe und am Mittelsteg ab, nicht an der Farbe.
  */
-export const WT_GRAU = '#c9c5bd';
+/**
+ * Das Grau der Regale.
+ *
+ * Neutral und mittel – so, wie Regale auf einem Ladenbauplan stehen. Vorher
+ * war es ein helles, warmes Beige-Grau; neben den farbigen Abteilungen sah
+ * das nach eigener Farbe aus statt nach „nicht eingefärbt", und auf dem
+ * Ausdruck verschwand es fast im Papier.
+ */
+export const WT_GRAU = '#9e9e9e';
 
 /**
- * Die drei Töne, die es vorher gab.
+ * Die Töne, die es vorher gab.
  *
  * Nur noch für die Umwandlung älterer Planungen da – siehe `wandlung.ts`.
  * Ein Element, das einen davon trägt, bekommt beim Öffnen den einen Ton.
+ * Die beiden letzten sind die freien Regale, die ihr eigenes Beige hatten.
  */
-export const WT_GRAU_ALT = ['#c9c5bd', '#b7b2a8', '#d8d4cc'];
+export const WT_GRAU_ALT = ['#c9c5bd', '#b7b2a8', '#d8d4cc', '#d9d0c1', '#cfc3ad'];
 const WT_GRAU_DUNKEL = WT_GRAU;
 const WT_GRAU_HELL = WT_GRAU;
 
@@ -939,8 +948,8 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   // ---------------------------------------------------------------- Regale
   ...wt100Eintraege(),
   // Ein freies Feld für alles, was das System nicht hergibt.
-  { id: 'regal-frei', name: 'Regal frei', kategorie: 'regale', breite: 125, tiefe: 67, hoehe: 180, form: 'regal', farbe: '#d9d0c1', gruppe: 'Frei', hinweis: 'Maße frei einstellbar' },
-  { id: 'regal-gondel-frei', name: 'Gondel frei', kategorie: 'regale', breite: 125, tiefe: 127, hoehe: 180, form: 'regal', farbe: '#cfc3ad', beidseitig: true, gruppe: 'Frei', hinweis: 'Maße frei einstellbar' },
+  { id: 'regal-frei', name: 'Regal frei', kategorie: 'regale', breite: 125, tiefe: 67, hoehe: 180, form: 'regal', farbe: WT_GRAU, gruppe: 'Frei', hinweis: 'Maße frei einstellbar' },
+  { id: 'regal-gondel-frei', name: 'Gondel frei', kategorie: 'regale', breite: 125, tiefe: 127, hoehe: 180, form: 'regal', farbe: WT_GRAU, beidseitig: true, gruppe: 'Frei', hinweis: 'Maße frei einstellbar' },
 
   // ---------------------------------------------------- Normalkuehlung
   //

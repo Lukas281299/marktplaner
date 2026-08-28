@@ -312,8 +312,14 @@ function teileSeitenAuf(element: PlanElement): PlanElement {
  * daran wäre schlimmer als drei Grautöne.
  */
 function vereinheitlicheRegalfarbe(element: PlanElement): PlanElement {
-  const wireTech = element?.form === 'wt100' || element?.form === 'wt100Rund' || element?.form === 'wt100Eck';
-  if (!wireTech || !WT_GRAU_ALT.includes(element.farbe)) return element;
+  // Auch das freie Regal und die freie Gondel: Sie tragen dieselbe Ware und
+  // sollen im Plan nicht anders aussehen als der Systemzug daneben.
+  const regal =
+    element?.form === 'wt100' ||
+    element?.form === 'wt100Rund' ||
+    element?.form === 'wt100Eck' ||
+    element?.form === 'regal';
+  if (!regal || !WT_GRAU_ALT.includes(element.farbe)) return element;
   return { ...element, farbe: WT_GRAU };
 }
 
