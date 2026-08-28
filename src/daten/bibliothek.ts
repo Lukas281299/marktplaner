@@ -738,11 +738,11 @@ function getraenkeEintraege(): BibliothekEintrag[] {
     form: 'getraenkegestell' as const,
     farbe: GETRAENKE_GRAU,
     beidseitig: true,
-    // Sein eigenes Maß als Raster. Damit lässt sich ein Gestell am Möbel
-    // verlängern – und genau darauf beruht, dass die Kisten durchlaufen:
-    // Ein Zug aus drei Gestellen ist **ein** Möbel, und die Kisten rechnen
-    // über seine ganze Länge statt dreimal von vorn.
-    achsmass: laenge,
+    // Kein eigenes Achsmaß: Für diese Form gibt es einen Modulsatz mit allen
+    // drei Längen (siehe `daten/module.ts`), und damit lassen sich auch
+    // **verschiedene** Gestelle aneinanderhängen – 1,50 + 2,00 + 2,50, so wie
+    // die Züge auf dem Plan wirklich stehen. Ein Achsmaß am Möbel würde den
+    // Satz überstimmen und alle Einheiten auf dieselbe Länge zwingen.
     gruppe: 'Preisgestelle',
     hinweis: `Kisten beidseitig davor · ${Math.floor(laenge / KISTE.laenge)} Kästen längs je Reihe`,
   }));

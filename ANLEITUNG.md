@@ -639,8 +639,9 @@ nebeneinander, klafft in der Mitte eine Lücke, und die gibt es im Markt nicht:
 Dort stehen die Kisten durch, egal wo ein Gestell aufhört.
 
 Deshalb verlängerst du das Gestell, statt ein zweites danebenzustellen: Rechts
-im Block **Elemente** steht „+ 2,50 m". Jeder Klick hängt ein weiteres Gestell
-an — und die Kisten rechnen über die **ganze** Länge.
+im Block **Gestelle** stehen alle drei Längen als Knöpfe. Jeder Klick hängt
+eines an — und du darfst mischen, genau wie bei den Regalen. Die Kisten
+rechnen dann über die **ganze** Länge.
 
 | | Einzeln gestellt | Am Stück verlängert |
 |---|---|---|
@@ -648,7 +649,11 @@ an — und die Kisten rechnen über die **ganze** Länge.
 | 1,50 + 2,00 + 2,50 m | 3 + 5 + 6 = 14 Kästen | **15 Kästen**, lückenlos |
 
 Im Plan siehst du an jeder Gestellgrenze eine **Raute** — das ist die Stütze.
-Die Kisten laufen darüber hinweg.
+Sie sitzt dort, wo das Gestell wirklich endet, auch bei gemischten Längen. Die
+Kisten laufen darüber hinweg.
+
+Ein Zug aus 1,50 + 2,00 + 2,50 m ist genau 6,00 m lang und nimmt **15 Kästen**
+längs auf — ohne Rest, ohne Lücke, mit Stützen bei 1,50 m und 3,50 m.
 
 > **Die Farbe ist heller** als bei den Regalen. Vor einem Gestell steht kein
 > Möbel, sondern gestapelte Ware, und das soll man im Plan auf einen Blick

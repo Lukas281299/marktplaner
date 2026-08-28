@@ -106,6 +106,19 @@ const SAETZE: { formen: Grundform[]; satz: Modulsatz }[] = [
     },
   },
   {
+    // Die Preisgestelle der Getränkeabteilung. Anders als bei den Regalen ist
+    // die Einheit kein Feld, sondern ein ganzes Gestell – die Kisten davor
+    // richten sich nicht danach und laufen über alle hinweg.
+    formen: ['getraenkegestell'],
+    satz: {
+      einheit: 'Gestell',
+      mehrzahl: 'Gestelle',
+      laengen: [150, 200, 250],
+      herkunft: 'Die drei gelieferten Längen',
+      knopf: meter,
+    },
+  },
+  {
     // Obst und Gemüse (Vitable). Die 2,00 m sind zwei Achsmaße A1000 in
     // einem Möbel – die Bibliothek führt sie als eigene Größe, deshalb
     // steht sie auch hier.

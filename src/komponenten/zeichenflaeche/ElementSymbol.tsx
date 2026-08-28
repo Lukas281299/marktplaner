@@ -684,18 +684,26 @@ export function zeichneFlaechenangaben(
 /**
  * Wo die Stützen eines Getränkezuges stehen, im Zeichenmaß.
  *
- * An jeder Gestellgrenze eine – ein Zug aus drei Gestellen à 2 m hat vier.
+ * An jeder Gestellgrenze eine – aus der **Feldliste**, nicht aus einem festen
+ * Raster. Ein Zug darf aus verschiedenen Längen bestehen (1,50 + 2,00 + 2,50,
+ * so wie sie auf dem Plan wirklich stehen), und dann sitzen die Stützen eben
+ * ungleichmäßig.
+ *
  * Die Kisten laufen darüber hinweg: Sie richten sich im Markt nicht danach,
  * wo ein Gestell aufhört.
  */
 function gestellstuetzen(element: PlanElement, b: number): number[] {
-  const laenge = element.achsmass ?? 0;
-  if (laenge <= 0 || element.breite <= 0) return [0, b];
-  const faktor = b / element.breite;
-  const punkte: number[] = [];
-  for (let x = 0; x <= element.breite + 0.01; x += laenge) punkte.push(x * faktor);
-  // Das Ende gehört dazu, auch wenn die Länge nicht glatt aufgeht.
-  if (punkte[punkte.length - 1] < b - 0.01) punkte.push(b);
+  const felder = felderVon(element, 'unten');
+  const roh = felder.reduce((summe, f) => summe + f.breite, 0);
+  if (roh <= 0) return [0, b];
+
+  const faktor = b / roh;
+  const punkte = [0];
+  let x = 0;
+  for (const feld of felder) {
+    x += feld.breite;
+    punkte.push(x * faktor);
+  }
   return punkte;
 }
 
