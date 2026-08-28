@@ -595,6 +595,29 @@ eigenen Teilung. Bestehende Pläne ändern sich dadurch nicht.
 > leeres Feld, ein Loch in die Wanne zu schneiden — dort ziehen beide Seiten
 > weiter gemeinsam.
 
+### Obst und Gemüse: Auslagen und grüne Kisten
+
+Bei Regalen und Kühlungen schreibst du oben links in die Ecke, was dort steht
+— die Zahl der Böden ist dort eine **Entscheidung**. Ein Vitable-Tisch dagegen
+bringt seine Auslagen mit: Sie hängen am Modul.
+
+Deshalb steht bei Obst und Gemüse rechts der Block **Auslagen und Kisten** mit
+zwei Zahlen statt eines Textfelds:
+
+| | |
+|---|---|
+| **Auslagen (Böden)** | Wie viele Böden das Möbel trägt. Steht im Plan oben links als *4+* |
+| **Grüne Kisten** | Wie viele IFCO-Kisten daraufgehen. Steht darunter als *18 iK* |
+
+Die zweite Zahl ist die, um die es beim Bestellen geht. Sie wird **nicht
+gerechnet** — wie viele Kisten auf einen Tisch passen, weißt du, und eine
+gerechnete Zahl wäre eine erfundene. Du trägst sie einmal je Möbel ein.
+
+Unten in der **Flächenübersicht** stehen dann beide Summen über die ganze
+Abteilung: *Grüne Kisten (O&G)* und *Auslagen (O&G)*. Gezählt werden nur
+Möbel, an denen etwas steht — ein Tisch ohne Angabe ist keine Null, sondern
+eine offene Frage.
+
 ### Getränke: Gestelle und Kisten
 
 Die Getränkeabteilung besteht nicht aus Regalen. Sie besteht aus schmalen

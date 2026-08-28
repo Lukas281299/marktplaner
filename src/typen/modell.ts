@@ -465,6 +465,26 @@ export interface PlanElement {
   warengruppenOben?: Warengruppenabschnitt[];
 
   /**
+   * Die Auslagen eines Obst- und Gemüsemöbels.
+   *
+   * Wie viele Böden das Möbel trägt. Bei Regalen steht das von Hand in der
+   * Notiz – dort ist es eine Entscheidung. Ein Vitable-Tisch dagegen bringt
+   * seine Auslagen mit; sie hängen am Modul und nicht am Planer, und deshalb
+   * ist es eine Zahl und keine Notiz.
+   */
+  auslagen?: number;
+
+  /**
+   * Wie viele grüne Kisten auf dieses Möbel gehen.
+   *
+   * Die zweite Kennzahl der Obstabteilung, und die, um die es beim Bestellen
+   * geht: Was hier steht, summiert die Flächenübersicht über die ganze
+   * Abteilung. Ein Möbel weiß, wie viele Kisten daraufpassen – der Planer
+   * trägt es einmal ein und liest die Summe danach ab.
+   */
+  ifkoKisten?: number;
+
+  /**
    * Die Kisten vor einem Getränkegestell.
    *
    * Die Getränkeabteilung besteht nicht aus Regalen, sondern aus schmalen

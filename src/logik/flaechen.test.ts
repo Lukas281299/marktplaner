@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { berechneFlaechen, vereinigteFlaeche } from './flaechen';
+import { berechneFlaechen, gruenekisten, vereinigteFlaeche } from './flaechen';
 import { neuesProjekt } from '../daten/standardProjekt';
 import { rechteck } from './polygon';
 import type { PlanElement, Projekt, Punkt, Raum, Verkaufsflaeche } from '../typen/modell';
@@ -243,5 +243,43 @@ describe('Belegte und freie Fläche', () => {
       }),
     );
     expect(f.frei).toBe(0);
+  });
+});
+
+describe('Grüne Kisten in Obst und Gemüse', () => {
+  const moebel = (kategorie: string, auslagen?: number, ifkoKisten?: number) =>
+    ({
+      id: `el-${Math.random()}`, vorlageId: 'v', ebeneId: 'einrichtung', name: 'M',
+      kategorie, x: 0, y: 0, breite: 125, tiefe: 100, drehung: 0, form: 'vitable',
+      farbe: '#fff', beschriftung: '', beschriftungSichtbar: false, schriftgroesse: 12,
+      gesperrt: false, reihenfolge: 0, auslagen, ifkoKisten,
+    }) as unknown as Projekt['elemente'][number];
+
+  const mit = (elemente: Projekt['elemente']): Projekt => ({ ...neuesProjekt(), elemente });
+
+  it('zählt zusammen, was an den Möbeln steht', () => {
+    const p = mit([
+      moebel('obstgemuese', 3, 12),
+      moebel('obstgemuese', 4, 16),
+      moebel('obstgemuese', 2, 8),
+    ]);
+    expect(gruenekisten(p)).toEqual({ moebel: 3, kisten: 36, auslagen: 9 });
+  });
+
+  it('lässt Möbel anderer Abteilungen aus', () => {
+    // Ein Regal hat keine grünen Kisten – auch nicht, wenn dort eine Zahl steht.
+    const p = mit([moebel('obstgemuese', 3, 12), moebel('regale', 5, 99)]);
+    expect(gruenekisten(p).kisten).toBe(12);
+  });
+
+  it('zählt nur Möbel mit, an denen etwas steht', () => {
+    // Ein Tisch ohne Angabe ist keine Null, sondern eine offene Frage – er
+    // darf die Zahl „auf wie vielen Möbeln" nicht aufblähen.
+    const p = mit([moebel('obstgemuese', 3, 12), moebel('obstgemuese')]);
+    expect(gruenekisten(p).moebel).toBe(1);
+  });
+
+  it('kommt mit einer leeren Planung zurecht', () => {
+    expect(gruenekisten(neuesProjekt())).toEqual({ moebel: 0, kisten: 0, auslagen: 0 });
   });
 });

@@ -222,6 +222,28 @@ export function berechneRegalmeter(projekt: Projekt): number {
 }
 
 /** Regalmeter je Warengruppe – für die Auswertung einzelner Abteilungen. */
+/**
+ * Was die Obst- und Gemüseabteilung an grünen Kisten fasst.
+ *
+ * Die Zahl, um die es beim Bestellen geht. Sie steht an jedem Möbel einzeln
+ * (`ifkoKisten`) und wird hier zusammengezählt – gerechnet wird sie nicht:
+ * Wie viele Kisten auf einen Tisch gehen, weiß der Planer und nicht das
+ * Programm, und eine gerechnete Zahl wäre eine erfundene.
+ */
+export function gruenekisten(projekt: Projekt): { moebel: number; kisten: number; auslagen: number } {
+  let moebel = 0;
+  let kisten = 0;
+  let auslagen = 0;
+  for (const el of projekt.elemente) {
+    if (el.kategorie !== 'obstgemuese') continue;
+    if (!el.ifkoKisten && !el.auslagen) continue;
+    moebel++;
+    kisten += el.ifkoKisten ?? 0;
+    auslagen += el.auslagen ?? 0;
+  }
+  return { moebel, kisten, auslagen };
+}
+
 export function regalmeterJeWarengruppe(projekt: Projekt): { name: string; meter: number }[] {
   const summen = new Map<string, number>();
   for (const el of projekt.elemente) {

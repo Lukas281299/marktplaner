@@ -297,6 +297,23 @@ function lesbarerBlock(
  * wird gefüllt und gestrichelt, und aus jedem Buchstaben würde dabei ein
  * Klecks.
  */
+/**
+ * Die beiden Kennzahlen eines Obst- und Gemüsemöbels, als Zeilen.
+ *
+ * `4+` wie bei den Regalen – dort ist es die Zahl der Böden, hier die der
+ * Auslagen; gelesen wird es gleich. Darunter die grünen Kisten mit ihrem
+ * Kürzel, damit die beiden Zahlen nicht zu verwechseln sind.
+ *
+ * `undefined` heißt: Dieses Möbel führt keine Kennzahlen, es gilt die Notiz.
+ */
+function ogKennzahlen(element: PlanElement): string[] | undefined {
+  if (element.kategorie !== 'obstgemuese') return undefined;
+  const zeilen: string[] = [];
+  if (element.auslagen) zeilen.push(`${element.auslagen}+`);
+  if (element.ifkoKisten) zeilen.push(`${element.ifkoKisten} iK`);
+  return zeilen.length > 0 ? zeilen : undefined;
+}
+
 export function zeichneFeldnotizen(
   ctx: Konva.Context,
   element: PlanElement,
@@ -321,6 +338,10 @@ export function zeichneFeldnotizen(
 
   const rand = Math.min(NOTIZ_HOEHE * 0.35, b * 0.02);
   const kopf = laeuftRueckwaerts(element.drehung);
+  // Obst und Gemüse trägt statt der Notiz seine beiden Kennzahlen. Sie
+  // stehen am Möbel und nicht am Feld: Ein Vitable-Tisch ist ein Möbel mit
+  // einer Zahl Auslagen, nicht sechs Felder mit je einer.
+  const kennzahlen = ogKennzahlen(element);
   ctx.setAttr('textBaseline', 'top');
 
   for (const band of baender) {
@@ -328,13 +349,16 @@ export function zeichneFeldnotizen(
       // Wo kein Regal steht, steht auch keine Notiz.
       if (platz.feld.leer) continue;
 
+      const zeilenLinks = kennzahlen ?? notizZeilen(platz.feld.notiz);
+
       // Gewendet wird um die Mitte des Felds: Die Notiz bleibt dadurch in
       // ihrem Feld und steht auf dem Bildschirm wieder links oben.
       lesbarerBlock(ctx, kopf, platz.x + platz.weite / 2, band.von + hoehe / 2, () => {
-        // Links: was von Hand darinsteht.
+        // Links: was von Hand darinsteht – oder bei Obst und Gemüse die
+        // Kennzahlen des Möbels, die dort keine Entscheidung sind.
         ctx.setAttr('font', `600 ${NOTIZ_HOEHE}px sans-serif`);
         ctx.setAttr('fillStyle', 'rgba(150,26,26,0.92)');
-        notizZeilen(platz.feld.notiz).forEach((zeile, z) => {
+        zeilenLinks.forEach((zeile, z) => {
           ctx.fillText(zeile, platz.x + rand, band.von + rand + z * NOTIZ_HOEHE * 1.15);
         });
 

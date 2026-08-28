@@ -3,7 +3,12 @@ import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { KATEGORIEN } from '../daten/kategorien';
 import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { alleNamen } from '../daten/warengruppen';
-import { berechneFlaechen, berechneRegalmeter, raumflaeche } from '../logik/flaechen';
+import {
+  berechneFlaechen,
+  berechneRegalmeter,
+  gruenekisten,
+  raumflaeche,
+} from '../logik/flaechen';
 import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { summe } from '../logik/feldaufteilung';
@@ -1110,6 +1115,69 @@ function Warengruppenliste() {
 }
 
 /**
+ * Die beiden Kennzahlen eines Obst- und Gemüsemöbels.
+ *
+ * Bei Regalen steht oben links in der Ecke, was von Hand hineingeschrieben
+ * wurde – die Zahl der Böden ist dort eine Entscheidung. Ein Vitable-Tisch
+ * dagegen bringt seine Auslagen mit: Sie hängen am Modul. Deshalb steht hier
+ * eine Zahl statt eines Textfelds, und sie steht am **Möbel** und nicht an
+ * jedem Feld einzeln.
+ *
+ * Die zweite Zahl ist die, um die es beim Bestellen geht: Wie viele grüne
+ * Kisten daraufgehen. Sie wird nicht gerechnet – wie viele auf einen Tisch
+ * passen, weiß der Planer, und eine gerechnete Zahl wäre eine erfundene.
+ * Zusammengezählt wird sie in der Flächenübersicht.
+ */
+function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
+  const setze = (werte: Partial<PlanElement>) => {
+    usePlanStore.getState().schnappschuss();
+    usePlanStore.getState().aendereElemente([element.id], werte);
+  };
+
+  const zahl = (wert: string): number | undefined => {
+    const n = Math.max(0, Math.round(Number(wert)));
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  };
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Auslagen und Kisten</div>
+      <div className="feld-zeile">
+        <div className="feld">
+          <label>Auslagen (Böden)</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={element.auslagen ?? ''}
+            placeholder="—"
+            title="Wie viele Böden das Möbel trägt. Steht im Plan oben links in der Ecke."
+            onChange={(e) => setze({ auslagen: zahl(e.target.value) })}
+          />
+        </div>
+        <div className="feld">
+          <label>Grüne Kisten</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={element.ifkoKisten ?? ''}
+            placeholder="—"
+            title="Wie viele grüne Kisten auf dieses Möbel gehen. Die Flächenübersicht zählt sie zusammen."
+            onChange={(e) => setze({ ifkoKisten: zahl(e.target.value) })}
+          />
+        </div>
+      </div>
+      <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+        Beide stehen im Plan oben links: <strong>{element.auslagen ?? 0}+</strong> für die
+        Auslagen, darunter <strong>{element.ifkoKisten ?? 0} iK</strong> für die Kisten. Die
+        Summe über die ganze Abteilung steht in der Flächenübersicht.
+      </p>
+    </div>
+  );
+}
+
+/**
  * Die Kisten vor einem Getränkegestell.
  *
  * Drei Angaben, und die vierte rechnet sich: Lage der Kisten, Zahl der
@@ -1727,6 +1795,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         <Getraenkekisten element={erstes} einheit={einheit} />
       )}
 
+      {ausgewaehlte.length === 1 && erstes.kategorie === 'obstgemuese' && (
+        <ObstGemueseKennzahlen element={erstes} />
+      )}
+
       {/* ------------------------------------------------------ Darstellung */}
       <div className="gruppe">
         <div className="gruppe-titel">Darstellung</div>
@@ -1989,6 +2061,7 @@ function ProjektEigenschaften() {
 
   const flaechen = berechneFlaechen(projekt);
   const regalmeter = berechneRegalmeter(projekt);
+  const kisten = gruenekisten(projekt);
 
   const umriss = projekt.grundflaeche.umriss;
   const rechteckig = istRechteck(umriss);
@@ -2275,6 +2348,24 @@ function ProjektEigenschaften() {
             {regalmeter.toLocaleString('de-DE', { maximumFractionDigits: 1 })} lfm
           </span>
         </div>
+
+        {/* Obst und Gemüse zählt anders als der Rest: nicht in Metern,
+            sondern in Kisten. Die Zahl steht nur da, wenn sie jemand
+            eingetragen hat – eine Null wäre eine Behauptung. */}
+        {kisten.moebel > 0 && (
+          <>
+            <div className="kennzahl">
+              <span>Grüne Kisten (O&amp;G)</span>
+              <span className="kennzahl-wert">{kisten.kisten}</span>
+            </div>
+            <div className="kennzahl">
+              <span>Auslagen (O&amp;G)</span>
+              <span className="kennzahl-wert">
+                {kisten.auslagen} auf {kisten.moebel} Möbeln
+              </span>
+            </div>
+          </>
+        )}
 
         {flaechen.verkaufsflaechen.length > 0 && (
           <div style={{ marginTop: 10 }}>
