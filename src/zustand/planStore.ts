@@ -140,6 +140,16 @@ export interface PlanStore {
   sonderauswahl: Sonderauswahl;
   werkzeug: Werkzeug;
   /**
+   * Wie stark die naechste gezeichnete Wand wird, in Zentimetern.
+   *
+   * Wer einen Grundriss nachzeichnet, zieht zwanzig Waende hintereinander -
+   * und die haben fast immer dieselbe Staerke. Ohne diesen Wert muesste jede
+   * einzeln nachgestellt werden. Er merkt sich auch, was zuletzt an einer
+   * fertigen Wand eingestellt wurde: Wer eine Wand auf 24 stellt, meint
+   * meistens auch die naechste so.
+   */
+  wandstaerkeNeu: number;
+  /**
    * Wartet die Anwendung darauf, dass eine Vorlage zum Austauschen gewählt
    * wird? Solange das an ist, fügt ein Klick in der Bibliothek nichts Neues
    * ein, sondern ersetzt die Auswahl.
@@ -351,6 +361,9 @@ export interface PlanStore {
 
   // -------------------------------------------------------------- Grundriss
   setzeWerkzeug(werkzeug: Werkzeug): void;
+
+  /** Legt fest, wie stark neue Waende und Raumtrennwaende werden. */
+  setzeWandstaerkeNeu(cm: number): void;
   setzeTauschModus(an: boolean): void;
   /**
    * Ersetzt die ausgewählten Elemente durch eine andere Vorlage.
@@ -494,6 +507,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   auswahl: [],
   sonderauswahl: null,
   werkzeug: 'auswahl',
+  // 24 cm - das uebliche Mauerwerk, und die Staerke, in der die Plaene
+  // ihre Aussenwaende zeichnen.
+  wandstaerkeNeu: 24,
   tauschModus: false,
   zwischenablage: [],
   eigeneVorlagen: [],
@@ -794,6 +810,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set(werkzeug === 'auswahl' ? { werkzeug } : { werkzeug, auswahl: [], sonderauswahl: null });
   },
 
+  setzeWandstaerkeNeu(cm) {
+    set({ wandstaerkeNeu: Math.max(2, Math.round(cm)) });
+  },
+
   setzeWandkoerper(koerper) {
     aendere(set, get, (p) => ({
       ...p,
@@ -860,7 +880,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           name: vorlage.name,
           umriss: imUhrzeigersinn(umriss),
           art,
-          wandstaerke: 15,
+          wandstaerke: get().wandstaerkeNeu,
           farbe: vorlage.farbe,
           beschriftungSichtbar: true,
           gesperrt: false,
@@ -872,6 +892,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   aendereRaum(id, werte, mitHistorie = true) {
+    if (typeof werte.wandstaerke === 'number') set({ wandstaerkeNeu: werte.wandstaerke });
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
       raeume: p.raeume.map((r) => (r.id === id ? { ...r, ...werte } : r)),
@@ -935,7 +956,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   // ---------------------------------------------------------------- Wände
-  fuegeWandHinzu(von, bis, staerke = 12) {
+  fuegeWandHinzu(von, bis, staerke = get().wandstaerkeNeu) {
     const id = neueId('wand');
     aendere(set, get, (p) => ({
       ...p,
@@ -946,6 +967,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   aendereWand(id, werte, mitHistorie = true) {
+    // Eine geaenderte Staerke gilt auch fuer die naechste Wand - sonst
+    // stellt man beim Nachzeichnen jede einzeln nach.
+    if (typeof werte.staerke === 'number') set({ wandstaerkeNeu: werte.staerke });
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
       waende: p.waende.map((w) => (w.id === id ? { ...w, ...werte } : w)),
