@@ -19,6 +19,14 @@ interface Props {
   einheit: Massinheit;
   /** Bildschirmpunkte pro Zentimeter – für gleichbleibend große Schrift. */
   zoom: number;
+  /**
+   * Liegt ein eingelesener Plan darunter?
+   *
+   * Dann bleibt die Bodenfläche ungefüllt. Der helle Ton ist nur ein Grund,
+   * und ein Grund über einem Plan verdeckt genau das, wonach gezeichnet
+   * werden soll.
+   */
+  aufVorlage?: boolean;
 }
 
 /** Wandelt Punkte in die flache Zahlenliste, die Konva erwartet. */
@@ -58,7 +66,7 @@ export function massAnKante(
   };
 }
 
-export function Gebaeude({ grundflaeche, einheit, zoom }: Props) {
+export function Gebaeude({ grundflaeche, einheit, zoom, aufVorlage = false }: Props) {
   const { umriss, wandstaerke, wandkoerper } = grundflaeche;
   const hatKoerper = Boolean(wandkoerper && wandkoerper.length > 0);
   if (umriss.length < 3) return null;
@@ -68,11 +76,16 @@ export function Gebaeude({ grundflaeche, einheit, zoom }: Props) {
 
   return (
     <Group listening={false}>
-      {/* Bodenfläche mit angedeutetem Schlagschatten */}
+      {/* Bodenfläche mit angedeutetem Schlagschatten.
+
+          Liegt eine eingelesene Vorlage darunter, bleibt die Fläche leer:
+          Der helle Ton ist nur ein Grund, und ein Grund über einem Plan
+          verdeckt genau das, was man sehen will. Der Schatten bleibt – er
+          zeigt, wo das Gebäude aufhört. */}
       <Line
         points={punkte}
         closed
-        fill="#fbfbfa"
+        fill={aufVorlage ? undefined : '#fbfbfa'}
         shadowColor="#2b3542"
         shadowBlur={18 / zoom}
         shadowOpacity={0.18}

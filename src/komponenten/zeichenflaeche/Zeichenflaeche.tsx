@@ -1150,7 +1150,12 @@ export function Zeichenflaeche() {
           {/* Die eingelesene Vorlage liegt unter allem – auch unter dem
               Raster, damit dessen Linien darauf lesbar bleiben. */}
           {projekt.hintergrund && <Planvorlage hintergrund={projekt.hintergrund} />}
-          <Gebaeude grundflaeche={projekt.grundflaeche} einheit={einheit} zoom={zoom} />
+          <Gebaeude
+            grundflaeche={projekt.grundflaeche}
+            einheit={einheit}
+            zoom={zoom}
+            aufVorlage={Boolean(projekt.hintergrund?.sichtbar)}
+          />
           {projekt.einstellungen.rasterSichtbar && (
             <Raster
               bereich={umrissRahmen(umriss)}
