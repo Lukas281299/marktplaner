@@ -609,9 +609,16 @@ zwei Zahlen statt eines Textfelds:
 | **Auslagen (Böden)** | Wie viele Böden das Möbel trägt. Steht im Plan oben links als *4+* |
 | **Grüne Kisten** | Wie viele IFCO-Kisten daraufgehen. Steht darunter als *18 iK* |
 
+**Einmal eintragen, dann gilt es.** Die Zahlen gehören zum Möbel**typ** und
+nicht zum einzelnen Stück: Ein Vitable-Tisch A1250 trägt immer dieselbe Zahl
+Auslagen. Was du an einem einträgst, bringen alle weiteren desselben Typs von
+selbst mit — und die, die schon im Plan stehen, werden mitgeändert. Sonst wäre
+es eine Falle: Man trägt die Zahl ein und übersieht die zwölf, die schon
+stehen.
+
 Die zweite Zahl ist die, um die es beim Bestellen geht. Sie wird **nicht
 gerechnet** — wie viele Kisten auf einen Tisch passen, weißt du, und eine
-gerechnete Zahl wäre eine erfundene. Du trägst sie einmal je Möbel ein.
+gerechnete Zahl wäre eine erfundene.
 
 Unten in der **Flächenübersicht** stehen dann beide Summen über die ganze
 Abteilung: *Grüne Kisten (O&G)* und *Auslagen (O&G)*. Gezählt werden nur

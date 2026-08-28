@@ -15,6 +15,7 @@ import {
   listeVorlagen,
   holeSortimentsliste,
   holeFavoriten,
+  holeMoebelkennzahlen,
   merkeZuletztGeoeffnet,
   speichereProjekt,
 } from './speicher/projektArchiv';
@@ -48,6 +49,7 @@ export default function App() {
     const starten = async () => {
       const vorlagen = await listeVorlagen().catch(() => []);
       const favoriten = await holeFavoriten().catch(() => []);
+      const kennzahlen = await holeMoebelkennzahlen().catch(() => ({}));
       const sortiment = await holeSortimentsliste().catch(() => null);
 
       // Die zuletzt geöffnete Planung darf den Start nicht verhindern.
@@ -68,6 +70,7 @@ export default function App() {
 
       usePlanStore.getState().setzeEigeneVorlagen(vorlagen);
       usePlanStore.getState().setzeFavoriten(favoriten);
+      usePlanStore.getState().setzeMoebelkennzahlen(kennzahlen);
       if (sortiment) usePlanStore.getState().setzeSortimentsliste(sortiment);
       if (gespeichert) {
         usePlanStore.getState().setzeProjekt(gespeichert);

@@ -154,6 +154,37 @@ export async function setzeFavoriten(ids: string[]): Promise<void> {
   await datenbank.put('einstellungen', ids, 'favoriten');
 }
 
+// -------------------------------------------------- Kennzahlen am Möbel
+
+/**
+ * Was ein Möbeltyp an Auslagen und grünen Kisten fasst.
+ *
+ * Nach Vorlagenkennung: Ein Vitable-Tisch A1250 trägt immer dieselbe Zahl
+ * Auslagen, gleich wie oft er im Markt steht. Deshalb wird sie **einmal**
+ * eingetragen und gilt danach für jeden weiteren.
+ *
+ * Sie liegt am Gerät und nicht in der Planung – so wie die Favoriten und die
+ * eigenen Vorlagen. Es ist eine Eigenschaft des Möbels, keine des Marktes:
+ * Wer in zwei Märkten plant, will sie nicht zweimal eintragen.
+ */
+export interface Moebelkennzahl {
+  auslagen?: number;
+  ifkoKisten?: number;
+}
+
+export async function holeMoebelkennzahlen(): Promise<Record<string, Moebelkennzahl>> {
+  const datenbank = await db();
+  const wert = await datenbank.get('einstellungen', 'moebelkennzahlen');
+  return wert && typeof wert === 'object' ? (wert as Record<string, Moebelkennzahl>) : {};
+}
+
+export async function setzeMoebelkennzahlen(
+  kennzahlen: Record<string, Moebelkennzahl>,
+): Promise<void> {
+  const datenbank = await db();
+  await datenbank.put('einstellungen', kennzahlen, 'moebelkennzahlen');
+}
+
 // ------------------------------------------------------ Sortimentsliste
 
 /**

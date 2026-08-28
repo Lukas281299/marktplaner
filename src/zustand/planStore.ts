@@ -28,6 +28,8 @@ import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
 import {
   setzeSortimentsliste as speichereSortiment,
   setzeFavoriten as speichereFavoriten,
+  setzeMoebelkennzahlen as speichereKennzahlen,
+  type Moebelkennzahl,
 } from '../speicher/projektArchiv';
 import { STANDARD_SORTIMENT, type Sortimentsliste } from '../daten/warengruppen';
 import {
@@ -156,6 +158,13 @@ export interface PlanStore {
    * Änderung am Plan.
    */
   favoriten: string[];
+  /**
+   * Was jeder Möbeltyp an Auslagen und grünen Kisten fasst.
+   *
+   * Nach Vorlagenkennung, einmal eingetragen und danach für jedes weitere
+   * Möbel derselben Art gültig – siehe `speicher/projektArchiv.ts`.
+   */
+  moebelkennzahlen: Record<string, Moebelkennzahl>;
   /**
    * Die Sortimentsliste: Abteilungen, Warengruppen, Sortimente.
    *
@@ -293,6 +302,18 @@ export interface PlanStore {
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
   setzeFavoriten(ids: string[]): void;
+
+  /** Übernimmt die am Gerät gemerkten Kennzahlen beim Start. */
+  setzeMoebelkennzahlen(kennzahlen: Record<string, Moebelkennzahl>): void;
+
+  /**
+   * Legt fest, was ein Möbeltyp fasst – für alle seine Stücke.
+   *
+   * Die Zahl gilt rückwirkend: Wer sie ändert, ändert sie an jedem Möbel
+   * dieser Vorlage im Plan. Alles andere wäre eine Falle – man trägt sie
+   * einmal ein und übersieht die zwölf, die schon stehen.
+   */
+  setzeMoebelkennzahl(vorlageId: string, werte: Moebelkennzahl): void;
   /** Markiert eine Vorlage als Favorit oder nimmt die Markierung zurück. */
   schalteFavorit(vorlageId: string): void;
   benenneProjektUm(name: string): void;
@@ -477,6 +498,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   zwischenablage: [],
   eigeneVorlagen: [],
   favoriten: [],
+  moebelkennzahlen: {},
   sortiment: STANDARD_SORTIMENT,
   warengruppenPinsel: null,
   warengruppenMarkierung: [],
@@ -505,6 +527,26 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       zukunft: [],
       geladen: alsGeladen,
     });
+  },
+
+  setzeMoebelkennzahlen(kennzahlen) {
+    set({ moebelkennzahlen: kennzahlen });
+  },
+
+  setzeMoebelkennzahl(vorlageId, werte) {
+    const neu = { ...get().moebelkennzahlen, [vorlageId]: werte };
+    set({ moebelkennzahlen: neu });
+    void speichereKennzahlen(neu);
+
+    // Und an jedem Stück dieser Vorlage im Plan nachziehen.
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: p.elemente.map((el) =>
+        el.vorlageId === vorlageId
+          ? { ...el, auslagen: werte.auslagen, ifkoKisten: werte.ifkoKisten }
+          : el,
+      ),
+    }));
   },
 
   setzeFavoriten(ids) {
@@ -1125,6 +1167,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           schriftgroesse: 12,
           gesperrt: false,
           reihenfolge: naechsteReihenfolge(p.elemente),
+          // Was dieser Möbeltyp fasst, wurde einmal eingetragen und gilt für
+          // jedes weitere Stück. Ohne das müsste man es bei jedem Tisch neu
+          // hinschreiben – und bei einer Abteilung aus zwanzig Tischen wird
+          // daraus zwanzigmal dieselbe Zahl.
+          ...(get().moebelkennzahlen[vorlage.id] ?? {}),
         },
       ],
     }));

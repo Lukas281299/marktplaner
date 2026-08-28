@@ -1129,9 +1129,23 @@ function Warengruppenliste() {
  * Zusammengezählt wird sie in der Flächenübersicht.
  */
 function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
-  const setze = (werte: Partial<PlanElement>) => {
+  // Die Zahlen gehören zum Möbel**typ**, nicht zum einzelnen Stück: Ein
+  // Vitable-Tisch A1250 trägt immer dieselbe Zahl Auslagen. Gespeichert wird
+  // deshalb unter der Vorlagenkennung – einmal eintragen, danach gilt es für
+  // jedes weitere.
+  const gemerkt = usePlanStore((s) => s.moebelkennzahlen[element.vorlageId]);
+  const gleiche = usePlanStore(
+    (s) => s.projekt.elemente.filter((el) => el.vorlageId === element.vorlageId).length,
+  );
+
+  const setze = (werte: { auslagen?: number; ifkoKisten?: number }) => {
     usePlanStore.getState().schnappschuss();
-    usePlanStore.getState().aendereElemente([element.id], werte);
+    usePlanStore.getState().setzeMoebelkennzahl(element.vorlageId, {
+      auslagen: element.auslagen,
+      ifkoKisten: element.ifkoKisten,
+      ...gemerkt,
+      ...werte,
+    });
   };
 
   const zahl = (wert: string): number | undefined => {
@@ -1151,7 +1165,7 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
             step="1"
             value={element.auslagen ?? ''}
             placeholder="—"
-            title="Wie viele Böden das Möbel trägt. Steht im Plan oben links in der Ecke."
+            title="Wie viele Böden dieser Möbeltyp trägt. Steht im Plan oben links in der Ecke."
             onChange={(e) => setze({ auslagen: zahl(e.target.value) })}
           />
         </div>
@@ -1163,15 +1177,17 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
             step="1"
             value={element.ifkoKisten ?? ''}
             placeholder="—"
-            title="Wie viele grüne Kisten auf dieses Möbel gehen. Die Flächenübersicht zählt sie zusammen."
+            title="Wie viele grüne Kisten auf diesen Möbeltyp gehen. Die Flächenübersicht zählt sie zusammen."
             onChange={(e) => setze({ ifkoKisten: zahl(e.target.value) })}
           />
         </div>
       </div>
       <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
-        Beide stehen im Plan oben links: <strong>{element.auslagen ?? 0}+</strong> für die
-        Auslagen, darunter <strong>{element.ifkoKisten ?? 0} iK</strong> für die Kisten. Die
-        Summe über die ganze Abteilung steht in der Flächenübersicht.
+        Gilt für <strong>alle {gleiche === 1 ? 'Möbel dieser Art' : `${gleiche} Möbel dieser Art`}</strong>
+        {' '}— einmal eintragen, auch für die nächsten. Im Plan steht oben links{' '}
+        <strong>{element.auslagen ?? 0}+</strong> und darunter{' '}
+        <strong>{element.ifkoKisten ?? 0} iK</strong>; die Summe über die Abteilung steht in der
+        Flächenübersicht.
       </p>
     </div>
   );
