@@ -1,4 +1,5 @@
 import { build } from 'esbuild';
+import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,7 +17,11 @@ import { fileURLToPath } from 'node:url';
 const hier = dirname(fileURLToPath(import.meta.url));
 
 await build({
-  entryPoints: [resolve(hier, 'plan-nach-projekt.ts'), resolve(hier, 'plan-seiten.ts'), resolve(hier, 'plan-diagnose.ts'), resolve(hier, 'plan-ringe.ts'), resolve(hier, 'plan-raster.ts'), resolve(hier, 'plan-striche.ts')],
+  // Alle plan-*.ts - so muss beim naechsten Werkzeug nichts nachgetragen
+  // werden. Vergessene Eintraege waren hier schon zweimal die Fehlerquelle.
+  entryPoints: readdirSync(hier)
+    .filter((n) => n.startsWith('plan-') && n.endsWith('.ts'))
+    .map((n) => resolve(hier, n)),
   outdir: hier,
   outExtension: { '.js': '.mjs' },
   bundle: true,
@@ -25,7 +30,8 @@ await build({
   target: 'node20',
   // pdf.js bleibt draußen: Es bringt eigene Node-Pfade mit, und gebündelt
   // findet es seine Standardschriften nicht mehr.
-  external: ['pdfjs-dist/legacy/build/pdf.mjs'],
+  // @napi-rs/canvas hat native Teile und vertraegt kein Buendeln.
+  external: ['pdfjs-dist/legacy/build/pdf.mjs', '@napi-rs/canvas'],
   logLevel: 'warning',
   plugins: [
     {

@@ -19,3 +19,15 @@ unterlagen/*
 # Gebaute Werkzeuge – aus den .ts daneben erzeugt, siehe baue-plan-werkzeug.mjs
 werkzeuge/*.mjs
 !werkzeuge/baue-plan-werkzeug.mjs
+
+# Ladenpläne und alles, was daraus entsteht.
+#
+# Das Repository ist öffentlich, die Grundrisse unserer Märkte sind es nicht.
+# Gesperrt ist deshalb beides: die PDF, aus der gelesen wird, und die fertige
+# Projektdatei, die dabei herauskommt – in der stehen die Wandmaße im Klartext.
+*.pdf
+*.PDF
+plaene/
+
+# Die Zuordnung Plan -> Wandauswahl. Enthaelt Marktnamen und Gebaeudemasse.
+werkzeuge/plan-einstellungen.json
