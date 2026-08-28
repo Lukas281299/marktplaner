@@ -1,4 +1,10 @@
 import type { BibliothekEintrag, Grundform, Punkt } from '../typen/modell';
+import {
+  GESTELL_HOEHE,
+  GESTELL_LAENGEN,
+  GESTELL_STAERKE,
+  KISTE,
+} from '../logik/getraenkekisten';
 
 /**
  * Die mitgelieferte Elementbibliothek.
@@ -293,7 +299,7 @@ const WT_TOTE_ZONE = 7;
  * das nach eigener Farbe aus statt nach „nicht eingefärbt", und auf dem
  * Ausdruck verschwand es fast im Papier.
  */
-export const WT_GRAU = '#9e9e9e';
+export const WT_GRAU = '#8c8c8c';
 
 /**
  * Die Töne, die es vorher gab.
@@ -302,7 +308,7 @@ export const WT_GRAU = '#9e9e9e';
  * Ein Element, das einen davon trägt, bekommt beim Öffnen den einen Ton.
  * Die beiden letzten sind die freien Regale, die ihr eigenes Beige hatten.
  */
-export const WT_GRAU_ALT = ['#c9c5bd', '#b7b2a8', '#d8d4cc', '#d9d0c1', '#cfc3ad'];
+export const WT_GRAU_ALT = ['#c9c5bd', '#b7b2a8', '#d8d4cc', '#d9d0c1', '#cfc3ad', '#9e9e9e'];
 const WT_GRAU_DUNKEL = WT_GRAU;
 const WT_GRAU_HELL = WT_GRAU;
 
@@ -703,6 +709,32 @@ function vitableEintraege(): BibliothekEintrag[] {
   return eintraege;
 }
 
+/** Hausfarbe der Getränkeabteilung – heller als die Regale. */
+export const GETRAENKE_GRAU = '#c6c6c6';
+
+/**
+ * Die Preisgestelle der Getränkeabteilung.
+ *
+ * Drei Längen, wie sie geliefert werden. Die Tiefe steht hier als Anfangswert
+ * für **eine Reihe längs je Seite**; sie rechnet sich neu, sobald man am Möbel
+ * die Lage der Kisten oder die Zahl der Reihen ändert.
+ */
+function getraenkeEintraege(): BibliothekEintrag[] {
+  return GESTELL_LAENGEN.map((laenge) => ({
+    id: `getraenke-gestell-${laenge}`,
+    name: `Getränkegestell ${(laenge / 100).toFixed(2).replace('.', ',')} m`,
+    kategorie: 'getraenke' as const,
+    breite: laenge,
+    tiefe: GESTELL_STAERKE + KISTE.breite * 2,
+    hoehe: GESTELL_HOEHE,
+    form: 'getraenkegestell' as const,
+    farbe: GETRAENKE_GRAU,
+    beidseitig: true,
+    gruppe: 'Preisgestelle',
+    hinweis: `Kisten beidseitig davor · ${Math.floor(laenge / KISTE.laenge)} Kästen längs je Reihe`,
+  }));
+}
+
 /** Hausfarbe der Blumenabteilung – ein helles Grün. */
 const BLUMEN_GRUEN = '#b6dfa6';
 
@@ -961,6 +993,13 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
 
   // Die Zonenmarkierung für Obst und Gemüse. Kein Möbel, sondern eine Fläche.
   { id: 'frische-og-flaeche', name: 'Obst- und Gemüsefläche', kategorie: 'obstgemuese', breite: 500, tiefe: 400, hoehe: 0, form: 'rechteck', farbe: '#cfe4c2', hinweis: 'Gesamte O&G-Zone als Fläche – Zonenmarkierung, kein Möbel', gruppe: 'Frei' },
+
+  // ------------------------------------------------------------- Getränke
+  //
+  // Keine Regale: schmale Gestelle für die Preisschilder, und davor werden
+  // beidseitig Kisten gestapelt. Die Tiefe des Möbels ergibt sich deshalb aus
+  // den Kisten – siehe `logik/getraenkekisten.ts`.
+  ...getraenkeEintraege(),
 
   // ----------------------------------------------------- Blumen & Pflanzen
   //

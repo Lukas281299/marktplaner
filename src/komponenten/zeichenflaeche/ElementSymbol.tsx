@@ -23,6 +23,7 @@ import {
   textImKasten,
 } from '../../logik/warengruppe';
 import { feldkanten } from '../../logik/warengruppenzuordnung';
+import { GESTELL_STAERKE, kistenbelegung } from '../../logik/getraenkekisten';
 import type { Grundform, PlanElement, Regalfeld } from '../../typen/modell';
 
 /**
@@ -672,6 +673,73 @@ export function zeichneFlaechenangaben(
  * einen Regalzug gleichmäßig in Felder, `felder` gibt stattdessen jedes Feld
  * einzeln vor – daran hängt ein gemischter Zug.
  */
+/**
+ * Ein Getränkegestell mit den Kisten davor.
+ *
+ * Das Gestell selbst ist im Grundriss fast nichts – zwei Rohre mit
+ * Fußplatten, die nur die Preisschiene tragen. Gezeichnet wird es deshalb als
+ * schmaler Streifen in der Mitte, mit einer **Raute an jedem Ende**: So steht
+ * es auf den Ladenbauplänen, und so erkennt man auf einen Blick, wo ein
+ * Gestell aufhört und das nächste anfängt.
+ *
+ * Den Platz nehmen die Kisten. Sie stehen als Raster davor – jede einzeln
+ * gezeichnet, weil die Zahl der Kästen die Angabe ist, um die es geht.
+ */
+function zeichneGetraenkegestell(
+  ctx: Konva.Context,
+  b: number,
+  t: number,
+  kisten: PlanElement['kisten'],
+): void {
+  const lage = kisten?.lage ?? 'laengs';
+  const reihen = Math.max(0, Math.round(kisten?.reihen ?? 1));
+  const seiten: 1 | 2 = kisten?.einseitig ? 1 : 2;
+  const belegung = kistenbelegung(b, lage, reihen, seiten);
+
+  // Das Gestell liegt mittig, wenn beidseitig bestückt wird – sonst hinten,
+  // denn einseitig steht es an der Wand.
+  const gestellVon = seiten === 2 ? (t - GESTELL_STAERKE) / 2 : t - GESTELL_STAERKE;
+  const gestellBis = gestellVon + GESTELL_STAERKE;
+
+  ctx.rect(0, gestellVon, b, GESTELL_STAERKE);
+
+  // Die beiden Rohre als Längslinien im Streifen.
+  const rohr = GESTELL_STAERKE * 0.3;
+  for (const y of [gestellVon + rohr, gestellBis - rohr]) {
+    ctx.moveTo(0, y);
+    ctx.lineTo(b, y);
+  }
+
+  // Eine Raute an jedem Ende – die Stütze mit ihrer Fußplatte.
+  const mitte = (gestellVon + gestellBis) / 2;
+  const raute = Math.min(GESTELL_STAERKE * 1.6, b / 6);
+  for (const x of [0, b]) {
+    ctx.moveTo(x, mitte - raute);
+    ctx.lineTo(x + raute, mitte);
+    ctx.lineTo(x, mitte + raute);
+    ctx.lineTo(x - raute, mitte);
+    ctx.closePath();
+  }
+
+  if (belegung.jeReihe === 0 || reihen === 0) return;
+
+  // Die Kisten: je Seite ein Raster aus `jeReihe` × `reihen` Kästen. Sie
+  // beginnen am Gestell und wachsen nach außen – so wie sie auch gestapelt
+  // werden.
+  const richtungen: (1 | -1)[] = seiten === 2 ? [-1, 1] : [-1];
+  for (const richtung of richtungen) {
+    const kante = richtung < 0 ? gestellVon : gestellBis;
+    for (let reihe = 0; reihe < reihen; reihe++) {
+      const von = kante + richtung * reihe * belegung.reihentiefe;
+      const bis = von + richtung * belegung.reihentiefe;
+      for (let i = 0; i < belegung.jeReihe; i++) {
+        const x = i * belegung.kistenbreite;
+        ctx.rect(x, Math.min(von, bis), belegung.kistenbreite, belegung.reihentiefe);
+      }
+    }
+  }
+}
+
 export function zeichneForm(
   ctx: Konva.Context,
   form: Grundform,
@@ -682,6 +750,7 @@ export function zeichneForm(
   felder?: Regalfeld[],
   gespiegelt = false,
   felderOben?: Regalfeld[],
+  kisten?: PlanElement['kisten'],
 ) {
   switch (form) {
     case 'abgerundet': {
@@ -946,6 +1015,11 @@ export function zeichneForm(
           ctx.lineTo(b * anteil, t);
         }
       }
+      break;
+    }
+
+    case 'getraenkegestell': {
+      zeichneGetraenkegestell(ctx, b, t, kisten);
       break;
     }
 
@@ -1866,6 +1940,7 @@ export function ElementSymbol({
           felderVon(element, 'unten'),
           Boolean(element.gespiegelt),
           element.beidseitig ? felderVon(element, 'oben') : undefined,
+          element.kisten,
         );
         // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
         // die ganze Tiefe – so wie beim Regalzug.

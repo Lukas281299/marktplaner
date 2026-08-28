@@ -17,7 +17,7 @@ export const KATEGORIEN: Kategorie[] = [
   {
     id: 'regale',
     name: 'Regale',
-    farbe: '#9e9e9e',
+    farbe: '#8c8c8c',
     beschreibung: 'wire tech 100: Wandregale, Gondeln, Züge, Kopfgondeln',
   },
   {
@@ -43,6 +43,14 @@ export const KATEGORIEN: Kategorie[] = [
     name: 'Obst & Gemüse',
     farbe: '#1a7a1a',
     beschreibung: 'Vitable-Tische, Gondeln, Ecken und Köpfe',
+  },
+  {
+    id: 'getraenke',
+    name: 'Getränke',
+    // Heller als die Regale: Vor einem Gestell steht kein Möbel, sondern
+    // gestapelte Ware – das soll man im Plan auf einen Blick sehen.
+    farbe: '#c6c6c6',
+    beschreibung: 'Preisgestelle mit Kisten davor – 1,50 m, 2,00 m und 2,50 m',
   },
   {
     id: 'blumen',

@@ -11,6 +11,7 @@ import { modulName, modulsatzFuer, satzAusAchsmass, type Modulsatz } from '../da
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
+import { gestelltiefe, kistenbelegung } from '../logik/getraenkekisten';
 import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
@@ -1109,6 +1110,121 @@ function Warengruppenliste() {
 }
 
 /**
+ * Die Kisten vor einem Getränkegestell.
+ *
+ * Drei Angaben, und die vierte rechnet sich: Lage der Kisten, Zahl der
+ * Reihen, ein oder zwei Seiten – daraus folgt, **wie viele nebeneinander
+ * passen** und **wie tief** das Ganze wird. Die Tiefe ist die Zahl, um die es
+ * geht: Was hier dazukommt, fehlt der Gasse daneben.
+ */
+function Getraenkekisten({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
+  const kisten = element.kisten ?? { lage: 'laengs' as const, reihen: 1 };
+  const seiten: 1 | 2 = kisten.einseitig ? 1 : 2;
+  const belegung = kistenbelegung(element.breite, kisten.lage, kisten.reihen, seiten);
+  const tiefe = gestelltiefe(kisten.lage, kisten.reihen, seiten);
+
+  const setze = (werte: Partial<NonNullable<PlanElement['kisten']>>) => {
+    const neu = { ...kisten, ...werte };
+    const seitenNeu: 1 | 2 = neu.einseitig ? 1 : 2;
+    usePlanStore.getState().schnappschuss();
+    // Tiefe und Kisten in einem Zug: Die Tiefe **ist** das Ergebnis der
+    // Kisten, und ein Möbel, dessen Maß nicht zu seinem Inhalt passt, wäre
+    // im Plan eine falsche Angabe.
+    usePlanStore.getState().aendereElemente([element.id], {
+      kisten: neu,
+      tiefe: gestelltiefe(neu.lage, neu.reihen, seitenNeu),
+    });
+  };
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Kisten vor dem Gestell</div>
+
+      <div className="knopfreihe" style={{ marginBottom: 6 }}>
+        {(['laengs', 'quer'] as const).map((lage) => (
+          <button
+            key={lage}
+            className={`knopf${kisten.lage === lage ? ' aktiv' : ''}`}
+            style={{ flex: 1 }}
+            title={
+              lage === 'laengs'
+                ? 'Die lange Seite der Kiste liegt am Gestell – weniger nebeneinander, dafür schmaler'
+                : 'Die kurze Seite liegt am Gestell – mehr nebeneinander, dafür tiefer'
+            }
+            onClick={() => setze({ lage })}
+          >
+            {lage === 'laengs' ? 'Längs' : 'Quer'}
+          </button>
+        ))}
+      </div>
+
+      <div className="feld-zeile einspaltig">
+        <div className="feld">
+          <label>Reihen hintereinander (je Seite)</label>
+          <div className="knopfreihe" style={{ gap: 'var(--abstand-2)' }}>
+            {[1, 2, 3, 4].map((n) => (
+              <button
+                key={n}
+                className={`knopf${kisten.reihen === n ? ' aktiv' : ''}`}
+                style={{ flex: 1 }}
+                onClick={() => setze({ reihen: n })}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <Schalter
+        label="Nur eine Seite bestücken"
+        wert={Boolean(kisten.einseitig)}
+        aendern={(einseitig) => setze({ einseitig })}
+      />
+      <p className="hinweis" style={{ marginTop: 2, marginBottom: 8 }}>
+        So steht ein Gestell an der Wand. Sonst wird von beiden Seiten gestapelt.
+      </p>
+
+      <div className="kennzahl">
+        <span>Kisten nebeneinander</span>
+        <span className="kennzahl-wert">{belegung.jeReihe}</span>
+      </div>
+      <div className="kennzahl">
+        <span>Kisten insgesamt</span>
+        <span className="kennzahl-wert">{belegung.gesamt}</span>
+      </div>
+      <div className="kennzahl">
+        <span>Tiefe mit Kisten</span>
+        <span className="kennzahl-wert">{formatiereLaenge(tiefe, einheit)}</span>
+      </div>
+      {belegung.rest > 0.5 && (
+        <div className="kennzahl">
+          <span>Rest am Ende</span>
+          <span className="kennzahl-wert">{formatiereLaenge(belegung.rest, einheit)}</span>
+        </div>
+      )}
+
+      <Erklaerung titel="Wie das gerechnet wird">
+        <p className="hinweis">
+          Eine Kiste misst <strong>40 × 30 cm</strong> — das Maß des Bierkastens, und damit das,
+          was im Markt am häufigsten steht. <strong>Längs</strong> liegt die 40er-Seite am Gestell,
+          <strong> quer</strong> die 30er.
+        </p>
+        <p className="hinweis">
+          Wie viele nebeneinander passen, <strong>rechnet der Plan</strong> aus der Länge des
+          Gestells. Eine Kiste, die nicht mehr ganz draufpasst, wird nicht gezeichnet — ein halber
+          Kasten steht auch im Markt nicht da. Was übrig bleibt, steht oben als <em>Rest</em>.
+        </p>
+        <p className="hinweis">
+          Die <strong>Tiefe</strong> folgt aus Lage und Reihenzahl. Sie ist die Zahl, auf die es
+          ankommt: Was hier dazukommt, fehlt der Gasse daneben.
+        </p>
+      </Erklaerung>
+    </div>
+  );
+}
+
+/**
  * Notiz und Warengruppe für ein Möbel ohne Einheiten.
  *
  * Ein runder Kopf, eine Ecke, eine Palette, ein Drehständer: Die bestehen
@@ -1606,6 +1722,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         if (ziel.form === 'aktionsflaeche') return null;
         return <Elementbeschriftung element={ziel} />;
       })()}
+
+      {ausgewaehlte.length === 1 && erstes.form === 'getraenkegestell' && (
+        <Getraenkekisten element={erstes} einheit={einheit} />
+      )}
 
       {/* ------------------------------------------------------ Darstellung */}
       <div className="gruppe">

@@ -29,6 +29,7 @@ export type KategorieId =
   | 'bedienung'
   | 'obstgemuese'
   | 'blumen'
+  | 'getraenke'
   | 'backwaren'
   | 'kassen'
   | 'aktion'
@@ -67,6 +68,8 @@ export type Grundform =
   | 'kuehlStufen'
   | 'palette'
   | 'drehstaender'
+
+  | 'getraenkegestell'
   /**
    * Eine Aktions- oder Saisonfläche: eine Zone, kein Möbel.
    *
@@ -460,6 +463,27 @@ export interface PlanElement {
 
   /** Dasselbe für die Rückseite. Nur bei beidseitigen Möbeln. */
   warengruppenOben?: Warengruppenabschnitt[];
+
+  /**
+   * Die Kisten vor einem Getränkegestell.
+   *
+   * Die Getränkeabteilung besteht nicht aus Regalen, sondern aus schmalen
+   * Gestellen für die Preisschilder – den Platz brauchen die Kisten davor.
+   * Deshalb gibt hier nicht das Möbel seine Tiefe vor, sondern die Kisten
+   * geben sie ihm: Wer eine Reihe anhängt, macht die Gasse schmaler.
+   *
+   * Wie viele Kisten nebeneinander stehen, wird **gerechnet** und nicht
+   * gespeichert – siehe `logik/getraenkekisten.ts`. Eine Zahl, die man
+   * eintippen kann, wäre eine Zahl, die falsch sein kann.
+   */
+  kisten?: {
+    /** Liegt die lange Seite der Kiste parallel zum Gestell oder quer dazu? */
+    lage: 'laengs' | 'quer';
+    /** Wie viele Reihen hintereinander, je Seite. */
+    reihen: number;
+    /** Nur eine Seite bestücken – so steht ein Gestell an der Wand. */
+    einseitig?: boolean;
+  };
   /**
    * Dürfen die beiden Seiten verschieden eingeteilt sein?
    *

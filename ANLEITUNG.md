@@ -595,6 +595,46 @@ eigenen Teilung. Bestehende Pläne ändern sich dadurch nicht.
 > leeres Feld, ein Loch in die Wanne zu schneiden — dort ziehen beide Seiten
 > weiter gemeinsam.
 
+### Getränke: Gestelle und Kisten
+
+Die Getränkeabteilung besteht nicht aus Regalen. Sie besteht aus schmalen
+**Gestellen**, die nur die Preisschilder tragen — und aus **Kisten**, die
+beidseitig davorgestapelt werden. Das Gestell nimmt kaum Platz weg; den Platz
+brauchen die Kisten.
+
+Deshalb rechnet der Plan hier andersherum: Nicht das Möbel gibt seine Tiefe
+vor, sondern die Kisten geben sie ihm.
+
+Es gibt drei Längen — **1,50 m, 2,00 m und 2,50 m**. Setz eines aus der
+Abteilung *Getränke* in den Plan; rechts steht dann der Block **Kisten vor dem
+Gestell**:
+
+| Einstellung | Was sie bewirkt |
+|---|---|
+| **Längs / Quer** | Längs liegt die 40er-Seite der Kiste am Gestell, quer die 30er |
+| **Reihen hintereinander** | Wie tief gestapelt wird, je Seite |
+| **Nur eine Seite bestücken** | Für ein Gestell an der Wand |
+
+Darunter stehen die Zahlen, die sich daraus ergeben: wie viele Kisten
+nebeneinander passen, wie viele es insgesamt sind und **wie tief** das Ganze
+wird.
+
+**Wie viele nebeneinander passen, rechnet der Plan** aus der Länge des
+Gestells — das ist keine Zahl zum Eintippen. Eine Kiste, die nicht mehr ganz
+draufpasst, wird nicht gezeichnet; ein halber Kasten steht auch im Markt nicht
+da. Was übrig bleibt, steht als *Rest*.
+
+Eine Kiste misst **40 × 30 cm** — das Maß des Bierkastens mit 20 × 0,5 l, und
+damit das, was im Markt am häufigsten steht.
+
+Auf 2,00 m passen also längs fünf Kästen nebeneinander, quer sechs. Zwei
+Reihen quer je Seite machen das Möbel 1,66 m tief — und genau so viel fehlt
+der Gasse daneben.
+
+> **Die Farbe ist heller** als bei den Regalen. Vor einem Gestell steht kein
+> Möbel, sondern gestapelte Ware, und das soll man im Plan auf einen Blick
+> sehen.
+
 ### Warengruppen unter dem Zug
 
 Unter dem Regal steht im Plan, was dort verkauft wird. Diese Beschriftung
@@ -1357,6 +1397,7 @@ echte Maße.
 | **Bedienung & SB-Theken** | Blink Standard, Self und SV in vier Farben |
 | **Obst & Gemüse** | Vitable in allen 20 Varianten, beide Achsmaße, Ecken und Abschlüsse |
 | **Blumen & Pflanzen** | CMS Metasys: Pflanzregale, Blumentreppen, Präsenter, Bewässerungswannen |
+| **Getränke** | Preisgestelle in 1,50 m, 2,00 m und 2,50 m – die Kisten stehen davor |
 | **Backwaren** | BakeOff 3.0, Türme und Eckstücke |
 | **Kassen & Eingang** | Steh-, Sitz- und Doppelkassen, SB-Kassen, Ausgangsanlage |
 | **Aktions- & Sonderflächen** | Aktionsflächen, EPAL und CHEP, Drehständer |
