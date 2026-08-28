@@ -3,8 +3,9 @@ import { exportierePng } from '../logik/bildExport';
 import { buehneSteuerung } from '../logik/buehne';
 import {
   exportiereAlsJson,
-  importiereAusJson,
+  leseProjektdatei,
   speichereProjekt,
+  sichereAlles,
   speichereVorlage,
 } from '../speicher/projektArchiv';
 import { usePlanStore } from '../zustand/planStore';
@@ -95,6 +96,30 @@ export function Werkzeugleiste() {
   const dateiAuswaehlen = () => dateiRef.current?.click();
 
   /**
+   * Alle Planungen wegsichern.
+   *
+   * Was in der Anwendung steht, liegt allein in der Datenbank dieses
+   * Browsers. Wer dort die Websitedaten löscht, löscht die Arbeit von
+   * Monaten mit – ohne Rückfrage. Deshalb ein eigener Knopf und nicht nur
+   * der Einzelexport: Zehn Planungen einzeln zu sichern macht niemand.
+   */
+  const allesSichern = async () => {
+    // Erst den offenen Stand festschreiben, sonst fehlt die letzte Minute.
+    await speichereProjekt(usePlanStore.getState().projekt);
+    try {
+      const { anzahl, ort } = await sichereAlles();
+      if (anzahl === 0) return;
+      melde(
+        anzahl === 1
+          ? `Planung gesichert nach ${ort}`
+          : `${anzahl} Planungen gesichert nach ${ort}`,
+      );
+    } catch (fehler) {
+      window.alert(fehler instanceof Error ? fehler.message : 'Die Sicherung ist fehlgeschlagen.');
+    }
+  };
+
+  /**
    * Eingelesene Planungen übernehmen – auch mehrere auf einmal.
    *
    * Wer fünf Märkte übergeben bekommt, will nicht fünfmal denselben Dialog
@@ -112,11 +137,13 @@ export function Werkzeugleiste() {
     const gescheitert: string[] = [];
     for (const datei of liste) {
       try {
-        const inhalt = await importiereAusJson(datei);
+        const inhalt = await leseProjektdatei(datei);
         for (const vorlage of inhalt.eigeneVorlagen) await speichereVorlage(vorlage);
-        await speichereProjekt(inhalt.projekt);
-        store().setzeProjekt(inhalt.projekt);
-        gelungen++;
+        for (const projekt of inhalt.projekte) {
+          await speichereProjekt(projekt);
+          store().setzeProjekt(projekt);
+          gelungen++;
+        }
       } catch (fehler) {
         gescheitert.push(`${datei.name}: ${fehler instanceof Error ? fehler.message : 'nicht lesbar'}`);
       }
@@ -162,6 +189,13 @@ export function Werkzeugleiste() {
           </button>
           <button className="knopf" onClick={() => void jetztSpeichern()} title="Jetzt speichern (Strg+S)">
             <SymbolSpeichern /> Speichern
+          </button>
+          <button
+            className="knopf"
+            onClick={() => void allesSichern()}
+            title="Alle Planungen als Dateien sichern – die einzige Kopie außerhalb dieses Browsers"
+          >
+            <SymbolExport /> Sichern
           </button>
           <button
             className={`knopf${syncZustand === 'laeuft' ? ' aktiv' : ''}`}

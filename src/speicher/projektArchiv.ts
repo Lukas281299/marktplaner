@@ -397,6 +397,114 @@ export async function exportiereAlsJson(projekt: Projekt): Promise<void> {
  * Liest eine zuvor exportierte Datei ein und prüft sie grob.
  * Wirft einen Fehler mit verständlichem Text, wenn die Datei nicht passt.
  */
+/**
+ * Alle Planungen auf einmal sichern.
+ *
+ * Was in der Anwendung steht, liegt allein in der Datenbank des Browsers –
+ * an Browser und Adresse gebunden. Wer dort einmal die Websitedaten löscht,
+ * löscht die Arbeit von Monaten mit, und zwar ohne Rückfrage. Eine Sicherung
+ * ist deshalb keine Bequemlichkeit, sondern die einzige Kopie außerhalb.
+ *
+ * Kann der Browser einen Ordner öffnen (Chrome und Edge können es), wird
+ * jede Planung als eigene Datei hineingeschrieben – dieselben Dateien, die
+ * auch der Import liest. Sonst kommt eine Sammeldatei in den Download-Ordner.
+ *
+ * Rückgabe: wie viele Planungen gesichert wurden und wohin.
+ */
+export async function sichereAlles(): Promise<{ anzahl: number; ort: string }> {
+  const datenbank = await db();
+  const roh = await datenbank.getAll('projekte');
+  const projekte = roh.map(wandleProjekt);
+  const eigeneVorlagen = await listeVorlagen();
+  if (projekte.length === 0) return { anzahl: 0, ort: '' };
+
+  const stempel = new Date().toISOString().slice(0, 10);
+  const waehler = (window as unknown as { showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle> })
+    .showDirectoryPicker;
+
+  if (waehler) {
+    let ordner: FileSystemDirectoryHandle;
+    try {
+      ordner = await waehler.call(window);
+    } catch {
+      // Abgebrochen – das ist keine Störung, nur eine Entscheidung.
+      return { anzahl: 0, ort: '' };
+    }
+    // Zwei Planungen dürfen denselben Namen tragen – eine Datei nicht. Ohne
+    // die Nummer überschriebe die zweite stillschweigend die erste, und
+    // ausgerechnet die Sicherung verlöre Arbeit.
+    const vergeben = new Map<string, number>();
+    for (const projekt of projekte) {
+      const inhalt: Austauschdatei = {
+        format: 'marktplaner',
+        version: SCHEMA_VERSION,
+        exportiertAm: new Date().toISOString(),
+        projekt,
+        eigeneVorlagen,
+      };
+      const grund = dateinameAus(projekt.name);
+      const schonda = vergeben.get(grund) ?? 0;
+      vergeben.set(grund, schonda + 1);
+      const dateiname = schonda === 0 ? `${grund}.json` : `${grund} (${schonda + 1}).json`;
+      const datei = await ordner.getFileHandle(dateiname, { create: true });
+      const strom = await datei.createWritable();
+      await strom.write(JSON.stringify(inhalt, null, 2));
+      await strom.close();
+    }
+    return { anzahl: projekte.length, ort: ordner.name };
+  }
+
+  // Ohne Ordnerwahl: eine Datei mit allem darin.
+  const sammlung = {
+    format: 'marktplaner-sicherung' as const,
+    version: SCHEMA_VERSION,
+    exportiertAm: new Date().toISOString(),
+    projekte,
+    eigeneVorlagen,
+  };
+  const blob = new Blob([JSON.stringify(sammlung, null, 2)], { type: 'application/json' });
+  ladeDateiHerunter(blob, `Marktplaner Sicherung ${stempel}.json`);
+  return { anzahl: projekte.length, ort: 'Download-Ordner' };
+}
+
+/**
+ * Die Planungen aus einer Datei lesen – einzeln oder als Sicherung.
+ *
+ * Eine Sicherung enthält mehrere; eine Austauschdatei genau eine. Beide
+ * bekommen frische Kennungen, damit ein Einlesen nichts überschreibt, was
+ * schon dasteht.
+ */
+export async function leseProjektdatei(
+  datei: File,
+): Promise<{ projekte: Projekt[]; eigeneVorlagen: BibliothekEintrag[] }> {
+  let daten: unknown;
+  try {
+    daten = JSON.parse(await datei.text());
+  } catch {
+    throw new Error('Die Datei ist keine gültige JSON-Datei.');
+  }
+  const inhalt = daten as Omit<Partial<Austauschdatei>, 'format'> & {
+    format?: string;
+    projekte?: Projekt[];
+  };
+  const frisch = (p: Projekt): Projekt => ({
+    ...wandleProjekt(p),
+    id: neueId('projekt'),
+    geaendertAm: Date.now(),
+  });
+
+  if (inhalt?.format === 'marktplaner-sicherung' && Array.isArray(inhalt.projekte)) {
+    return {
+      projekte: inhalt.projekte.map(frisch),
+      eigeneVorlagen: inhalt.eigeneVorlagen ?? [],
+    };
+  }
+  if (inhalt?.format === 'marktplaner' && inhalt.projekt) {
+    return { projekte: [frisch(inhalt.projekt)], eigeneVorlagen: inhalt.eigeneVorlagen ?? [] };
+  }
+  throw new Error('Diese Datei stammt nicht aus dem Marktplaner.');
+}
+
 export async function importiereAusJson(datei: File): Promise<Austauschdatei> {
   let daten: unknown;
   try {
