@@ -71,6 +71,18 @@ export interface Auswahl {
    * keine Wand ist; eine Regel dafür gibt es nicht.
    */
   ohne?: { x1: number; y1: number; x2: number; y2: number }[];
+  /**
+   * Strichpaare verwerfen, zwischen denen weitere Linien liegen.
+   *
+   * Bauzeichnungen füllen Möbel und Bauteile mit dichten Schraffuren; deren
+   * Linien bilden untereinander lauter Paare im Wandabstand. Zwischen den
+   * beiden Seiten einer echten Wand liegt dagegen nichts.
+   *
+   * Nicht überall richtig: Wo die Wand selbst schraffiert ist, wirft der
+   * Filter genau die Wände weg, die er finden soll. Deshalb eine Option und
+   * keine Regel.
+   */
+  ohneSchraffur?: boolean;
 }
 
 /**
@@ -171,6 +183,23 @@ function ausStrichpaaren(
         const von = Math.max(striche[i].von, striche[j].von);
         const bis = Math.min(striche[i].bis, striche[j].bis);
         if (bis - von < wahl.minLaenge) continue;
+
+        // Zwischen den beiden Seiten einer Wand liegt nichts. Liegt dort eine
+        // dritte Linie, ist es keine Wand, sondern eine Schraffur - und die
+        // fuellt in Bauplaenen ganze Moebel und Bauteile.
+        if (wahl.ohneSchraffur) {
+          // "Dazwischen" heisst: mit Abstand zu beiden Seiten. Plaene zeichnen
+          // dieselbe Linie gern mehrfach uebereinander, und ohne diesen
+          // Abstand hielte jede Wand ihr eigenes Duplikat fuer eine Schraffur.
+          const RAND = 0.04;
+          let besetzt = false;
+          for (let k = i + 1; k < j; k++) {
+            if (striche[k].lage <= striche[i].lage + RAND) continue;
+            if (striche[k].lage >= striche[j].lage - RAND) continue;
+            if (striche[k].bis > von + 0.05 && striche[k].von < bis - 0.05) { besetzt = true; break; }
+          }
+          if (besetzt) continue;
+        }
         balken.push(
           quer
             ? { x1: von, y1: striche[i].lage, x2: bis, y2: striche[j].lage,
