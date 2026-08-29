@@ -42,6 +42,18 @@ export function Raeume({
   beiZiehen,
   beiZiehEnde,
 }: Props) {
+  /*
+   * Die Kantenmaße aller Räume auf einmal, damit sie sich nicht überdecken.
+   *
+   * Jeder Raum für sich wüsste nichts von seinen Nachbarn – und wo zwei
+   * Räume aneinanderstoßen, landeten beide Zahlen an derselben Stelle. Bei
+   * kleinen Räumen lagen dann drei Maße übereinander und keins war lesbar.
+   */
+  const kanten = useMemo(
+    () => kantenmasseOhneUeberdeckung(raeume, einheit, SCHRIFT_FLAECHE * 0.62),
+    [raeume, einheit],
+  );
+
   return (
     <>
       {raeume.map((raum) => (
@@ -49,6 +61,7 @@ export function Raeume({
           key={raum.id}
           raum={raum}
           einheit={einheit}
+          kanten={kanten.get(raum.id) ?? []}
           ausgewaehlt={raum.id === ausgewaehlt}
           zoom={zoom}
           anklickbar={anklickbar}
@@ -62,6 +75,14 @@ export function Raeume({
   );
 }
 
+/** Ein Kantenmaß: wo die Zahl steht, wie lang die Kante ist, wie gedreht. */
+export interface Kantenmass {
+  x: number;
+  y: number;
+  laenge: number;
+  drehung: number;
+}
+
 /**
  * Für jede Kante des Raums ihr Maß, samt Lage und Drehung.
  *
@@ -69,7 +90,7 @@ export function Raeume({
  * läge er in der Wand oder im Nachbarraum. Kopfstehende Zahlen werden
  * umgedreht: Ein Maß, das man nur mit geneigtem Kopf liest, ist keins.
  */
-export function kantenmasse(raum: Raum) {
+export function kantenmasse(raum: Raum): Kantenmass[] {
   const mitte = raum.umriss.reduce(
     (s, p) => ({ x: s.x + p.x / raum.umriss.length, y: s.y + p.y / raum.umriss.length }),
     { x: 0, y: 0 },
@@ -95,7 +116,7 @@ export function kantenmasse(raum: Raum) {
 
       return { x, y, laenge, drehung };
     })
-    .filter((k): k is { x: number; y: number; laenge: number; drehung: number } => k !== null);
+    .filter((k): k is Kantenmass => k !== null);
 }
 
 /**
@@ -221,9 +242,60 @@ function kastenImRaum(
   return punkte.every((p) => punktInnerhalb(p, umriss) && abstandZumRand(p, umriss) >= abstand);
 }
 
+/**
+ * Die Kantenmaße aller Räume, ohne die, die sich überdecken würden.
+ *
+ * Reihenfolge entscheidet: Lange Kanten zuerst. Eine Zahl an einer langen
+ * Wand ist die wichtigere – die kurze daneben ist meist ein Versatz, dessen
+ * Maß man auch am Raum ablesen kann. Wo zwei Zahlen sich überschneiden,
+ * bleibt deshalb die an der längeren Kante stehen.
+ */
+export function kantenmasseOhneUeberdeckung(
+  raeume: Raum[],
+  einheit: Massinheit,
+  schrift: number,
+): Map<string, Kantenmass[]> {
+  const alle = raeume.flatMap((raum) =>
+    kantenmasse(raum).map((k) => ({ ...k, raumId: raum.id })),
+  );
+  alle.sort((a, b) => b.laenge - a.laenge);
+
+  const belegt: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  const ergebnis = new Map<string, Kantenmass[]>();
+
+  for (const k of alle) {
+    const text = formatiereLaenge(k.laenge, einheit);
+    const breite = textbreite(text, schrift);
+    // Der Platz, den die Zahl einnimmt – großzügig, damit zwei Zahlen nicht
+    // Kante an Kante stehen.
+    const halbB = breite / 2 + schrift * 0.3;
+    const halbH = schrift * 0.8;
+    // Bei gedrehter Schrift tauschen Breite und Höhe die Rollen.
+    const quer = Math.abs(k.drehung) > 45;
+    const kasten = {
+      x1: k.x - (quer ? halbH : halbB),
+      y1: k.y - (quer ? halbB : halbH),
+      x2: k.x + (quer ? halbH : halbB),
+      y2: k.y + (quer ? halbB : halbH),
+    };
+
+    const stoert = belegt.some(
+      (b) => kasten.x1 < b.x2 && kasten.x2 > b.x1 && kasten.y1 < b.y2 && kasten.y2 > b.y1,
+    );
+    if (stoert) continue;
+
+    belegt.push(kasten);
+    const liste = ergebnis.get(k.raumId) ?? [];
+    liste.push(k);
+    ergebnis.set(k.raumId, liste);
+  }
+  return ergebnis;
+}
+
 function RaumBild({
   raum,
   einheit,
+  kanten,
   ausgewaehlt,
   zoom,
   anklickbar,
@@ -234,6 +306,7 @@ function RaumBild({
 }: {
   raum: Raum;
   einheit: Massinheit;
+  kanten: Kantenmass[];
   ausgewaehlt: boolean;
   zoom: number;
   anklickbar: boolean;
@@ -247,7 +320,6 @@ function RaumBild({
   const punkte = flach(raum.umriss);
   const kasten = useMemo(() => rahmen(raum.umriss), [raum.umriss]);
   const ziehbar = anklickbar && !raum.gesperrt;
-  const kanten = useMemo(() => kantenmasse(raum), [raum]);
   const kantenschrift = SCHRIFT_FLAECHE * 0.62;
   // Die Platzsuche legt ein Raster über den Raum und misst zu jeder Kante –
   // das ist zu viel Rechnerei für jeden Bildaufbau. Sie hängt allein am

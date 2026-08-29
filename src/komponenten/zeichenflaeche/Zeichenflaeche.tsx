@@ -27,6 +27,7 @@ import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Warengruppenmarkierung } from './Warengruppenmarkierung';
 import { Warengruppengriffe } from './Warengruppengriffe';
 import { Eckanfasser } from './Eckanfasser';
+import { Oeffnungsgriffe } from './Oeffnungsgriffe';
 import { Wandenden } from './Wandenden';
 import { Gebaeude } from './Gebaeude';
 import { Planvorlage } from './Planvorlage';
@@ -1173,6 +1174,12 @@ export function Zeichenflaeche() {
   const kuerzesteKanteAufSchirm =
     auswahlBreiten.length > 0 ? Math.min(...auswahlBreiten) * zoom : Infinity;
   const anfasserGroesse = Math.max(3, Math.min(9, kuerzesteKanteAufSchirm / 3.5));
+  /** Die ausgewählte Öffnung – für ihre Anfasser. */
+  const gewaehlteOeffnung =
+    sonderauswahl?.art === 'oeffnung'
+      ? projekt.oeffnungen.find((o) => o.id === sonderauswahl.id)
+      : undefined;
+
   /** Die ausgewählte Wand – für die Anfasser an ihren Enden. */
   const gewaehlteWand =
     sonderauswahl?.art === 'wand'
@@ -1466,6 +1473,21 @@ export function Zeichenflaeche() {
               beiZiehStart={() => usePlanStore.getState().schnappschuss()}
               beiZiehen={(index, ziel) =>
                 usePlanStore.getState().verschiebeElementEcke(eckElement.id, index, ziel)
+              }
+              beiZiehEnde={() => {}}
+            />
+          )}
+
+          {/* Anfasser der ausgewählten Öffnung – Breite und Tiefe zieht man
+              am Stück, nicht über Regler am Bildschirmrand. */}
+          {werkzeug === 'auswahl' && gewaehlteOeffnung && !gewaehlteOeffnung.gesperrt && (
+            <Oeffnungsgriffe
+              oeffnung={gewaehlteOeffnung}
+              zoom={zoom}
+              einheit={einheit}
+              beiZiehStart={() => usePlanStore.getState().schnappschuss()}
+              beiZiehen={(werte) =>
+                usePlanStore.getState().aendereOeffnung(gewaehlteOeffnung.id, werte, false)
               }
               beiZiehEnde={() => {}}
             />

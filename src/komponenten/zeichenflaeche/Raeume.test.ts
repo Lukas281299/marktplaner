@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { rechteck, rahmen } from '../../logik/polygon';
 import type { Raum } from '../../typen/modell';
 import { textbreite } from '../../logik/beschriftung';
-import { beschriftungsplatz, kantenmasse } from './Raeume';
+import { beschriftungsplatz, kantenmasse, kantenmasseOhneUeberdeckung } from './Raeume';
 
 /**
  * Beschriftung und Kantenmaße abgetrennter Räume.
@@ -169,5 +169,55 @@ describe('Beschriftung im Raum', () => {
       rahmen(rechteck(0, 0, 400, 300)),
     )!;
     expect(lang.schrift).toBeLessThan(kurz.schrift);
+  });
+});
+
+describe('Kantenmaße mehrerer Räume nebeneinander', () => {
+  /**
+   * Der Fall aus dem Plan: ein Flur, daneben zwei kleine Räume, alle Wand an
+   * Wand. Jeder Raum für sich wüsste nichts von seinen Nachbarn – und wo
+   * zwei aneinanderstoßen, landeten beide Zahlen an derselben Stelle. Bei
+   * den kleinen Räumen lagen dann drei Maße übereinander.
+   */
+  const nebeneinander: Raum[] = [
+    { ...raum(400, 300, 'Flur', 12), id: 'flur', umriss: rechteck(0, 0, 400, 300) },
+    { ...raum(150, 200, 'Personal WC', 12), id: 'wc', umriss: rechteck(400, 0, 150, 200) },
+    { ...raum(250, 200, 'Technik', 12), id: 'technik', umriss: rechteck(550, 0, 250, 200) },
+  ];
+
+  /** Nimmt den Platz, den eine Zahl einnimmt – wie in der Zeichnung. */
+  const kasten = (k: { x: number; y: number; laenge: number; drehung: number }, schrift = 28) => {
+    const halbB = (String(k.laenge).length * 0.62 * schrift) / 2 + schrift * 0.3;
+    const halbH = schrift * 0.8;
+    const quer = Math.abs(k.drehung) > 45;
+    return {
+      x1: k.x - (quer ? halbH : halbB), y1: k.y - (quer ? halbB : halbH),
+      x2: k.x + (quer ? halbH : halbB), y2: k.y + (quer ? halbB : halbH),
+    };
+  };
+
+  it('lässt keine zwei Zahlen übereinander stehen', () => {
+    const je = kantenmasseOhneUeberdeckung(nebeneinander, 'm', 28);
+    const alle = [...je.values()].flat();
+    for (let i = 0; i < alle.length; i++) {
+      for (let j = i + 1; j < alle.length; j++) {
+        const a = kasten(alle[i]);
+        const b = kasten(alle[j]);
+        const ueberlappt = a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1;
+        expect(ueberlappt).toBe(false);
+      }
+    }
+  });
+
+  it('behält dabei die Maße der langen Wände', () => {
+    const je = kantenmasseOhneUeberdeckung(nebeneinander, 'm', 28);
+    const laengen = [...je.values()].flat().map((k) => Math.round(k.laenge));
+    // Die 400er Kante des Flurs ist die längste – sie muss dabei sein.
+    expect(laengen).toContain(400);
+  });
+
+  it('zeigt bei einem einzelnen Raum weiter alle vier Kanten', () => {
+    const je = kantenmasseOhneUeberdeckung([nebeneinander[0]], 'm', 28);
+    expect(je.get('flur')).toHaveLength(4);
   });
 });
