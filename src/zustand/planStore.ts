@@ -150,6 +150,15 @@ export interface PlanStore {
    */
   wandstaerkeNeu: number;
   /**
+   * Ob eine gezogene Wand eine Linie ist oder ein Rechteck.
+   *
+   * Beim Abzeichnen eines Grundrisses sind die meisten Waende Teil eines
+   * geschlossenen Zuges: vier Seiten eines Lagers, eines Sozialraums, eines
+   * Kuehlhauses. Einzeln gezogen sind das vier Striche, die an den Ecken
+   * genau aufeinandertreffen muessen - mit `rechteck` ist es einer.
+   */
+  wandmodus: 'linie' | 'rechteck';
+  /**
    * Wartet die Anwendung darauf, dass eine Vorlage zum Austauschen gewählt
    * wird? Solange das an ist, fügt ein Klick in der Bibliothek nichts Neues
    * ein, sondern ersetzt die Auswahl.
@@ -364,6 +373,17 @@ export interface PlanStore {
 
   /** Legt fest, wie stark neue Waende und Raumtrennwaende werden. */
   setzeWandstaerkeNeu(cm: number): void;
+
+  /** Legt fest, ob eine gezogene Wand eine Linie ist oder ein Rechteck. */
+  setzeWandmodus(modus: 'linie' | 'rechteck'): void;
+
+  /**
+   * Vier Waende auf einmal, entlang eines Rechtecks.
+   *
+   * In einem Zug und nicht in vieren: Ein Rechteck ist eine Entscheidung,
+   * und ein Strg+Z soll es wieder wegnehmen - nicht ein Viertel davon.
+   */
+  fuegeWandrechteckHinzu(umriss: Punkt[], staerke?: number): string[];
   setzeTauschModus(an: boolean): void;
   /**
    * Ersetzt die ausgewählten Elemente durch eine andere Vorlage.
@@ -510,6 +530,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   // 24 cm - das uebliche Mauerwerk, und die Staerke, in der die Plaene
   // ihre Aussenwaende zeichnen.
   wandstaerkeNeu: 24,
+  wandmodus: 'linie',
   tauschModus: false,
   zwischenablage: [],
   eigeneVorlagen: [],
@@ -812,6 +833,31 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   setzeWandstaerkeNeu(cm) {
     set({ wandstaerkeNeu: Math.max(2, Math.round(cm)) });
+  },
+
+  setzeWandmodus(modus) {
+    set({ wandmodus: modus });
+  },
+
+  fuegeWandrechteckHinzu(umriss, staerke = get().wandstaerkeNeu) {
+    if (umriss.length < 3) return [];
+    const ids = umriss.map(() => neueId('wand'));
+    aendere(set, get, (p) => ({
+      ...p,
+      waende: [
+        ...p.waende,
+        ...umriss.map((von, i) => ({
+          id: ids[i],
+          von,
+          bis: umriss[(i + 1) % umriss.length],
+          staerke,
+          art: 'trennwand' as const,
+          gesperrt: false,
+        })),
+      ],
+    }));
+    set({ sonderauswahl: { art: 'wand', id: ids[0] }, auswahl: [] });
+    return ids;
   },
 
   setzeWandkoerper(koerper) {

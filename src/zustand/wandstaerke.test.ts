@@ -58,6 +58,28 @@ describe('Stärke neuer Wände', () => {
     expect(store().wandstaerkeNeu).toBe(24);
   });
 
+  it('zieht ein Rechteck als vier Wände', () => {
+    store().setzeWandstaerkeNeu(24);
+    const ids = store().fuegeWandrechteckHinzu(rechteck(0, 0, 1000, 600));
+    expect(ids).toHaveLength(4);
+
+    const vier = store().projekt.waende.filter((w) => ids.includes(w.id));
+    expect(vier.every((w) => w.staerke === 24)).toBe(true);
+
+    // Geschlossen: Jede Wand endet, wo die nächste anfängt.
+    for (let i = 0; i < vier.length; i++) {
+      expect(vier[i].bis).toEqual(vier[(i + 1) % vier.length].von);
+    }
+  });
+
+  it('nimmt das Rechteck mit einem Strg+Z zurück, nicht in Vierteln', () => {
+    const vorher = store().projekt.waende.length;
+    store().fuegeWandrechteckHinzu(rechteck(0, 0, 1000, 600));
+    expect(store().projekt.waende).toHaveLength(vorher + 4);
+    store().rueckgaengig();
+    expect(store().projekt.waende).toHaveLength(vorher);
+  });
+
   it('lässt keine unsinnig dünnen Wände zu', () => {
     store().setzeWandstaerkeNeu(0);
     expect(store().wandstaerkeNeu).toBeGreaterThanOrEqual(2);

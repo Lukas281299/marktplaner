@@ -609,6 +609,15 @@ export function Zeichenflaeche() {
 
           // --------------------------------------------------- Innenwand
           if (store0.werkzeug === 'wand') {
+            // Als Rechteck: die vier Seiten auf einmal. Beim Abzeichnen eines
+            // Grundrisses ist das der Regelfall – ein Lager, ein Sozialraum,
+            // ein Kühlhaus –, und vier einzelne Striche müssten an den Ecken
+            // genau aufeinandertreffen.
+            if (store0.wandmodus === 'rechteck') {
+              if (breite < 50 || hoehe < 50) return;
+              store0.fuegeWandrechteckHinzu(rechteckAusEcken(anfang, ende));
+              return;
+            }
             const ausgerichtet = richteWandAus(anfang, ende);
             const laenge = Math.hypot(ausgerichtet.x - anfang.x, ausgerichtet.y - anfang.y);
             // Unter einem halben Meter war es ein verrutschter Klick.

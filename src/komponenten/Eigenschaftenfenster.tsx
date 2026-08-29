@@ -2069,6 +2069,7 @@ function ProjektEigenschaften() {
   const projekt = usePlanStore((s) => s.projekt);
   const werkzeug = usePlanStore((s) => s.werkzeug);
   const wandstaerkeNeu = usePlanStore((s) => s.wandstaerkeNeu);
+  const wandmodus = usePlanStore((s) => s.wandmodus);
   const setzeGrundflaeche = usePlanStore((s) => s.setzeGrundflaeche);
   const setzeEinstellung = usePlanStore((s) => s.setzeEinstellung);
   const setzeEbene = usePlanStore((s) => s.setzeEbene);
@@ -2107,11 +2108,25 @@ function ProjektEigenschaften() {
               aendern={(cm) => usePlanStore.getState().setzeWandstaerkeNeu(cm)}
             />
           </div>
+          {werkzeug === 'wand' && (
+            <div className="feld-zeile einspaltig">
+              <Auswahlfeld<'linie' | 'rechteck'>
+                label="Ziehen als"
+                wert={wandmodus}
+                moeglichkeiten={[
+                  { wert: 'linie', text: 'Einzelne Wand' },
+                  { wert: 'rechteck', text: 'Rechteck – vier Wände' },
+                ]}
+                aendern={(m) => usePlanStore.getState().setzeWandmodus(m)}
+              />
+            </div>
+          )}
           <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
-            Gilt für alles, was du ab jetzt zeichnest. Wer einen Grundriss
-            nachzeichnet, zieht zwanzig Wände hintereinander – und die haben
-            fast immer dasselbe Maß. Üblich sind <strong>24 cm</strong> außen
-            und <strong>11,5 cm</strong> für leichte Trennwände.
+            Gilt für alles, was du ab jetzt zeichnest. Üblich sind{' '}
+            <strong>24 cm</strong> außen und <strong>11,5 cm</strong> für
+            leichte Trennwände. Als <strong>Rechteck</strong> entstehen vier
+            Wände in einem Zug – für Lager, Sozialräume und alles andere, was
+            rundherum geschlossen ist.
           </p>
         </div>
       )}
