@@ -56,6 +56,7 @@ import type {
   Hintergrund,
   Masslinie,
   Oeffnung,
+  Oeffnungsart,
   PlanElement,
   Projekt,
   Feldbezug,
@@ -192,6 +193,16 @@ export interface PlanStore {
    * genau aufeinandertreffen muessen - mit `rechteck` ist es einer.
    */
   wandmodus: 'linie' | 'rechteck';
+  /**
+   * Was beim naechsten Klick in eine Wand gesetzt wird.
+   *
+   * Wer eine Reihe Fenster in die Aussenwand setzt, will nicht nach jedem
+   * einzelnen die Art umstellen. Wie die Wandstaerke merkt sich der Wert,
+   * was zuletzt gewaehlt war.
+   */
+  oeffnungsartNeu: Oeffnungsart;
+  /** Lichte Breite der naechsten Oeffnung, in Zentimetern. */
+  oeffnungsbreiteNeu: number;
   /**
    * Wartet die Anwendung darauf, dass eine Vorlage zum Austauschen gewählt
    * wird? Solange das an ist, fügt ein Klick in der Bibliothek nichts Neues
@@ -411,6 +422,11 @@ export interface PlanStore {
   /** Legt fest, ob eine gezogene Wand eine Linie ist oder ein Rechteck. */
   setzeWandmodus(modus: 'linie' | 'rechteck'): void;
 
+  /** Legt fest, was beim naechsten Klick in eine Wand gesetzt wird. */
+  setzeOeffnungsartNeu(art: Oeffnungsart): void;
+  /** Legt die lichte Breite der naechsten Oeffnung fest. */
+  setzeOeffnungsbreiteNeu(cm: number): void;
+
   /**
    * Eine Wand aus einem aufgezogenen Rechteck.
    *
@@ -576,6 +592,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   // ihre Aussenwaende zeichnen.
   wandstaerkeNeu: 24,
   wandmodus: 'linie',
+  oeffnungsartNeu: 'tuer',
+  oeffnungsbreiteNeu: 100,
   tauschModus: false,
   zwischenablage: [],
   eigeneVorlagen: [],
@@ -884,6 +902,14 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set({ wandmodus: modus });
   },
 
+  setzeOeffnungsartNeu(art) {
+    set({ oeffnungsartNeu: art });
+  },
+
+  setzeOeffnungsbreiteNeu(cm) {
+    set({ oeffnungsbreiteNeu: Math.max(20, Math.round(cm)) });
+  },
+
   fuegeWandAusRechteck(rechteck) {
     if (rechteck.length < 3) return null;
     const xs = rechteck.map((p) => p.x);
@@ -1026,7 +1052,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           name: vorlage.name,
           umriss: imUhrzeigersinn(umriss),
           art,
-          wandstaerke: get().wandstaerkeNeu,
+          // Ein abgetrennter Raum markiert die Fläche; die Wände zieht
+          // der Planer selbst mit dem Wandwerkzeug. Zwei Wände an
+          // derselben Stelle - eine gezogene und eine vom Raum - sind im
+          // Plan nicht zu unterscheiden und in der Rechnung doppelt.
+          wandstaerke: 0,
           farbe: vorlage.farbe,
           beschriftungSichtbar: true,
           gesperrt: false,
@@ -1153,6 +1183,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   aendereOeffnung(id, werte, mitHistorie = true) {
+    // Eine geaenderte Art oder Breite gilt auch fuer die naechste Oeffnung -
+    // wer ein Fenster einsetzt, setzt meist gleich das naechste.
+    if (werte.art) set({ oeffnungsartNeu: werte.art });
+    if (typeof werte.breite === 'number') set({ oeffnungsbreiteNeu: werte.breite });
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
       oeffnungen: p.oeffnungen.map((o) => (o.id === id ? { ...o, ...werte } : o)),

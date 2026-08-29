@@ -70,7 +70,7 @@ export function wandleProjekt(roh: unknown): Projekt {
     ...(projekt as Projekt),
     version: SCHEMA_VERSION,
     grundflaeche: wandleGrundflaeche(projekt?.grundflaeche),
-    raeume: (projekt?.raeume ?? []).map(wandleRaum),
+    raeume: (projekt?.raeume ?? []).map(wandleRaum).map(ohneRaumwand),
     // Fassung 3: Beides gab es vorher nicht, es kann also nur leer sein.
     // Trotzdem über `??`, damit ein späterer Schritt hier nichts überschreibt.
     waende: projekt?.waende ?? [],
@@ -102,6 +102,20 @@ export function wandleProjekt(roh: unknown): Projekt {
     // sonst gingen genau die verloren, die den Umweg mitgemacht haben.
     ).map(aufsMeterband),
   };
+}
+
+/**
+ * Fassung 16: Abgetrennte Räume zeichnen keine Wand mehr.
+ *
+ * Sie brachten eine eigene Wandstärke mit und zeichneten damit eine zweite
+ * Wand neben die, die der Planer selbst gezogen hat – im Plan nicht zu
+ * unterscheiden und in der Flächenrechnung doppelt. Ein Raum markiert jetzt
+ * nur noch die Fläche und benennt sie.
+ *
+ * Wer sie zurückwill, stellt sie am Raum wieder ein; die Möglichkeit bleibt.
+ */
+function ohneRaumwand(raum: Raum): Raum {
+  return { ...raum, wandstaerke: 0 };
 }
 
 /** So sah eine Warengruppen-Beschriftung in Fassung 14 aus. */

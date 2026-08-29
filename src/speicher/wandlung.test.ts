@@ -139,7 +139,8 @@ describe('Räume', () => {
     expect(raum.id).toBe('raum-1');
     expect(raum.name).toBe('Lager');
     expect(rahmen(raum.umriss)).toEqual({ links: 3000, oben: 0, rechts: 4000, unten: 800 });
-    expect(raum.wandstaerke).toBe(20);
+    // Fassung 16 nimmt Räumen die eigene Wand – siehe unten.
+    expect(raum.wandstaerke).toBe(0);
     expect(raum.farbe).toBe('#dddddd');
   });
 
@@ -412,6 +413,27 @@ describe('Fassung 11: Kopfgondeln schauen in den Gang', () => {
     const frei = { ...kopf, id: 'frei', kopfVon: undefined };
     const neu = wandleProjekt(alteFassung({ elemente: [{ ...zug, kopfgondeln: {} }, frei] }));
     expect(neu.elemente.find((el) => el.id === 'frei')!.drehung).toBe(90);
+  });
+});
+
+describe('Räume ohne eigene Wand', () => {
+  /**
+   * Ein abgetrennter Raum brachte eine eigene Wandstärke mit und zeichnete
+   * damit eine zweite Wand neben die selbst gezogene – im Plan nicht zu
+   * unterscheiden, in der Rechnung doppelt.
+   */
+  it('nimmt vorhandenen Räumen die Wandstärke', () => {
+    const alt = {
+      ...alteFassung(),
+      raeume: [
+        { id: 'r1', name: 'Lager', umriss: [{ x: 0, y: 0 }, { x: 500, y: 0 }, { x: 500, y: 400 }], art: 'lager', wandstaerke: 15, farbe: '#eee', beschriftungSichtbar: true, gesperrt: false },
+        { id: 'r2', name: 'WC', umriss: [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 200, y: 200 }], art: 'sozial', wandstaerke: 24, farbe: '#eee', beschriftungSichtbar: true, gesperrt: false },
+      ],
+    };
+    const neu = wandleProjekt(alt);
+    expect(neu.raeume.map((r) => r.wandstaerke)).toEqual([0, 0]);
+    // Alles andere bleibt, wie es war.
+    expect(neu.raeume.map((r) => r.name)).toEqual(['Lager', 'WC']);
   });
 });
 

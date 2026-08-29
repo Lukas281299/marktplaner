@@ -597,10 +597,10 @@ export function Zeichenflaeche() {
               return;
             }
             store0.fuegeOeffnungHinzu({
-              art: 'tuer',
+              art: store0.oeffnungsartNeu,
               x: treffer.punkt.x,
               y: treffer.punkt.y,
-              breite: 100,
+              breite: store0.oeffnungsbreiteNeu,
               tiefe: treffer.staerke,
               drehung: treffer.winkel,
               gespiegelt: false,

@@ -131,19 +131,48 @@ body {
   gap: var(--abstand-1);
   /* Die Leiste darf das Fenster nie breiter machen als es ist. */
   min-width: 0;
-  overflow: hidden;
+  /* Sie wächst mit dem Inhalt – aber nicht über ein Drittel des Fensters
+     hinaus. Darüber wird doch geschoben; dann ist das Fenster so schmal,
+     dass keine Anordnung mehr hilft. */
+  max-height: 38vh;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .werkzeugleiste-zeile {
   display: flex;
   align-items: center;
   gap: var(--abstand-1);
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
+  /* Umbrechen statt schieben: Ein Werkzeug, das man erst herscrollen muss,
+     benutzt niemand. Lieber wird die Leiste eine Zeile höher – das kostet
+     einmal Platz, das Suchen kostet bei jedem Griff. */
+  flex-wrap: wrap;
+  row-gap: 3px;
   min-width: 0;
-  scrollbar-width: thin;
   padding-bottom: 2px;
+}
+
+/*
+ * Die Trenner zwischen den Gruppen verschwinden am Zeilenende – ein Strich
+ * am Anfang einer neuen Zeile trennt nichts, er steht nur im Weg.
+ */
+/*
+ * Auf schmalen Fenstern tritt die Beschriftung zurück und es bleibt das
+ * Zeichen. Was der Knopf tut, steht weiter in seinem Titel – der erscheint
+ * beim Zeigen. Zwei Zeilen Werkzeuge sind besser als vier Zeilen Wörter.
+ */
+@media (max-width: 1500px) {
+  .werkzeugleiste-zeile .knopf-text {
+    display: none;
+  }
+  .werkzeugleiste-zeile .knopf {
+    gap: 0;
+  }
+}
+
+.werkzeugleiste-zeile .trenner:first-child,
+.werkzeugleiste-zeile .trenner:last-child {
+  display: none;
 }
 
 .marke {
@@ -220,11 +249,11 @@ body {
 .knopf {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text);
-  padding: 5px 8px;
+  padding: 5px 7px;
   border-radius: var(--rundung);
   font: inherit;
   cursor: pointer;

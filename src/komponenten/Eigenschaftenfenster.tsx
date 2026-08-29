@@ -322,14 +322,32 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
 //  Eigenschaften einer Öffnung
 // ===========================================================================
 
-const OEFFNUNGSARTEN: { wert: Oeffnungsart; text: string }[] = [
+export const OEFFNUNGSARTEN: { wert: Oeffnungsart; text: string }[] = [
   { wert: 'tuer', text: 'Tür' },
   { wert: 'doppeltuer', text: 'Doppeltür' },
   { wert: 'schiebetuer', text: 'Schiebetür' },
+  { wert: 'schiebetuerDoppel', text: 'Schiebetür, zweiflügelig' },
+  { wert: 'notausgang', text: 'Notausgang' },
   { wert: 'durchgang', text: 'Durchgang (ohne Tür)' },
   { wert: 'rolltor', text: 'Rolltor' },
+  { wert: 'sektionaltor', text: 'Sektionaltor' },
   { wert: 'fenster', text: 'Fenster' },
+  { wert: 'schaufenster', text: 'Schaufenster' },
 ];
+
+/** Übliche lichte Breiten – für den Regler und als Anhalt. */
+const OEFFNUNG_BREITEN: Record<Oeffnungsart, number> = {
+  tuer: 100,
+  doppeltuer: 200,
+  schiebetuer: 120,
+  schiebetuerDoppel: 200,
+  notausgang: 100,
+  durchgang: 150,
+  rolltor: 300,
+  sektionaltor: 350,
+  fenster: 150,
+  schaufenster: 400,
+};
 
 function OeffnungEigenschaften({ oeffnung }: { oeffnung: Oeffnung }) {
   const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
@@ -366,6 +384,65 @@ function OeffnungEigenschaften({ oeffnung }: { oeffnung: Oeffnung }) {
             min={2}
             beiStart={beiStart}
             aendern={(tiefe) => setze({ tiefe })}
+          />
+        </div>
+
+        {/* Der Regler für die Breite: Ein Tor zieht man auf, bis es zum
+            Lieferwagen passt – das geht schiebend schneller als tippend.
+            Die Marke zeigt das übliche Maß dieser Art. */}
+        <FeldRahmen
+          label={`Breite ziehen · üblich ${formatiereLaenge(OEFFNUNG_BREITEN[oeffnung.art], einheit)}`}
+          titel="Von 60 cm bis 6 m – für Türen, Tore und Schaufenster"
+        >
+          <input
+            type="range"
+            min={60}
+            max={600}
+            step={5}
+            value={Math.min(600, Math.max(60, oeffnung.breite))}
+            onMouseDown={beiStart}
+            onChange={(e) => setze({ breite: Number(e.target.value) })}
+            style={{ width: '100%' }}
+          />
+        </FeldRahmen>
+
+        {/* Und die Lage. Verschoben wird entlang der Wand, in der die
+            Öffnung sitzt – quer dazu wäre sie nicht mehr in der Wand. */}
+        <FeldRahmen label="Entlang der Wand verschieben" titel="Verschiebt die Öffnung in ihrer Wand">
+          <input
+            type="range"
+            min={-200}
+            max={200}
+            step={1}
+            value={0}
+            onMouseDown={beiStart}
+            onChange={(e) => {
+              const weg = Number(e.target.value);
+              const bogen = (oeffnung.drehung * Math.PI) / 180;
+              setze({
+                x: oeffnung.x + Math.cos(bogen) * weg,
+                y: oeffnung.y + Math.sin(bogen) * weg,
+              });
+              e.target.value = '0';
+            }}
+            style={{ width: '100%' }}
+          />
+        </FeldRahmen>
+
+        <div className="feld-zeile">
+          <Massfeld
+            label="Lage X"
+            cm={oeffnung.x}
+            einheit={einheit}
+            beiStart={beiStart}
+            aendern={(x) => setze({ x })}
+          />
+          <Massfeld
+            label="Lage Y"
+            cm={oeffnung.y}
+            einheit={einheit}
+            beiStart={beiStart}
+            aendern={(y) => setze({ y })}
           />
         </div>
         <div className="feld-zeile">
@@ -2070,6 +2147,8 @@ function ProjektEigenschaften() {
   const werkzeug = usePlanStore((s) => s.werkzeug);
   const wandstaerkeNeu = usePlanStore((s) => s.wandstaerkeNeu);
   const wandmodus = usePlanStore((s) => s.wandmodus);
+  const oeffnungsartNeu = usePlanStore((s) => s.oeffnungsartNeu);
+  const oeffnungsbreiteNeu = usePlanStore((s) => s.oeffnungsbreiteNeu);
   const setzeGrundflaeche = usePlanStore((s) => s.setzeGrundflaeche);
   const setzeEinstellung = usePlanStore((s) => s.setzeEinstellung);
   const setzeEbene = usePlanStore((s) => s.setzeEbene);
@@ -2127,6 +2206,43 @@ function ProjektEigenschaften() {
             leichte Trennwände. Als <strong>Rechteck</strong> entstehen vier
             Wände in einem Zug – für Lager, Sozialräume und alles andere, was
             rundherum geschlossen ist.
+          </p>
+        </div>
+      )}
+
+      {/* ------------------------------------------------- Neue Öffnung */}
+      {werkzeug === 'oeffnung' && (
+        <div className="gruppe">
+          <div className="gruppe-titel">Neue Öffnung</div>
+          <div className="feld-zeile einspaltig">
+            <Auswahlfeld<Oeffnungsart>
+              label="Art"
+              wert={oeffnungsartNeu}
+              moeglichkeiten={OEFFNUNGSARTEN}
+              aendern={(art) => {
+                const s = usePlanStore.getState();
+                s.setzeOeffnungsartNeu(art);
+                // Mit der Art kommt das übliche Maß gleich mit – ein Rolltor
+                // ist keine Tür, und 100 cm wären der falsche Anfang.
+                s.setzeOeffnungsbreiteNeu(OEFFNUNG_BREITEN[art]);
+              }}
+            />
+          </div>
+          <FeldRahmen label="Lichte Breite" titel="Gilt für alles, was du ab jetzt in eine Wand setzt">
+            <input
+              type="range"
+              min={60}
+              max={600}
+              step={5}
+              value={Math.min(600, Math.max(60, oeffnungsbreiteNeu))}
+              onChange={(e) => usePlanStore.getState().setzeOeffnungsbreiteNeu(Number(e.target.value))}
+              style={{ width: '100%' }}
+            />
+          </FeldRahmen>
+          <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+            <strong>{formatiereLaenge(oeffnungsbreiteNeu, einheit)}</strong> – in eine Wand
+            klicken setzt sie dort ein. Lage und Maß lassen sich danach am
+            Stück nachziehen.
           </p>
         </div>
       )}

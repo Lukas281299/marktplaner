@@ -151,6 +151,89 @@ function OeffnungBild({
         </>
       )}
 
+      {oeffnung.art === 'schiebetuerDoppel' && (
+        <>
+          {/* Zwei Blätter, die zur Mitte hin aufziehen – die übliche
+              Ladentür am Eingang. */}
+          <Line
+            points={[-halbB, seite * halbT, halbB, seite * halbT]}
+            stroke="#3c4650"
+            strokeWidth={strich * 2}
+          />
+          <Line
+            points={[-halbB * 0.85, seite * halbT, -b * 0.06, seite * halbT]}
+            stroke="#3c4650"
+            strokeWidth={strich}
+          />
+          <Line
+            points={[b * 0.06, seite * halbT, halbB * 0.85, seite * halbT]}
+            stroke="#3c4650"
+            strokeWidth={strich}
+          />
+          {/* Die Pfeile zeigen, wohin die Blätter laufen. */}
+          <Line
+            points={[-halbB * 0.85 + b * 0.07, seite * halbT - b * 0.04, -halbB * 0.85, seite * halbT, -halbB * 0.85 + b * 0.07, seite * halbT + b * 0.04]}
+            stroke="#3c4650"
+            strokeWidth={strich}
+          />
+          <Line
+            points={[halbB * 0.85 - b * 0.07, seite * halbT - b * 0.04, halbB * 0.85, seite * halbT, halbB * 0.85 - b * 0.07, seite * halbT + b * 0.04]}
+            stroke="#3c4650"
+            strokeWidth={strich}
+          />
+        </>
+      )}
+
+      {oeffnung.art === 'sektionaltor' && (
+        <Shape
+          stroke="#3c4650"
+          strokeWidth={strich}
+          sceneFunc={(ctx, shape) => {
+            // Die einzelnen Paneele quer zur Öffnung – anders als beim
+            // Rolltor, das sich aufwickelt, fährt es in Segmenten hoch.
+            ctx.beginPath();
+            const felder = Math.max(3, Math.round(b / 60));
+            for (let i = 1; i < felder; i++) {
+              const x = -halbB + (b * i) / felder;
+              ctx.moveTo(x, -halbT);
+              ctx.lineTo(x, halbT);
+            }
+            ctx.moveTo(-halbB, 0);
+            ctx.lineTo(halbB, 0);
+            ctx.strokeShape(shape);
+          }}
+        />
+      )}
+
+      {oeffnung.art === 'schaufenster' && (
+        <>
+          {/* Wie ein Fenster, aber durchgehend verglast: drei Linien statt
+              zwei, damit es sich im Plan unterscheidet. */}
+          <Line points={[-halbB, -halbT * 0.6, halbB, -halbT * 0.6]} stroke="#3c4650" strokeWidth={strich} />
+          <Line points={[-halbB, 0, halbB, 0]} stroke="#3c4650" strokeWidth={strich * 1.4} />
+          <Line points={[-halbB, halbT * 0.6, halbB, halbT * 0.6]} stroke="#3c4650" strokeWidth={strich} />
+        </>
+      )}
+
+      {oeffnung.art === 'notausgang' && (
+        <>
+          {/* Tür mit Fluchtrichtung: Das Blatt schlägt nach außen auf, und
+              der Pfeil sagt wohin. Im Brandschutzplan ist das die Angabe,
+              auf die es ankommt. */}
+          <Tuerblatt breite={b} seite={seite} strich={strich} />
+          <Line
+            points={[0, seite * halbT, 0, seite * (halbT + b * 0.28)]}
+            stroke="#1d7a3e"
+            strokeWidth={strich * 1.6}
+          />
+          <Line
+            points={[-b * 0.08, seite * (halbT + b * 0.2), 0, seite * (halbT + b * 0.28), b * 0.08, seite * (halbT + b * 0.2)]}
+            stroke="#1d7a3e"
+            strokeWidth={strich * 1.6}
+          />
+        </>
+      )}
+
       {oeffnung.art === 'rolltor' && (
         <Shape
           stroke="#3c4650"

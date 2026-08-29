@@ -182,27 +182,27 @@ export function Werkzeugleiste() {
           <span className="trenner" />
 
           <button className="knopf" onClick={() => setDialog('neu')} title="Neue Marktplanung anlegen">
-            <SymbolNeu /> Neu
+            <SymbolNeu /> <span className="knopf-text">Neu</span>
           </button>
           <button className="knopf" onClick={() => setDialog('oeffnen')} title="Gespeicherte Planung öffnen">
-            <SymbolOeffnen /> Öffnen
+            <SymbolOeffnen /> <span className="knopf-text">Öffnen</span>
           </button>
           <button className="knopf" onClick={() => void jetztSpeichern()} title="Jetzt speichern (Strg+S)">
-            <SymbolSpeichern /> Speichern
+            <SymbolSpeichern /> <span className="knopf-text">Speichern</span>
           </button>
           <button
             className="knopf"
             onClick={() => void allesSichern()}
             title="Alle Planungen als Dateien sichern – die einzige Kopie außerhalb dieses Browsers"
           >
-            <SymbolExport /> Sichern
+            <SymbolExport /> <span className="knopf-text">Sichern</span>
           </button>
           <button
             className={`knopf${syncZustand === 'laeuft' ? ' aktiv' : ''}`}
             onClick={() => setDialog('abgleich')}
             title={ABGLEICH_HINWEIS[syncZustand]}
           >
-            <SymbolAbgleich /> Abgleich
+            <SymbolAbgleich /> <span className="knopf-text">Abgleich</span>
             {syncZustand === 'fehler' && <span className="punkt-fehler" />}
           </button>
 
@@ -213,31 +213,31 @@ export function Werkzeugleiste() {
             onClick={() => void exportiereAlsJson(projekt)}
             title="Projekt als JSON-Datei sichern – enthält alle Daten"
           >
-            <SymbolExport /> JSON
+            <SymbolExport /> <span className="knopf-text">JSON</span>
           </button>
           <button className="knopf" onClick={dateiAuswaehlen} title="Projektdateien einlesen – auch mehrere auf einmal">
-            <SymbolImport /> Import
+            <SymbolImport /> <span className="knopf-text">Import</span>
           </button>
           <button
             className="knopf"
             onClick={() => setDialog('planImport')}
             title="Einen bestehenden Marktplan aus einem PDF einlesen"
           >
-            <SymbolImport /> Plan-PDF
+            <SymbolImport /> <span className="knopf-text">Plan</span>
           </button>
           <button
             className="knopf"
             onClick={() => exportierePng(projekt, store().ansicht)}
             title="Plan als PNG-Bild speichern"
           >
-            <SymbolBild /> Bild
+            <SymbolBild /> <span className="knopf-text">Bild</span>
           </button>
           <button
             className="knopf"
             onClick={() => setDialog('ausgeben')}
             title="Plan als PDF zum Drucken oder als SVG für eine andere Webanwendung"
           >
-            <SymbolExport /> Ausgeben
+            <SymbolExport /> <span className="knopf-text">Ausgeben</span>
           </button>
 
           <span className="trenner" />
@@ -248,7 +248,7 @@ export function Werkzeugleiste() {
             onClick={() => store().rueckgaengig()}
             title="Rückgängig (Strg+Z)"
           >
-            <SymbolRueckgaengig /> Rückgängig
+            <SymbolRueckgaengig /> <span className="knopf-text">Zurück</span>
           </button>
           <button
             className="knopf"
@@ -256,7 +256,7 @@ export function Werkzeugleiste() {
             onClick={() => store().wiederholen()}
             title="Wiederholen (Strg+Y)"
           >
-            <SymbolWiederholen /> Wiederholen
+            <SymbolWiederholen /> <span className="knopf-text">Vor</span>
           </button>
 
           {meldung && (
@@ -272,7 +272,7 @@ export function Werkzeugleiste() {
             onClick={() => store().kopiereAuswahl()}
             title="Kopieren (Strg+C)"
           >
-            <SymbolKopieren /> Kopieren
+            <SymbolKopieren /> <span className="knopf-text">Kopieren</span>
           </button>
           <button
             className="knopf"
@@ -280,7 +280,7 @@ export function Werkzeugleiste() {
             onClick={() => store().fuegeEin()}
             title="Einfügen (Strg+V)"
           >
-            <SymbolEinfuegen /> Einfügen
+            <SymbolEinfuegen /> <span className="knopf-text">Einfügen</span>
           </button>
           <button
             className="knopf"
@@ -288,7 +288,7 @@ export function Werkzeugleiste() {
             onClick={() => store().dupliziereAuswahl()}
             title="Duplizieren (Strg+D)"
           >
-            <SymbolDuplizieren /> Duplizieren
+            <SymbolDuplizieren /> <span className="knopf-text">Duplizieren</span>
           </button>
           <button
             className="knopf knopf-gefahr"
@@ -296,7 +296,7 @@ export function Werkzeugleiste() {
             onClick={() => store().loescheAuswahl()}
             title="Löschen (Entf)"
           >
-            <SymbolLoeschen /> Löschen
+            <SymbolLoeschen /> <span className="knopf-text">Löschen</span>
           </button>
 
           <span className="trenner" />
@@ -325,7 +325,7 @@ export function Werkzeugleiste() {
             onClick={() => store().setzeEinstellung({ rasterSichtbar: !einstellungen.rasterSichtbar })}
             title="Raster ein- oder ausblenden (G)"
           >
-            <SymbolRaster /> Raster
+            <SymbolRaster /> <span className="knopf-text">Raster</span>
           </button>
           <button
             className={`knopf${einstellungen.amRasterEinrasten ? ' aktiv' : ''}`}
@@ -334,7 +334,7 @@ export function Werkzeugleiste() {
             }
             title="Am Raster einrasten (S)"
           >
-            <SymbolMagnet /> Einrasten
+            <SymbolMagnet /> <span className="knopf-text">Einrasten</span>
           </button>
 
           <span className="trenner" />
@@ -347,7 +347,7 @@ export function Werkzeugleiste() {
             onClick={() => buehneSteuerung.einpassen?.()}
             title="Ganzen Markt anzeigen (Strg+0)"
           >
-            <SymbolEinpassen /> Einpassen
+            <SymbolEinpassen /> <span className="knopf-text">Einpassen</span>
           </button>
           <button className="knopf knopf-nur-symbol" onClick={() => zoomen(1.25)} title="Vergrößern">
             <SymbolZoomPlus />
@@ -393,14 +393,14 @@ export function Werkzeugleiste() {
             onClick={() => store().setzeWerkzeug('auswahl')}
             title="Ganz normal planen: Elemente auswählen und verschieben (Esc)"
           >
-            <SymbolZeiger /> Bearbeiten
+            <SymbolZeiger /> <span className="knopf-text">Bearbeiten</span>
           </button>
           <button
             className={`knopf${werkzeug === 'umriss' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'umriss' ? 'auswahl' : 'umriss')}
             title="Ecken des Grundrisses ziehen, einfügen und entfernen"
           >
-            <SymbolUmriss /> Umriss
+            <SymbolUmriss /> <span className="knopf-text">Umriss</span>
           </button>
 
           <button
@@ -410,7 +410,7 @@ export function Werkzeugleiste() {
             }
             title="Einen Grundriss frei zeichnen: Ecken setzen, ziehen ergibt einen Bogen"
           >
-            <SymbolUmriss /> Frei zeichnen
+            <SymbolUmriss /> <span className="knopf-text">Frei</span>
           </button>
           <button
             className={`knopf${werkzeug === 'flaecheAnfuegen' ? ' aktiv' : ''}`}
@@ -419,7 +419,7 @@ export function Werkzeugleiste() {
             }
             title="Ein Rechteck aufziehen und zur Grundfläche hinzufügen – so entstehen zusammengesetzte Formen"
           >
-            <SymbolFlaechePlus /> Fläche anfügen
+            <SymbolFlaechePlus /> <span className="knopf-text">Anfügen</span>
           </button>
           <button
             className={`knopf${werkzeug === 'flaecheAbziehen' ? ' aktiv' : ''}`}
@@ -428,7 +428,7 @@ export function Werkzeugleiste() {
             }
             title="Ein Rechteck aus der Grundfläche herausschneiden"
           >
-            <SymbolFlaecheMinus /> Fläche abziehen
+            <SymbolFlaecheMinus /> <span className="knopf-text">Abziehen</span>
           </button>
 
           <span className="trenner" />
@@ -438,7 +438,7 @@ export function Werkzeugleiste() {
             onClick={() => store().setzeWerkzeug(werkzeug === 'raum' ? 'auswahl' : 'raum')}
             title="Einen rechteckigen Raum abtrennen: Lager, Kühlraum, Sozialraum …"
           >
-            <SymbolRaum /> Raum abtrennen
+            <SymbolRaum /> <span className="knopf-text">Raum</span>
           </button>
           <button
             className={`knopf${werkzeug === 'raumZeichnen' ? ' aktiv' : ''}`}
@@ -447,28 +447,28 @@ export function Werkzeugleiste() {
             }
             title="Einen Raum frei umfahren: Ecke für Ecke klicken, zum Schließen auf die erste"
           >
-            <SymbolUmriss /> Raum frei
+            <SymbolUmriss /> <span className="knopf-text">Raum frei</span>
           </button>
           <button
             className={`knopf${werkzeug === 'wand' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'wand' ? 'auswahl' : 'wand')}
             title="Eine einzelne Innenwand ziehen, ohne gleich einen ganzen Raum abzutrennen"
           >
-            <SymbolWand /> Innenwand
+            <SymbolWand /> <span className="knopf-text">Innenwand</span>
           </button>
           <button
             className={`knopf${werkzeug === 'foerderband' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'foerderband' ? 'auswahl' : 'foerderband')}
             title="Ein Förderband frei führen: Knick für Knick klicken, Enter beendet"
           >
-            <SymbolMassband /> Förderband
+            <SymbolMassband /> <span className="knopf-text">Förderband</span>
           </button>
           <button
             className={`knopf${werkzeug === 'oeffnung' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'oeffnung' ? 'auswahl' : 'oeffnung')}
             title="Tür, Durchgang oder Tor in eine Wand setzen – auf die Wand klicken"
           >
-            <SymbolTuer /> Tür / Durchgang
+            <SymbolTuer /> <span className="knopf-text">Öffnung</span>
           </button>
           <button
             className={`knopf${werkzeug === 'verkaufsflaeche' ? ' aktiv' : ''}`}
@@ -477,7 +477,7 @@ export function Werkzeugleiste() {
             }
             title="Verkaufsfläche markieren: Ecken setzen, ziehen ergibt einen Bogen, Klick auf den Anfang schließt. Mehrere Teilflächen möglich."
           >
-            <SymbolVerkaufsflaeche /> Verkaufsfläche
+            <SymbolVerkaufsflaeche /> <span className="knopf-text">VK-Fläche</span>
           </button>
 
           <span className="trenner" />
@@ -487,14 +487,14 @@ export function Werkzeugleiste() {
             onClick={() => store().setzeWerkzeug(werkzeug === 'textfeld' ? 'auswahl' : 'textfeld')}
             title="Freien Text in den Plan setzen – auf die Stelle klicken, Text danach rechts eintragen"
           >
-            <SymbolTextfeld /> Text
+            <SymbolTextfeld /> <span className="knopf-text">Text</span>
           </button>
           <button
             className={`knopf${werkzeug === 'messen' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'messen' ? 'auswahl' : 'messen')}
             title="Abstand zwischen zwei Punkten messen und dauerhaft eintragen (M)"
           >
-            <SymbolMassband /> Maß
+            <SymbolMassband /> <span className="knopf-text">Maß</span>
           </button>
 
           <span className="trenner" />
@@ -505,7 +505,7 @@ export function Werkzeugleiste() {
             onClick={() => store().gruppiere('zug')}
             title="Die ausgewählten Regale zu einem Zug zusammenfassen (Strg+G)"
           >
-            <SymbolGruppieren /> Gruppieren
+            <SymbolGruppieren /> <span className="knopf-text">Gruppieren</span>
           </button>
           <button
             className="knopf"
@@ -513,7 +513,7 @@ export function Werkzeugleiste() {
             onClick={() => store().hebeGruppeAuf()}
             title="Gruppierung wieder auflösen (Strg+Umschalt+G)"
           >
-            <SymbolGruppeAufheben /> Lösen
+            <SymbolGruppeAufheben /> <span className="knopf-text">Lösen</span>
           </button>
           <button
             className="knopf"
@@ -521,7 +521,7 @@ export function Werkzeugleiste() {
             onClick={() => store().reiheAneinanderAus()}
             title="Die ausgewählten Regale lückenlos aneinanderschieben"
           >
-            <SymbolAneinander /> Aneinanderreihen
+            <SymbolAneinander /> <span className="knopf-text">Reihen</span>
           </button>
 
           {werkzeug !== 'auswahl' && (

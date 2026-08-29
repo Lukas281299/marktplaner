@@ -28,10 +28,12 @@ describe('Stärke neuer Wände', () => {
     expect(store().projekt.waende.find((w) => w.id === id)?.staerke).toBe(30);
   });
 
-  it('gilt auch für die Trennwände abgetrennter Räume', () => {
+  it('gibt einem abgetrennten Raum keine eigene Wand', () => {
+    // Der Raum markiert die Fläche; die Wände zieht der Planer selbst. Zwei
+    // Wände an derselben Stelle wären im Plan nicht zu unterscheiden.
     store().setzeWandstaerkeNeu(11);
     const id = store().fuegeRaumHinzu(rechteck(0, 0, 500, 400));
-    expect(store().projekt.raeume.find((r) => r.id === id)?.wandstaerke).toBe(11);
+    expect(store().projekt.raeume.find((r) => r.id === id)?.wandstaerke).toBe(0);
   });
 
   it('merkt sich, was an einer fertigen Wand eingestellt wurde', () => {
