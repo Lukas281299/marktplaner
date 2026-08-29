@@ -298,6 +298,30 @@ export function Werkzeugleiste() {
           >
             <SymbolLoeschen /> <span className="knopf-text">Löschen</span>
           </button>
+          <button
+            className="knopf"
+            disabled={auswahl.length < 2}
+            onClick={() => store().gruppiere('zug')}
+            title="Die ausgewählten Regale zu einem Zug zusammenfassen (Strg+G)"
+          >
+            <SymbolGruppieren /> <span className="knopf-text">Gruppieren</span>
+          </button>
+          <button
+            className="knopf"
+            disabled={!auswahlHatGruppe}
+            onClick={() => store().hebeGruppeAuf()}
+            title="Gruppierung wieder auflösen (Strg+Umschalt+G)"
+          >
+            <SymbolGruppeAufheben /> <span className="knopf-text">Lösen</span>
+          </button>
+          <button
+            className="knopf"
+            disabled={auswahl.length < 2}
+            onClick={() => store().reiheAneinanderAus()}
+            title="Die ausgewählten Regale lückenlos aneinanderschieben"
+          >
+            <SymbolAneinander /> <span className="knopf-text">Reihen</span>
+          </button>
 
           <span className="trenner" />
 
@@ -497,32 +521,6 @@ export function Werkzeugleiste() {
             <SymbolMassband /> <span className="knopf-text">Maß</span>
           </button>
 
-          <span className="trenner" />
-
-          <button
-            className="knopf"
-            disabled={auswahl.length < 2}
-            onClick={() => store().gruppiere('zug')}
-            title="Die ausgewählten Regale zu einem Zug zusammenfassen (Strg+G)"
-          >
-            <SymbolGruppieren /> <span className="knopf-text">Gruppieren</span>
-          </button>
-          <button
-            className="knopf"
-            disabled={!auswahlHatGruppe}
-            onClick={() => store().hebeGruppeAuf()}
-            title="Gruppierung wieder auflösen (Strg+Umschalt+G)"
-          >
-            <SymbolGruppeAufheben /> <span className="knopf-text">Lösen</span>
-          </button>
-          <button
-            className="knopf"
-            disabled={auswahl.length < 2}
-            onClick={() => store().reiheAneinanderAus()}
-            title="Die ausgewählten Regale lückenlos aneinanderschieben"
-          >
-            <SymbolAneinander /> <span className="knopf-text">Reihen</span>
-          </button>
 
           {werkzeug !== 'auswahl' && (
             <button className="knopf" onClick={() => store().setzeWerkzeug('auswahl')}>

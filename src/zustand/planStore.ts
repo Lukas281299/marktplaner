@@ -204,6 +204,15 @@ export interface PlanStore {
   /** Lichte Breite der naechsten Oeffnung, in Zentimetern. */
   oeffnungsbreiteNeu: number;
   /**
+   * Richtung der naechsten frei gesetzten Oeffnung, in Grad.
+   *
+   * Wer die Waende selbst zieht, laesst an den Tueren Luecken - dort liegt
+   * keine Wand, aus der sich die Richtung ergaebe. Sie merkt sich deshalb,
+   * was zuletzt eingestellt war: Eine Reihe Tueren in derselben Wandflucht
+   * hat dieselbe Richtung.
+   */
+  oeffnungsdrehungNeu: number;
+  /**
    * Wartet die Anwendung darauf, dass eine Vorlage zum Austauschen gewählt
    * wird? Solange das an ist, fügt ein Klick in der Bibliothek nichts Neues
    * ein, sondern ersetzt die Auswahl.
@@ -426,6 +435,8 @@ export interface PlanStore {
   setzeOeffnungsartNeu(art: Oeffnungsart): void;
   /** Legt die lichte Breite der naechsten Oeffnung fest. */
   setzeOeffnungsbreiteNeu(cm: number): void;
+  /** Legt die Richtung der naechsten frei gesetzten Oeffnung fest. */
+  setzeOeffnungsdrehungNeu(grad: number): void;
 
   /**
    * Eine Wand aus einem aufgezogenen Rechteck.
@@ -594,6 +605,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   wandmodus: 'linie',
   oeffnungsartNeu: 'tuer',
   oeffnungsbreiteNeu: 100,
+  oeffnungsdrehungNeu: 0,
   tauschModus: false,
   zwischenablage: [],
   eigeneVorlagen: [],
@@ -910,6 +922,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set({ oeffnungsbreiteNeu: Math.max(20, Math.round(cm)) });
   },
 
+  setzeOeffnungsdrehungNeu(grad) {
+    set({ oeffnungsdrehungNeu: grad });
+  },
+
   fuegeWandAusRechteck(rechteck) {
     if (rechteck.length < 3) return null;
     const xs = rechteck.map((p) => p.x);
@@ -1187,6 +1203,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // wer ein Fenster einsetzt, setzt meist gleich das naechste.
     if (werte.art) set({ oeffnungsartNeu: werte.art });
     if (typeof werte.breite === 'number') set({ oeffnungsbreiteNeu: werte.breite });
+    if (typeof werte.drehung === 'number') set({ oeffnungsdrehungNeu: werte.drehung });
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
       oeffnungen: p.oeffnungen.map((o) => (o.id === id ? { ...o, ...werte } : o)),

@@ -39,7 +39,14 @@
   --schatten: 0 1px 2px rgba(20, 30, 45, 0.08), 0 4px 12px rgba(20, 30, 45, 0.06);
 
   /* Drei Zeilen Werkzeugleiste: Datei, Bearbeiten, Grundriss. */
-  --kopf-hoehe: 136px;
+  /*
+   * Die Werkzeugleiste ist so hoch wie ihr Inhalt – nicht mehr fest.
+   * Vorher standen hier 136 Bildpunkte, während die Knöpfe 86 brauchten;
+   * die übrigen fehlten unten auf der Zeichenfläche. Bricht die Leiste auf
+   * einem schmalen Fenster um, wächst sie mit und wird durch ihre eigene
+   * max-height begrenzt.
+   */
+  --kopf-hoehe: auto;
   --fuss-hoehe: 28px;
   --spalte-links: 264px;
   --spalte-rechts: 304px;
@@ -142,7 +149,13 @@ body {
 .werkzeugleiste-zeile {
   display: flex;
   align-items: center;
-  gap: var(--abstand-1);
+  /*
+   * Kompakt, aber beschriftet: Ein Knopf ohne Wort muss geraten werden, und
+   * geraten wird bei jedem Griff neu. Der Platz kommt stattdessen aus
+   * kleinerer Schrift, engeren Knöpfen und kleineren Zeichen.
+   */
+  font-size: 12.5px;
+  gap: 3px;
   /* Umbrechen statt schieben: Ein Werkzeug, das man erst herscrollen muss,
      benutzt niemand. Lieber wird die Leiste eine Zeile höher – das kostet
      einmal Platz, das Suchen kostet bei jedem Griff. */
@@ -156,20 +169,6 @@ body {
  * Die Trenner zwischen den Gruppen verschwinden am Zeilenende – ein Strich
  * am Anfang einer neuen Zeile trennt nichts, er steht nur im Weg.
  */
-/*
- * Auf schmalen Fenstern tritt die Beschriftung zurück und es bleibt das
- * Zeichen. Was der Knopf tut, steht weiter in seinem Titel – der erscheint
- * beim Zeigen. Zwei Zeilen Werkzeuge sind besser als vier Zeilen Wörter.
- */
-@media (max-width: 1500px) {
-  .werkzeugleiste-zeile .knopf-text {
-    display: none;
-  }
-  .werkzeugleiste-zeile .knopf {
-    gap: 0;
-  }
-}
-
 .werkzeugleiste-zeile .trenner:first-child,
 .werkzeugleiste-zeile .trenner:last-child {
   display: none;
@@ -249,11 +248,11 @@ body {
 .knopf {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text);
-  padding: 5px 7px;
+  padding: 4px 6px;
   border-radius: var(--rundung);
   font: inherit;
   cursor: pointer;
@@ -299,6 +298,17 @@ body {
   width: 15px;
   height: 15px;
   flex: none;
+}
+
+/* In der Werkzeugleiste etwas kleiner – dort zählt jeder Bildpunkt. */
+.werkzeugleiste-zeile .knopf svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Und die Trenner schmaler, es sind viele. */
+.werkzeugleiste-zeile .trenner {
+  margin: 0 2px;
 }
 
 .knopf-nur-symbol {

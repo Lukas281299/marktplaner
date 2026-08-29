@@ -592,19 +592,28 @@ export function Zeichenflaeche() {
               store0.projekt.waende,
             );
             const treffer = findeWand(anfang, achsen, fangbereich(zoomJetzt));
-            if (!treffer) {
-              melde('Dort ist keine Wand. Eine Öffnung wird auf eine Wand gesetzt – auf die Außenwand, eine Raumwand oder eine Innenwand.');
-              return;
-            }
+            // Liegt eine Wand darunter, übernimmt die Öffnung deren Richtung
+            // und Stärke – das ist der Regelfall und spart das Ausrichten.
+            //
+            // Ohne Wand wird sie trotzdem gesetzt: Wer die Wände selbst
+            // zieht, lässt an den Türen Lücken und will die Tür genau dort
+            // haben. Sie bekommt dann die zuletzt benutzte Richtung und die
+            // eingestellte Wandstärke; beides steht rechts zum Nachstellen.
             store0.fuegeOeffnungHinzu({
               art: store0.oeffnungsartNeu,
-              x: treffer.punkt.x,
-              y: treffer.punkt.y,
+              x: treffer ? treffer.punkt.x : anfang.x,
+              y: treffer ? treffer.punkt.y : anfang.y,
               breite: store0.oeffnungsbreiteNeu,
-              tiefe: treffer.staerke,
-              drehung: treffer.winkel,
+              tiefe: treffer ? treffer.staerke : store0.wandstaerkeNeu,
+              drehung: treffer ? treffer.winkel : store0.oeffnungsdrehungNeu,
               gespiegelt: false,
             });
+            if (!treffer) {
+              melde(
+                'Frei gesetzt – ohne Wand darunter. Richtung und Stärke stellst du rechts ein; ' +
+                  'die Richtung merkt sich das Werkzeug für die nächste.',
+              );
+            }
             return;
           }
 

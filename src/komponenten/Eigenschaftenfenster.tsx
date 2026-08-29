@@ -2149,6 +2149,7 @@ function ProjektEigenschaften() {
   const wandmodus = usePlanStore((s) => s.wandmodus);
   const oeffnungsartNeu = usePlanStore((s) => s.oeffnungsartNeu);
   const oeffnungsbreiteNeu = usePlanStore((s) => s.oeffnungsbreiteNeu);
+  const oeffnungsdrehungNeu = usePlanStore((s) => s.oeffnungsdrehungNeu);
   const setzeGrundflaeche = usePlanStore((s) => s.setzeGrundflaeche);
   const setzeEinstellung = usePlanStore((s) => s.setzeEinstellung);
   const setzeEbene = usePlanStore((s) => s.setzeEbene);
@@ -2239,10 +2240,36 @@ function ProjektEigenschaften() {
               style={{ width: '100%' }}
             />
           </FeldRahmen>
+          <div className="feld-zeile">
+            <Zahlfeld
+              label="Richtung"
+              einheit="°"
+              wert={oeffnungsdrehungNeu}
+              min={-180}
+              max={180}
+              schritt={15}
+              aendern={(grad) => usePlanStore.getState().setzeOeffnungsdrehungNeu(grad)}
+            />
+            <div className="feld">
+              <label>&nbsp;</label>
+              <button
+                className="knopf"
+                onClick={() =>
+                  usePlanStore
+                    .getState()
+                    .setzeOeffnungsdrehungNeu(oeffnungsdrehungNeu === 0 ? 90 : 0)
+                }
+                title="Zwischen waagerecht und senkrecht wechseln"
+              >
+                {oeffnungsdrehungNeu === 0 ? 'Waagerecht' : 'Senkrecht'}
+              </button>
+            </div>
+          </div>
           <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
             <strong>{formatiereLaenge(oeffnungsbreiteNeu, einheit)}</strong> – in eine Wand
-            klicken setzt sie dort ein. Lage und Maß lassen sich danach am
-            Stück nachziehen.
+            klicken übernimmt deren Richtung und Stärke. Wo keine Wand liegt,
+            wird die Öffnung trotzdem gesetzt, mit der Richtung von hier: für
+            Lücken, die du für die Türen freigelassen hast.
           </p>
         </div>
       )}
