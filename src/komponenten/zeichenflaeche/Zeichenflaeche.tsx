@@ -618,12 +618,16 @@ export function Zeichenflaeche() {
               drehung: treffer ? treffer.winkel : store0.oeffnungsdrehungNeu,
               gespiegelt: false,
             });
-            if (!treffer) {
-              melde(
-                'Frei gesetzt – ohne Wand darunter. Richtung und Stärke stellst du rechts ein; ' +
-                  'die Richtung merkt sich das Werkzeug für die nächste.',
-              );
-            }
+            // Und gleich zurück ins Auswählen: Die frische Öffnung ist
+            // ausgewählt, man kann sie sofort schieben und die Regler
+            // benutzen. Bliebe das Werkzeug an, setzte der nächste Klick
+            // eine zweite Tür – und man müsste erst Esc drücken.
+            store0.setzeWerkzeug('auswahl');
+            melde(
+              treffer
+                ? 'Gesetzt und ausgewählt – ziehen verschiebt sie, die Maße stehen rechts.'
+                : 'Frei gesetzt – ziehen verschiebt sie, die Maße stehen rechts. Alt beim Ziehen rastet in eine Wand ein.',
+            );
             return;
           }
 
@@ -873,9 +877,13 @@ export function Zeichenflaeche() {
    */
   const oeffnungZiehen = (id: string, x: number, y: number) => {
     const store = usePlanStore.getState();
-    // Mit gedrückter Alt-Taste fängt nichts: Wer an den Türen Lücken in der
-    // Wand gelassen hat, will die Tür genau dort haben.
-    if (altRef.current) {
+    // Ziehen ist frei. Das Einrasten in eine Wand kommt auf Wunsch, mit
+    // gedrückter Alt-Taste – nicht umgekehrt.
+    //
+    // Vorher fing es von selbst und zog die Öffnung aus jeder Lücke an die
+    // nächste Wandkante. Wer die Wände selbst zieht, lässt an den Türen
+    // Lücken; dort ist die Lücke gemeint und nicht die Kante daneben.
+    if (!altRef.current) {
       store.aendereOeffnung(id, { x, y }, false);
       return { x, y };
     }
@@ -884,10 +892,7 @@ export function Zeichenflaeche() {
       store.projekt.raeume,
       store.projekt.waende,
     );
-    // Anderthalbfacher Fangbereich statt vierfach. Vierfach zog die Öffnung
-    // noch aus einer Lücke heraus an die nächste Wandkante – gemeint war
-    // aber die Lücke.
-    const treffer = findeWand({ x, y }, achsen, fangbereich(store.ansicht.zoom) * 1.5);
+    const treffer = findeWand({ x, y }, achsen, fangbereich(store.ansicht.zoom) * 3);
     if (!treffer) {
       // Keine Wand in Reichweite: Dann lässt sich die Öffnung frei
       // versetzen, etwa um sie in eine ganz andere Wand zu bringen.

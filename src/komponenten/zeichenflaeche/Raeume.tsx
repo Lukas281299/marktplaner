@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Group, Line, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { SCHRIFT_FLAECHE, lesbar } from '../../logik/beschriftung';
+import { SCHRIFT_FLAECHE, lesbar, textbreite } from '../../logik/beschriftung';
 import { raumflaeche } from '../../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../../logik/masse';
 import { punktInnerhalb, rahmen } from '../../logik/polygon';
@@ -96,29 +96,6 @@ export function kantenmasse(raum: Raum) {
       return { x, y, laenge, drehung };
     })
     .filter((k): k is { x: number; y: number; laenge: number; drehung: number } => k !== null);
-}
-
-/**
- * Wie breit ein Text in einer bestimmten Größe wirklich wird.
- *
- * Geschätzt wurde das vorher über die Zeichenzahl – und das geht daneben,
- * sobald der Name kurz ist: "WC" braucht je Zeichen anderthalbmal so viel
- * Platz wie "Getränkelager", weil ein W breit und ein l schmal ist. Die zu
- * klein geschätzte Breite ließ die Schrift zu groß werden, und der Name
- * stand in der Wand.
- *
- * Gemessen wird auf einer eigenen Leinwand, die nie gezeichnet wird. Wo es
- * keine gibt – in den Prüfungen etwa –, bleibt die Schätzung als Notnagel;
- * sie ist großzügig gewählt, damit sie eher zu klein als zu breit ausfällt.
- */
-const MESSLEINWAND: CanvasRenderingContext2D | null =
-  typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
-
-export function textbreite(text: string, schrift: number): number {
-  if (!MESSLEINWAND) return text.length * 0.62 * schrift;
-  // Dieselbe Schrift, die Konva für die Beschriftung nimmt.
-  MESSLEINWAND.font = `bold ${schrift}px Arial, sans-serif`;
-  return MESSLEINWAND.measureText(text).width;
 }
 
 /**

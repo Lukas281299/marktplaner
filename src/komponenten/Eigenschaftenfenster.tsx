@@ -441,10 +441,9 @@ function OeffnungEigenschaften({ oeffnung }: { oeffnung: Oeffnung }) {
         </div>
 
         <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
-          Verschieben geht auch im Plan: einfach ziehen. In der Nähe einer
-          Wand rastet die Öffnung darin ein und übernimmt ihre Richtung – mit
-          gedrückter <strong>Alt</strong>-Taste bleibt sie, wo du sie
-          hinziehst.
+          Verschieben geht auch im Plan: einfach ziehen, sie bleibt genau
+          dort. Soll sie in eine Wand einrasten und deren Richtung
+          übernehmen, halte beim Ziehen <strong>Alt</strong> gedrückt.
         </p>
         <div className="feld-zeile">
           <Zahlfeld

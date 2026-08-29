@@ -69,3 +69,26 @@ export function laeuftRueckwaerts(drehung: number): boolean {
 export function lesbar(planHoehe: number, zoom: number): boolean {
   return planHoehe * zoom >= LESBAR_AB;
 }
+
+/**
+ * Wie breit ein Text in einer bestimmten Größe wirklich wird, in Planmaß.
+ *
+ * Geschätzt über die Zeichenzahl geht es daneben, sobald der Text kurz ist:
+ * "WC" braucht je Zeichen anderthalbmal so viel Platz wie "Getränkelager",
+ * weil ein W breit und ein l schmal ist. Gemessen wird deshalb auf einer
+ * eigenen Leinwand, die nie gezeichnet wird.
+ *
+ * Wo es keine gibt – in den Prüfungen etwa –, bleibt die Schätzung als
+ * Notnagel; sie fällt großzügig aus, damit sie eher zu breit als zu schmal
+ * rät. Zu breit heißt: eine Schriftgröße kleiner. Zu schmal hieße: Text im
+ * Nachbarraum.
+ */
+const MESSLEINWAND: CanvasRenderingContext2D | null =
+  typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+
+export function textbreite(text: string, schrift: number, fett = true): number {
+  if (!MESSLEINWAND) return text.length * 0.62 * schrift;
+  // Dieselbe Schrift, die Konva für die Beschriftungen nimmt.
+  MESSLEINWAND.font = `${fett ? 'bold ' : ''}${schrift}px Arial, sans-serif`;
+  return MESSLEINWAND.measureText(text).width;
+}

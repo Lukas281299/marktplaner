@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { rechteck, rahmen } from '../../logik/polygon';
 import type { Raum } from '../../typen/modell';
-import { beschriftungsplatz, kantenmasse, textbreite } from './Raeume';
+import { textbreite } from '../../logik/beschriftung';
+import { beschriftungsplatz, kantenmasse } from './Raeume';
 
 /**
  * Beschriftung und Kantenmaße abgetrennter Räume.
