@@ -2,9 +2,9 @@ import { Group, Line, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { SCHRIFT_FLAECHE, lesbar } from '../../logik/beschriftung';
 import { raumflaeche } from '../../logik/flaechen';
-import { formatiereFlaeche } from '../../logik/masse';
+import { formatiereFlaeche, formatiereLaenge } from '../../logik/masse';
 import { rahmen } from '../../logik/polygon';
-import type { Raum } from '../../typen/modell';
+import type { Massinheit, Raum } from '../../typen/modell';
 import { flach } from './Gebaeude';
 
 /**
@@ -18,6 +18,8 @@ import { flach } from './Gebaeude';
  */
 interface Props {
   raeume: Raum[];
+  /** Für die Kantenmaße – Meter oder Zentimeter. */
+  einheit: Massinheit;
   ausgewaehlt: string | null;
   zoom: number;
   /** Räume anklickbar? Beim Zeichnen von Flächen sollen sie nicht stören. */
@@ -30,6 +32,7 @@ interface Props {
 
 export function Raeume({
   raeume,
+  einheit,
   ausgewaehlt,
   zoom,
   anklickbar,
@@ -44,6 +47,7 @@ export function Raeume({
         <RaumBild
           key={raum.id}
           raum={raum}
+          einheit={einheit}
           ausgewaehlt={raum.id === ausgewaehlt}
           zoom={zoom}
           anklickbar={anklickbar}
@@ -57,8 +61,77 @@ export function Raeume({
   );
 }
 
+/**
+ * Für jede Kante des Raums ihr Maß, samt Lage und Drehung.
+ *
+ * Der Text läuft an der Kante entlang und wird nach innen gerückt – außen
+ * läge er in der Wand oder im Nachbarraum. Kopfstehende Zahlen werden
+ * umgedreht: Ein Maß, das man nur mit geneigtem Kopf liest, ist keins.
+ */
+export function kantenmasse(raum: Raum) {
+  const mitte = raum.umriss.reduce(
+    (s, p) => ({ x: s.x + p.x / raum.umriss.length, y: s.y + p.y / raum.umriss.length }),
+    { x: 0, y: 0 },
+  );
+
+  return raum.umriss
+    .map((a, i) => {
+      const b = raum.umriss[(i + 1) % raum.umriss.length];
+      const laenge = Math.hypot(b.x - a.x, b.y - a.y);
+      // Unter 30 cm wäre die Zahl länger als die Kante, an der sie steht.
+      if (laenge < 30) return null;
+
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const zurMitte = Math.hypot(mitte.x - mx, mitte.y - my);
+      const ein = Math.min(raum.wandstaerke + 14, zurMitte * 0.5);
+      const x = mx + (zurMitte > 0 ? ((mitte.x - mx) / zurMitte) * ein : 0);
+      const y = my + (zurMitte > 0 ? ((mitte.y - my) / zurMitte) * ein : 0);
+
+      let drehung = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+      if (drehung > 90) drehung -= 180;
+      if (drehung < -90) drehung += 180;
+
+      return { x, y, laenge, drehung };
+    })
+    .filter((k): k is { x: number; y: number; laenge: number; drehung: number } => k !== null);
+}
+
+/**
+ * Wo Name und Fläche stehen und wie groß.
+ *
+ * Die Schrift richtet sich nach dem Raum: In einem WC von 1,20 m Breite ist
+ * dieselbe Größe wie im Lager schlicht zu groß, und der Text stünde quer
+ * über der Wand. Passt gar nichts mehr hinein, bleibt die Beschriftung weg –
+ * lieber kein Text als einer im Nachbarraum.
+ */
+export function beschriftungsplatz(raum: Raum, kasten: ReturnType<typeof rahmen>) {
+  // Innen heißt: ohne die Wand, die nach innen gezeichnet wird.
+  const rand = raum.wandstaerke + 8;
+  const breite = kasten.rechts - kasten.links - 2 * rand;
+  const hoehe = kasten.unten - kasten.oben - 2 * rand;
+  if (breite < 40 || hoehe < 30) return null;
+
+  const text = `${raum.name}\n${formatiereFlaeche(raumflaeche(raum))}`;
+  const laengste = Math.max(...text.split('\n').map((z) => z.length));
+  // Grob 0,55 Zeichenbreiten je Schriftgröße – genau genug, um zu verhindern,
+  // dass der Text über den Rand läuft.
+  const nachBreite = breite / (laengste * 0.55);
+  const nachHoehe = hoehe / 2.6;
+  const schrift = Math.min(SCHRIFT_FLAECHE, nachBreite, nachHoehe);
+
+  return {
+    schrift,
+    x: kasten.links + rand,
+    y: (kasten.oben + kasten.unten) / 2 - schrift * 1.25,
+    breite,
+    text,
+  };
+}
+
 function RaumBild({
   raum,
+  einheit,
   ausgewaehlt,
   zoom,
   anklickbar,
@@ -68,6 +141,7 @@ function RaumBild({
   beiZiehEnde,
 }: {
   raum: Raum;
+  einheit: Massinheit;
   ausgewaehlt: boolean;
   zoom: number;
   anklickbar: boolean;
@@ -80,8 +154,10 @@ function RaumBild({
 
   const punkte = flach(raum.umriss);
   const kasten = rahmen(raum.umriss);
-  const schrift = SCHRIFT_FLAECHE;
   const ziehbar = anklickbar && !raum.gesperrt;
+  const kanten = kantenmasse(raum);
+  const kantenschrift = SCHRIFT_FLAECHE * 0.62;
+  const beschriftung = beschriftungsplatz(raum, kasten);
 
   return (
     <Group
@@ -101,8 +177,11 @@ function RaumBild({
         beiZiehEnde();
       }}
     >
-      {/* Bodenfläche */}
-      <Line points={punkte} closed fill={raum.farbe} />
+      {/* Bodenfläche – durchscheinend, damit das Raster darunter sichtbar
+          bleibt. Die Farbe ordnet den Raum zu; sie soll ihn nicht zudecken,
+          und beim Einpassen von Möbeln braucht man das Raster gerade da,
+          wo eine Fläche liegt. */}
+      <Line points={punkte} closed fill={raum.farbe} opacity={0.4} />
 
       {/* Wand nach innen beschnitten */}
       {raum.wandstaerke > 0 && (
@@ -130,17 +209,41 @@ function RaumBild({
         />
       )}
 
-      {/* Name und Fläche */}
-      {raum.beschriftungSichtbar && lesbar(schrift, zoom) && (
+      {/* Kantenmaße: an jeder Kante ihre Länge, klein und nach innen
+          gerückt. Beim Abzeichnen eines Bestandsplans zieht man den Raum
+          auf, bis die Zahl stimmt – und dafür muss sie an der Kante stehen,
+          nicht in einem Feld am Bildschirmrand. */}
+      {lesbar(kantenschrift, zoom) &&
+        kanten.map((kante, i) => (
+          <Text
+            key={i}
+            listening={false}
+            x={kante.x}
+            y={kante.y}
+            rotation={kante.drehung}
+            offsetX={kante.laenge / 2}
+            offsetY={kantenschrift * 1.15}
+            width={kante.laenge}
+            align="center"
+            text={formatiereLaenge(kante.laenge, einheit)}
+            fontSize={kantenschrift}
+            fill="#7a8794"
+          />
+        ))}
+
+      {/* Name und Fläche – mittig im Inneren, in einer Größe, die
+          hineinpasst. Ein Text, der in die Wand oder in den Nachbarraum
+          ragt, gehört sichtbar zum falschen Raum. */}
+      {raum.beschriftungSichtbar && beschriftung && lesbar(beschriftung.schrift, zoom) && (
         <Text
           listening={false}
-          x={kasten.links}
-          y={(kasten.oben + kasten.unten) / 2 - schrift}
-          width={kasten.rechts - kasten.links}
+          x={beschriftung.x}
+          y={beschriftung.y}
+          width={beschriftung.breite}
           align="center"
-          text={`${raum.name}\n${formatiereFlaeche(raumflaeche(raum))}`}
-          fontSize={schrift}
-          lineHeight={1.3}
+          text={beschriftung.text}
+          fontSize={beschriftung.schrift}
+          lineHeight={1.25}
           fill="#42505f"
           fontStyle="bold"
         />

@@ -1209,6 +1209,7 @@ export function Zeichenflaeche() {
           {raeumeSichtbar && (
             <Raeume
               raeume={projekt.raeume}
+              einheit={einheit}
               ausgewaehlt={sonderauswahl?.art === 'raum' ? sonderauswahl.id : null}
               zoom={zoom}
               anklickbar={werkzeug === 'auswahl' && !raeumeGesperrt}
