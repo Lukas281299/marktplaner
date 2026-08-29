@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Group, Line, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { SCHRIFT_FLAECHE, lesbar } from '../../logik/beschriftung';
@@ -123,75 +124,124 @@ export function textbreite(text: string, schrift: number): number {
 /**
  * Wo Name und Fläche stehen und wie groß.
  *
- * Die Schrift richtet sich nach dem Raum: In einem WC von 1,20 m Breite ist
- * dieselbe Größe wie im Lager schlicht zu groß, und der Text stünde quer
- * über der Wand. Passt gar nichts mehr hinein, bleibt die Beschriftung weg –
- * lieber kein Text als einer im Nachbarraum.
+ * Die Stelle wird gesucht, nicht gerechnet. Bei einem zusammengesetzten Raum
+ * – einem Hauptlager, das um den Kühlraum herumgreift, einer L-förmigen
+ * Metzgerei – hilft weder die Mitte des umschließenden Kastens noch der
+ * Schwerpunkt: Beide können in einer Kerbe liegen oder in einem Schenkel,
+ * der schmaler ist als der Text. Genau das war der Fehler.
+ *
+ * Gesucht wird deshalb der Punkt mit dem größten Abstand zur Wand, und dort
+ * wird die Schrift so weit verkleinert, bis der **ganze Textkasten** in den
+ * Raum passt – nicht nur sein Mittelpunkt. Passt auch die kleinste Schrift
+ * nicht mehr, bleibt die Beschriftung weg.
  */
 export function beschriftungsplatz(raum: Raum, kasten: ReturnType<typeof rahmen>) {
-  // Innen heißt: ohne die Wand, die nach innen gezeichnet wird.
-  const rand = raum.wandstaerke + 8;
-  const breite = kasten.rechts - kasten.links - 2 * rand;
-  const hoehe = kasten.unten - kasten.oben - 2 * rand;
-  if (breite < 40 || hoehe < 30) return null;
-
   const text = `${raum.name}\n${formatiereFlaeche(raumflaeche(raum))}`;
-  // Gemessen bei einer festen Größe und dann hochgerechnet – die Breite
-  // wächst mit der Schriftgröße linear.
-  const PROBE = 100;
-  const breiteste = Math.max(...text.split('\n').map((z) => textbreite(z, PROBE))) / PROBE;
-  const nachBreite = breite / breiteste;
-  // Zwei Zeilen mit Zeilenabstand 1,25 – dazu etwas Luft nach oben und unten.
-  const nachHoehe = hoehe / 2.8;
-  const schrift = Math.min(SCHRIFT_FLAECHE, nachBreite, nachHoehe);
+  const zeilen = text.split('\n');
+  const stelle = weitesteStelle(raum.umriss, kasten);
+  // Der Platz bis zur Wand, abzüglich der Wand selbst und etwas Luft.
+  const platz = stelle.abstand - raum.wandstaerke - 6;
+  if (platz <= 0) return null;
 
-  // Bei einem L-förmigen Raum liegt die Mitte des umschließenden Kastens in
-  // der Kerbe – also außerhalb. Der Flächenschwerpunkt trifft es dort
-  // besser; liegt auch der daneben, bleibt es bei der Kastenmitte, denn
-  // eine schlechtere Stelle als gar keine Beschriftung ist immer noch besser.
-  const kastenmitte = {
-    x: (kasten.links + kasten.rechts) / 2,
-    y: (kasten.oben + kasten.unten) / 2,
-  };
-  const schwer = schwerpunkt(raum.umriss);
-  const mitte = punktInnerhalb(schwer, raum.umriss) ? schwer : kastenmitte;
-
-  return {
-    schrift,
-    x: mitte.x - breite / 2,
-    y: mitte.y - schrift * 1.25,
-    breite,
-    text,
-  };
+  // Von der vollen Größe abwärts, bis der Kasten hineinpasst. Zehn Schritte
+  // reichen: Darunter wäre die Schrift ohnehin nicht mehr lesbar.
+  for (let i = 0; i < 10; i++) {
+    const schrift = SCHRIFT_FLAECHE * (1 - i * 0.09);
+    const breite = Math.max(...zeilen.map((z) => textbreite(z, schrift)));
+    const hoehe = zeilen.length * schrift * 1.25;
+    if (
+      kastenImRaum(
+        { x: stelle.x - breite / 2, y: stelle.y - hoehe / 2, breite, hoehe },
+        raum.umriss,
+        raum.wandstaerke + 4,
+      )
+    ) {
+      return { schrift, x: stelle.x - breite / 2, y: stelle.y - hoehe / 2, breite, text };
+    }
+  }
+  return null;
 }
 
 /**
- * Der Flächenschwerpunkt eines Umrisses.
+ * Der Punkt im Raum, der am weitesten von jeder Wand entfernt ist.
  *
- * Nicht der Mittelwert der Ecken: Bei einem Raum mit vielen kleinen Ecken an
- * einer Seite zöge der die Mitte dorthin. Der Flächenschwerpunkt hängt an
- * der Fläche und nicht an der Zahl der Ecken.
+ * Über ein Raster gesucht und danach einmal verfeinert – genau genug für
+ * eine Beschriftung und schnell genug, um es bei jeder Änderung neu zu
+ * rechnen. Für einen L-förmigen Raum landet er im breiteren Schenkel, und
+ * das ist die Stelle, an der ein Name Platz hat.
  */
-export function schwerpunkt(umriss: Punkt[]): Punkt {
-  let zweifach = 0;
-  let x = 0;
-  let y = 0;
+function weitesteStelle(umriss: Punkt[], kasten: ReturnType<typeof rahmen>) {
+  const suche = (
+    vonX: number,
+    bisX: number,
+    vonY: number,
+    bisY: number,
+    schritte: number,
+  ) => {
+    let beste = { x: (vonX + bisX) / 2, y: (vonY + bisY) / 2, abstand: -1 };
+    for (let i = 0; i <= schritte; i++) {
+      for (let j = 0; j <= schritte; j++) {
+        const p = {
+          x: vonX + ((bisX - vonX) * i) / schritte,
+          y: vonY + ((bisY - vonY) * j) / schritte,
+        };
+        if (!punktInnerhalb(p, umriss)) continue;
+        const abstand = abstandZumRand(p, umriss);
+        if (abstand > beste.abstand) beste = { ...p, abstand };
+      }
+    }
+    return beste;
+  };
+
+  const grob = suche(kasten.links, kasten.rechts, kasten.oben, kasten.unten, 22);
+  if (grob.abstand < 0) {
+    return { x: (kasten.links + kasten.rechts) / 2, y: (kasten.oben + kasten.unten) / 2, abstand: 0 };
+  }
+  // Noch einmal genauer um die gefundene Stelle herum.
+  const feld = Math.max(kasten.rechts - kasten.links, kasten.unten - kasten.oben) / 22;
+  return suche(grob.x - feld, grob.x + feld, grob.y - feld, grob.y + feld, 8);
+}
+
+/** Kürzester Abstand eines Punkts zu irgendeiner Kante des Umrisses. */
+function abstandZumRand(p: Punkt, umriss: Punkt[]): number {
+  let kleinster = Infinity;
   for (let i = 0; i < umriss.length; i++) {
     const a = umriss[i];
     const b = umriss[(i + 1) % umriss.length];
-    const kreuz = a.x * b.y - b.x * a.y;
-    zweifach += kreuz;
-    x += (a.x + b.x) * kreuz;
-    y += (a.y + b.y) * kreuz;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const laenge = dx * dx + dy * dy;
+    // Wie weit entlang der Kante der Lotfußpunkt liegt, begrenzt auf sie.
+    const t = laenge === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / laenge));
+    const abstand = Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+    if (abstand < kleinster) kleinster = abstand;
   }
-  // Entartet – etwa alle Punkte auf einer Linie: dann der Eckenmittelwert.
-  if (Math.abs(zweifach) < 1e-6) {
-    return {
-      x: umriss.reduce((s, p) => s + p.x, 0) / umriss.length,
-      y: umriss.reduce((s, p) => s + p.y, 0) / umriss.length,
-    };
-  }
-  return { x: x / (3 * zweifach), y: y / (3 * zweifach) };
+  return kleinster;
+}
+
+/**
+ * Liegt ein Rechteck ganz im Raum, mit Abstand zur Wand?
+ *
+ * Geprüft werden die vier Ecken und die Kantenmitten – bei einem Raum mit
+ * einem Vorsprung reichen die Ecken allein nicht, weil der Vorsprung
+ * mitten in die Kante ragen kann.
+ */
+function kastenImRaum(
+  k: { x: number; y: number; breite: number; hoehe: number },
+  umriss: Punkt[],
+  abstand: number,
+): boolean {
+  const punkte: Punkt[] = [
+    { x: k.x, y: k.y },
+    { x: k.x + k.breite, y: k.y },
+    { x: k.x + k.breite, y: k.y + k.hoehe },
+    { x: k.x, y: k.y + k.hoehe },
+    { x: k.x + k.breite / 2, y: k.y },
+    { x: k.x + k.breite / 2, y: k.y + k.hoehe },
+    { x: k.x, y: k.y + k.hoehe / 2 },
+    { x: k.x + k.breite, y: k.y + k.hoehe / 2 },
+  ];
+  return punkte.every((p) => punktInnerhalb(p, umriss) && abstandZumRand(p, umriss) >= abstand);
 }
 
 function RaumBild({
@@ -218,11 +268,15 @@ function RaumBild({
   if (raum.umriss.length < 3) return null;
 
   const punkte = flach(raum.umriss);
-  const kasten = rahmen(raum.umriss);
+  const kasten = useMemo(() => rahmen(raum.umriss), [raum.umriss]);
   const ziehbar = anklickbar && !raum.gesperrt;
-  const kanten = kantenmasse(raum);
+  const kanten = useMemo(() => kantenmasse(raum), [raum]);
   const kantenschrift = SCHRIFT_FLAECHE * 0.62;
-  const beschriftung = beschriftungsplatz(raum, kasten);
+  // Die Platzsuche legt ein Raster über den Raum und misst zu jeder Kante –
+  // das ist zu viel Rechnerei für jeden Bildaufbau. Sie hängt allein am
+  // Raum, also reicht sie einmal je Änderung.
+  const beschriftung = useMemo(() => beschriftungsplatz(raum, kasten), [raum, kasten]);
+
 
   return (
     <Group

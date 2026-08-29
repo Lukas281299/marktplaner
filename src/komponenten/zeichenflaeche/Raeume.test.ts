@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rechteck, rahmen } from '../../logik/polygon';
 import type { Raum } from '../../typen/modell';
-import { beschriftungsplatz, kantenmasse, schwerpunkt, textbreite } from './Raeume';
+import { beschriftungsplatz, kantenmasse, textbreite } from './Raeume';
 
 /**
  * Beschriftung und Kantenmaße abgetrennter Räume.
@@ -79,6 +79,54 @@ describe('Beschriftung im Raum', () => {
     expect(platz.x + platz.breite).toBeLessThanOrEqual(600 - r.wandstaerke);
   });
 
+  it('setzt den Namen in den breiten Schenkel eines L-Raums', () => {
+    // Eine Metzgerei wie im Bestandsplan: ein schmaler langer Schenkel und
+    // ein breiterer Kopf. In den schmalen passt der Name nicht.
+    const metzgerei: Raum = {
+      ...raum(0, 0, 'Metzgerei', 15),
+      umriss: [
+        { x: 0, y: 0 },
+        { x: 200, y: 0 },
+        { x: 200, y: 600 },
+        { x: 900, y: 600 },
+        { x: 900, y: 1000 },
+        { x: 0, y: 1000 },
+      ],
+    };
+    const platz = beschriftungsplatz(metzgerei, rahmen(metzgerei.umriss));
+    expect(platz).not.toBeNull();
+    // Der Text muss im unteren, breiten Teil liegen – nicht im schmalen Arm.
+    expect(platz!.y).toBeGreaterThan(600);
+    // Und er darf nicht über den Raum hinausragen.
+    expect(platz!.x).toBeGreaterThanOrEqual(0);
+    expect(platz!.x + platz!.breite).toBeLessThanOrEqual(900);
+  });
+
+  it('setzt den Namen eines umgreifenden Lagers in seinen breitesten Teil', () => {
+    // Ein Hauptlager, das um einen Kühlraum herumgreift: oben schmal,
+    // rechts breit. Die Mitte des umschließenden Kastens läge im Kühlraum.
+    const lager: Raum = {
+      ...raum(0, 0, 'Hauptlager', 24),
+      umriss: [
+        { x: 0, y: 0 },
+        { x: 1600, y: 0 },
+        { x: 1600, y: 1200 },
+        { x: 0, y: 1200 },
+        { x: 0, y: 900 },
+        { x: 700, y: 900 },
+        { x: 700, y: 300 },
+        { x: 0, y: 300 },
+      ],
+    };
+    const platz = beschriftungsplatz(lager, rahmen(lager.umriss))!;
+    expect(platz).not.toBeNull();
+    // Der ausgesparte Block liegt zwischen x 0–700 und y 300–900.
+    const mitteX = platz.x + platz.breite / 2;
+    const mitteY = platz.y;
+    const inDerAussparung = mitteX < 700 && mitteY > 300 && mitteY < 900;
+    expect(inDerAussparung).toBe(false);
+  });
+
   it('lässt die Beschriftung weg, wo nichts mehr hineinpasst', () => {
     // Eine Putzkammer von 60 auf 40 cm: Dort ist kein Platz für Text.
     expect(beschriftungsplatz(raum(60, 40, 'Putz'), rahmen(rechteck(0, 0, 60, 40)))).toBeNull();
@@ -105,11 +153,6 @@ describe('Beschriftung im Raum', () => {
     expect(mitte.y).toBeGreaterThan(500);
   });
 
-  it('findet den Flächenschwerpunkt eines Rechtecks in seiner Mitte', () => {
-    const s = schwerpunkt(rechteck(0, 0, 800, 400));
-    expect(Math.round(s.x)).toBe(400);
-    expect(Math.round(s.y)).toBe(200);
-  });
 
   it('schätzt die Textbreite auch ohne Leinwand nach oben ab', () => {
     // In den Prüfungen gibt es kein Canvas – die Schätzung muss trotzdem
