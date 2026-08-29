@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { rechteck, rahmen } from '../../logik/polygon';
 import type { Raum } from '../../typen/modell';
-import { beschriftungsplatz, kantenmasse } from './Raeume';
+import { beschriftungsplatz, kantenmasse, schwerpunkt, textbreite } from './Raeume';
 
 /**
  * Beschriftung und Kantenmaße abgetrennter Räume.
@@ -82,6 +82,40 @@ describe('Beschriftung im Raum', () => {
   it('lässt die Beschriftung weg, wo nichts mehr hineinpasst', () => {
     // Eine Putzkammer von 60 auf 40 cm: Dort ist kein Platz für Text.
     expect(beschriftungsplatz(raum(60, 40, 'Putz'), rahmen(rechteck(0, 0, 60, 40)))).toBeNull();
+  });
+
+  it('setzt den Text mittig – auch bei einem L-förmigen Raum', () => {
+    // Die Mitte des umschließenden Kastens läge hier in der Kerbe, also
+    // außerhalb des Raums.
+    const l: Raum = {
+      ...raum(1000, 1000),
+      umriss: [
+        { x: 0, y: 0 },
+        { x: 400, y: 0 },
+        { x: 400, y: 600 },
+        { x: 1000, y: 600 },
+        { x: 1000, y: 1000 },
+        { x: 0, y: 1000 },
+      ],
+    };
+    const platz = beschriftungsplatz(l, rahmen(l.umriss))!;
+    const mitte = { x: platz.x + platz.breite / 2, y: platz.y };
+    // Der Schwerpunkt liegt im unteren Balken des L – dort gehört der Text
+    // hin, nicht in die Kerbe oben rechts.
+    expect(mitte.y).toBeGreaterThan(500);
+  });
+
+  it('findet den Flächenschwerpunkt eines Rechtecks in seiner Mitte', () => {
+    const s = schwerpunkt(rechteck(0, 0, 800, 400));
+    expect(Math.round(s.x)).toBe(400);
+    expect(Math.round(s.y)).toBe(200);
+  });
+
+  it('schätzt die Textbreite auch ohne Leinwand nach oben ab', () => {
+    // In den Prüfungen gibt es kein Canvas – die Schätzung muss trotzdem
+    // mit der Schriftgröße wachsen, sonst wäre jede Schrift gleich groß.
+    expect(textbreite('Lager', 40)).toBeGreaterThan(textbreite('Lager', 20));
+    expect(textbreite('Getränkelager', 40)).toBeGreaterThan(textbreite('WC', 40));
   });
 
   it('rechnet mit dem längsten Wort, nicht mit dem ganzen Text', () => {

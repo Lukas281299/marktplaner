@@ -3,8 +3,8 @@ import type { KonvaEventObject } from 'konva/lib/Node';
 import { SCHRIFT_FLAECHE, lesbar } from '../../logik/beschriftung';
 import { raumflaeche } from '../../logik/flaechen';
 import { formatiereFlaeche, formatiereLaenge } from '../../logik/masse';
-import { rahmen } from '../../logik/polygon';
-import type { Massinheit, Raum } from '../../typen/modell';
+import { punktInnerhalb, rahmen } from '../../logik/polygon';
+import type { Massinheit, Punkt, Raum } from '../../typen/modell';
 import { flach } from './Gebaeude';
 
 /**
@@ -98,6 +98,29 @@ export function kantenmasse(raum: Raum) {
 }
 
 /**
+ * Wie breit ein Text in einer bestimmten Größe wirklich wird.
+ *
+ * Geschätzt wurde das vorher über die Zeichenzahl – und das geht daneben,
+ * sobald der Name kurz ist: "WC" braucht je Zeichen anderthalbmal so viel
+ * Platz wie "Getränkelager", weil ein W breit und ein l schmal ist. Die zu
+ * klein geschätzte Breite ließ die Schrift zu groß werden, und der Name
+ * stand in der Wand.
+ *
+ * Gemessen wird auf einer eigenen Leinwand, die nie gezeichnet wird. Wo es
+ * keine gibt – in den Prüfungen etwa –, bleibt die Schätzung als Notnagel;
+ * sie ist großzügig gewählt, damit sie eher zu klein als zu breit ausfällt.
+ */
+const MESSLEINWAND: CanvasRenderingContext2D | null =
+  typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+
+export function textbreite(text: string, schrift: number): number {
+  if (!MESSLEINWAND) return text.length * 0.62 * schrift;
+  // Dieselbe Schrift, die Konva für die Beschriftung nimmt.
+  MESSLEINWAND.font = `bold ${schrift}px Arial, sans-serif`;
+  return MESSLEINWAND.measureText(text).width;
+}
+
+/**
  * Wo Name und Fläche stehen und wie groß.
  *
  * Die Schrift richtet sich nach dem Raum: In einem WC von 1,20 m Breite ist
@@ -113,20 +136,62 @@ export function beschriftungsplatz(raum: Raum, kasten: ReturnType<typeof rahmen>
   if (breite < 40 || hoehe < 30) return null;
 
   const text = `${raum.name}\n${formatiereFlaeche(raumflaeche(raum))}`;
-  const laengste = Math.max(...text.split('\n').map((z) => z.length));
-  // Grob 0,55 Zeichenbreiten je Schriftgröße – genau genug, um zu verhindern,
-  // dass der Text über den Rand läuft.
-  const nachBreite = breite / (laengste * 0.55);
-  const nachHoehe = hoehe / 2.6;
+  // Gemessen bei einer festen Größe und dann hochgerechnet – die Breite
+  // wächst mit der Schriftgröße linear.
+  const PROBE = 100;
+  const breiteste = Math.max(...text.split('\n').map((z) => textbreite(z, PROBE))) / PROBE;
+  const nachBreite = breite / breiteste;
+  // Zwei Zeilen mit Zeilenabstand 1,25 – dazu etwas Luft nach oben und unten.
+  const nachHoehe = hoehe / 2.8;
   const schrift = Math.min(SCHRIFT_FLAECHE, nachBreite, nachHoehe);
+
+  // Bei einem L-förmigen Raum liegt die Mitte des umschließenden Kastens in
+  // der Kerbe – also außerhalb. Der Flächenschwerpunkt trifft es dort
+  // besser; liegt auch der daneben, bleibt es bei der Kastenmitte, denn
+  // eine schlechtere Stelle als gar keine Beschriftung ist immer noch besser.
+  const kastenmitte = {
+    x: (kasten.links + kasten.rechts) / 2,
+    y: (kasten.oben + kasten.unten) / 2,
+  };
+  const schwer = schwerpunkt(raum.umriss);
+  const mitte = punktInnerhalb(schwer, raum.umriss) ? schwer : kastenmitte;
 
   return {
     schrift,
-    x: kasten.links + rand,
-    y: (kasten.oben + kasten.unten) / 2 - schrift * 1.25,
+    x: mitte.x - breite / 2,
+    y: mitte.y - schrift * 1.25,
     breite,
     text,
   };
+}
+
+/**
+ * Der Flächenschwerpunkt eines Umrisses.
+ *
+ * Nicht der Mittelwert der Ecken: Bei einem Raum mit vielen kleinen Ecken an
+ * einer Seite zöge der die Mitte dorthin. Der Flächenschwerpunkt hängt an
+ * der Fläche und nicht an der Zahl der Ecken.
+ */
+export function schwerpunkt(umriss: Punkt[]): Punkt {
+  let zweifach = 0;
+  let x = 0;
+  let y = 0;
+  for (let i = 0; i < umriss.length; i++) {
+    const a = umriss[i];
+    const b = umriss[(i + 1) % umriss.length];
+    const kreuz = a.x * b.y - b.x * a.y;
+    zweifach += kreuz;
+    x += (a.x + b.x) * kreuz;
+    y += (a.y + b.y) * kreuz;
+  }
+  // Entartet – etwa alle Punkte auf einer Linie: dann der Eckenmittelwert.
+  if (Math.abs(zweifach) < 1e-6) {
+    return {
+      x: umriss.reduce((s, p) => s + p.x, 0) / umriss.length,
+      y: umriss.reduce((s, p) => s + p.y, 0) / umriss.length,
+    };
+  }
+  return { x: x / (3 * zweifach), y: y / (3 * zweifach) };
 }
 
 function RaumBild({
