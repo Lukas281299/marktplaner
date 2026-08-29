@@ -2159,6 +2159,15 @@ function ProjektEigenschaften() {
   const beiStart = () => usePlanStore.getState().schnappschuss();
 
   const flaechen = berechneFlaechen(projekt);
+  /**
+   * Hat der Planer die Wände selbst gezogen?
+   *
+   * Dann ist die eingestellte Grundfläche nur das Blatt, auf dem er zeichnet,
+   * und nicht das Gebäude. Ein paar Innenwände hat fast jeder Plan – erst ab
+   * einer Handvoll ist es ein selbst gezeichneter Grundriss.
+   */
+  const eigeneWaende = projekt.waende.length >= 5;
+  const raumsumme = flaechen.raeume.reduce((summe, r) => summe + r.flaeche, 0);
   const regalmeter = berechneRegalmeter(projekt);
   const kisten = gruenekisten(projekt);
 
@@ -2504,14 +2513,33 @@ function ProjektEigenschaften() {
       {/* ---------------------------------------------------------- Flächen */}
       <div className="gruppe">
         <div className="gruppe-titel">Flächenübersicht</div>
+        {/*
+          Der Rahmen ist nicht immer das Gebäude.
+          
+          Wer die Wände selbst zieht, benutzt die eingestellte Grundfläche nur
+          als Blatt, auf dem er zeichnet – dann sind „Außenmaß" und
+          „Innenfläche" zwei Zahlen über ein Rechteck, das es so nicht gibt.
+          Deshalb heißen sie, was sie sind, und der Hinweis sagt es dazu.
+        */}
         <div className="kennzahl">
-          <span>Gebäude (Außenmaß)</span>
+          <span>{eigeneWaende ? 'Grundfläche (Rahmen)' : 'Gebäude (Außenmaß)'}</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.brutto)}</span>
         </div>
-        <div className="kennzahl">
-          <span>Innenfläche (ohne Außenwand)</span>
-          <span className="kennzahl-wert">{formatiereFlaeche(flaechen.netto)}</span>
-        </div>
+        {!eigeneWaende && (
+          <div className="kennzahl">
+            <span>Innenfläche (ohne Außenwand)</span>
+            <span className="kennzahl-wert">{formatiereFlaeche(flaechen.netto)}</span>
+          </div>
+        )}
+        {raumsumme > 0 && (
+          <div className="kennzahl">
+            <span>
+              Abgetrennte Räume
+              <span className="kategorie-anzahl"> · {flaechen.raeume.length}</span>
+            </span>
+            <span className="kennzahl-wert">{formatiereFlaeche(raumsumme)}</span>
+          </div>
+        )}
         {flaechen.nebenflaeche > 0 && !flaechen.verkaufsflaecheMarkiert && (
           <div className="kennzahl">
             <span>Nebenflächen (Lager, Kühlung …)</span>
@@ -2613,6 +2641,14 @@ function ProjektEigenschaften() {
               </div>
             ))}
           </div>
+        )}
+
+        {eigeneWaende && (
+          <p className="hinweis" style={{ marginTop: 8 }}>
+            Die Grundfläche ist bei dir nur der Rahmen – die Wände hast du
+            selbst gezogen. Belastbar sind darum die eingezeichnete
+            Verkaufsfläche und die Räume, nicht das Rechteck darüber.
+          </p>
         )}
 
         {flaechen.jeKategorie.length > 0 && (
