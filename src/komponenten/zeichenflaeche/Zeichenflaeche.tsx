@@ -27,6 +27,7 @@ import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Warengruppenmarkierung } from './Warengruppenmarkierung';
 import { Warengruppengriffe } from './Warengruppengriffe';
 import { Eckanfasser } from './Eckanfasser';
+import { Wandenden } from './Wandenden';
 import { Gebaeude } from './Gebaeude';
 import { Planvorlage } from './Planvorlage';
 import { Masslinien } from './Masslinien';
@@ -53,7 +54,8 @@ function zeichnetZug(werkzeug: Werkzeug): boolean {
   return (
     werkzeug === 'grundrissZeichnen' ||
     werkzeug === 'verkaufsflaeche' ||
-    werkzeug === 'raumZeichnen'
+    werkzeug === 'raumZeichnen' ||
+    werkzeug === 'foerderband'
   );
 }
 
@@ -151,6 +153,26 @@ export function Zeichenflaeche() {
     const store = usePlanStore.getState();
     const verkauf = store.werkzeug === 'verkaufsflaeche';
     const raum = store.werkzeug === 'raumZeichnen';
+
+    // Ein Förderband ist ein offener Zug: Es endet, wo es endet, und wird
+    // nicht geschlossen. Zwei Punkte genügen – eine gerade Bahn ist der
+    // Normalfall, die Ecken kommen erst, wenn der Platz sie erzwingt.
+    if (store.werkzeug === 'foerderband') {
+      if (sauber.length < 2) {
+        setMeldung('Zu wenige Punkte – ein Band braucht mindestens zwei.');
+        return;
+      }
+      store.fuegeFoerderbandHinzu(sauber);
+      setZugMaus(null);
+      const meter = sauber
+        .slice(1)
+        .reduce((summe, p, i) => summe + Math.hypot(p.x - sauber[i].x, p.y - sauber[i].y), 0);
+      setMeldung(
+        `Förderband über ${(meter / 100).toFixed(2)} m gelegt. ` +
+          `Breite und Höhe stellst du rechts ein.`,
+      );
+      return;
+    }
 
     if (!taugtAlsUmriss(sauber)) {
       setMeldung(
@@ -609,13 +631,13 @@ export function Zeichenflaeche() {
 
           // --------------------------------------------------- Innenwand
           if (store0.werkzeug === 'wand') {
-            // Als Rechteck: die vier Seiten auf einmal. Beim Abzeichnen eines
-            // Grundrisses ist das der Regelfall – ein Lager, ein Sozialraum,
-            // ein Kühlhaus –, und vier einzelne Striche müssten an den Ecken
-            // genau aufeinandertreffen.
+            // Als Rechteck aufgezogen: Die lange Seite wird die Wand, die
+            // kurze ihre Stärke. So sieht man die Wand beim Ziehen schon in
+            // ihrer wirklichen Dicke, statt sie als Strich zu setzen und das
+            // Maß danach einzutippen.
             if (store0.wandmodus === 'rechteck') {
-              if (breite < 50 || hoehe < 50) return;
-              store0.fuegeWandrechteckHinzu(rechteckAusEcken(anfang, ende));
+              if (Math.max(breite, hoehe) < 50) return;
+              store0.fuegeWandAusRechteck(rechteckAusEcken(anfang, ende));
               return;
             }
             const ausgerichtet = richteWandAus(anfang, ende);
@@ -1118,6 +1140,12 @@ export function Zeichenflaeche() {
   const kuerzesteKanteAufSchirm =
     auswahlBreiten.length > 0 ? Math.min(...auswahlBreiten) * zoom : Infinity;
   const anfasserGroesse = Math.max(3, Math.min(9, kuerzesteKanteAufSchirm / 3.5));
+  /** Die ausgewählte Wand – für die Anfasser an ihren Enden. */
+  const gewaehlteWand =
+    sonderauswahl?.art === 'wand'
+      ? projekt.waende.find((w) => w.id === sonderauswahl.id)
+      : undefined;
+
   // Der Drehgriff braucht mehr Platz als ein Eckanfasser. Ist das Möbel zu
   // klein, wäre sein Stiel länger als das Möbel breit – dann bleibt er weg
   // und man dreht über R oder das Eigenschaftenfenster.
@@ -1409,6 +1437,24 @@ export function Zeichenflaeche() {
             />
           )}
 
+          {/* Enden der ausgewählten Wand – die Länge zieht man im Plan,
+              nicht im Zahlenfeld. */}
+          {werkzeug === 'auswahl' && gewaehlteWand && !gewaehlteWand.gesperrt && (
+            <Wandenden
+              wand={gewaehlteWand}
+              zoom={zoom}
+              einheit={einheit}
+              einrasten={aufRaster}
+              beiZiehStart={() => usePlanStore.getState().schnappschuss()}
+              beiZiehen={(ende, ziel) =>
+                usePlanStore
+                  .getState()
+                  .aendereWand(gewaehlteWand.id, ende === 0 ? { von: ziel } : { bis: ziel }, false)
+              }
+              beiZiehEnde={() => {}}
+            />
+          )}
+
           {/* Anfasser zum Umformen des Grundrisses */}
           {werkzeug === 'umriss' && (
             <UmrissBearbeitung
@@ -1535,6 +1581,7 @@ export function Zeichenflaeche() {
  */
 function zugfarbe(werkzeug: Werkzeug): string {
   if (werkzeug === 'raumZeichnen') return '#7b6bc4';
+  if (werkzeug === 'foerderband') return '#5b7386';
   if (werkzeug === 'verkaufsflaeche') return '#2ea043';
   return '#0a84ff';
 }
@@ -1568,6 +1615,7 @@ export const RAHMENFARBEN: Record<string, { fuellung: string; linie: string }> =
   grundrissZeichnen: { fuellung: 'rgba(10,132,255,0.12)', linie: '#0a84ff' },
   verkaufsflaeche: { fuellung: 'rgba(46,160,67,0.16)', linie: '#2ea043' },
   raumZeichnen: { fuellung: 'rgba(140,120,200,0.16)', linie: '#7b6bc4' },
+  foerderband: { fuellung: 'rgba(120,140,160,0.16)', linie: '#5b7386' },
 };
 
 /**
@@ -1595,6 +1643,11 @@ const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinwe
   raum: {
     titel: 'Raum abtrennen',
     hinweis: 'Rechteck aufziehen – Art und Name danach rechts einstellen',
+  },
+  foerderband: {
+    titel: 'Förderband legen',
+    hinweis:
+      'Klicken setzt einen Knick · Enter beendet das Band · Rückschritt nimmt einen Punkt zurück · Breite und Höhe danach rechts einstellen',
   },
   raumZeichnen: {
     titel: 'Raum frei umfahren',

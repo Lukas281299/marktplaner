@@ -457,6 +457,13 @@ export function Werkzeugleiste() {
             <SymbolWand /> Innenwand
           </button>
           <button
+            className={`knopf${werkzeug === 'foerderband' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'foerderband' ? 'auswahl' : 'foerderband')}
+            title="Ein Förderband frei führen: Knick für Knick klicken, Enter beendet"
+          >
+            <SymbolMassband /> Förderband
+          </button>
+          <button
             className={`knopf${werkzeug === 'oeffnung' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'oeffnung' ? 'auswahl' : 'oeffnung')}
             title="Tür, Durchgang oder Tor in eine Wand setzen – auf die Wand klicken"

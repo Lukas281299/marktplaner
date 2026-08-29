@@ -58,26 +58,52 @@ describe('Stärke neuer Wände', () => {
     expect(store().wandstaerkeNeu).toBe(24);
   });
 
-  it('zieht ein Rechteck als vier Wände', () => {
-    store().setzeWandstaerkeNeu(24);
-    const ids = store().fuegeWandrechteckHinzu(rechteck(0, 0, 1000, 600));
-    expect(ids).toHaveLength(4);
+  it('macht aus einem liegenden Rechteck eine Wand: lang mal dick', () => {
+    const id = store().fuegeWandAusRechteck(rechteck(100, 200, 1000, 24));
+    const wand = store().projekt.waende.find((w) => w.id === id);
+    expect(wand?.staerke).toBe(24);
+    // Die Achse liegt in der Mitte der kurzen Seite.
+    expect(wand?.von).toEqual({ x: 100, y: 212 });
+    expect(wand?.bis).toEqual({ x: 1100, y: 212 });
+  });
 
-    const vier = store().projekt.waende.filter((w) => ids.includes(w.id));
-    expect(vier.every((w) => w.staerke === 24)).toBe(true);
+  it('erkennt auch eine stehende Wand', () => {
+    const id = store().fuegeWandAusRechteck(rechteck(500, 100, 30, 800));
+    const wand = store().projekt.waende.find((w) => w.id === id);
+    expect(wand?.staerke).toBe(30);
+    expect(wand?.von).toEqual({ x: 515, y: 100 });
+    expect(wand?.bis).toEqual({ x: 515, y: 900 });
+  });
 
-    // Geschlossen: Jede Wand endet, wo die nächste anfängt.
-    for (let i = 0; i < vier.length; i++) {
-      expect(vier[i].bis).toEqual(vier[(i + 1) % vier.length].von);
+  it('merkt sich die aufgezogene Stärke für die nächste Wand', () => {
+    store().fuegeWandAusRechteck(rechteck(0, 0, 1000, 36));
+    expect(store().wandstaerkeNeu).toBe(36.5);
+  });
+
+  it('rastet die aufgezogene Dicke auf ein Mauerwerksmaß', () => {
+    // Aufgezogen wird nie auf den Zentimeter genau – und das Raster steht
+    // meist auf einem halben Meter.
+    const faelle: [number, number][] = [
+      [22, 24],      // knapp daneben → 24er Mauerwerk
+      [13, 11.5],    // eine leichte Trennwand
+      [34, 36.5],    // die Außenwand
+      [50, 49],      // noch im Band
+    ];
+    for (const [gezogen, erwartet] of faelle) {
+      const id = store().fuegeWandAusRechteck(rechteck(0, 0, 1000, gezogen));
+      expect(store().projekt.waende.find((w) => w.id === id)?.staerke).toBe(erwartet);
     }
   });
 
-  it('nimmt das Rechteck mit einem Strg+Z zurück, nicht in Vierteln', () => {
-    const vorher = store().projekt.waende.length;
-    store().fuegeWandrechteckHinzu(rechteck(0, 0, 1000, 600));
-    expect(store().projekt.waende).toHaveLength(vorher + 4);
-    store().rueckgaengig();
-    expect(store().projekt.waende).toHaveLength(vorher);
+  it('nimmt bei einem Strich statt eines Rechtecks die Voreinstellung', () => {
+    store().setzeWandstaerkeNeu(24);
+    const id = store().fuegeWandAusRechteck(rechteck(0, 0, 1000, 2));
+    expect(store().projekt.waende.find((w) => w.id === id)?.staerke).toBe(24);
+  });
+
+  it('lässt eine absichtlich dicke Vormauerung stehen', () => {
+    const id = store().fuegeWandAusRechteck(rechteck(0, 0, 1000, 120));
+    expect(store().projekt.waende.find((w) => w.id === id)?.staerke).toBe(120);
   });
 
   it('lässt keine unsinnig dünnen Wände zu', () => {

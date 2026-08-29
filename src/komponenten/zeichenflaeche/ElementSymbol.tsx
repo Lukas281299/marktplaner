@@ -24,7 +24,7 @@ import {
 } from '../../logik/warengruppe';
 import { feldkanten } from '../../logik/warengruppenzuordnung';
 import { GESTELL_STAERKE, kistenbelegung } from '../../logik/getraenkekisten';
-import type { Grundform, PlanElement, Regalfeld } from '../../typen/modell';
+import type { Grundform, PlanElement, Punkt, Regalfeld } from '../../typen/modell';
 
 /**
  * Ein einzelnes Element auf dem Plan.
@@ -801,6 +801,66 @@ function zeichneGetraenkegestell(
   }
 }
 
+/**
+ * Ein Förderband entlang seines Verlaufs.
+ *
+ * Gezeichnet wird der Zug als breites Band mit den Rollen quer darauf – das
+ * Bild, an dem man eine Rollenbahn im Plan erkennt. Die Ecken bleiben stumpf
+ * gestoßen statt sauber auf Gehrung: Eine Rollenbahn wird aus geraden
+ * Stücken und Kurvenmodulen gebaut, und genau so sieht sie im Plan auch aus.
+ *
+ * Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der linken
+ * oberen Ecke, deshalb kommt die halbe Größe dazu – wie beim Umriss.
+ */
+function zeichneFoerderband(
+  ctx: Konva.Context,
+  verlauf: Punkt[],
+  bandbreite: number,
+  b: number,
+  t: number,
+) {
+  const punkte = verlauf.map((p) => ({ x: p.x + b / 2, y: p.y + t / 2 }));
+  const halb = bandbreite / 2;
+
+  for (let i = 1; i < punkte.length; i++) {
+    const a = punkte[i - 1];
+    const c = punkte[i];
+    const laenge = Math.hypot(c.x - a.x, c.y - a.y);
+    if (laenge < 1) continue;
+    // Der Einheitsvektor quer zum Stück – daran hängt die ganze Zeichnung.
+    const qx = (-(c.y - a.y) / laenge) * halb;
+    const qy = ((c.x - a.x) / laenge) * halb;
+
+    // Die beiden Seitenwangen.
+    ctx.moveTo(a.x + qx, a.y + qy);
+    ctx.lineTo(c.x + qx, c.y + qy);
+    ctx.moveTo(a.x - qx, a.y - qy);
+    ctx.lineTo(c.x - qx, c.y - qy);
+
+    // Die Rollen quer dazu, etwa alle 12 cm – dichter wäre bei kleinem
+    // Maßstab nur noch ein grauer Balken.
+    const abstand = 12;
+    const anzahl = Math.max(1, Math.floor(laenge / abstand));
+    for (let r = 1; r < anzahl; r++) {
+      const f = r / anzahl;
+      const x = a.x + (c.x - a.x) * f;
+      const y = a.y + (c.y - a.y) * f;
+      ctx.moveTo(x + qx, y + qy);
+      ctx.lineTo(x - qx, y - qy);
+    }
+
+    // Am Anfang und am Ende ein Abschluss, damit das Band nicht ausfranst.
+    if (i === 1) {
+      ctx.moveTo(a.x + qx, a.y + qy);
+      ctx.lineTo(a.x - qx, a.y - qy);
+    }
+    if (i === punkte.length - 1) {
+      ctx.moveTo(c.x + qx, c.y + qy);
+      ctx.lineTo(c.x - qx, c.y - qy);
+    }
+  }
+}
+
 export function zeichneForm(
   ctx: Konva.Context,
   form: Grundform,
@@ -1416,6 +1476,49 @@ export function zeichneForm(
       break;
     }
 
+    case 'leergutRuecknahme': {
+      // Rücknahmeautomat, wie er im Bauplan steht: das Gehäuse, davor die
+      // Einwurföffnung zum Kunden hin, dahinter der Auswurf aufs Band.
+      //
+      // Die Öffnung sitzt unten, weil das Möbel mit der Bedienseite nach
+      // unten steht – wie jedes andere auch. Gedreht wird das Element.
+      ctx.rect(0, 0, b, t);
+      // Einwurf: die Klappe zum Verkaufsraum.
+      const klappe = Math.min(b * 0.62, t * 0.9);
+      ctx.rect((b - klappe) / 2, t * 0.72, klappe, t * 0.2);
+      // Das Innere, in dem die Flasche erkannt wird.
+      ctx.rect(b * 0.12, t * 0.1, b * 0.76, t * 0.5);
+      // Und der Auswurf nach hinten, dort schließt das Band an.
+      ctx.moveTo(b * 0.5, t * 0.1);
+      ctx.lineTo(b * 0.5, 0);
+      break;
+    }
+
+    case 'leergutEinweg': {
+      // Einwegpfand: der Sammelbehälter mit der Presse darin. Im Bauplan
+      // ist die Presse als gestapelte Balken gezeichnet – das ist das
+      // Zeichen, an dem man sie im Plan wiedererkennt.
+      ctx.rect(0, 0, b, t);
+      const balken = 5;
+      const hoehe = t * 0.055;
+      const luecke = t * 0.045;
+      const block = balken * hoehe + (balken - 1) * luecke;
+      const oben = (t - block) / 2;
+      for (let i = 0; i < balken; i++) {
+        const y = oben + i * (hoehe + luecke);
+        // Nach innen schmaler werdend: der Ballen wird zusammengedrückt.
+        const rand = b * (0.16 + 0.05 * Math.abs(i - (balken - 1) / 2));
+        ctx.rect(rand, y, b - 2 * rand, hoehe);
+      }
+      break;
+    }
+
+    case 'foerderband':
+      // Der Verlauf ist bereits gezeichnet; ohne Verlauf bleibt ein leeres
+      // Band übrig, und das ist ein Rechteck.
+      ctx.rect(0, 0, b, t);
+      break;
+
     case 'zugang': {
       // Ein- oder Ausgang: die Fläche mit dem Pfeil, der die Laufrichtung
       // angibt. Gedreht wird das Element, nicht das Symbol.
@@ -1984,7 +2087,9 @@ export function ElementSymbol({
         // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
         //    Linienfarbe des Elements.
         ctx.beginPath();
-        if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
+        if (element.form === 'foerderband' && element.verlauf && element.verlauf.length >= 2) {
+          zeichneFoerderband(ctx, element.verlauf, element.bandbreite ?? 40, b, t);
+        } else if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
           // Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der
           // linken oberen Ecke, deshalb die halbe Größe dazu.
           const p0 = element.polygon[0];

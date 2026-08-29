@@ -70,6 +70,9 @@ export type Grundform =
   | 'drehstaender'
 
   | 'getraenkegestell'
+  | 'leergutRuecknahme'
+  | 'leergutEinweg'
+  | 'foerderband'
   /**
    * Eine Aktions- oder Saisonfläche: eine Zone, kein Möbel.
    *
@@ -291,6 +294,24 @@ export interface PlanElement {
   farbe: string;
   beschriftung: string;
   beschriftungSichtbar: boolean;
+  /**
+   * Der Verlauf eines Förderbands – ein **offener** Zug, in Zentimetern
+   * relativ zum Mittelpunkt des Elements, genau wie `polygon`.
+   *
+   * Ein Band läuft nicht als Rechteck durch den Markt, sondern in einem Zug
+   * mit Ecken: von der Rücknahme quer durchs Lager bis zum Kompaktor. Wo es
+   * langgeht, entscheidet der Platz vor Ort – deshalb ein Punktzug und keine
+   * Länge mit Drehung.
+   *
+   * `breite` und `tiefe` bleiben der umschließende Kasten, damit alles
+   * Übrige – Auswählen, Verschieben, Flächenrechnung – arbeitet wie bei
+   * jedem anderen Möbel.
+   */
+  verlauf?: Punkt[];
+
+  /** Breite des Förderbands quer zum Verlauf, in Zentimetern. */
+  bandbreite?: number;
+
   /** Schriftgröße der Beschriftung in Bildschirmpunkten. */
   schriftgroesse: number;
   /** Optionale Zusatzangaben. */

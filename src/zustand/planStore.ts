@@ -105,6 +105,39 @@ export type Reihenfolgebefehl = 'ganzVorne' | 'ganzHinten' | 'nachVorne' | 'nach
  * Elementen ab, damit man beim Aufziehen einer Fläche nicht aus Versehen ein
  * Regal erwischt.
  */
+/**
+ * Gaengige Wandstaerken in Zentimetern.
+ *
+ * Mauerwerk kommt in festen Massen: 11,5 fuer eine leichte Trennwand, 24 fuer
+ * tragendes Mauerwerk, 36,5 fuer die Aussenwand. Genau diese Zahlen stehen
+ * auch in den Bauplaenen.
+ */
+const WANDSTAERKEN = [10, 11.5, 15, 17.5, 20, 24, 30, 36.5, 42.5, 49];
+
+/**
+ * Die naechstliegende gaengige Wandstaerke zu einem aufgezogenen Mass.
+ *
+ * Beim Aufziehen laesst sich die Dicke nicht auf den Zentimeter treffen -
+ * und das Raster steht meist auf einem halben Meter, womit die duennste
+ * ziehbare Wand 50 cm waere. Deshalb rastet die kurze Seite auf ein
+ * Mauerwerksmass ein statt aufs Raster.
+ *
+ * Unterhalb von 5 cm war es kein Ziehen, sondern ein Strich: Dann gilt, was
+ * im Feld eingestellt ist.
+ */
+function naechsteWandstaerke(gezogen: number, voreinstellung: number): number {
+  if (gezogen < 5) return voreinstellung;
+  // Ueber dem groessten Mass ist es Absicht - eine Vormauerung etwa.
+  const groesstes = WANDSTAERKEN[WANDSTAERKEN.length - 1];
+  if (gezogen > groesstes * 1.3) return Math.round(gezogen);
+  // Bei Gleichstand gewinnt das dickere Mass: Zwischen 20 und 24 ist das
+  // 24er Mauerwerk das ueblichere, und eine Wand zu duenn zu zeichnen faellt
+  // spaeter mehr auf als eine zu dicke.
+  return WANDSTAERKEN.reduce((beste, s) =>
+    Math.abs(s - gezogen) <= Math.abs(beste - gezogen) ? s : beste,
+  );
+}
+
 export type Werkzeug =
   | 'auswahl'
   | 'umriss'
@@ -117,6 +150,7 @@ export type Werkzeug =
   | 'grundrissZeichnen'
   | 'verkaufsflaeche'
   | 'raumZeichnen'
+  | 'foerderband'
   | 'textfeld';
 
 /**
@@ -378,12 +412,23 @@ export interface PlanStore {
   setzeWandmodus(modus: 'linie' | 'rechteck'): void;
 
   /**
-   * Vier Waende auf einmal, entlang eines Rechtecks.
+   * Eine Wand aus einem aufgezogenen Rechteck.
    *
-   * In einem Zug und nicht in vieren: Ein Rechteck ist eine Entscheidung,
-   * und ein Strg+Z soll es wieder wegnehmen - nicht ein Viertel davon.
+   * Die lange Seite wird die Wand, die kurze ihre Staerke. So sieht man die
+   * Wand beim Ziehen schon in ihrer wirklichen Dicke, statt sie als Strich
+   * zu setzen und die Staerke danach einzutippen.
    */
-  fuegeWandrechteckHinzu(umriss: Punkt[], staerke?: number): string[];
+  fuegeWandAusRechteck(rechteck: Punkt[]): string | null;
+
+  /**
+   * Ein Förderband entlang eines frei geklickten Zuges.
+   *
+   * Der Zug kommt in Plankoordinaten herein; gespeichert wird er relativ zum
+   * Mittelpunkt, wie jeder eigene Umriss. Dadurch wandert der Verlauf beim
+   * Verschieben von selbst mit und alles Übrige – Auswählen, Löschen,
+   * Drehen – arbeitet wie bei jedem anderen Möbel.
+   */
+  fuegeFoerderbandHinzu(zug: Punkt[], bandbreite?: number): string | null;
   setzeTauschModus(an: boolean): void;
   /**
    * Ersetzt die ausgewählten Elemente durch eine andere Vorlage.
@@ -839,25 +884,80 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set({ wandmodus: modus });
   },
 
-  fuegeWandrechteckHinzu(umriss, staerke = get().wandstaerkeNeu) {
-    if (umriss.length < 3) return [];
-    const ids = umriss.map(() => neueId('wand'));
+  fuegeWandAusRechteck(rechteck) {
+    if (rechteck.length < 3) return null;
+    const xs = rechteck.map((p) => p.x);
+    const ys = rechteck.map((p) => p.y);
+    const links = Math.min(...xs);
+    const rechts = Math.max(...xs);
+    const oben = Math.min(...ys);
+    const unten = Math.max(...ys);
+    const breite = rechts - links;
+    const hoehe = unten - oben;
+    if (breite < 1 && hoehe < 1) return null;
+
+    // Die lange Seite ist die Wand, die kurze ihre Staerke. Die Achse liegt
+    // in der Mitte - dort, wo `Waende` sie auch zeichnet.
+    const laengs = breite >= hoehe;
+    const staerke = naechsteWandstaerke(laengs ? hoehe : breite, get().wandstaerkeNeu);
+    const mitte = laengs ? (oben + unten) / 2 : (links + rechts) / 2;
+    const von = laengs ? { x: links, y: mitte } : { x: mitte, y: oben };
+    const bis = laengs ? { x: rechts, y: mitte } : { x: mitte, y: unten };
+
+    const id = neueId('wand');
     aendere(set, get, (p) => ({
       ...p,
-      waende: [
-        ...p.waende,
-        ...umriss.map((von, i) => ({
-          id: ids[i],
-          von,
-          bis: umriss[(i + 1) % umriss.length],
-          staerke,
-          art: 'trennwand' as const,
+      waende: [...p.waende, { id, von, bis, staerke, art: 'trennwand' as const, gesperrt: false }],
+    }));
+    // Die aufgezogene Staerke gilt auch fuer die naechste Wand.
+    set({ wandstaerkeNeu: staerke, sonderauswahl: { art: 'wand', id }, auswahl: [] });
+    return id;
+  },
+
+  fuegeFoerderbandHinzu(zug, bandbreite = 40) {
+    if (zug.length < 2) return null;
+    const halb = bandbreite / 2;
+    // Der Kasten umfasst das Band samt seiner Breite – sonst ragte es an den
+    // Enden und in den Kurven über die eigene Auswahl hinaus.
+    const xs = zug.map((p) => p.x);
+    const ys = zug.map((p) => p.y);
+    const links = Math.min(...xs) - halb;
+    const oben = Math.min(...ys) - halb;
+    const breite = Math.max(...xs) + halb - links;
+    const tiefe = Math.max(...ys) + halb - oben;
+    const mitte = { x: links + breite / 2, y: oben + tiefe / 2 };
+
+    const id = neueId('el');
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: [
+        ...p.elemente,
+        {
+          id,
+          vorlageId: 'foerderband',
+          name: 'Förderband',
+          kategorie: 'kassen' as const,
+          form: 'foerderband' as const,
+          x: links,
+          y: oben,
+          breite,
+          tiefe,
+          hoehe: 25,
+          drehung: 0,
+          farbe: '#c9cdd2',
+          ebeneId: STANDARD_EBENE_ID,
           gesperrt: false,
-        })),
+          reihenfolge: naechsteReihenfolge(p.elemente),
+          beschriftung: 'Förderband',
+          beschriftungSichtbar: false,
+          schriftgroesse: 12,
+          verlauf: zug.map((q) => ({ x: q.x - mitte.x, y: q.y - mitte.y })),
+          bandbreite,
+        },
       ],
     }));
-    set({ sonderauswahl: { art: 'wand', id: ids[0] }, auswahl: [] });
-    return ids;
+    set({ auswahl: [id], sonderauswahl: null });
+    return id;
   },
 
   setzeWandkoerper(koerper) {

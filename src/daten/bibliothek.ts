@@ -718,7 +718,14 @@ function vitableEintraege(): BibliothekEintrag[] {
 }
 
 /** Hausfarbe der Getränkeabteilung – heller als die Regale. */
-export const GETRAENKE_GRAU = '#c6c6c6';
+export /**
+ * Leergutanlage: heller als die Regale, aber deutlich grauer als die
+ * Verkaufsmöbel. Sie steht meist im Lager und soll im Plan nicht mit der
+ * Einrichtung um Aufmerksamkeit streiten.
+ */
+const LEERGUT_GRAU = '#c9cdd2';
+
+const GETRAENKE_GRAU = '#c6c6c6';
 
 /**
  * Die Preisgestelle der Getränkeabteilung.
@@ -1180,6 +1187,21 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'kundendienst', name: 'Kundendienst', kategorie: 'kassen', breite: 200, tiefe: 100, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb', gruppe: 'Übriges' },
   { id: 'information', name: 'Information', kategorie: 'kassen', breite: 150, tiefe: 80, hoehe: 110, form: 'abgerundet', farbe: '#f1e2bb', gruppe: 'Übriges' },
   { id: 'leergutautomat', name: 'Leergutautomat', kategorie: 'kassen', breite: 120, tiefe: 100, hoehe: 200, form: 'automat', farbe: '#cddac2', gruppe: 'Übriges' },
+
+  // ------------------------------------------------------------- Leergut
+  //
+  // Maße vom Aufstellplan einer bestehenden Anlage abgenommen: Der Automat
+  // ist 800 mm breit, die Rollenbahn 400 mm und liegt 250 mm über dem Boden,
+  // der Bereich vor der Wand misst 3,00 m in der Tiefe.
+  //
+  // Die Rücknahme sitzt in der Wand: Vorne wirft der Kunde ein, hinten geht
+  // das Mehrweg aufs Band und das Einweg in die Presse daneben. Deshalb ist
+  // das Gerät flach – was Platz braucht, steht dahinter im Lager.
+  { id: 'leergut-ruecknahme', name: 'Rücknahmeautomat', kategorie: 'kassen', breite: 80, tiefe: 90, hoehe: 220, form: 'leergutRuecknahme', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Einlassung in der Wand · 800 mm breit · Auswurf nach hinten aufs Band' },
+  { id: 'leergut-ruecknahme-doppel', name: 'Rücknahme, zwei Automaten', kategorie: 'kassen', breite: 160, tiefe: 90, hoehe: 220, form: 'leergutRuecknahme', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Zwei Geräte nebeneinander, 1600 mm · so steht es im Bestandsplan' },
+  { id: 'leergut-einweg', name: 'Einwegpfand-Presse', kategorie: 'kassen', breite: 100, tiefe: 125, hoehe: 180, form: 'leergutEinweg', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Sammelbehälter mit Presse · H 1,80 m, keine Nachtabschaltung' },
+  { id: 'leergut-einweg-gross', name: 'Einwegpfand-Presse groß', kategorie: 'kassen', breite: 130, tiefe: 150, hoehe: 180, form: 'leergutEinweg', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Für zwei Automaten, wenn beide auf eine Presse laufen' },
+  { id: 'leergut-band-gerade', name: 'Förderband, gerade 6 m', kategorie: 'kassen', breite: 600, tiefe: 40, hoehe: 25, form: 'rechteck', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Für einen geraden Lauf · frei geführt geht es mit dem Werkzeug „Förderband"' },
 
   // -------------------------------------------- Aktions- & Sonderflächen
   // ------------------------------------------ Aktions- und Sonderflächen
