@@ -387,44 +387,38 @@ function OeffnungEigenschaften({ oeffnung }: { oeffnung: Oeffnung }) {
           />
         </div>
 
-        {/* Der Regler für die Breite: Ein Tor zieht man auf, bis es zum
+        {/* Die beiden Maße als Regler: Ein Tor zieht man auf, bis es zum
             Lieferwagen passt – das geht schiebend schneller als tippend.
-            Die Marke zeigt das übliche Maß dieser Art. */}
+            Die Zahl daneben steht mit, damit man nicht nach Augenmaß
+            arbeitet. */}
         <FeldRahmen
-          label={`Breite ziehen · üblich ${formatiereLaenge(OEFFNUNG_BREITEN[oeffnung.art], einheit)}`}
-          titel="Von 60 cm bis 6 m – für Türen, Tore und Schaufenster"
+          label={`Breite · ${formatiereLaenge(oeffnung.breite, einheit)}`}
+          titel={`Von 40 cm bis 8 m. Üblich für ${OEFFNUNGSARTEN.find((a) => a.wert === oeffnung.art)?.text ?? 'diese Art'}: ${formatiereLaenge(OEFFNUNG_BREITEN[oeffnung.art], einheit)}`}
         >
           <input
             type="range"
-            min={60}
-            max={600}
+            min={40}
+            max={800}
             step={5}
-            value={Math.min(600, Math.max(60, oeffnung.breite))}
+            value={Math.min(800, Math.max(40, oeffnung.breite))}
             onMouseDown={beiStart}
             onChange={(e) => setze({ breite: Number(e.target.value) })}
             style={{ width: '100%' }}
           />
         </FeldRahmen>
 
-        {/* Und die Lage. Verschoben wird entlang der Wand, in der die
-            Öffnung sitzt – quer dazu wäre sie nicht mehr in der Wand. */}
-        <FeldRahmen label="Entlang der Wand verschieben" titel="Verschiebt die Öffnung in ihrer Wand">
+        <FeldRahmen
+          label={`Tiefe · ${formatiereLaenge(oeffnung.tiefe, einheit)}`}
+          titel="Wie tief das Symbol in der Wand steht – bei einer Öffnung in einer Wand deren Stärke"
+        >
           <input
             type="range"
-            min={-200}
-            max={200}
+            min={5}
+            max={120}
             step={1}
-            value={0}
+            value={Math.min(120, Math.max(5, oeffnung.tiefe))}
             onMouseDown={beiStart}
-            onChange={(e) => {
-              const weg = Number(e.target.value);
-              const bogen = (oeffnung.drehung * Math.PI) / 180;
-              setze({
-                x: oeffnung.x + Math.cos(bogen) * weg,
-                y: oeffnung.y + Math.sin(bogen) * weg,
-              });
-              e.target.value = '0';
-            }}
+            onChange={(e) => setze({ tiefe: Number(e.target.value) })}
             style={{ width: '100%' }}
           />
         </FeldRahmen>
@@ -445,6 +439,13 @@ function OeffnungEigenschaften({ oeffnung }: { oeffnung: Oeffnung }) {
             aendern={(y) => setze({ y })}
           />
         </div>
+
+        <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+          Verschieben geht auch im Plan: einfach ziehen. In der Nähe einer
+          Wand rastet die Öffnung darin ein und übernimmt ihre Richtung – mit
+          gedrückter <strong>Alt</strong>-Taste bleibt sie, wo du sie
+          hinziehst.
+        </p>
         <div className="feld-zeile">
           <Zahlfeld
             label="Drehung"

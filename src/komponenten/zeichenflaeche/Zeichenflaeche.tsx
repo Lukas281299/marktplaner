@@ -93,6 +93,14 @@ export function Zeichenflaeche() {
     null,
   );
   const leertasteRef = useRef(false);
+  /**
+   * Ist Alt gedrückt?
+   *
+   * Dann fängt nichts ein. Wer die Wände selbst zieht und an den Türen
+   * Lücken lässt, will die Tür genau dort haben und nicht an der nächsten
+   * Wandkante.
+   */
+  const altRef = useRef(false);
 
   const [groesse, setGroesse] = useState({ breite: 900, hoehe: 600 });
   const [hilfslinien, setHilfslinien] = useState<Hilfslinie[]>([]);
@@ -327,6 +335,7 @@ export function Zeichenflaeche() {
   // --------------------------------------------------------- Leertaste (Hand)
   useEffect(() => {
     const runter = (e: KeyboardEvent) => {
+      altRef.current = e.altKey;
       if (e.code === 'Space' && !leertasteRef.current) {
         const ziel = e.target as HTMLElement | null;
         // Nicht eingreifen, während in ein Feld getippt wird.
@@ -341,6 +350,7 @@ export function Zeichenflaeche() {
         leertasteRef.current = false;
         setZeiger('default');
       }
+      if (!e.altKey) altRef.current = false;
     };
     window.addEventListener('keydown', runter);
     window.addEventListener('keyup', hoch);
@@ -863,12 +873,21 @@ export function Zeichenflaeche() {
    */
   const oeffnungZiehen = (id: string, x: number, y: number) => {
     const store = usePlanStore.getState();
+    // Mit gedrückter Alt-Taste fängt nichts: Wer an den Türen Lücken in der
+    // Wand gelassen hat, will die Tür genau dort haben.
+    if (altRef.current) {
+      store.aendereOeffnung(id, { x, y }, false);
+      return { x, y };
+    }
     const achsen = alleWandachsen(
       store.projekt.grundflaeche,
       store.projekt.raeume,
       store.projekt.waende,
     );
-    const treffer = findeWand({ x, y }, achsen, fangbereich(store.ansicht.zoom) * 4);
+    // Anderthalbfacher Fangbereich statt vierfach. Vierfach zog die Öffnung
+    // noch aus einer Lücke heraus an die nächste Wandkante – gemeint war
+    // aber die Lücke.
+    const treffer = findeWand({ x, y }, achsen, fangbereich(store.ansicht.zoom) * 1.5);
     if (!treffer) {
       // Keine Wand in Reichweite: Dann lässt sich die Öffnung frei
       // versetzen, etwa um sie in eine ganz andere Wand zu bringen.
