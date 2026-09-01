@@ -477,9 +477,9 @@ export function Werkzeugleiste() {
           <button
             className={`knopf${werkzeug === 'wand' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'wand' ? 'auswahl' : 'wand')}
-            title="Eine einzelne Innenwand ziehen, ohne gleich einen ganzen Raum abzutrennen"
+            title="Wände ziehen – als Strich oder als Rechteck. Sie rasten an vorhandene Wände und Gebäudeecken ein."
           >
-            <SymbolWand /> <span className="knopf-text">Innenwand</span>
+            <SymbolWand /> <span className="knopf-text">Wände</span>
           </button>
           <button
             className={`knopf${werkzeug === 'foerderband' ? ' aktiv' : ''}`}

@@ -1,8 +1,8 @@
 import { Group, Line } from 'react-konva';
-import type { Wand } from '../../typen/modell';
+import type { Punkt, Wand } from '../../typen/modell';
 
 /**
- * Freistehende Innenwände.
+ * Freistehende Wände.
  *
  * Eine Wand ist eine dicke Linie auf ihrer Achse – anders als beim Gebäude
  * und bei Räumen wird hier nichts beschnitten: Eine freistehende Wand hat
@@ -11,6 +11,12 @@ import type { Wand } from '../../typen/modell';
  * `lineCap="butt"` ist wichtig: Mit abgerundeten Enden ragte jede Wand um eine
  * halbe Wandstärke über ihren Endpunkt hinaus, und zwei rechtwinklig
  * aneinanderstoßende Wände hätten eine sichtbare Beule in der Ecke.
+ *
+ * **Zum Verschieben:** Während des Ziehens wandert allein die Konva-Gruppe;
+ * die Wand im Projekt bleibt liegen, wo sie war, und bekommt den Versatz erst
+ * beim Loslassen in einem Zug. Vorher wurde beides zugleich verschoben – die
+ * Gruppe *und* die Punkte darin – und die Wand lief mit doppelter
+ * Geschwindigkeit davon, um beim Loslassen wieder zurückzuspringen.
  */
 interface Props {
   waende: Wand[];
@@ -18,9 +24,13 @@ interface Props {
   zoom: number;
   anklickbar: boolean;
   beiKlick: (id: string) => void;
-  beiZiehStart: (id: string) => void;
-  beiZiehen: (id: string, x: number, y: number) => void;
-  beiZiehEnde: () => void;
+  /**
+   * Rastet den Zug ein. Bekommt die Wunschlage der Gruppe in Bildschirmmaß
+   * und gibt zurück, wo sie wirklich landen darf.
+   */
+  fangen: (id: string, lage: Punkt) => Punkt;
+  /** Der endgültige Versatz in Planmaß, einmal beim Loslassen. */
+  beiZiehEnde: (id: string, dx: number, dy: number) => void;
 }
 
 /** Wie eine Wandart aussieht. */
@@ -36,8 +46,7 @@ export function Waende({
   zoom,
   anklickbar,
   beiKlick,
-  beiZiehStart,
-  beiZiehen,
+  fangen,
   beiZiehEnde,
 }: Props) {
   return (
@@ -49,18 +58,19 @@ export function Waende({
             key={wand.id}
             draggable={anklickbar && !wand.gesperrt}
             listening={anklickbar}
+            dragBoundFunc={(lage) => fangen(wand.id, lage)}
             onMouseDown={(e) => {
               if (e.evt.button !== 0) return;
               e.cancelBubble = true;
               beiKlick(wand.id);
             }}
-            onDragStart={() => beiZiehStart(wand.id)}
-            onDragMove={(e) => beiZiehen(wand.id, e.target.x(), e.target.y())}
             onDragEnd={(e) => {
-              // Die Verschiebung steckt jetzt in den Punkten – die Gruppe
-              // selbst muss zurück auf null, sonst wirkt sie doppelt.
+              // Die Gruppe steht jetzt auf dem eingerasteten Versatz. Der
+              // wandert in einem Zug ins Projekt, die Gruppe zurück auf null –
+              // sonst wirkte er doppelt.
+              const { x, y } = e.target.position();
               e.target.position({ x: 0, y: 0 });
-              beiZiehEnde();
+              beiZiehEnde(wand.id, x, y);
             }}
           >
             <Line

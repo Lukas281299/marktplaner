@@ -105,7 +105,7 @@ export function Eigenschaftenfenster() {
   const titel = raum
     ? 'Raum'
     : wand
-      ? 'Innenwand'
+      ? 'Wand'
       : oeffnung
         ? 'Öffnung'
         : mass

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
-import { Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
+import { Group, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 
 import { TEXTFELD_VORLAGE, findeVorlage } from '../../daten/bibliothek';
 import { bogenPunkte, entdoppele, taugtAlsUmriss } from '../../logik/bogen';
@@ -19,7 +19,14 @@ import { formatiereLaenge } from '../../logik/masse';
 import { fangePunkt, fangpunkte } from '../../logik/messen';
 import { rahmen as umrissRahmen, rechteckAusEcken, vereinige, ziehAb } from '../../logik/polygon';
 import { punktEinfuegen, punktEntfernen, punktVerschieben } from '../../logik/umrissBearbeiten';
-import { alleWandachsen, fangbereich, findeWand, richteWandAus } from '../../logik/waende';
+import { alleWandachsen, fangbereich, findeWand } from '../../logik/waende';
+import {
+  FANGWEITE_PIXEL,
+  fangeAufEcke,
+  fangeNeueWand,
+  fangeWand,
+  grundrissEcken,
+} from '../../logik/wandfang';
 import type { Punkt } from '../../typen/modell';
 import { usePlanStore, type Werkzeug } from '../../zustand/planStore';
 import { useStatusStore } from '../../zustand/statusStore';
@@ -105,6 +112,14 @@ export function Zeichenflaeche() {
 
   const [groesse, setGroesse] = useState({ breite: 900, hoehe: 600 });
   const [hilfslinien, setHilfslinien] = useState<Hilfslinie[]>([]);
+  /**
+   * Der Versatz der gerade gezogenen Wand.
+   *
+   * Während des Ziehens steht die Wand im Projekt noch an ihrem alten Platz
+   * – die Anfasser und das Längenmaß lesen von dort und blieben sonst
+   * zurück, während die Wand davonfährt.
+   */
+  const [wandVersatz, setWandVersatz] = useState({ x: 0, y: 0 });
   const [abstaende, setAbstaende] = useState<Abstandsmass[]>([]);
   const [auswahlrahmen, setAuswahlrahmen] = useState<{
     x: number;
@@ -372,6 +387,24 @@ export function Zeichenflaeche() {
     return { x: Math.round(p.x / w) * w, y: Math.round(p.y / w) * w };
   }, []);
 
+  /**
+   * Zieht Anfang und Ende einer neuen Wand auf vorhandene Grundrissecken.
+   *
+   * Damit beginnt eine Trennwand genau am Ende der Außenwand und nicht drei
+   * Zentimeter daneben. Das Ausrichten kommt danach: Eine Wand, die fast
+   * waagerecht gezogen wurde, wird waagerecht – und übernimmt vom
+   * eingerasteten Ende nur die Längsrichtung.
+   */
+  const wandpunkteFangen = useCallback((von: Punkt, bis: Punkt) => {
+    const store = usePlanStore.getState();
+    return fangeNeueWand(
+      von,
+      bis,
+      grundrissEcken(store.projekt),
+      FANGWEITE_PIXEL / store.ansicht.zoom,
+    );
+  }, []);
+
   /** Zeigt kurz eine Rückmeldung über der Zeichenfläche an. */
   const melde = useCallback((text: string) => {
     setMeldung(text);
@@ -510,8 +543,7 @@ export function Zeichenflaeche() {
         rahmen.y2 = p.y;
         const werkzeugJetzt = usePlanStore.getState().werkzeug;
         if (werkzeugJetzt === 'wand') {
-          const von = { x: rahmen.x1, y: rahmen.y1 };
-          setWandZug({ von, bis: richteWandAus(von, p) });
+          setWandZug(wandpunkteFangen({ x: rahmen.x1, y: rahmen.y1 }, p));
         } else if (werkzeugJetzt === 'messen') {
           // Beim Messen zeigt die Vorschau die Strecke selbst, nicht ein
           // Rechteck – und rastet dabei schon an den Ecken ein.
@@ -653,7 +685,12 @@ export function Zeichenflaeche() {
             return;
           }
 
-          // --------------------------------------------------- Innenwand
+          // -------------------------------------------------------- Wand
+          //
+          // Nach dem Setzen geht es zurück zum Auswählen, und die frische
+          // Wand ist gewählt: Man will sie fast immer gleich noch ein Stück
+          // schieben, und dafür erst Escape drücken zu müssen war lästig.
+          // Für die nächste Wand ist es ein Klick auf denselben Knopf.
           if (store0.werkzeug === 'wand') {
             // Als Rechteck aufgezogen: Die lange Seite wird die Wand, die
             // kurze ihre Stärke. So sieht man die Wand beim Ziehen schon in
@@ -662,13 +699,18 @@ export function Zeichenflaeche() {
             if (store0.wandmodus === 'rechteck') {
               if (Math.max(breite, hoehe) < 50) return;
               store0.fuegeWandAusRechteck(rechteckAusEcken(anfang, ende));
+              store0.setzeWerkzeug('auswahl');
               return;
             }
-            const ausgerichtet = richteWandAus(anfang, ende);
-            const laenge = Math.hypot(ausgerichtet.x - anfang.x, ausgerichtet.y - anfang.y);
+            const gefangen = wandpunkteFangen(anfang, ende);
+            const laenge = Math.hypot(
+              gefangen.bis.x - gefangen.von.x,
+              gefangen.bis.y - gefangen.von.y,
+            );
             // Unter einem halben Meter war es ein verrutschter Klick.
             if (laenge < 50) return;
-            store0.fuegeWandHinzu(anfang, ausgerichtet);
+            store0.fuegeWandHinzu(gefangen.von, gefangen.bis);
+            store0.setzeWerkzeug('auswahl');
             return;
           }
 
@@ -723,7 +765,7 @@ export function Zeichenflaeche() {
       window.removeEventListener('mousemove', bewegen);
       window.removeEventListener('mouseup', loslassen);
     };
-  }, [planPunkt, setzeAnsicht, aufRaster, melde]);
+  }, [planPunkt, setzeAnsicht, aufRaster, melde, wandpunkteFangen]);
 
   // --------------------------------------------------- Umriss umformen
   const umriss = projekt.grundflaeche.umriss;
@@ -810,31 +852,68 @@ export function Zeichenflaeche() {
   };
 
   // -------------------------------------------------------- Wand verschieben
-  const wandZugRef = useRef<{ id: string; letztesX: number; letztesY: number } | null>(null);
+  //
+  // Während des Ziehens bleibt das Projekt unangetastet: Konva schiebt allein
+  // die Gruppe, `wandFangen` sagt ihr, wo sie stehen darf. Erst beim Loslassen
+  // wandert der Versatz in einem Schritt ins Projekt.
+  //
+  // Vorher wurde beides zugleich bewegt – die Gruppe **und** die Punkte darin.
+  // Die Wand lief mit doppelter Geschwindigkeit davon und sprang beim
+  // Loslassen zurück; genau das Zucken, das man beim Schieben sah.
 
-  const wandZiehStart = (id: string) => {
-    usePlanStore.getState().schnappschuss();
-    wandZugRef.current = { id, letztesX: 0, letztesY: 0 };
-  };
-
-  const wandZiehen = (id: string, x: number, y: number) => {
-    const zug = wandZugRef.current;
-    if (!zug || zug.id !== id) return;
-    usePlanStore.getState().verschiebeWand(id, x - zug.letztesX, y - zug.letztesY);
-    zug.letztesX = x;
-    zug.letztesY = y;
-  };
-
-  const wandZiehEnde = () => {
-    const zug = wandZugRef.current;
-    wandZugRef.current = null;
-    if (!zug) return;
+  /**
+   * Rastet die gezogene Wand ein.
+   *
+   * Konva fragt hier bei jeder Mausbewegung nach der erlaubten Lage – in
+   * Bildschirmmaß. Zurück kommt entweder eine Wandecke, an der es einrastet,
+   * oder der nächste Rasterpunkt. Was die Wand dabei gezeigt bekommt, ist auch
+   * die Stelle, an der sie liegen bleibt: Am Ende wird nichts mehr gerückt.
+   */
+  const wandFangen = (id: string, lage: Punkt): Punkt => {
     const store = usePlanStore.getState();
-    const wand = store.projekt.waende.find((w) => w.id === zug.id);
-    if (!wand) return;
-    const ziel = aufRaster(wand.von);
-    store.verschiebeWand(zug.id, ziel.x - wand.von.x, ziel.y - wand.von.y);
+    const wand = store.projekt.waende.find((w) => w.id === id);
+    const a = store.ansicht;
+    if (!wand) return lage;
+
+    const roh = { dx: (lage.x - a.x) / a.zoom, dy: (lage.y - a.y) / a.zoom };
+    const fang = fangeWand(wand, roh, grundrissEcken(store.projekt, id), FANGWEITE_PIXEL / a.zoom);
+
+    // Was an keiner Wand hängt, kommt aufs Raster – sonst bekäme man beim
+    // Schieben krumme Maße wie 4,97 m.
+    let { dx, dy } = fang;
+    if (!fang.gefangenX || !fang.gefangenY) {
+      const gerastert = aufRaster({ x: wand.von.x + dx, y: wand.von.y + dy });
+      if (!fang.gefangenX) dx = gerastert.x - wand.von.x;
+      if (!fang.gefangenY) dy = gerastert.y - wand.von.y;
+    }
+
+    setHilfslinien(fang.hilfslinien);
+    setWandVersatz({ x: dx, y: dy });
+    return { x: a.x + dx * a.zoom, y: a.y + dy * a.zoom };
   };
+
+  const wandZiehEnde = (id: string, dx: number, dy: number) => {
+    setHilfslinien([]);
+    setWandVersatz({ x: 0, y: 0 });
+    if (dx === 0 && dy === 0) return;
+    // Ein Eintrag in der Historie für den ganzen Zug, nicht einer je Bild.
+    usePlanStore.getState().verschiebeWand(id, dx, dy, true);
+  };
+
+  /**
+   * Rastet ein einzelnes Wandende ein: erst an anderen Wänden, sonst am
+   * Raster. So schließt man eine Ecke, indem man das Ende hinzieht.
+   */
+  const wandendeEinrasten = useCallback(
+    (p: Punkt): Punkt => {
+      const store = usePlanStore.getState();
+      const eigene = store.sonderauswahl?.art === 'wand' ? store.sonderauswahl.id : undefined;
+      const ecken = grundrissEcken(store.projekt, eigene);
+      const gefangen = fangeAufEcke(p, ecken, FANGWEITE_PIXEL / store.ansicht.zoom);
+      return gefangen === p ? aufRaster(p) : gefangen;
+    },
+    [aufRaster],
+  );
 
   // ---------------------------------------------------- Maßlinie verschieben
   const massZugRef = useRef({ letztesX: 0, letztesY: 0 });
@@ -1295,8 +1374,7 @@ export function Zeichenflaeche() {
                 zoom={zoom}
                 anklickbar={werkzeug === 'auswahl' && !gebaeudeGesperrt}
                 beiKlick={(id) => usePlanStore.getState().waehleSonder({ art: 'wand', id })}
-                beiZiehStart={wandZiehStart}
-                beiZiehen={wandZiehen}
+                fangen={wandFangen}
                 beiZiehEnde={wandZiehEnde}
               />
               <Oeffnungen
@@ -1496,19 +1574,21 @@ export function Zeichenflaeche() {
           {/* Enden der ausgewählten Wand – die Länge zieht man im Plan,
               nicht im Zahlenfeld. */}
           {werkzeug === 'auswahl' && gewaehlteWand && !gewaehlteWand.gesperrt && (
-            <Wandenden
-              wand={gewaehlteWand}
-              zoom={zoom}
-              einheit={einheit}
-              einrasten={aufRaster}
-              beiZiehStart={() => usePlanStore.getState().schnappschuss()}
-              beiZiehen={(ende, ziel) =>
-                usePlanStore
-                  .getState()
-                  .aendereWand(gewaehlteWand.id, ende === 0 ? { von: ziel } : { bis: ziel }, false)
-              }
-              beiZiehEnde={() => {}}
-            />
+            <Group x={wandVersatz.x} y={wandVersatz.y}>
+              <Wandenden
+                wand={gewaehlteWand}
+                zoom={zoom}
+                einheit={einheit}
+                einrasten={wandendeEinrasten}
+                beiZiehStart={() => usePlanStore.getState().schnappschuss()}
+                beiZiehen={(ende, ziel) =>
+                  usePlanStore
+                    .getState()
+                    .aendereWand(gewaehlteWand.id, ende === 0 ? { von: ziel } : { bis: ziel }, false)
+                }
+                beiZiehEnde={() => {}}
+              />
+            </Group>
           )}
 
           {/* Anfasser zum Umformen des Grundrisses */}
@@ -1711,9 +1791,9 @@ const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinwe
       'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · Art und Name danach rechts einstellen',
   },
   wand: {
-    titel: 'Innenwand ziehen',
+    titel: 'Wand ziehen',
     hinweis:
-      'Von einem Punkt zum anderen ziehen. Fast waagerechte und fast senkrechte Wände werden gerade gezogen.',
+      'Von einem Punkt zum anderen ziehen · fast waagerechte und fast senkrechte Wände werden gerade · Enden rasten an vorhandenen Wänden und Gebäudeecken ein · danach ist die neue Wand gewählt und lässt sich gleich verschieben',
   },
   oeffnung: {
     titel: 'Tür oder Durchgang setzen',
