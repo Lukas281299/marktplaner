@@ -24,7 +24,8 @@ import {
 } from '../../logik/warengruppe';
 import { feldkanten } from '../../logik/warengruppenzuordnung';
 import { GESTELL_STAERKE, kistenbelegung } from '../../logik/getraenkekisten';
-import type { Grundform, PlanElement, Punkt, Regalfeld } from '../../typen/modell';
+import { palettenAnzahl, palettenmass } from '../../logik/paletten';
+import type { Grundform, Palettenplatz, PlanElement, Punkt, Regalfeld } from '../../typen/modell';
 
 /**
  * Ein einzelnes Element auf dem Plan.
@@ -884,6 +885,66 @@ function zeichneFoerderband(
   }
 }
 
+/**
+ * Die Paletten unter einem Regalfeld.
+ *
+ * Gezeichnet wie im Bauplan: der Umriss und darin die Bretter quer – daran
+ * erkennt man eine Palette im Plan, ohne sie beschriften zu müssen.
+ *
+ * Sie sitzt hinten im Feld, an der Rückwand: Dort steht sie im Markt auch,
+ * damit vorne der Griff frei bleibt. Ragt sie tiefer als das Möbel, wird sie
+ * trotzdem ganz gezeichnet – man will sehen, dass sie übersteht.
+ */
+function zeichnePaletten(
+  ctx: Konva.Context,
+  platz: Palettenplatz,
+  feldX: number,
+  feldY: number,
+  feldbreite: number,
+  feldtiefe: number,
+) {
+  const laengs = platz.laengs ?? true;
+  const mass = palettenmass(platz.art, laengs);
+  const anzahl = palettenAnzahl(platz, feldbreite);
+
+  // Gleichmäßig über die Feldbreite verteilt, damit zwei Paletten in einem
+  // breiten Feld nicht links kleben.
+  const gesamt = anzahl * mass.breite;
+  const luecke = anzahl > 1 ? Math.max(0, (feldbreite - gesamt) / (anzahl + 1)) : 0;
+  const start = anzahl > 1 ? luecke : Math.max(0, (feldbreite - mass.breite) / 2);
+
+  for (let i = 0; i < anzahl; i++) {
+    const x = feldX + start + i * (mass.breite + luecke);
+    const y = feldY;   // an der Rückwand
+    const b = mass.breite;
+    const t = mass.tiefe;
+
+    ctx.rect(x, y, b, t);
+
+    // Steht sie vorne über, bekommt sie dort einen zweiten Strich: Im Plan
+    // sieht man dann, dass sie in den Gang ragt, und muss nicht nachmessen.
+    if (t > feldtiefe + 1) {
+      ctx.moveTo(x, feldY + feldtiefe);
+      ctx.lineTo(x + b, feldY + feldtiefe);
+    }
+
+    // Die Bretter quer zur langen Seite – fünf Stück, wie bei einer echten
+    // Palette die Decklage.
+    const bretter = 5;
+    for (let n = 1; n < bretter; n++) {
+      if (laengs) {
+        const bx = x + (b * n) / bretter;
+        ctx.moveTo(bx, y);
+        ctx.lineTo(bx, y + t);
+      } else {
+        const by = y + (t * n) / bretter;
+        ctx.moveTo(x, by);
+        ctx.lineTo(x + b, by);
+      }
+    }
+  }
+}
+
 export function zeichneForm(
   ctx: Konva.Context,
   form: Grundform,
@@ -1242,6 +1303,13 @@ export function zeichneForm(
           ctx.moveTo(platz.x, band.von);
           ctx.lineTo(platz.x, band.bis);
         });
+
+        // Paletten unter den Böden – vor dem Achsmaßzeichen, damit dessen
+        // Diagonale darüber liegt und das Feld zusammenhält.
+        for (const platz of plaetze) {
+          if (platz.feld.leer || !platz.feld.palette) continue;
+          zeichnePaletten(ctx, platz.feld.palette, platz.x, band.von, platz.weite, band.bis - band.von);
+        }
 
         // Das Achsmaß-Zeichen steht in jedem Feld, nicht einmal über den
         // ganzen Zug: Ein 6-m-Zug aus 1,25er Feldern hat fünf Diagonalen.

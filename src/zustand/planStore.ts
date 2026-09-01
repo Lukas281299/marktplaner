@@ -1662,7 +1662,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         // Regale des wire-tech-Systems dürfen nur baubare Längen annehmen.
         // Alles andere behält seine freie Größe – ein Kühlmöbel oder eine
         // Freihand-Fläche kennt dieses Raster nicht.
-        return el.form === 'wt100' ? aufBaubareLaenge(el, gezogen) : gezogen;
+        if (el.form === 'wt100') return aufBaubareLaenge(el, gezogen);
+        // Ein Förderband nimmt seinen Verlauf mit: Sonst bliebe der Zug
+        // stehen, während sein Kasten wächst – im Plan eine graue Fläche
+        // statt der Rollen. Hier und nicht nur in `aendereElemente`, denn
+        // gezogen wird über den Rahmen, und der geht diesen Weg.
+        return mitSkaliertemVerlauf(gezogen, el, { breite: neu.breite, tiefe: neu.tiefe });
       });
 
       // Köpfe nachrücken, wo ein Zug seine Länge geändert hat.

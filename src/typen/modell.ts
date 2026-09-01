@@ -238,7 +238,42 @@ export interface Regalfeld {
   leer?: boolean;
   /** Bis zu drei Zeilen, die im Feld stehen – siehe `logik/feldnotiz.ts`. */
   notiz?: string;
+
+  /**
+   * Eine Palette unter den Böden.
+   *
+   * Im Markt üblich: Oben ein, zwei Böden für die Sichtware, darunter steht
+   * die Palette, aus der nachgefüllt wird. Im Plan ist das ein Feld wie
+   * jedes andere – nur dass unten eine Palette drinsteht.
+   *
+   * Am Feld und nicht am Möbel: In einem Zug aus zehn Feldern stehen selten
+   * unter allen Paletten. Wer sie überall haben will, stellt sie für jedes
+   * Feld ein, und das ist derselbe Handgriff wie beim Bödenschreiben.
+   */
+  palette?: Palettenplatz;
 }
+
+/**
+ * Was für eine Palette unter einem Regalfeld steht.
+ *
+ * Die Maße stehen in `logik/paletten.ts` – dort auch, welche wie herum in
+ * ein Feld passen.
+ */
+export interface Palettenplatz {
+  art: Palettenart;
+  /**
+   * Wie viele nebeneinander.
+   *
+   * Fehlt die Angabe, passen so viele hinein, wie das Feld hergibt. Das ist
+   * der Regelfall: Wer ein 2,50-m-Feld mit Viertelpaletten belegt, will
+   * nicht abzählen, wie viele das sind.
+   */
+  anzahl?: number;
+  /** Liegt die lange Seite parallel zur Regalfront? */
+  laengs?: boolean;
+}
+
+export type Palettenart = 'euro' | 'chep' | 'halb' | 'viertel';
 
 /**
  * Eine Warengruppen-Beschriftung auf einer Strecke des Möbels.

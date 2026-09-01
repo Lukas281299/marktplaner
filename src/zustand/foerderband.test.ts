@@ -67,6 +67,35 @@ describe('Förderband', () => {
     expect(bandVon(id)!.bandbreite).toBeCloseTo(40, 5);
   });
 
+  it('zieht den Verlauf auch über den Auswahlrahmen mit', () => {
+    // Der Rahmen um ein ausgewähltes Möbel geht einen eigenen Weg in den
+    // Speicher – `setzeGeometrien`. Genau darüber wird im Plan gezogen, und
+    // genau dort fehlte das Mitskalieren zuerst.
+    const id = store().fuegeFoerderbandHinzu(
+      [
+        { x: 0, y: 0 },
+        { x: 800, y: 0 },
+      ],
+      40,
+    )!;
+    const vorher = bandVon(id)!;
+    const strecke = (v: { x: number; y: number }[]) =>
+      v.slice(1).reduce((s, p, i) => s + Math.hypot(p.x - v[i].x, p.y - v[i].y), 0);
+
+    store().setzeGeometrien([
+      {
+        id,
+        x: vorher.x,
+        y: vorher.y,
+        breite: vorher.breite * 2,
+        tiefe: vorher.tiefe,
+        drehung: 0,
+      },
+    ]);
+
+    expect(strecke(bandVon(id)!.verlauf!)).toBeCloseTo(strecke(vorher.verlauf!) * 2, 5);
+  });
+
   it('lässt den Verlauf in Ruhe, wenn sich die Maße nicht ändern', () => {
     const id = store().fuegeFoerderbandHinzu(
       [

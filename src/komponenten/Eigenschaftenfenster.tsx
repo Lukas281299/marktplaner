@@ -21,6 +21,7 @@ import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
+import { PALETTEN, palettenAnzahl, palettenmass, stehtUeber } from '../logik/paletten';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel } from '../logik/waende';
 import type {
@@ -30,6 +31,8 @@ import type {
   Masslinie,
   Oeffnung,
   Oeffnungsart,
+  Palettenart,
+  Palettenplatz,
   PlanElement,
   Raum,
   Raumart,
@@ -882,6 +885,22 @@ function Seitenaufteilung({
                   </option>
                 ))}
               </select>
+              <button
+                className={`knopf knopf-nur-symbol${feld.palette ? ' aktiv' : ''}`}
+                disabled={feld.leer}
+                title={
+                  feld.palette
+                    ? `${PALETTEN[feld.palette.art].name} unter den Böden – anklicken nimmt sie weg`
+                    : 'Eine Palette unter die Böden stellen. Art und Lage danach unten einstellen.'
+                }
+                onClick={() =>
+                  aendereFeld(i, {
+                    palette: feld.palette ? undefined : { art: 'halb', laengs: true },
+                  })
+                }
+              >
+                ▤
+              </button>
               {luecken && (
                 <button
                   className={`knopf knopf-nur-symbol${feld.leer ? ' aktiv' : ''}`}
@@ -920,6 +939,17 @@ function Seitenaufteilung({
                 ×
               </button>
             </div>
+
+            {/* Die Palette unter den Böden: Art, Lage, wie viele. */}
+            {feld.palette && !feld.leer && (
+              <Palettenzeile
+                platz={feld.palette}
+                feldbreite={feld.breite}
+                moebeltiefe={element.tiefe}
+                einheit={einheit}
+                aendern={(werte) => aendereFeld(i, { palette: { ...feld.palette!, ...werte } })}
+              />
+            )}
 
             {/* Was in diesem Feld steht. */}
             <div style={{ display: 'flex', gap: 4, paddingLeft: 26, alignItems: 'flex-start' }}>
@@ -1188,6 +1218,84 @@ function Warengruppenliste() {
         <option key={name} value={name} />
       ))}
     </datalist>
+  );
+}
+
+/**
+ * Die Palette unter einem Regalfeld: Art, Lage, Anzahl.
+ *
+ * Wie viele hineinpassen, rechnet die Anwendung aus – wer ein 2,50-m-Feld
+ * mit Viertelpaletten belegt, will nicht abzählen. Festlegen lässt sich die
+ * Zahl trotzdem, denn manchmal soll eben nur eine dort stehen.
+ *
+ * Steht die Palette tiefer als das Möbel, sagt es die Zeile: Im Markt stellt
+ * man sie trotzdem hin, aber man will wissen, wie weit sie in den Gang ragt.
+ */
+function Palettenzeile({
+  platz,
+  feldbreite,
+  moebeltiefe,
+  einheit,
+  aendern,
+}: {
+  platz: Palettenplatz;
+  feldbreite: number;
+  moebeltiefe: number;
+  einheit: Massinheit;
+  aendern: (werte: Partial<Palettenplatz>) => void;
+}) {
+  const laengs = platz.laengs ?? true;
+  const mass = palettenmass(platz.art, laengs);
+  const passen = palettenAnzahl({ ...platz, anzahl: undefined }, feldbreite);
+  const ueber = stehtUeber(platz, moebeltiefe);
+
+  return (
+    <div style={{ paddingLeft: 26, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <select
+          value={platz.art}
+          onChange={(e) => aendern({ art: e.target.value as Palettenart })}
+          title="Welche Palette"
+        >
+          {(Object.keys(PALETTEN) as Palettenart[]).map((art) => (
+            <option key={art} value={art}>
+              {PALETTEN[art].name} · {PALETTEN[art].lang}×{PALETTEN[art].kurz}
+            </option>
+          ))}
+        </select>
+        <button
+          className="knopf"
+          onClick={() => aendern({ laengs: !laengs })}
+          title="Liegt die lange Seite parallel zur Regalfront?"
+        >
+          {laengs ? 'längs' : 'quer'}
+        </button>
+        <select
+          value={String(platz.anzahl ?? 0)}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            aendern({ anzahl: n === 0 ? undefined : n });
+          }}
+          title="Wie viele nebeneinander"
+        >
+          <option value="0">{passen}× (so viel wie passt)</option>
+          {[1, 2, 3, 4].map((n) => (
+            <option key={n} value={String(n)}>
+              {n}×
+            </option>
+          ))}
+        </select>
+      </div>
+      <span className="hinweis" style={{ fontSize: '0.85em' }}>
+        {formatiereLaenge(mass.breite, einheit)} breit, {formatiereLaenge(mass.tiefe, einheit)} tief
+        {ueber > 0 && (
+          <>
+            {' · '}
+            <strong>steht {formatiereLaenge(ueber, einheit)} vor</strong>
+          </>
+        )}
+      </span>
+    </div>
   );
 }
 
