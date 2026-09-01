@@ -52,7 +52,13 @@ export function Waende({
   return (
     <>
       {waende.map((wand) => {
-        const punkte = [wand.von.x, wand.von.y, wand.bis.x, wand.bis.y];
+        // Eine Flächenwand bringt ihren Umriss mit; sie wird gefüllt statt
+        // als dicker Strich gezeichnet. Nur so bekommt ein Zwickel seine
+        // beiden verschiedenen Dicken.
+        const flaeche = wand.umriss && wand.umriss.length >= 3 ? wand.umriss : null;
+        const punkte = flaeche
+          ? flaeche.flatMap((p) => [p.x, p.y])
+          : [wand.von.x, wand.von.y, wand.bis.x, wand.bis.y];
         return (
           <Group
             key={wand.id}
@@ -73,22 +79,41 @@ export function Waende({
               beiZiehEnde(wand.id, x, y);
             }}
           >
+            {flaeche ? (
+              <Line
+                points={punkte}
+                closed
+                fill={FARBEN[wand.art]}
+                stroke={FARBEN[wand.art]}
+                strokeWidth={1 / zoom}
+              />
+            ) : (
+              <Line
+                points={punkte}
+                stroke={FARBEN[wand.art]}
+                strokeWidth={wand.staerke}
+                lineCap="butt"
+              />
+            )}
+            {/* Unsichtbarer, dickerer Streifen zum Anfassen: Eine 10 cm
+                dünne Wand trifft man sonst bei kleinem Zoom nicht. Bei einer
+                Fläche liegt er auf ihrem Rand – die Fläche selbst trifft
+                man ohnehin. */}
             <Line
               points={punkte}
-              stroke={FARBEN[wand.art]}
-              strokeWidth={wand.staerke}
-              lineCap="butt"
+              closed={Boolean(flaeche)}
+              fill={flaeche ? 'transparent' : undefined}
+              stroke="transparent"
+              strokeWidth={flaeche ? 14 / zoom : Math.max(wand.staerke, 14 / zoom)}
             />
-            {/* Unsichtbarer, dickerer Streifen zum Anfassen: Eine 10 cm
-                dünne Wand trifft man sonst bei kleinem Zoom nicht. */}
-            <Line points={punkte} stroke="transparent" strokeWidth={Math.max(wand.staerke, 14 / zoom)} />
             {wand.id === ausgewaehlt && (
               <Line
                 listening={false}
                 points={punkte}
+                closed={Boolean(flaeche)}
                 stroke="#0a84ff"
-                strokeWidth={wand.staerke + 4 / zoom}
-                opacity={0.35}
+                strokeWidth={flaeche ? 3 / zoom : wand.staerke + 4 / zoom}
+                opacity={flaeche ? 0.9 : 0.35}
                 lineCap="butt"
               />
             )}

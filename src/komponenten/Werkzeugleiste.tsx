@@ -486,9 +486,9 @@ export function Werkzeugleiste() {
             onClick={() =>
               store().setzeWerkzeug(werkzeug === 'wandZeichnen' ? 'auswahl' : 'wandZeichnen')
             }
-            title="Einen Wandzug frei führen: Ecke für Ecke klicken, Ziehen macht einen Bogen daraus – für abgeschrägte Ecken und gerundete Wände"
+            title="Eine Wand als Fläche umfahren – Ecke für Ecke wie bei einem Raum. Länge und Dicke ergeben sich aus dem Umriss, deshalb sind auch trapezförmige Zwickel möglich."
           >
-            <SymbolUmriss /> <span className="knopf-text">Wand frei</span>
+            <SymbolUmriss /> <span className="knopf-text">Wandfläche</span>
           </button>
           <button
             className={`knopf${werkzeug === 'foerderband' ? ' aktiv' : ''}`}

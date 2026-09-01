@@ -729,6 +729,21 @@ export interface Wand {
   staerke: number;
   art: Wandart;
   gesperrt: boolean;
+  /**
+   * Der Umriss einer als **Fläche** gezeichneten Wand.
+   *
+   * Eine Wand aus Achse und Stärke ist überall gleich dick. Das reicht für
+   * neun von zehn Wänden und für keine einzige abgeschrägte Ecke: Wo zwei
+   * Wände in einem stumpfen Winkel zusammenlaufen, ist der Zwickel dazwischen
+   * ein Trapez, und ein Trapez hat keine Stärke, sondern zwei.
+   *
+   * Deshalb darf eine Wand stattdessen ihren Umriss mitbringen – Ecke für
+   * Ecke gesetzt wie bei einem Raum. `von`/`bis` und `staerke` bleiben
+   * trotzdem gefüllt: Sie sind dann die **abgeleitete** Achse und die
+   * mittlere Dicke, damit Türen, Bemaßung und Einrasten weiter rechnen
+   * können, ohne von der Fläche zu wissen.
+   */
+  umriss?: Punkt[];
 }
 
 /** Welche Art von Durchbruch in einer Wand sitzt. */

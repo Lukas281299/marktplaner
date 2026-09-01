@@ -108,38 +108,47 @@ describe('Stärke neuer Wände', () => {
     expect(store().projekt.waende.find((w) => w.id === id)?.staerke).toBe(120);
   });
 
-  it('macht aus einem Zug von Punkten zusammenhängende Wände', () => {
-    // Eine abgeschrägte Ecke: waagerecht, dann 45 Grad, dann senkrecht.
-    store().setzeWandstaerkeNeu(24);
-    const id = store().fuegeWandzugHinzu([
+  it('macht aus einem Umriss eine Wandfläche und rechnet ihre Maße aus', () => {
+    // Ein Trapez: vorn 20 dick, hinten 40 – so sieht ein Zwickel zwischen
+    // zwei schräg zusammenlaufenden Wänden aus.
+    const id = store().fuegeWandflaecheHinzu([
       { x: 0, y: 0 },
-      { x: 500, y: 0 },
-      { x: 700, y: 200 },
-      { x: 700, y: 600 },
-    ]);
-    const waende = store().projekt.waende;
-    expect(waende).toHaveLength(3);
-    expect(id).toBe(waende[0].id);
-    // Jedes Stück beginnt, wo das vorige endet – sonst klaffte der Knick.
-    expect(waende[0].bis).toEqual(waende[1].von);
-    expect(waende[1].bis).toEqual(waende[2].von);
-    expect(waende.every((w) => w.staerke === 24)).toBe(true);
+      { x: 600, y: 0 },
+      { x: 600, y: 40 },
+      { x: 0, y: 20 },
+    ])!;
+    const wand = store().projekt.waende.find((w) => w.id === id)!;
+    expect(wand.umriss).toHaveLength(4);
+    expect(Math.round(wand.staerke)).toBe(30);
+    // Und sie ist gewählt – man will gleich ihre Maße sehen.
+    expect(store().sonderauswahl).toEqual({ art: 'wand', id });
   });
 
-  it('wirft Splitter aus einem Bogen weg', () => {
-    // Ein gezeichneter Bogen bringt Punkte im Zentimeterabstand mit. Aus
-    // jedem eine eigene Wand zu machen hieße, den Plan zu vermüllen.
-    const id = store().fuegeWandzugHinzu([
-      { x: 0, y: 0 },
-      { x: 1, y: 0 },
-      { x: 400, y: 0 },
-    ]);
-    expect(store().projekt.waende).toHaveLength(1);
-    expect(store().projekt.waende[0]).toMatchObject({ id, von: { x: 0, y: 0 }, bis: { x: 400, y: 0 } });
+  it('nimmt beim Verschieben den Umriss mit', () => {
+    const id = store().fuegeWandflaecheHinzu(rechteck(0, 0, 500, 24))!;
+    store().verschiebeWand(id, 100, 50);
+    const wand = store().projekt.waende.find((w) => w.id === id)!;
+    expect(wand.umriss![0]).toEqual({ x: 100, y: 50 });
+    // Sonst bliebe der Körper stehen und nur die gedachte Achse zöge weiter.
+    expect(wand.von.y).toBe(62);
   });
 
-  it('legt nichts an, wenn der ganze Zug zu kurz ist', () => {
-    expect(store().fuegeWandzugHinzu([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toBeNull();
+  it('rechnet Achse und Dicke neu, wenn eine Ecke wandert', () => {
+    const id = store().fuegeWandflaecheHinzu(rechteck(0, 0, 500, 24))!;
+    store().verschiebeWandEcke(id, 2, { x: 500, y: 60 });
+    const wand = store().projekt.waende.find((w) => w.id === id)!;
+    // Aus 24 gleichmäßig wird 24 vorn und 60 hinten – im Mittel 42.
+    expect(Math.round(wand.staerke)).toBe(42);
+  });
+
+  it('legt nichts an, wenn der Umriss keine Fläche hat', () => {
+    expect(
+      store().fuegeWandflaecheHinzu([
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+        { x: 200, y: 0 },
+      ]),
+    ).toBeNull();
     expect(store().projekt.waende).toHaveLength(0);
   });
 

@@ -197,7 +197,6 @@ export function Zeichenflaeche() {
   const schliesseZug = useCallback((zug: Punkt[]) => {
     const sauber = entdoppele(zug);
     const store = usePlanStore.getState();
-    const vorher = store.projekt.waende.length;
     const verkauf = store.werkzeug === 'verkaufsflaeche';
     const raum = store.werkzeug === 'raumZeichnen';
 
@@ -221,26 +220,23 @@ export function Zeichenflaeche() {
       return;
     }
 
-    // Ein Wandzug ist ebenfalls offen: Er endet, wo er endet. Aus den
-    // Punkten werden zusammenhängende Wände – ein Knick ist einfach die
-    // Stelle, an der zwei Stücke aneinanderstoßen.
+    // Eine Wandfläche ist ein geschlossener Umriss wie bei einem Raum – nur
+    // dass daraus keine Fläche wird, die man benennt, sondern ein Wandkörper.
+    // Länge und Dicke rechnet der Store daraus aus.
     if (store.werkzeug === 'wandZeichnen') {
-      if (sauber.length < 2) {
-        setMeldung('Zu wenige Punkte – ein Wandzug braucht mindestens zwei.');
+      if (!taugtAlsUmriss(sauber)) {
+        setMeldung('Zu wenige Ecken – eine Wandfläche braucht mindestens drei.');
         return;
       }
-      const id = store.fuegeWandzugHinzu(sauber);
+      const id = store.fuegeWandflaecheHinzu(sauber);
       setZugMaus(null);
       if (!id) {
-        setMeldung('Die Stücke waren zu kurz – nichts angelegt.');
+        setMeldung('Der Umriss hat keine Fläche – nichts angelegt.');
         return;
       }
-      const anzahl = usePlanStore.getState().projekt.waende.length - vorher;
       store.setzeWerkzeug('auswahl');
       setMeldung(
-        anzahl === 1
-          ? 'Wand gezogen. Stärke und Winkel stellst du rechts ein.'
-          : `Wandzug aus ${anzahl} Stücken gelegt. Jedes Stück lässt sich einzeln anfassen.`,
+        `Wandfläche mit ${sauber.length} Ecken gesetzt. Die Ecken lassen sich einzeln nachziehen.`,
       );
       return;
     }
@@ -1663,7 +1659,43 @@ export function Zeichenflaeche() {
 
           {/* Enden der ausgewählten Wand – die Länge zieht man im Plan,
               nicht im Zahlenfeld. */}
-          {werkzeug === 'auswahl' && gewaehlteWand && !gewaehlteWand.gesperrt && (
+          {/* Eine Flächenwand fasst man an ihren Ecken an – dieselben
+              Anfasser wie beim Grundriss. So entsteht der trapezförmige
+              Zwickel: eine Ecke ein Stück herausziehen, fertig. */}
+          {werkzeug === 'auswahl' &&
+            gewaehlteWand &&
+            !gewaehlteWand.gesperrt &&
+            gewaehlteWand.umriss &&
+            gewaehlteWand.umriss.length >= 3 && (
+              <UmrissBearbeitung
+                umriss={gewaehlteWand.umriss}
+                zoom={zoom}
+                einrasten={aufRaster}
+                beiZiehStart={() => usePlanStore.getState().schnappschuss()}
+                beiPunktZiehen={(index, punkt) =>
+                  usePlanStore.getState().verschiebeWandEcke(gewaehlteWand.id, index, punkt)
+                }
+                beiZiehEnde={() => {}}
+                beiPunktEinfuegen={(nachIndex, punkt) =>
+                  usePlanStore
+                    .getState()
+                    .setzeWandumriss(
+                      gewaehlteWand.id,
+                      punktEinfuegen(gewaehlteWand.umriss!, nachIndex, punkt),
+                    )
+                }
+                beiPunktEntfernen={(index) => {
+                  const neu = punktEntfernen(gewaehlteWand.umriss!, index);
+                  if (!neu) {
+                    melde('Eine Wandfläche braucht mindestens drei Ecken.');
+                    return;
+                  }
+                  usePlanStore.getState().setzeWandumriss(gewaehlteWand.id, neu);
+                }}
+              />
+            )}
+
+          {werkzeug === 'auswahl' && gewaehlteWand && !gewaehlteWand.gesperrt && !gewaehlteWand.umriss && (
             <Group x={wandVersatz.x} y={wandVersatz.y}>
               <Wandenden
                 wand={gewaehlteWand}
@@ -1883,9 +1915,9 @@ const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinwe
       'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · Art und Name danach rechts einstellen',
   },
   wandZeichnen: {
-    titel: 'Wandzug mit Knicken',
+    titel: 'Wand als Fläche umfahren',
     hinweis:
-      'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · Enter beendet den Zug · Rückschritt nimmt eine Ecke zurück · für abgeschrägte Ecken und gerundete Wände',
+      'Ecke für Ecke klicken wie bei einem Raum · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · Länge und Dicke ergeben sich aus dem Umriss',
   },
   wand: {
     titel: 'Wand ziehen',

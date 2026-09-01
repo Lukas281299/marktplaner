@@ -6,6 +6,7 @@ import {
   aufStrecke,
   fangbereich,
   findeWand,
+  flaechenwandmasse,
   wandstaerkeAufKante,
   type Wandachse,
   richteWandAus,
@@ -293,5 +294,59 @@ describe('Wandstärke auf einer Raumkante', () => {
   it('zählt eine Wand nicht mit, die nur daneben endet', () => {
     const daneben = [achse({ x: 1200, y: 0 }, { x: 1800, y: 0 }, 24)];
     expect(wandstaerkeAufKante({ x: 0, y: 0 }, { x: 1000, y: 0 }, daneben)).toBe(0);
+  });
+});
+
+describe('Wand als Fläche', () => {
+  it('liest Länge und Dicke aus einem liegenden Rechteck', () => {
+    const m = flaechenwandmasse(rechteck(100, 200, 500, 24))!;
+    expect(Math.round(m.laenge)).toBe(500);
+    expect(Math.round(m.dicke)).toBe(24);
+    expect(Math.round(m.flaeche)).toBe(500 * 24);
+    // Die Achse liegt mittig auf der langen Seite.
+    expect(m.von).toEqual({ x: 100, y: 212 });
+    expect(m.bis).toEqual({ x: 600, y: 212 });
+  });
+
+  it('erkennt auch eine stehende Wand', () => {
+    const m = flaechenwandmasse(rechteck(500, 100, 30, 800))!;
+    expect(Math.round(m.laenge)).toBe(800);
+    expect(Math.round(m.dicke)).toBe(30);
+  });
+
+  it('kommt mit einer Schräge zurecht', () => {
+    // Ein um 45 Grad gedrehtes Rechteck, 400 lang und 20 dick.
+    const w = 45 * (Math.PI / 180);
+    const dreh = (x: number, y: number) => ({
+      x: x * Math.cos(w) - y * Math.sin(w),
+      y: x * Math.sin(w) + y * Math.cos(w),
+    });
+    const m = flaechenwandmasse([dreh(0, 0), dreh(400, 0), dreh(400, 20), dreh(0, 20)])!;
+    expect(Math.round(m.laenge)).toBe(400);
+    expect(Math.round(m.dicke)).toBe(20);
+    expect(Math.round(wandwinkel(m.von, m.bis))).toBe(45);
+  });
+
+  it('gibt bei einem Trapez die mittlere Dicke', () => {
+    // Vorn 20 dick, hinten 40 – im Mittel 30.
+    const m = flaechenwandmasse([
+      { x: 0, y: 0 },
+      { x: 600, y: 0 },
+      { x: 600, y: 40 },
+      { x: 0, y: 20 },
+    ])!;
+    // Die schmalste Richtung läuft hier haarscharf an der schrägen Kante
+    // entlang und wäre einen Zentimeter länger. Unter den fast gleich
+    // schmalen Richtungen gewinnt die kürzeste – die gerade Unterkante, die
+    // der Planer gezogen hat.
+    expect(Math.round(m.laenge)).toBe(600);
+    expect(Math.round(m.dicke)).toBe(30);
+  });
+
+  it('meldet nichts bei einem entarteten Umriss', () => {
+    expect(flaechenwandmasse([{ x: 0, y: 0 }, { x: 100, y: 0 }])).toBeNull();
+    expect(
+      flaechenwandmasse([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }]),
+    ).toBeNull();
   });
 });

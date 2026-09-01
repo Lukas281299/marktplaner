@@ -5,6 +5,7 @@ import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { feinRunde, gesamtUmgrenzung, runde, umgrenzung } from '../logik/geometrie';
 import { hauptrichtung, reiheAneinander } from '../logik/gruppen';
 import { neueId } from '../logik/id';
+import { flaechenwandmasse } from '../logik/waende';
 import { verschiebeEcke } from '../logik/elementEcken';
 import { vervielfaeltige } from '../logik/vervielfaeltigen';
 import {
@@ -154,6 +155,18 @@ function naechsteWandstaerke(gezogen: number, voreinstellung: number): number {
  * Nur solange sie automatisch ist: Wer einen eigenen Text hinschreibt, hat
  * sich etwas dabei gedacht, und der bleibt stehen.
  */
+/**
+ * Ein geänderter Wandumriss samt neu gerechneter Achse und Dicke.
+ *
+ * Beides hängt am Umriss und darf nicht auseinanderlaufen: Wer eine Ecke
+ * zieht, ändert die Wand, und die Zahlen daneben müssen das mitmachen.
+ */
+function mitAbgeleiteterAchse(umriss: Punkt[]): Partial<Wand> {
+  const masse = flaechenwandmasse(umriss);
+  if (!masse) return { umriss };
+  return { umriss, von: masse.von, bis: masse.bis, staerke: masse.dicke };
+}
+
 function mitNachgezogenerBezeichnung(el: PlanElement): PlanElement {
   if (el.beschriftungAutomatisch === false) return el;
   const neu = bezeichnungFuer(el);
@@ -317,6 +330,22 @@ export interface PlanStore {
    * den Platz, statt sich zu drängeln.
    */
   linkerReiter: 'bibliothek' | 'warengruppen';
+  /**
+   * Ist die Projektleiste rechts aufgeklappt?
+   *
+   * Sie ist gut dreihundert Punkte breit, und beim Zeichnen eines großen
+   * Grundrisses will man diese dreihundert Punkte lieber für den Plan.
+   */
+  rechteSpalteOffen: boolean;
+  /**
+   * Die Vorlage, die in der Liste angeklickt wurde – zum Ansehen.
+   *
+   * Ein Klick setzt kein Möbel mehr in den Plan (das tut erst der
+   * Doppelklick). Damit der Klick trotzdem etwas bewirkt, zeigt das
+   * Eigenschaftenfenster daraufhin die Maße der Vorlage: Man kann eine
+   * Liste durchgehen und nachsehen, ohne den Plan anzufassen.
+   */
+  vorschau: BibliothekEintrag | null;
   /**
    * Welche Abteilungen im Warengruppen-Reiter aufgeklappt sind.
    *
@@ -533,13 +562,17 @@ export interface PlanStore {
 
   fuegeWandHinzu(von: Punkt, bis: Punkt, staerke?: number): string;
   /**
-   * Legt einen ganzen Zug von Wänden an: Ecke für Ecke, in einem Schritt.
+   * Legt eine Wand als **Fläche** an – Ecke für Ecke gesetzt wie ein Raum.
    *
-   * Damit baut man eine abgeschrägte Ecke oder eine gerundete Wand – der
-   * Bogen kommt als feiner Punktzug herein und wird zu vielen kurzen
-   * Stücken. Zurück kommt die Kennung der **ersten** Wand.
+   * Länge, Dicke und Achse werden aus dem Umriss gerechnet. Damit baut man
+   * einen trapezförmigen Zwickel oder eine abgeschrägte Ecke, für die eine
+   * Achse mit einer Stärke zu wenig ist.
    */
-  fuegeWandzugHinzu(punkte: Punkt[], staerke?: number): string | null;
+  fuegeWandflaecheHinzu(umriss: Punkt[]): string | null;
+  /** Zieht eine Ecke einer Flächenwand, ohne Eintrag in die Historie. */
+  verschiebeWandEcke(id: string, index: number, punkt: Punkt): void;
+  /** Setzt den ganzen Umriss neu – für Ecke einfügen und entfernen. */
+  setzeWandumriss(id: string, umriss: Punkt[]): void;
   aendereWand(id: string, werte: Partial<Wand>, mitHistorie?: boolean): void;
   verschiebeWand(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
 
@@ -635,6 +668,10 @@ export interface PlanStore {
 
   // -------------------------------------------------------------- Auswahl
   waehleAus(ids: string[], modus?: Auswahlmodus): void;
+  /** Klappt die Projektleiste rechts auf oder zu. */
+  schalteRechteSpalte(): void;
+  /** Zeigt eine Vorlage im Eigenschaftenfenster an, ohne sie zu setzen. */
+  zeigeVorlage(vorlage: BibliothekEintrag | null): void;
   waehleAlle(): void;
   hebeAuswahlAuf(): void;
 
@@ -669,6 +706,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   warengruppenPinsel: null,
   warengruppenMarkierung: [],
   linkerReiter: 'bibliothek',
+  rechteSpalteOffen: true,
+  vorschau: null,
   offeneAbteilungen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
@@ -1075,7 +1114,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   waehleSonder(auswahl) {
     // Schließt die Elementauswahl aus – das Eigenschaftenfenster zeigt
     // immer nur eines von beiden.
-    set(auswahl ? { sonderauswahl: auswahl, auswahl: [] } : { sonderauswahl: null });
+    set(
+      auswahl
+        ? { sonderauswahl: auswahl, auswahl: [], vorschau: null }
+        : { sonderauswahl: null, vorschau: null },
+    );
   },
 
   loescheSonderauswahl() {
@@ -1212,30 +1255,45 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     return id;
   },
 
-  fuegeWandzugHinzu(punkte, staerke = get().wandstaerkeNeu) {
-    // Aus n Punkten werden n-1 Wände. Zu kurze Stücke fallen weg: Ein Bogen
-    // bringt Punkte im Zentimeterabstand mit, und daraus je eine eigene Wand
-    // zu machen hieße, den Plan mit Splittern zu füllen.
-    const stuecke: Wand[] = [];
-    let letzter = punkte[0];
-    for (const p of punkte.slice(1)) {
-      if (Math.hypot(p.x - letzter.x, p.y - letzter.y) < 2) continue;
-      stuecke.push({
-        id: neueId('wand'),
-        von: letzter,
-        bis: p,
-        staerke,
-        art: 'trennwand',
-        gesperrt: false,
-      });
-      letzter = p;
-    }
-    if (stuecke.length === 0) return null;
+  fuegeWandflaecheHinzu(umriss) {
+    const masse = flaechenwandmasse(umriss);
+    if (!masse) return null;
 
-    aendere(set, get, (p) => ({ ...p, waende: [...p.waende, ...stuecke] }));
-    // Gewählt ist das erste Stück – von dort aus liest man die Maße ab.
-    set({ sonderauswahl: { art: 'wand', id: stuecke[0].id }, auswahl: [] });
-    return stuecke[0].id;
+    const id = neueId('wand');
+    const wand: Wand = {
+      id,
+      umriss,
+      // Achse und Dicke sind hier abgeleitet und nicht eingestellt. Sie
+      // stehen trotzdem im Datensatz: Türen, Bemaßung und Einrasten rechnen
+      // damit weiter, ohne von der Fläche wissen zu müssen.
+      von: masse.von,
+      bis: masse.bis,
+      staerke: masse.dicke,
+      art: 'trennwand',
+      gesperrt: false,
+    };
+    aendere(set, get, (p) => ({ ...p, waende: [...p.waende, wand] }));
+    set({ sonderauswahl: { art: 'wand', id }, auswahl: [] });
+    return id;
+  },
+
+  /**
+   * Verschiebt eine Ecke einer als Fläche gezeichneten Wand.
+   *
+   * Achse und Dicke werden dabei neu gerechnet – sonst zeigte das
+   * Eigenschaftenfenster die Maße von vorhin, und eine Tür säße daneben.
+   */
+  verschiebeWandEcke(id, index, punkt) {
+    const wand = get().projekt.waende.find((w) => w.id === id);
+    if (!wand?.umriss || wand.gesperrt) return;
+    const umriss = wand.umriss.map((p, i) => (i === index ? punkt : p));
+    get().aendereWand(id, mitAbgeleiteterAchse(umriss), false);
+  },
+
+  setzeWandumriss(id, umriss) {
+    const wand = get().projekt.waende.find((w) => w.id === id);
+    if (!wand?.umriss || wand.gesperrt || umriss.length < 3) return;
+    get().aendereWand(id, mitAbgeleiteterAchse(umriss), true);
   },
 
   aendereWand(id, werte, mitHistorie = true) {
@@ -1259,6 +1317,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
               ...w,
               von: { x: w.von.x + dx, y: w.von.y + dy },
               bis: { x: w.bis.x + dx, y: w.bis.y + dy },
+              // Eine Flächenwand wandert mit ihrem Umriss – sonst bliebe der
+              // Körper stehen und nur die gedachte Achse zöge weiter.
+              umriss: w.umriss?.map((p2) => ({ x: p2.x + dx, y: p2.y + dy })),
             }
           : w,
       ),
@@ -1959,7 +2020,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   // ================================================================ Auswahl
   waehleAus(ids, modus = 'ersetzen') {
     // Ein Element auszuwählen hebt die Raumauswahl auf – siehe `waehleSonder`.
-    if (ids.length > 0) set({ sonderauswahl: null });
+    if (ids.length > 0) set({ sonderauswahl: null, vorschau: null });
     if (modus === 'ersetzen') {
       set({ auswahl: ids });
       return;
@@ -1987,7 +2048,17 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   hebeAuswahlAuf() {
-    set({ auswahl: [], sonderauswahl: null });
+    set({ auswahl: [], sonderauswahl: null, vorschau: null });
+  },
+
+  schalteRechteSpalte() {
+    set((s) => ({ rechteSpalteOffen: !s.rechteSpalteOffen }));
+  },
+
+  zeigeVorlage(vorlage) {
+    // Die Vorschau tritt an die Stelle der Auswahl: Das Eigenschaftenfenster
+    // zeigt immer nur eines, und was man gerade nachschlägt, geht vor.
+    set({ vorschau: vorlage, auswahl: [], sonderauswahl: null });
   },
 
   // ================================================================ Ansicht

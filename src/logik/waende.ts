@@ -243,3 +243,110 @@ export function wandstaerkeAufKante(a: Punkt, b: Punkt, achsen: Wandachse[]): nu
   }
   return staerkste;
 }
+
+/** Die abgeleiteten Maße einer als Fläche gezeichneten Wand. */
+export interface Flaechenwand {
+  /** Grundfläche des Wandkörpers in cm². */
+  flaeche: number;
+  /** Die längste Ausdehnung – die Richtung, in der die Wand läuft. */
+  laenge: number;
+  /** Fläche geteilt durch Länge: die Dicke im Mittel. */
+  dicke: number;
+  /** Die abgeleitete Achse, mittig in Laufrichtung. */
+  von: Punkt;
+  bis: Punkt;
+}
+
+/**
+ * Rechnet aus einem Wandumriss Länge, Dicke und Achse aus.
+ *
+ * Eine als Fläche gezeichnete Wand sagt ihre Stärke nicht, sie zeigt sie.
+ * Gesucht ist deshalb die Richtung, in der sie **läuft** – und das ist die,
+ * quer zu der sie am schmalsten ist. Geprüft werden dafür die Richtungen
+ * ihrer eigenen Kanten: Eine Wand ist ein längliches Vieleck, und ihre
+ * Laufrichtung steht immer in einer ihrer Kanten.
+ *
+ * Die Dicke kommt danach aus Fläche geteilt durch Länge, nicht aus dem
+ * schmalsten Querschnitt. Bei einem Trapez gibt es keine eine Dicke; der
+ * Mittelwert ist die einzige Zahl, die nicht lügt.
+ */
+export function flaechenwandmasse(umriss: Punkt[]): Flaechenwand | null {
+  if (umriss.length < 3) return null;
+
+  // Fläche über die Trapezformel, Vorzeichen weg.
+  let doppelt = 0;
+  for (let i = 0; i < umriss.length; i++) {
+    const a = umriss[i];
+    const b = umriss[(i + 1) % umriss.length];
+    doppelt += a.x * b.y - b.x * a.y;
+  }
+  const flaeche = Math.abs(doppelt) / 2;
+  if (flaeche <= 0) return null;
+
+  const richtungen: { ex: number; ey: number; laenge: number; breite: number }[] = [];
+  for (let i = 0; i < umriss.length; i++) {
+    const a = umriss[i];
+    const b = umriss[(i + 1) % umriss.length];
+    const l = Math.hypot(b.x - a.x, b.y - a.y);
+    if (l < 0.01) continue;
+    const ex = (b.x - a.x) / l;
+    const ey = (b.y - a.y) / l;
+
+    let laengsMin = Infinity;
+    let laengsMax = -Infinity;
+    let querMin = Infinity;
+    let querMax = -Infinity;
+    for (const p of umriss) {
+      const laengs = p.x * ex + p.y * ey;
+      const quer = -p.x * ey + p.y * ex;
+      laengsMin = Math.min(laengsMin, laengs);
+      laengsMax = Math.max(laengsMax, laengs);
+      querMin = Math.min(querMin, quer);
+      querMax = Math.max(querMax, quer);
+    }
+    richtungen.push({ ex, ey, laenge: laengsMax - laengsMin, breite: querMax - querMin });
+  }
+  if (richtungen.length === 0) return null;
+
+  // Die schmalste Richtung ist die gesuchte – aber bei einem Trapez liegen
+  // mehrere dicht beieinander, und die knapp schmalste ist oft eine, die um
+  // ein paar Grad verkantet ist. Sie würde eine Wand, die man sechs Meter
+  // lang gezogen hat, als 6,25 m ausweisen.
+  //
+  // Deshalb zählt nicht die kleinste Breite allein: Unter allen Richtungen,
+  // die höchstens zwei Prozent breiter sind als die schmalste, gewinnt die
+  // **kürzeste**. Das ist die am wenigsten verkantete, und es ist die, die
+  // der Planer gezogen hat.
+  const schmalste = Math.min(...richtungen.map((r) => r.breite));
+  const beste = richtungen
+    .filter((r) => r.breite <= schmalste * 1.02)
+    .reduce((a, b) => (b.laenge < a.laenge ? b : a));
+
+  // Die Achse liegt mittig zwischen den beiden Längsseiten.
+  const { ex, ey } = beste;
+  let laengsMin = Infinity;
+  let laengsMax = -Infinity;
+  let querMin = Infinity;
+  let querMax = -Infinity;
+  for (const p of umriss) {
+    const laengs = p.x * ex + p.y * ey;
+    const quer = -p.x * ey + p.y * ex;
+    laengsMin = Math.min(laengsMin, laengs);
+    laengsMax = Math.max(laengsMax, laengs);
+    querMin = Math.min(querMin, quer);
+    querMax = Math.max(querMax, quer);
+  }
+  const mitte = (querMin + querMax) / 2;
+  const punkt = (laengs: number): Punkt => ({
+    x: laengs * ex - mitte * ey,
+    y: laengs * ey + mitte * ex,
+  });
+
+  return {
+    flaeche,
+    laenge: beste.laenge,
+    dicke: flaeche / beste.laenge,
+    von: punkt(laengsMin),
+    bis: punkt(laengsMax),
+  };
+}

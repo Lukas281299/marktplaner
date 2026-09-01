@@ -38,7 +38,10 @@ export function grundrissEcken(projekt: Projekt, ausserWandId?: string): Punkt[]
   for (const raum of projekt.raeume) punkte.push(...raum.umriss);
   for (const wand of projekt.waende) {
     if (wand.id === ausserWandId) continue;
-    punkte.push(wand.von, wand.bis);
+    // Eine Flächenwand hat keine zwei Enden, sondern Ecken – und an die will
+    // man anschließen, nicht an ihre gedachte Achse.
+    if (wand.umriss && wand.umriss.length >= 3) punkte.push(...wand.umriss);
+    else punkte.push(wand.von, wand.bis);
   }
   return punkte;
 }
