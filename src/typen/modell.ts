@@ -312,6 +312,15 @@ export interface PlanElement {
   /** Breite des Förderbands quer zum Verlauf, in Zentimetern. */
   bandbreite?: number;
 
+  /**
+   * Radius, mit dem die Knicke eines Förderbands abgerundet werden, in cm.
+   *
+   * Eine Rollenbahn biegt nicht scharf ab: In der Ecke sitzt ein
+   * Kurvenmodul, und das hat einen Radius. `0` zeichnet die Ecke scharf –
+   * für den Fall, dass zwei gerade Bahnen dort nur aneinanderstoßen.
+   */
+  eckradius?: number;
+
   /** Schriftgröße der Beschriftung in Bildschirmpunkten. */
   schriftgroesse: number;
   /** Optionale Zusatzangaben. */

@@ -1192,6 +1192,72 @@ function Warengruppenliste() {
 }
 
 /**
+ * Bandbreite und Eckradius eines Förderbands.
+ *
+ * Beides ist am Modul festgelegt und nicht am Plan: Eine Rollenbahn ist
+ * 400 mm breit oder 600, und in der Ecke sitzt ein Kurvenmodul mit einem
+ * Radius. Deshalb Zahlen und Regler statt Aufziehen – aufgezogen wird die
+ * Route, nicht das Profil.
+ */
+function Foerderbandfelder({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
+  const beiStart = () => usePlanStore.getState().schnappschuss();
+  const setze = (werte: Partial<PlanElement>) =>
+    usePlanStore.getState().aendereElemente([element.id], werte);
+
+  const bandbreite = element.bandbreite ?? 40;
+  const eckradius = element.eckradius ?? 0;
+  const laenge = (element.verlauf ?? [])
+    .slice(1)
+    .reduce((summe, p, i) => summe + Math.hypot(p.x - element.verlauf![i].x, p.y - element.verlauf![i].y), 0);
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Förderband</div>
+
+      <div className="kennzahl">
+        <span>Länge über alles</span>
+        <span className="kennzahl-wert">{formatiereLaenge(laenge, einheit)}</span>
+      </div>
+
+      <FeldRahmen label={`Bandbreite · ${formatiereLaenge(bandbreite, einheit)}`} titel="Übliche Rollenbahnen: 400 oder 600 mm">
+        <input
+          type="range"
+          min={20}
+          max={120}
+          step={5}
+          value={Math.min(120, Math.max(20, bandbreite))}
+          onMouseDown={beiStart}
+          onChange={(e) => setze({ bandbreite: Number(e.target.value) })}
+          style={{ width: '100%' }}
+        />
+      </FeldRahmen>
+
+      <FeldRahmen
+        label={eckradius > 0 ? `Ecken gerundet · ${formatiereLaenge(eckradius, einheit)}` : 'Ecken scharf'}
+        titel="Der Radius des Kurvenmoduls. Ganz links bleiben die Ecken scharf – für zwei Bahnen, die dort nur aneinanderstoßen."
+      >
+        <input
+          type="range"
+          min={0}
+          max={200}
+          step={10}
+          value={Math.min(200, Math.max(0, eckradius))}
+          onMouseDown={beiStart}
+          onChange={(e) => setze({ eckradius: Number(e.target.value) })}
+          style={{ width: '100%' }}
+        />
+      </FeldRahmen>
+
+      <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+        Die Route zeichnest du mit dem Werkzeug <strong>Förderband</strong>.
+        Ziehst du das Band an seinen Griffen länger, wächst der Verlauf mit –
+        es entstehen keine leeren Flächen daneben.
+      </p>
+    </div>
+  );
+}
+
+/**
  * Die beiden Kennzahlen eines Obst- und Gemüsemöbels.
  *
  * Bei Regalen steht oben links in der Ecke, was von Hand hineingeschrieben
@@ -1886,6 +1952,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
 
       {ausgewaehlte.length === 1 && erstes.form === 'getraenkegestell' && (
         <Getraenkekisten element={erstes} einheit={einheit} />
+      )}
+
+      {ausgewaehlte.length === 1 && erstes.form === 'foerderband' && (
+        <Foerderbandfelder element={erstes} einheit={einheit} />
       )}
 
       {ausgewaehlte.length === 1 && erstes.kategorie === 'obstgemuese' && (

@@ -804,10 +804,13 @@ function zeichneGetraenkegestell(
 /**
  * Ein Förderband entlang seines Verlaufs.
  *
- * Gezeichnet wird der Zug als breites Band mit den Rollen quer darauf – das
- * Bild, an dem man eine Rollenbahn im Plan erkennt. Die Ecken bleiben stumpf
- * gestoßen statt sauber auf Gehrung: Eine Rollenbahn wird aus geraden
- * Stücken und Kurvenmodulen gebaut, und genau so sieht sie im Plan auch aus.
+ * Gezeichnet werden die beiden Seitenwangen und die Rollen quer dazu – das
+ * Bild, an dem man eine Rollenbahn im Plan erkennt.
+ *
+ * Die Knicke werden abgerundet, weil eine Rollenbahn nicht scharf abbiegt:
+ * In der Ecke sitzt ein Kurvenmodul mit einem Radius. Die äußere Wange
+ * bekommt dabei den größeren Bogen, die innere den kleineren – wie beim
+ * echten Modul, und ohne das würden sich die Wangen in der Kurve schneiden.
  *
  * Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der linken
  * oberen Ecke, deshalb kommt die halbe Größe dazu – wie beim Umriss.
@@ -818,38 +821,58 @@ function zeichneFoerderband(
   bandbreite: number,
   b: number,
   t: number,
+  eckradius = 0,
 ) {
   const punkte = verlauf.map((p) => ({ x: p.x + b / 2, y: p.y + t / 2 }));
   const halb = bandbreite / 2;
 
+  /** Der um `abstand` seitlich versetzte Zug, mit gerundeten Ecken. */
+  const wange = (abstand: number) => {
+    const versetzt = punkte.map((p, i) => {
+      // Die Richtung an diesem Punkt: die Kante davor, davor die dahinter.
+      const a = punkte[Math.max(0, i - 1)];
+      const c = punkte[Math.min(punkte.length - 1, i + 1)];
+      const dx = c.x - a.x;
+      const dy = c.y - a.y;
+      const l = Math.hypot(dx, dy) || 1;
+      return { x: p.x + (-dy / l) * abstand, y: p.y + (dx / l) * abstand };
+    });
+
+    ctx.moveTo(versetzt[0].x, versetzt[0].y);
+    for (let i = 1; i < versetzt.length - 1; i++) {
+      // Innen enger, außen weiter – sonst überschneiden sich die Wangen.
+      const r = Math.max(0, eckradius + (abstand > 0 ? halb : -halb) * Math.sign(eckradius || 1));
+      if (r > 1) ctx.arcTo(versetzt[i].x, versetzt[i].y, versetzt[i + 1].x, versetzt[i + 1].y, r);
+      else ctx.lineTo(versetzt[i].x, versetzt[i].y);
+    }
+    ctx.lineTo(versetzt[versetzt.length - 1].x, versetzt[versetzt.length - 1].y);
+  };
+
+  wange(halb);
+  wange(-halb);
+
+  // Die Rollen quer dazu, etwa alle 12 cm. In den Kurven werden sie von
+  // selbst dichter – dort steht auch beim echten Modul eine Rolle mehr.
+  const abstand = 12;
   for (let i = 1; i < punkte.length; i++) {
     const a = punkte[i - 1];
     const c = punkte[i];
     const laenge = Math.hypot(c.x - a.x, c.y - a.y);
     if (laenge < 1) continue;
-    // Der Einheitsvektor quer zum Stück – daran hängt die ganze Zeichnung.
     const qx = (-(c.y - a.y) / laenge) * halb;
     const qy = ((c.x - a.x) / laenge) * halb;
-
-    // Die beiden Seitenwangen.
-    ctx.moveTo(a.x + qx, a.y + qy);
-    ctx.lineTo(c.x + qx, c.y + qy);
-    ctx.moveTo(a.x - qx, a.y - qy);
-    ctx.lineTo(c.x - qx, c.y - qy);
-
-    // Die Rollen quer dazu, etwa alle 12 cm – dichter wäre bei kleinem
-    // Maßstab nur noch ein grauer Balken.
-    const abstand = 12;
-    const anzahl = Math.max(1, Math.floor(laenge / abstand));
-    for (let r = 1; r < anzahl; r++) {
-      const f = r / anzahl;
+    // In der Kurve endet das gerade Stück früher – dort sitzt der Bogen.
+    const rand = eckradius > 1 ? Math.min(eckradius, laenge / 2) : 0;
+    const anzahl = Math.max(1, Math.floor((laenge - 2 * rand) / abstand));
+    for (let r = 0; r <= anzahl; r++) {
+      const f = (rand + ((laenge - 2 * rand) * r) / anzahl) / laenge;
       const x = a.x + (c.x - a.x) * f;
       const y = a.y + (c.y - a.y) * f;
       ctx.moveTo(x + qx, y + qy);
       ctx.lineTo(x - qx, y - qy);
     }
 
-    // Am Anfang und am Ende ein Abschluss, damit das Band nicht ausfranst.
+    // Abschluss an Anfang und Ende des ganzen Bandes.
     if (i === 1) {
       ctx.moveTo(a.x + qx, a.y + qy);
       ctx.lineTo(a.x - qx, a.y - qy);
@@ -2088,7 +2111,7 @@ export function ElementSymbol({
         //    Linienfarbe des Elements.
         ctx.beginPath();
         if (element.form === 'foerderband' && element.verlauf && element.verlauf.length >= 2) {
-          zeichneFoerderband(ctx, element.verlauf, element.bandbreite ?? 40, b, t);
+          zeichneFoerderband(ctx, element.verlauf, element.bandbreite ?? 40, b, t, element.eckradius ?? 0);
         } else if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
           // Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der
           // linken oberen Ecke, deshalb die halbe Größe dazu.

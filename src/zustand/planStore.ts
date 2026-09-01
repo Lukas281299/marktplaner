@@ -139,6 +139,37 @@ function naechsteWandstaerke(gezogen: number, voreinstellung: number): number {
   );
 }
 
+/**
+ * Den Verlauf eines Foerderbands mitziehen, wenn das Element skaliert wird.
+ *
+ * Ohne das bliebe der Zug stehen, waehrend sein Kasten waechst - im Plan ein
+ * Band, das nicht mehr fuellt, was es belegt, und eine graue Flaeche
+ * daneben. Der Verlauf liegt relativ zum Mittelpunkt; skaliert wird deshalb
+ * einfach mit dem Verhaeltnis der Kastenmasse.
+ */
+function mitSkaliertemVerlauf(
+  neu: PlanElement,
+  alt: PlanElement,
+  werte: Partial<PlanElement>,
+): PlanElement {
+  if (!alt.verlauf || alt.verlauf.length < 2) return neu;
+  const aendertMass = typeof werte.breite === 'number' || typeof werte.tiefe === 'number';
+  if (!aendertMass) return neu;
+  if (alt.breite <= 0 || alt.tiefe <= 0) return neu;
+
+  const fx = neu.breite / alt.breite;
+  const fy = neu.tiefe / alt.tiefe;
+  if (fx === 1 && fy === 1) return neu;
+
+  return {
+    ...neu,
+    verlauf: alt.verlauf.map((p) => ({ x: p.x * fx, y: p.y * fy })),
+    // Die Bandbreite folgt der kleineren Richtung: Ein Band, das doppelt so
+    // lang wird, wird nicht doppelt so breit.
+    bandbreite: alt.bandbreite ? alt.bandbreite * Math.min(fx, fy) : undefined,
+  };
+}
+
 export type Werkzeug =
   | 'auswahl'
   | 'umriss'
@@ -1404,7 +1435,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     const menge = new Set(ids);
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
-      elemente: p.elemente.map((el) => (menge.has(el.id) ? { ...el, ...werte } : el)),
+      elemente: p.elemente.map((el) =>
+        menge.has(el.id) ? mitSkaliertemVerlauf({ ...el, ...werte }, el, werte) : el,
+      ),
     });
     if (mitHistorie) aendere(set, get, wandeln);
     else set((s) => ({ projekt: wandeln(s.projekt) }));
