@@ -138,6 +138,21 @@ export const SymbolMassband = () => (
   </Zeichnung>
 );
 
+/**
+ * Das Förderband: eine Bahn mit Knick und den Rollen quer darauf.
+ *
+ * Bewusst nicht dasselbe Zeichen wie das Maßband, obwohl beides Striche
+ * quer auf einem Balken sind. Beide Knöpfe standen nebeneinander und mit
+ * demselben Bild – wer das Maß suchte, griff daneben.
+ */
+export const SymbolFoerderband = () => (
+  <Zeichnung>
+    <path d="M3 6h11a4 4 0 0 1 4 4v11" />
+    <path d="M3 12h11a4 4 0 0 1 4 4v5" />
+    <path d="M6 6v6M9 6v6M12 6v6M15 16h6M15 19h6" />
+  </Zeichnung>
+);
+
 export const SymbolGruppieren = () => (
   <Zeichnung>
     <rect x="3" y="3" width="7" height="7" />

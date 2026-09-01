@@ -21,6 +21,7 @@ import {
   SymbolBild,
   SymbolFlaecheMinus,
   SymbolFlaechePlus,
+  SymbolFoerderband,
   SymbolGruppeAufheben,
   SymbolGruppieren,
   SymbolMassband,
@@ -485,7 +486,7 @@ export function Werkzeugleiste() {
             onClick={() => store().setzeWerkzeug(werkzeug === 'foerderband' ? 'auswahl' : 'foerderband')}
             title="Ein Förderband frei führen: Knick für Knick klicken, Enter beendet"
           >
-            <SymbolMassband /> <span className="knopf-text">Förderband</span>
+            <SymbolFoerderband /> <span className="knopf-text">Förderband</span>
           </button>
           <button
             className={`knopf${werkzeug === 'oeffnung' ? ' aktiv' : ''}`}

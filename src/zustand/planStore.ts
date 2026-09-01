@@ -25,6 +25,7 @@ import {
 } from '../logik/kopfgondel';
 import { raumart, VERKAUFSFLAECHE_FARBE } from '../daten/raumarten';
 import { imUhrzeigersinn, verschiebe } from '../logik/polygon';
+import { bezeichnungFuer } from '../logik/regalbezeichnung';
 import {
   setzeSortimentsliste as speichereSortiment,
   setzeFavoriten as speichereFavoriten,
@@ -147,6 +148,19 @@ function naechsteWandstaerke(gezogen: number, voreinstellung: number): number {
  * daneben. Der Verlauf liegt relativ zum Mittelpunkt; skaliert wird deshalb
  * einfach mit dem Verhaeltnis der Kastenmasse.
  */
+/**
+ * Die Bezeichnung nachziehen, wenn sich die Maße geaendert haben.
+ *
+ * Nur solange sie automatisch ist: Wer einen eigenen Text hinschreibt, hat
+ * sich etwas dabei gedacht, und der bleibt stehen.
+ */
+function mitNachgezogenerBezeichnung(el: PlanElement): PlanElement {
+  if (el.beschriftungAutomatisch === false) return el;
+  const neu = bezeichnungFuer(el);
+  if (!neu || neu === el.beschriftung) return el;
+  return { ...el, beschriftung: neu };
+}
+
 function mitSkaliertemVerlauf(
   neu: PlanElement,
   alt: PlanElement,
@@ -1415,6 +1429,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           // derselben Vorlage an denselben Punkten.
           polygon: vorlage.polygon?.map((punkt) => ({ ...punkt })),
           beschriftung: vorlage.standardBeschriftung ?? vorlage.name,
+          // Solange niemand einen eigenen Text hinschreibt, folgt sie den
+          // Maßen – siehe `mitNachgezogenerBezeichnung`.
+          beschriftungAutomatisch: true,
           beschriftungSichtbar: true,
           schriftgroesse: 12,
           gesperrt: false,
@@ -1433,10 +1450,15 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   aendereElemente(ids, werte, mitHistorie = true) {
     const menge = new Set(ids);
+    // Ein von Hand geschriebener Text bleibt stehen – ab jetzt zieht die
+    // Bezeichnung nicht mehr mit.
+    if (typeof werte.beschriftung === 'string') werte = { ...werte, beschriftungAutomatisch: false };
     const wandeln = (p: Projekt): Projekt => ({
       ...p,
       elemente: p.elemente.map((el) =>
-        menge.has(el.id) ? mitSkaliertemVerlauf({ ...el, ...werte }, el, werte) : el,
+        menge.has(el.id)
+          ? mitNachgezogenerBezeichnung(mitSkaliertemVerlauf({ ...el, ...werte }, el, werte))
+          : el,
       ),
     });
     if (mitHistorie) aendere(set, get, wandeln);
@@ -1527,7 +1549,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         x: feinRunde(zug.x + versatz * Math.cos(bogen)),
         y: feinRunde(zug.y + versatz * Math.sin(bogen)),
       };
-      return { ...p, elemente: richteKoepfeAus(p.elemente, gewachsen) };
+      // Mit den Feldern ändern sich die Achsmaße – und damit die
+      // Bezeichnung, aus der man beim Bestellen abschreibt.
+      return { ...p, elemente: richteKoepfeAus(p.elemente, mitNachgezogenerBezeichnung(gewachsen)) };
     });
   },
   setzeKopfgondel(id, seite, an) {
@@ -1662,12 +1686,14 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         // Regale des wire-tech-Systems dürfen nur baubare Längen annehmen.
         // Alles andere behält seine freie Größe – ein Kühlmöbel oder eine
         // Freihand-Fläche kennt dieses Raster nicht.
-        if (el.form === 'wt100') return aufBaubareLaenge(el, gezogen);
+        if (el.form === 'wt100') return mitNachgezogenerBezeichnung(aufBaubareLaenge(el, gezogen));
         // Ein Förderband nimmt seinen Verlauf mit: Sonst bliebe der Zug
         // stehen, während sein Kasten wächst – im Plan eine graue Fläche
         // statt der Rollen. Hier und nicht nur in `aendereElemente`, denn
         // gezogen wird über den Rahmen, und der geht diesen Weg.
-        return mitSkaliertemVerlauf(gezogen, el, { breite: neu.breite, tiefe: neu.tiefe });
+        return mitNachgezogenerBezeichnung(
+          mitSkaliertemVerlauf(gezogen, el, { breite: neu.breite, tiefe: neu.tiefe }),
+        );
       });
 
       // Köpfe nachrücken, wo ein Zug seine Länge geändert hat.

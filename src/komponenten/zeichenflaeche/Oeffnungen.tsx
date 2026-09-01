@@ -125,8 +125,17 @@ function OeffnungBild({
 
       {oeffnung.art === 'doppeltuer' && (
         <>
+          {/*
+            Beide Flügel schlagen zur selben Seite auf, und ihre Bögen
+            treffen sich in der Mitte.
+
+            Vorher waren sie gespiegelt – zwei Viertelkreise, die sich
+            voneinander wegwölbten. So zeichnet man eine Pendeltür; eine
+            Doppeltür im Markt hat zwei gleich hängende Flügel, und genau
+            das ist die Darstellung, die im Bauplan steht.
+          */}
           <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={-halbB} />
-          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={halbB} gespiegeltX />
+          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={halbB} />
         </>
       )}
 

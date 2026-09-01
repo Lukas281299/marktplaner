@@ -356,6 +356,19 @@ export interface PlanElement {
    */
   eckradius?: number;
 
+  /**
+   * Folgt die Beschriftung noch den Maßen des Möbels?
+   *
+   * Beim Einsetzen steht dort die Bezeichnung aus der Bibliothek –
+   * „Wandregal A1000 · T700 · H2200“. Baut der Planer das Regal auf 1,25 m
+   * um, soll sie mitziehen; sonst stünde im Plan eine Angabe, die man beim
+   * Bestellen abschreibt und die falsch ist.
+   *
+   * Schreibt er einen eigenen Text hin, ist das seine Entscheidung: Dann
+   * steht hier `false` und die Bezeichnung bleibt, wie sie ist.
+   */
+  beschriftungAutomatisch?: boolean;
+
   /** Schriftgröße der Beschriftung in Bildschirmpunkten. */
   schriftgroesse: number;
   /** Optionale Zusatzangaben. */
