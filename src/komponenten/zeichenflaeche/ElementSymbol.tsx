@@ -433,7 +433,39 @@ const METERFARBE = '#b3261e';
  * fertigen Aufbaus mit Unterkonstruktion. Zwei Zentimeter wären im Plan
  * ein Strich und keine Blende.
  */
-const BLENDENSTAERKE = 8;
+export const BLENDENSTAERKE = 8;
+
+/** Wie breit ein Trefferbereich auf dem Bildschirm mindestens sein soll. */
+const GRIFF_MINDESTBREITE = 11;
+
+/**
+ * Die schmalste Stelle, an der man dieses Möbel wirklich anfassen kann.
+ *
+ * Bei den meisten ist das die kürzere Kante. Eine Blende ist innen offen –
+ * dort greift man nur das Brett, und das misst acht Zentimeter.
+ */
+function griffbreite(element: PlanElement): number {
+  if (element.form === 'holzblende' || element.form === 'holzblendeU') return BLENDENSTAERKE;
+  return Math.min(element.breite, element.tiefe);
+}
+
+/**
+ * Wie weit der Trefferbereich über das Gezeichnete hinausreichen darf.
+ *
+ * Ein Brett von acht Zentimetern ist bei 13 % Zoom **einen** Bildpunkt
+ * breit. Man sieht es, man kann es aber nicht anklicken – eine Blende war
+ * damit im Plan, aber nicht mehr zu fassen.
+ *
+ * Konva zeichnet die Trefferfläche auf eine eigene Leinwand; `hitStrokeWidth`
+ * legt fest, wie dick die Linien dort werden. Aufgeweitet wird nur so weit,
+ * bis elf Bildpunkte erreicht sind, und nur bei dem, was dünner ist. Ein
+ * Regal von 57 cm Tiefe bleibt deshalb bei seiner eigenen Kante: Ein Hof
+ * ringsum fänge sonst Klicks ab, die dem Nachbarn galten.
+ */
+export function griffZugabe(element: PlanElement, zoom: number): number | 'auto' {
+  const zugabe = GRIFF_MINDESTBREITE / zoom - griffbreite(element);
+  return zugabe > 0 ? zugabe : 'auto';
+}
 
 const PALETTENFARBE = 'rgba(176, 132, 74, 0.38)';
 
@@ -2296,6 +2328,7 @@ export function ElementSymbol({
       }
       strokeWidth={(ausgewaehlt ? 2 : 1) / zoom}
       opacity={element.gesperrt ? 0.7 : 1}
+      hitStrokeWidth={griffZugabe(element, zoom)}
       shadowForStrokeEnabled={false}
       perfectDrawEnabled={false}
       sceneFunc={(ctx, shape) => {

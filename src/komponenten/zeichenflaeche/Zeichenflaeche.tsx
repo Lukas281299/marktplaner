@@ -51,6 +51,22 @@ import { Raster } from './Raster';
 import { UmrissBearbeitung } from './UmrissBearbeitung';
 import { Waende } from './Waende';
 
+/**
+ * Wie groß ein Anfasser höchstens gezeichnet wird, in Bildpunkten.
+ *
+ * Größer sieht nach Klötzen aus; kleiner sah nach nichts aus.
+ */
+const ANFASSER_GROESSE_MAX = 11;
+
+/**
+ * Wie breit ein Anfasser zu **treffen** ist, in Bildpunkten.
+ *
+ * Deutlich mehr, als er groß gezeichnet wird. Ein Anfasser soll das Möbel
+ * nicht verdecken, aber man soll ihn erwischen, ohne zu zielen – beides
+ * geht nur, wenn die sichtbare Größe und der Trefferbereich sich trennen.
+ */
+const ANFASSER_TREFFER = 17;
+
 /** Grenzen für den Zoom: 1 Bildpunkt pro 50 cm bis 4 Bildpunkte pro cm. */
 const ZOOM_MIN = 0.02;
 const ZOOM_MAX = 4;
@@ -1263,15 +1279,37 @@ export function Zeichenflaeche() {
    *
    * Deshalb richtet sich die Größe jetzt nach der kürzeren Kante der
    * Auswahl auf dem Bildschirm. Bleibt für den Anfasser nicht genug Platz,
-   * schrumpft er mit – bis auf drei Punkte, darunter wäre er nicht mehr zu
-   * treffen.
+   * schrumpft er mit – bis auf drei Punkte.
+   *
+   * Getroffen werden muss er trotzdem, und drei Punkte trifft niemand.
+   * Deshalb hängt der **Trefferbereich** nicht mehr an der gezeichneten
+   * Größe: Er wird eigens aufgeweitet und bleibt immer gleich gut zu
+   * fassen, auch wenn der Punkt selbst klein bleibt. Siehe unten.
    */
   const auswahlBreiten = projekt.elemente
     .filter((el) => auswahl.includes(el.id))
     .map((el) => Math.min(el.breite, el.tiefe));
   const kuerzesteKanteAufSchirm =
     auswahlBreiten.length > 0 ? Math.min(...auswahlBreiten) * zoom : Infinity;
-  const anfasserGroesse = Math.max(3, Math.min(9, kuerzesteKanteAufSchirm / 3.5));
+  const anfasserGroesse = Math.max(3, Math.min(ANFASSER_GROESSE_MAX, kuerzesteKanteAufSchirm / 3.5));
+
+  /*
+   * Der Trefferbereich der Anfasser – größer als sie gezeichnet sind.
+   *
+   * Konva legt ihn sonst auf die gezeichnete Größe fest. Ein Anfasser von
+   * drei Bildpunkten ist damit nicht zu treffen, und genau auf drei
+   * schrumpft er an einem schmalen Möbel. Aufgeweitet wird über
+   * `hitStrokeWidth`: eine dicke Linie auf der Trefferleinwand, die man
+   * nicht sieht.
+   */
+  useEffect(() => {
+    const trafo = trafoRef.current;
+    if (!trafo) return;
+    const zugabe = Math.max(0, (ANFASSER_TREFFER - anfasserGroesse) / zoom);
+    for (const anker of trafo.find('._anchor')) {
+      (anker as Konva.Shape).hitStrokeWidth(zugabe);
+    }
+  }, [anfasserGroesse, zoom, auswahl]);
   /** Die ausgewählte Öffnung – für ihre Anfasser. */
   const gewaehlteOeffnung =
     sonderauswahl?.art === 'oeffnung'

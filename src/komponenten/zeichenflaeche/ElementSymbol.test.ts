@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
 import {
+  BLENDENSTAERKE,
+  griffZugabe,
   einheitenNaehte,
   zeichenAbschnitte,
   zeichneAchsmass,
@@ -1047,5 +1049,91 @@ describe('Möbel mit eigenem Achsmaß', () => {
     // Ein frei gezogenes Rechteck ist ein Möbel und keine Reihe.
     const frei = { ...reihe(200, 65.7, 1), achsmass: undefined, felderUnten: undefined };
     expect(einheitenNaehte(frei as PlanElement, 200)).toEqual([]);
+  });
+});
+
+/**
+ * Der Trefferbereich eines Möbels.
+ *
+ * Ein Brett von acht Zentimetern ist bei 13 % Zoom **einen** Bildpunkt breit.
+ * Man sieht es, man kann es aber nicht anklicken – eine Blende war damit im
+ * Plan, aber nicht mehr zu fassen. Im Browser nachgemessen: Klicks auf ihre
+ * Kante trafen das Regal dahinter oder gar nichts.
+ *
+ * Aufgeweitet wird deshalb, aber nur so weit wie nötig: Ein Hof um jedes
+ * Möbel finge Klicks ab, die dem Nachbarn galten.
+ */
+describe('Trefferbereich', () => {
+  const griffMoebel = (zusatz: Partial<PlanElement>): PlanElement =>
+    ({
+      id: 'el1',
+      vorlageId: 'x',
+      ebeneId: 'einrichtung',
+      name: 'Probe',
+      beschriftung: '',
+      kategorie: 'ausstattung',
+      form: 'rechteck',
+      x: 0,
+      y: 0,
+      breite: 320,
+      tiefe: 65,
+      drehung: 0,
+      farbe: '#ccc',
+      gesperrt: false,
+      reihenfolge: 1,
+      beschriftungSichtbar: true,
+      schriftgroesse: 12,
+      ...zusatz,
+    }) as PlanElement;
+
+  /** Wie breit der Trefferbereich auf dem Bildschirm wird, in Bildpunkten. */
+  const trefferBreite = (element: PlanElement, zoom: number, eigenbreite: number) => {
+    const zugabe = griffZugabe(element, zoom);
+    return (eigenbreite + (zugabe === 'auto' ? 0 : zugabe)) * zoom;
+  };
+
+  const blende = griffMoebel({ form: 'holzblende' });
+  const regal = griffMoebel({ form: 'wt100', breite: 500, tiefe: 57 });
+
+  it('macht das Brett einer Blende bei jedem Zoom greifbar', () => {
+    for (const zoom of [0.13, 0.25, 0.5, 1, 2]) {
+      expect(trefferBreite(blende, zoom, BLENDENSTAERKE)).toBeGreaterThanOrEqual(10.9);
+    }
+  });
+
+  it('rechnet bei der Blende mit dem Brett, nicht mit ihrer Größe', () => {
+    // 65 cm tief, aber nur 8 cm davon sind Material. Ohne diesen Unterschied
+    // hielte die Rechnung sie bei jedem Zoom für breit genug.
+    expect(griffZugabe(blende, 1)).not.toBe('auto');
+  });
+
+  it('lässt die Mitte einer Blende frei, sobald man arbeiten kann', () => {
+    // Sonst fängt die Blende die Klicks ab, die dem Regal darin galten.
+    for (const zoom of [0.5, 1, 2]) {
+      const zugabe = griffZugabe(blende, zoom);
+      const rand = BLENDENSTAERKE + (zugabe === 'auto' ? 0 : zugabe) / 2;
+      expect((65 - 2 * rand) * zoom).toBeGreaterThan(12);
+    }
+  });
+
+  it('fasst ein Regal von 57 cm Tiefe gar nicht an', () => {
+    // Es ist von sich aus breit genug; ein Hof ringsum finge Klicks ab, die
+    // dem Nachbarregal galten.
+    expect(griffZugabe(regal, 0.25)).toBe('auto');
+    expect(griffZugabe(regal, 1)).toBe('auto');
+  });
+
+  it('hilft einem schmalen Möbel weit herausgezoomt', () => {
+    // Eine Kassensperre von 5 cm ist bei 20 % ein Bildpunkt.
+    const sperre = griffMoebel({ form: 'linie', breite: 300, tiefe: 5 });
+    expect(trefferBreite(sperre, 0.2, 5)).toBeGreaterThanOrEqual(10.9);
+  });
+
+  it('weitet nie mehr auf als nötig', () => {
+    // Der Hof reicht höchstens gut fünf Bildpunkte über das Möbel hinaus.
+    for (const zoom of [0.1, 0.3, 0.7, 1.5]) {
+      const zugabe = griffZugabe(griffMoebel({ tiefe: 4 }), zoom);
+      expect(((zugabe === 'auto' ? 0 : zugabe) / 2) * zoom).toBeLessThanOrEqual(5.6);
+    }
   });
 });
