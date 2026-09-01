@@ -776,6 +776,15 @@ const BLUMEN_GRUEN = '#b6dfa6';
 const HOLZ_EICHE = '#cda274';
 
 /**
+ * Silber für Blenden aus Metall.
+ *
+ * Kühler und heller als der graue Ausbau ringsum – eine Metallblende soll
+ * sich von der Säule und vom Rollcontainer unterscheiden lassen, die
+ * daneben in derselben Gruppe stehen.
+ */
+const METALL_SILBER = '#b8c0c8';
+
+/**
  * Die Blumen- und Pflanzenmöbel von CMS Metasys.
  *
  * Alle Maße stammen von den Produktseiten des Herstellers (Kategorie
@@ -1295,6 +1304,12 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'holzblende-rahmen', name: 'Holzblende umlaufend', kategorie: 'ausstattung', breite: 320, tiefe: 65, hoehe: 220, form: 'holzblende', farbe: HOLZ_EICHE, gruppe: 'Einrichtung', standardBeschriftung: 'Holzblende', hinweis: 'Rahmen rundum · innen offen, das Regal bleibt sichtbar · Brett 8 cm' },
   { id: 'holzblende-u', name: 'Holzblende U-förmig', kategorie: 'ausstattung', breite: 320, tiefe: 65, hoehe: 220, form: 'holzblendeU', farbe: HOLZ_EICHE, gruppe: 'Einrichtung', standardBeschriftung: 'Holzblende', hinweis: 'Drei Seiten, eine Langseite offen – für einen Zug an der Wand · mit „Um 90° drehen“ ausrichten' },
   { id: 'holzblende-gerade', name: 'Holzblende gerade', kategorie: 'ausstattung', breite: 200, tiefe: 8, hoehe: 220, form: 'rechteck', farbe: HOLZ_EICHE, gruppe: 'Einrichtung', standardBeschriftung: 'Holzblende', hinweis: 'Ein einzelnes Brett – für die Front oder eine Seite' },
+
+  // Dieselben drei Formen in Metall. Die Form beschreibt den Zuschnitt,
+  // die Farbe den Werkstoff – deshalb teilen sie sich die Grundformen.
+  { id: 'metallblende-rahmen', name: 'Metallblende umlaufend', kategorie: 'ausstattung', breite: 320, tiefe: 65, hoehe: 220, form: 'holzblende', farbe: METALL_SILBER, gruppe: 'Einrichtung', standardBeschriftung: 'Metallblende', hinweis: 'Rahmen rundum · innen offen, das Regal bleibt sichtbar · Blech 8 cm' },
+  { id: 'metallblende-u', name: 'Metallblende U-förmig', kategorie: 'ausstattung', breite: 320, tiefe: 65, hoehe: 220, form: 'holzblendeU', farbe: METALL_SILBER, gruppe: 'Einrichtung', standardBeschriftung: 'Metallblende', hinweis: 'Drei Seiten, eine Langseite offen – für einen Zug an der Wand · mit „Um 90° drehen“ ausrichten' },
+  { id: 'metallblende-gerade', name: 'Metallblende gerade', kategorie: 'ausstattung', breite: 200, tiefe: 8, hoehe: 220, form: 'rechteck', farbe: METALL_SILBER, gruppe: 'Einrichtung', standardBeschriftung: 'Metallblende', hinweis: 'Ein einzelnes Blech – für die Front oder eine Seite' },
 
   // ---------------------------------------------------- Bau und Technik
   //
