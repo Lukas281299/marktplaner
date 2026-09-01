@@ -4,6 +4,7 @@ import { mitZugeordnetenFeldern } from '../logik/warengruppenzuordnung';
 import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { geordnet } from '../logik/warengruppe';
 import { grundfelder } from '../logik/regalseiten';
+import { nachgezogeneBezeichnung } from '../logik/regalbezeichnung';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { neueId } from '../logik/id';
 import { imUhrzeigersinn, rechteck } from '../logik/polygon';
@@ -100,8 +101,31 @@ export function wandleProjekt(roh: unknown): Projekt {
     // Fassung 15: Die Warengruppen messen jetzt in Zentimetern. Zuletzt,
     // damit die Bänder aus Fassung 14 vorher wieder in den Feldern liegen –
     // sonst gingen genau die verloren, die den Umweg mitgemacht haben.
-    ).map(aufsMeterband),
+    )
+      .map(aufsMeterband)
+      // Fassung 17: ganz zuletzt, wenn Felder, Maße und Seiten stehen.
+      .map(ziehBezeichnungNach),
   };
+}
+
+/**
+ * Fassung 17: Die Bezeichnung nennt wieder, was wirklich im Möbel steht.
+ *
+ * Seit Fassung 16 folgt die Bezeichnung den Feldern – aber nur bei Möbeln,
+ * die seitdem angefasst wurden. Ein Regalzug, der vor einem halben Jahr
+ * auf 1,25 m umgebaut wurde, hieß im Plan weiter A1000. Beim Öffnen wird
+ * das jetzt einmal für jede Planung nachgeholt, in allen Abteilungen:
+ * Trockensortiment, Kühlung, Tiefkühlung, Getränke, Obst & Gemüse,
+ * Bedienung, Backwaren.
+ *
+ * `nachgezogeneBezeichnung` ist dabei absichtlich vorsichtig: Sie fasst nur
+ * an, was schon eine Maßangabe trägt. In alten Planungen gab es das
+ * Kennzeichen für eigene Texte noch nicht, und ein Regal, das jemand
+ * „Kaffee“ genannt hat, darf davon nichts merken.
+ */
+function ziehBezeichnungNach(element: PlanElement): PlanElement {
+  const neu = nachgezogeneBezeichnung(element);
+  return neu ? { ...element, beschriftung: neu } : element;
 }
 
 /**

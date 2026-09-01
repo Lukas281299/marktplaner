@@ -485,3 +485,90 @@ describe('Ebenen vervollständigen', () => {
     expect(neu.ebenen.map((e) => e.id)).toContain('einrichtung');
   });
 });
+
+describe('Fassung 17 · Bezeichnungen nachziehen', () => {
+  /** Ein Möbel, wie es eine Planung der Fassung 16 abgelegt hat. */
+  function moebel(zusatz: Record<string, unknown>) {
+    return {
+      id: 'el1',
+      vorlageId: 'wt100',
+      ebeneId: 'einrichtung',
+      name: 'Wandregal A1000 · T700 · H2200',
+      beschriftung: 'Wandregal A1000 · T700 · H2200',
+      kategorie: 'regale',
+      form: 'wt100',
+      x: 500,
+      y: 500,
+      breite: 675,
+      tiefe: 70,
+      hoehe: 220,
+      drehung: 0,
+      farbe: WT_GRAU,
+      gesperrt: false,
+      reihenfolge: 1,
+      beschriftungSichtbar: true,
+      schriftgroesse: 12,
+      ...zusatz,
+    };
+  }
+
+  /** Eine Planung, die schon auf Fassung 16 war – nur die Namen sind alt. */
+  const planungMit = (elemente: unknown[]) =>
+    alteFassung({ version: 16, waende: [], oeffnungen: [], elemente });
+
+  it('nennt einen umgebauten Zug so, wie er wirklich gebaut ist', () => {
+    const neu = wandleProjekt(
+      planungMit([
+        moebel({
+          felderUnten: [100, 100, 100, 125, 125, 125].map((breite) => ({ breite })),
+        }),
+      ]),
+    );
+    expect(neu.elemente[0].beschriftung).toBe('Wandregal 3× A1000 · 3× A1250 · T700 · H2200');
+  });
+
+  it('zieht auch die Kühlung nach, nicht nur das Trockensortiment', () => {
+    const neu = wandleProjekt(
+      planungMit([
+        moebel({
+          form: 'kuehlOffen',
+          kategorie: 'kuehlung',
+          name: 'Kühlregal 2,50 m · offen',
+          beschriftung: 'Kühlregal 2,50 m · offen',
+          breite: 500,
+          tiefe: 112.5,
+          hoehe: 209,
+          felderUnten: [{ breite: 250 }, { breite: 250 }],
+        }),
+      ]),
+    );
+    expect(neu.elemente[0].beschriftung).toBe('Kühlregal 2× 2,50 m · offen');
+  });
+
+  it('lässt einen selbst geschriebenen Namen stehen', () => {
+    const neu = wandleProjekt(
+      planungMit([
+        moebel({
+          beschriftung: 'Kaffee und Tee',
+          felderUnten: [{ breite: 125 }, { breite: 125 }],
+        }),
+      ]),
+    );
+    expect(neu.elemente[0].beschriftung).toBe('Kaffee und Tee');
+  });
+
+  it('fasst eine Kasse nicht an', () => {
+    const neu = wandleProjekt(
+      planungMit([
+        moebel({
+          form: 'kasse',
+          kategorie: 'kassen',
+          name: 'Einzelstehkasse · Band 1500 mm',
+          beschriftung: 'Einzelstehkasse · Band 1500 mm',
+          breite: 120,
+        }),
+      ]),
+    );
+    expect(neu.elemente[0].beschriftung).toBe('Einzelstehkasse · Band 1500 mm');
+  });
+});
