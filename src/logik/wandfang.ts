@@ -1,6 +1,6 @@
+import { feinRunde } from './geometrie';
 import type { Projekt, Punkt } from '../typen/modell';
 import type { Hilfslinie } from './einrasten';
-import { richteWandAus } from './waende';
 
 /**
  * Wände aneinander einrasten lassen.
@@ -191,7 +191,7 @@ export function fangeNeueWand(
   toleranz: number,
 ): { von: Punkt; bis: Punkt } {
   const anfang = fangeAufEcke(von, ecken, toleranz);
-  const gerade = richteWandAus(anfang, bis);
+  const gerade = aufWinkelraster(anfang, bis);
 
   // Der Anfang hat gefangen – dann ist die Sache entschieden.
   if (anfang !== von) return { von: anfang, bis: gerade };
@@ -203,4 +203,91 @@ export function fangeNeueWand(
   return senkrecht
     ? { von: { x: ziel.x, y: anfang.y }, bis: ziel }
     : { von: { x: anfang.x, y: ziel.y }, bis: ziel };
+}
+
+/**
+ * Die Winkel, auf die eine Wand einrastet – alle 15 Grad.
+ *
+ * Damit sind 30°, 45° und 60° dabei, und das sind die Schrägen, die in einem
+ * Marktgrundriss vorkommen: eine abgeschrägte Ecke, ein Windfang, ein Gang,
+ * der um eine Säule herumführt. Alles dazwischen bleibt trotzdem möglich –
+ * eingerastet wird nur, was nah genug dran ist.
+ */
+export const WINKELRASTER = 15;
+
+/** Wie weit ein Winkel danebenliegen darf und trotzdem einrastet. */
+const WINKEL_TOLERANZ = 4;
+/** Für waagerecht und senkrecht großzügiger: die sind der Normalfall. */
+const ACHSEN_TOLERANZ = 8;
+
+/** Der Winkel von `von` nach `bis` in Grad, -180 bis 180. */
+function grad(von: Punkt, bis: Punkt): number {
+  return (Math.atan2(bis.y - von.y, bis.x - von.x) * 180) / Math.PI;
+}
+
+/**
+ * Richtet eine Wand auf das Winkelraster aus – oder lässt sie schief.
+ *
+ * Bisher gab es nur waagerecht und senkrecht: Alles andere wurde entweder
+ * geradegebogen oder blieb genau so krumm, wie die Hand gezittert hat. Eine
+ * abgeschrägte Wand ließ sich damit nicht auf 45,0° bringen, nur auf 44,3°.
+ *
+ * Waagerecht und senkrecht fangen weiter aus acht Grad – sie sind der
+ * Normalfall und sollen leicht zu treffen sein. Die Schrägen dazwischen aus
+ * vier: Wer 40° will, soll nicht bei 45 hängenbleiben.
+ */
+export function aufWinkelraster(von: Punkt, bis: Punkt): Punkt {
+  const dx = bis.x - von.x;
+  const dy = bis.y - von.y;
+  const laenge = Math.hypot(dx, dy);
+  if (laenge === 0) return bis;
+
+  const ist = grad(von, bis);
+  const ziel = Math.round(ist / WINKELRASTER) * WINKELRASTER;
+  const abweichung = Math.abs(ist - ziel);
+  const achse = ziel % 90 === 0;
+  if (abweichung > (achse ? ACHSEN_TOLERANZ : WINKEL_TOLERANZ)) return bis;
+
+  // Auf den Achsen wird die andere Koordinate übernommen statt gerechnet:
+  // So bleibt ein Rastermaß ein Rastermaß und wird nicht zu 4,999 m.
+  if (ziel % 180 === 0) return { x: bis.x, y: von.y };
+  if (Math.abs(ziel) === 90) return { x: von.x, y: bis.y };
+
+  const bogen = (ziel * Math.PI) / 180;
+  return {
+    x: feinRunde(von.x + Math.cos(bogen) * laenge),
+    y: feinRunde(von.y + Math.sin(bogen) * laenge),
+  };
+}
+
+/**
+ * Wohin ein gezogenes Wandende darf.
+ *
+ * Drei Dinge in dieser Reihenfolge: Eine Grundrissecke schlägt alles – dort
+ * schließt die Wand an. Sonst rastet der **Winkel** ein, damit eine Schräge
+ * gerade wird. Und wenn auch der nicht greift, bleibt das Raster.
+ *
+ * Vorher war das Ende auf die Achse der Wand festgenagelt: Eine waagerechte
+ * Wand blieb waagerecht, egal wohin man zog. Eine Wand drehen ging damit
+ * gar nicht.
+ */
+export function fangeWandende(
+  fest: Punkt,
+  roh: Punkt,
+  ecken: Punkt[],
+  toleranz: number,
+  aufRaster: (p: Punkt) => Punkt,
+): Punkt {
+  const ecke = fangeAufEcke(roh, ecken, toleranz);
+  if (ecke !== roh) return ecke;
+
+  const gerichtet = aufWinkelraster(fest, roh);
+  // Auf den Achsen darf zusätzlich das Raster greifen – dort vertragen sich
+  // beide, und runde Maße sind dort das, was man will.
+  const ist = grad(fest, gerichtet);
+  if (Math.abs(ist % 90) < 0.001) {
+    const p = aufRaster(roh);
+    return Math.abs(ist % 180) < 0.001 ? { x: p.x, y: fest.y } : { x: fest.x, y: p.y };
+  }
+  return gerichtet === roh ? aufRaster(roh) : gerichtet;
 }

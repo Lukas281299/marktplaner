@@ -27,9 +27,9 @@ import {
 } from '../../logik/waende';
 import {
   FANGWEITE_PIXEL,
-  fangeAufEcke,
   fangeNeueWand,
   fangeWand,
+  fangeWandende,
   grundrissEcken,
 } from '../../logik/wandfang';
 import type { Punkt } from '../../typen/modell';
@@ -84,7 +84,8 @@ function zeichnetZug(werkzeug: Werkzeug): boolean {
     werkzeug === 'grundrissZeichnen' ||
     werkzeug === 'verkaufsflaeche' ||
     werkzeug === 'raumZeichnen' ||
-    werkzeug === 'foerderband'
+    werkzeug === 'foerderband' ||
+    werkzeug === 'wandZeichnen'
   );
 }
 
@@ -196,6 +197,7 @@ export function Zeichenflaeche() {
   const schliesseZug = useCallback((zug: Punkt[]) => {
     const sauber = entdoppele(zug);
     const store = usePlanStore.getState();
+    const vorher = store.projekt.waende.length;
     const verkauf = store.werkzeug === 'verkaufsflaeche';
     const raum = store.werkzeug === 'raumZeichnen';
 
@@ -215,6 +217,30 @@ export function Zeichenflaeche() {
       setMeldung(
         `Förderband über ${(meter / 100).toFixed(2)} m gelegt. ` +
           `Breite und Höhe stellst du rechts ein.`,
+      );
+      return;
+    }
+
+    // Ein Wandzug ist ebenfalls offen: Er endet, wo er endet. Aus den
+    // Punkten werden zusammenhängende Wände – ein Knick ist einfach die
+    // Stelle, an der zwei Stücke aneinanderstoßen.
+    if (store.werkzeug === 'wandZeichnen') {
+      if (sauber.length < 2) {
+        setMeldung('Zu wenige Punkte – ein Wandzug braucht mindestens zwei.');
+        return;
+      }
+      const id = store.fuegeWandzugHinzu(sauber);
+      setZugMaus(null);
+      if (!id) {
+        setMeldung('Die Stücke waren zu kurz – nichts angelegt.');
+        return;
+      }
+      const anzahl = usePlanStore.getState().projekt.waende.length - vorher;
+      store.setzeWerkzeug('auswahl');
+      setMeldung(
+        anzahl === 1
+          ? 'Wand gezogen. Stärke und Winkel stellst du rechts ein.'
+          : `Wandzug aus ${anzahl} Stücken gelegt. Jedes Stück lässt sich einzeln anfassen.`,
       );
       return;
     }
@@ -936,16 +962,22 @@ export function Zeichenflaeche() {
   };
 
   /**
-   * Rastet ein einzelnes Wandende ein: erst an anderen Wänden, sonst am
-   * Raster. So schließt man eine Ecke, indem man das Ende hinzieht.
+   * Rastet ein einzelnes Wandende ein: erst an anderen Wänden, dann auf
+   * einem geraden Winkel, sonst am Raster. So schließt man eine Ecke,
+   * indem man das Ende hinzieht – und dreht die Wand, indem man es
+   * herumzieht.
    */
   const wandendeEinrasten = useCallback(
-    (p: Punkt): Punkt => {
+    (p: Punkt, fest: Punkt): Punkt => {
       const store = usePlanStore.getState();
       const eigene = store.sonderauswahl?.art === 'wand' ? store.sonderauswahl.id : undefined;
-      const ecken = grundrissEcken(store.projekt, eigene);
-      const gefangen = fangeAufEcke(p, ecken, FANGWEITE_PIXEL / store.ansicht.zoom);
-      return gefangen === p ? aufRaster(p) : gefangen;
+      return fangeWandende(
+        fest,
+        p,
+        grundrissEcken(store.projekt, eigene),
+        FANGWEITE_PIXEL / store.ansicht.zoom,
+        aufRaster,
+      );
     },
     [aufRaster],
   );
@@ -1776,6 +1808,8 @@ export function Zeichenflaeche() {
 function zugfarbe(werkzeug: Werkzeug): string {
   if (werkzeug === 'raumZeichnen') return '#7b6bc4';
   if (werkzeug === 'foerderband') return '#5b7386';
+  // Der Grauton der Trennwand – man sieht beim Zeichnen schon, was entsteht.
+  if (werkzeug === 'wandZeichnen') return '#66707c';
   if (werkzeug === 'verkaufsflaeche') return '#2ea043';
   return '#0a84ff';
 }
@@ -1847,6 +1881,11 @@ const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinwe
     titel: 'Raum frei umfahren',
     hinweis:
       'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · Art und Name danach rechts einstellen',
+  },
+  wandZeichnen: {
+    titel: 'Wandzug mit Knicken',
+    hinweis:
+      'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · Enter beendet den Zug · Rückschritt nimmt eine Ecke zurück · für abgeschrägte Ecken und gerundete Wände',
   },
   wand: {
     titel: 'Wand ziehen',

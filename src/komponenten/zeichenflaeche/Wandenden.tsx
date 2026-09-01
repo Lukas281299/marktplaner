@@ -10,17 +10,24 @@ import type { Massinheit, Punkt, Wand } from '../../typen/modell';
  * ab. Es steht **während** des Ziehens da – die Zahl hinterher abzulesen
  * wäre die falsche Reihenfolge, denn man zieht ja, bis sie stimmt.
  *
- * Gezogen wird immer nur ein Ende; das andere bleibt, wo es ist. Und die
- * Richtung bleibt erhalten: Eine waagerechte Wand bleibt waagerecht, auch
- * wenn die Maus beim Ziehen verrutscht. Wer die Richtung ändern will,
- * verschiebt die ganze Wand oder zieht sie neu.
+ * Gezogen wird immer nur ein Ende; das andere bleibt, wo es ist. **Die
+ * Richtung darf sich dabei ändern** – so dreht man eine Wand in die Schräge.
+ * Vorher war das Ende auf die Achse festgenagelt: Eine waagerechte Wand blieb
+ * waagerecht, egal wohin man zog, und eine abgeschrägte Ecke ließ sich
+ * überhaupt nicht bauen.
+ *
+ * Damit trotzdem gerade Winkel herauskommen, rastet `einrasten` das Ende ein –
+ * an Grundrissecken, sonst auf Vielfachen von 15°, sonst am Raster.
  */
 interface Props {
   wand: Wand;
   zoom: number;
   einheit: Massinheit;
-  /** Rastet einen Punkt ein, wenn der Nutzer das eingestellt hat. */
-  einrasten: (p: Punkt) => Punkt;
+  /**
+   * Rastet das gezogene Ende ein. `fest` ist das andere Ende – der
+   * Drehpunkt, aus dem sich der Winkel ergibt.
+   */
+  einrasten: (p: Punkt, fest: Punkt) => Punkt;
   beiZiehStart: () => void;
   /** `ende` ist 0 für `von` und 1 für `bis`. */
   beiZiehen: (ende: 0 | 1, ziel: Punkt) => void;
@@ -44,7 +51,23 @@ export function Wandenden({
 
   const laenge = Math.hypot(wand.bis.x - wand.von.x, wand.bis.y - wand.von.y);
   const mitte = { x: (wand.von.x + wand.bis.x) / 2, y: (wand.von.y + wand.bis.y) / 2 };
-  const waagerecht = Math.abs(wand.bis.x - wand.von.x) >= Math.abs(wand.bis.y - wand.von.y);
+
+  /**
+   * Der Winkel der Wand, nie auf dem Kopf.
+   *
+   * Das Maß läuft an der Wand entlang und steht quer daneben – bei einer
+   * Schräge genauso wie bei einer waagerechten Wand. Vorher gab es nur zwei
+   * Fälle, waagerecht und senkrecht, und eine 45°-Wand bekam ihre Zahl
+   * irgendwo an die Seite gestellt.
+   */
+  let drehung = (Math.atan2(wand.bis.y - wand.von.y, wand.bis.x - wand.von.x) * 180) / Math.PI;
+  if (drehung > 90) drehung -= 180;
+  if (drehung <= -90) drehung += 180;
+  const bogen = (drehung * Math.PI) / 180;
+  // Quer zur Wand: die Normale, um die halbe Wandstärke plus Luft nach oben.
+  const quer = wand.staerke / 2 + luft + schrift;
+  const versatzX = Math.sin(bogen) * quer;
+  const versatzY = -Math.cos(bogen) * quer;
 
   const enden: { punkt: Punkt; index: 0 | 1 }[] = [
     { punkt: wand.von, index: 0 },
@@ -53,35 +76,23 @@ export function Wandenden({
 
   return (
     <Group listening>
-      {/* Das Maß **neben** der Wand, nicht darin.
-          Eine senkrechte Wand bekam die Zahl bisher linksbündig eine
-          Wandstärke links der Achse – von dort lief sie nach rechts quer
-          über die Wand. Jetzt endet sie an der Wandkante. */}
-      {waagerecht ? (
-        <Text
-          x={mitte.x - laenge / 2}
-          y={mitte.y - wand.staerke / 2 - luft - schrift}
-          width={laenge}
-          align="center"
-          text={formatiereLaenge(laenge, einheit)}
-          fontSize={schrift}
-          fontStyle="600"
-          fill="#1d4ed8"
-          listening={false}
-        />
-      ) : (
-        <Text
-          x={mitte.x - wand.staerke / 2 - luft - schrift * 6}
-          y={mitte.y - schrift / 2}
-          width={schrift * 6}
-          align="right"
-          text={formatiereLaenge(laenge, einheit)}
-          fontSize={schrift}
-          fontStyle="600"
-          fill="#1d4ed8"
-          listening={false}
-        />
-      )}
+      {/* Das Maß **neben** der Wand, nicht darin: an ihr entlang gedreht
+          und quer zu ihr herausgerückt. Das gilt für jede Richtung – eine
+          Schräge bekommt ihre Zahl schräg daneben, so wie im Bauplan. */}
+      <Text
+        x={mitte.x + versatzX}
+        y={mitte.y + versatzY}
+        offsetX={laenge / 2}
+        offsetY={schrift / 2}
+        rotation={drehung}
+        width={laenge}
+        align="center"
+        text={formatiereLaenge(laenge, einheit)}
+        fontSize={schrift}
+        fontStyle="600"
+        fill="#1d4ed8"
+        listening={false}
+      />
 
       {enden.map(({ punkt, index }) => (
         <Circle
@@ -99,10 +110,10 @@ export function Wandenden({
           }}
           onDragMove={(e) => {
             e.cancelBubble = true;
-            const roh = einrasten({ x: e.target.x(), y: e.target.y() });
-            // Die Richtung halten: Nur entlang der Wandachse wird gezogen.
+            // Das feste Ende ist der Drehpunkt; `einrasten` entscheidet, wo
+            // das gezogene landen darf.
             const fest = index === 0 ? wand.bis : wand.von;
-            const ziel = waagerecht ? { x: roh.x, y: fest.y } : { x: fest.x, y: roh.y };
+            const ziel = einrasten({ x: e.target.x(), y: e.target.y() }, fest);
             e.target.position(ziel);
             beiZiehen(index, ziel);
           }}
@@ -112,7 +123,7 @@ export function Wandenden({
           }}
           onMouseEnter={(e) => {
             const buehne = e.target.getStage();
-            if (buehne) buehne.container().style.cursor = waagerecht ? 'ew-resize' : 'ns-resize';
+            if (buehne) buehne.container().style.cursor = 'move';
           }}
           onMouseLeave={(e) => {
             const buehne = e.target.getStage();

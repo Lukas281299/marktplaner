@@ -482,6 +482,15 @@ export function Werkzeugleiste() {
             <SymbolWand /> <span className="knopf-text">Wände</span>
           </button>
           <button
+            className={`knopf${werkzeug === 'wandZeichnen' ? ' aktiv' : ''}`}
+            onClick={() =>
+              store().setzeWerkzeug(werkzeug === 'wandZeichnen' ? 'auswahl' : 'wandZeichnen')
+            }
+            title="Einen Wandzug frei führen: Ecke für Ecke klicken, Ziehen macht einen Bogen daraus – für abgeschrägte Ecken und gerundete Wände"
+          >
+            <SymbolUmriss /> <span className="knopf-text">Wand frei</span>
+          </button>
+          <button
             className={`knopf${werkzeug === 'foerderband' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'foerderband' ? 'auswahl' : 'foerderband')}
             title="Ein Förderband frei führen: Knick für Knick klicken, Enter beendet"

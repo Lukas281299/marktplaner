@@ -197,6 +197,7 @@ export type Werkzeug =
   | 'verkaufsflaeche'
   | 'raumZeichnen'
   | 'foerderband'
+  | 'wandZeichnen'
   | 'textfeld';
 
 /**
@@ -531,6 +532,14 @@ export interface PlanStore {
   verschiebeVerkaufsflaeche(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
 
   fuegeWandHinzu(von: Punkt, bis: Punkt, staerke?: number): string;
+  /**
+   * Legt einen ganzen Zug von Wänden an: Ecke für Ecke, in einem Schritt.
+   *
+   * Damit baut man eine abgeschrägte Ecke oder eine gerundete Wand – der
+   * Bogen kommt als feiner Punktzug herein und wird zu vielen kurzen
+   * Stücken. Zurück kommt die Kennung der **ersten** Wand.
+   */
+  fuegeWandzugHinzu(punkte: Punkt[], staerke?: number): string | null;
   aendereWand(id: string, werte: Partial<Wand>, mitHistorie?: boolean): void;
   verschiebeWand(id: string, dx: number, dy: number, mitHistorie?: boolean): void;
 
@@ -1201,6 +1210,32 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     }));
     set({ sonderauswahl: { art: 'wand', id }, auswahl: [] });
     return id;
+  },
+
+  fuegeWandzugHinzu(punkte, staerke = get().wandstaerkeNeu) {
+    // Aus n Punkten werden n-1 Wände. Zu kurze Stücke fallen weg: Ein Bogen
+    // bringt Punkte im Zentimeterabstand mit, und daraus je eine eigene Wand
+    // zu machen hieße, den Plan mit Splittern zu füllen.
+    const stuecke: Wand[] = [];
+    let letzter = punkte[0];
+    for (const p of punkte.slice(1)) {
+      if (Math.hypot(p.x - letzter.x, p.y - letzter.y) < 2) continue;
+      stuecke.push({
+        id: neueId('wand'),
+        von: letzter,
+        bis: p,
+        staerke,
+        art: 'trennwand',
+        gesperrt: false,
+      });
+      letzter = p;
+    }
+    if (stuecke.length === 0) return null;
+
+    aendere(set, get, (p) => ({ ...p, waende: [...p.waende, ...stuecke] }));
+    // Gewählt ist das erste Stück – von dort aus liest man die Maße ab.
+    set({ sonderauswahl: { art: 'wand', id: stuecke[0].id }, auswahl: [] });
+    return stuecke[0].id;
   },
 
   aendereWand(id, werte, mitHistorie = true) {

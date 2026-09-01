@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { neuesProjekt } from '../daten/standardProjekt';
 import type { Projekt, Punkt, Wand } from '../typen/modell';
-import { fangeAufEcke, fangeNeueWand, fangeWand, grundrissEcken } from './wandfang';
+import {
+  aufWinkelraster,
+  fangeAufEcke,
+  fangeNeueWand,
+  fangeWand,
+  fangeWandende,
+  grundrissEcken,
+} from './wandfang';
 
 /**
  * Wände sollen aneinander einrasten – aber nur da, wo es der Planer erwartet.
@@ -157,5 +164,64 @@ describe('Neue Wand einrasten', () => {
     const { von, bis } = fangeNeueWand({ x: 100, y: 100 }, { x: 105, y: 800 }, ecken, 40);
     expect(von).toEqual({ x: 100, y: 100 });
     expect(bis).toEqual({ x: 100, y: 800 });
+  });
+});
+
+describe('Winkelraster', () => {
+  const von = { x: 0, y: 0 };
+  /** Der Winkel des Ergebnisses in Grad, gerundet. */
+  const winkel = (p: { x: number; y: number }) =>
+    Math.round(((Math.atan2(p.y - von.y, p.x - von.x) * 180) / Math.PI) * 10) / 10;
+
+  it('macht aus einer fast schrägen Wand eine genaue 45°-Schräge', () => {
+    // Von Hand gezogen kommt 43,6° heraus – im Plan steht dann eine Schräge,
+    // die nirgends anschließt.
+    const bis = aufWinkelraster(von, { x: 500, y: 476 });
+    expect(winkel(bis)).toBe(45);
+  });
+
+  it('kennt auch 30 und 60 Grad', () => {
+    expect(winkel(aufWinkelraster(von, { x: 500, y: 291 }))).toBe(30);
+    expect(winkel(aufWinkelraster(von, { x: 291, y: 500 }))).toBe(60);
+  });
+
+  it('behält die Länge beim Ausrichten', () => {
+    // Auf den hundertstel Zentimeter: Die Koordinaten werden gerundet, damit
+    // im Plan keine Zahl mit zwölf Nachkommastellen steht.
+    const bis = aufWinkelraster(von, { x: 500, y: 476 });
+    expect(Math.hypot(bis.x, bis.y)).toBeCloseTo(Math.hypot(500, 476), 1);
+  });
+
+  it('lässt eine bewusst schiefe Wand schief', () => {
+    // 38° ist zu weit von 30 und 45 entfernt – wer das zieht, meint es so.
+    const roh = { x: 500, y: 390 };
+    expect(aufWinkelraster(von, roh)).toBe(roh);
+  });
+
+  it('nimmt bei waagerecht und senkrecht die Koordinate statt zu rechnen', () => {
+    // Sonst würden aus 5,00 m beim Drehen 4,999 m.
+    expect(aufWinkelraster(von, { x: 500, y: 40 })).toEqual({ x: 500, y: 0 });
+    expect(aufWinkelraster(von, { x: 40, y: 500 })).toEqual({ x: 0, y: 500 });
+  });
+});
+
+describe('Wandende ziehen', () => {
+  const fest = { x: 0, y: 0 };
+  const raster = (p: Punkt) => ({ x: Math.round(p.x / 50) * 50, y: Math.round(p.y / 50) * 50 });
+
+  it('lässt die Wand sich drehen, statt sie auf der Achse zu halten', () => {
+    // Das war der Fehler: Eine waagerechte Wand blieb waagerecht, egal wohin
+    // man ihr Ende zog.
+    const ziel = fangeWandende(fest, { x: 500, y: 476 }, [], 20, raster);
+    expect(Math.round((Math.atan2(ziel.y, ziel.x) * 180) / Math.PI)).toBe(45);
+  });
+
+  it('rastet weiter an einer Grundrissecke ein – die schlägt den Winkel', () => {
+    const ecken = [{ x: 512, y: 137 }];
+    expect(fangeWandende(fest, { x: 505, y: 140 }, ecken, 20, raster)).toEqual({ x: 512, y: 137 });
+  });
+
+  it('nimmt auf den Achsen weiter das Raster', () => {
+    expect(fangeWandende(fest, { x: 487, y: 6 }, [], 20, raster)).toEqual({ x: 500, y: 0 });
   });
 });

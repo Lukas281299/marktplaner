@@ -235,6 +235,25 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
   const laenge = wandlaenge(wand);
   const winkel = wandwinkel(wand.von, wand.bis);
 
+  /**
+   * Dreht die Wand um ihren Anfangspunkt.
+   *
+   * Eine Schräge lässt sich damit auf den Zehntelgrad genau einstellen, wenn
+   * das Ziehen im Plan nicht reicht – etwa weil sie eine Achse aus dem
+   * Bestandsplan treffen soll.
+   */
+  const setzeWinkel = (neu: number) => {
+    if (laenge <= 0) return;
+    const bogen = (neu * Math.PI) / 180;
+    const fein = (z: number) => Math.round(z * 100) / 100;
+    setze({
+      bis: {
+        x: fein(wand.von.x + Math.cos(bogen) * laenge),
+        y: fein(wand.von.y + Math.sin(bogen) * laenge),
+      },
+    });
+  };
+
   /** Verlängert oder kürzt die Wand vom Anfangspunkt aus. */
   const setzeLaenge = (neu: number) => {
     if (laenge <= 0 || neu <= 0) return;
@@ -266,6 +285,19 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
             min={2}
             beiStart={beiStart}
             aendern={(staerke) => setze({ staerke })}
+          />
+        </div>
+        <div className="feld-zeile">
+          <Zahlfeld
+            label="Winkel (°)"
+            wert={winkel}
+            min={-90}
+            max={90}
+            schritt={15}
+            nachkommastellen={1}
+            titel="Dreht die Wand um ihren Anfangspunkt. 0° ist waagerecht, 90° senkrecht."
+            beiStart={beiStart}
+            aendern={setzeWinkel}
           />
         </div>
         <div className="feld-zeile einspaltig">
@@ -304,7 +336,7 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
         <div className="kennzahl">
           <span>Richtung</span>
           <span className="kennzahl-wert">
-            {winkel === 0 ? 'waagerecht' : winkel === 90 ? 'senkrecht' : `${winkel.toFixed(1)}°`}
+            {winkel === 0 ? 'waagerecht' : Math.abs(winkel) === 90 ? 'senkrecht' : `${winkel.toFixed(1)}°`}
           </span>
         </div>
       </div>
@@ -313,8 +345,9 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
 
       <div className="gruppe">
         <p className="hinweis">
-          Die Länge wird vom Anfangspunkt aus geändert – das Ende wandert mit. Zum Verschieben die
-          ganze Wand auf dem Plan ziehen.
+          Länge und Winkel werden vom Anfangspunkt aus geändert – das Ende wandert mit. Im Plan
+          zieht man dafür an den Endpunkten; sie rasten an anderen Wänden und auf Vielfachen von
+          15° ein. Zum Verschieben die ganze Wand ziehen.
         </p>
       </div>
     </>

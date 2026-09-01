@@ -108,6 +108,41 @@ describe('Stärke neuer Wände', () => {
     expect(store().projekt.waende.find((w) => w.id === id)?.staerke).toBe(120);
   });
 
+  it('macht aus einem Zug von Punkten zusammenhängende Wände', () => {
+    // Eine abgeschrägte Ecke: waagerecht, dann 45 Grad, dann senkrecht.
+    store().setzeWandstaerkeNeu(24);
+    const id = store().fuegeWandzugHinzu([
+      { x: 0, y: 0 },
+      { x: 500, y: 0 },
+      { x: 700, y: 200 },
+      { x: 700, y: 600 },
+    ]);
+    const waende = store().projekt.waende;
+    expect(waende).toHaveLength(3);
+    expect(id).toBe(waende[0].id);
+    // Jedes Stück beginnt, wo das vorige endet – sonst klaffte der Knick.
+    expect(waende[0].bis).toEqual(waende[1].von);
+    expect(waende[1].bis).toEqual(waende[2].von);
+    expect(waende.every((w) => w.staerke === 24)).toBe(true);
+  });
+
+  it('wirft Splitter aus einem Bogen weg', () => {
+    // Ein gezeichneter Bogen bringt Punkte im Zentimeterabstand mit. Aus
+    // jedem eine eigene Wand zu machen hieße, den Plan zu vermüllen.
+    const id = store().fuegeWandzugHinzu([
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 400, y: 0 },
+    ]);
+    expect(store().projekt.waende).toHaveLength(1);
+    expect(store().projekt.waende[0]).toMatchObject({ id, von: { x: 0, y: 0 }, bis: { x: 400, y: 0 } });
+  });
+
+  it('legt nichts an, wenn der ganze Zug zu kurz ist', () => {
+    expect(store().fuegeWandzugHinzu([{ x: 0, y: 0 }, { x: 1, y: 1 }])).toBeNull();
+    expect(store().projekt.waende).toHaveLength(0);
+  });
+
   it('lässt keine unsinnig dünnen Wände zu', () => {
     store().setzeWandstaerkeNeu(0);
     expect(store().wandstaerkeNeu).toBeGreaterThanOrEqual(2);
