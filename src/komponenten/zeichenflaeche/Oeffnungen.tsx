@@ -126,16 +126,18 @@ function OeffnungBild({
       {oeffnung.art === 'doppeltuer' && (
         <>
           {/*
-            Beide Flügel schlagen zur selben Seite auf, und ihre Bögen
-            treffen sich in der Mitte.
+            Zwei Flügel, je halbe Öffnung, mit den Scharnieren an den beiden
+            Rändern. Geschlossen treffen sie sich in der Mitte – dorthin
+            laufen deshalb auch ihre Bögen.
 
-            Vorher waren sie gespiegelt – zwei Viertelkreise, die sich
-            voneinander wegwölbten. So zeichnet man eine Pendeltür; eine
-            Doppeltür im Markt hat zwei gleich hängende Flügel, und genau
-            das ist die Darstellung, die im Bauplan steht.
+            `versatz` ist die Mitte des jeweiligen Flügels, nicht sein
+            Scharnier: `Tuerblatt` rückt von dort um die halbe Flügelbreite
+            zur Seite. Mit `±halbB` landeten die Scharniere bei ±1,5·halbB
+            und damit außerhalb der Öffnung – die Türblätter hingen neben
+            der Wand in der Luft.
           */}
-          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={-halbB} />
-          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={halbB} />
+          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={-halbB / 2} />
+          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={halbB / 2} gespiegeltX />
         </>
       )}
 

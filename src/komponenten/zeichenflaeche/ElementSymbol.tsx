@@ -426,7 +426,10 @@ const METERFARBE = '#b3261e';
  * bleiben, und warm genug, dass man sie von jedem Möbelgrau unterscheidet.
  * Sie wird vor allem anderen gemalt und liegt damit im Hintergrund.
  */
-const PALETTENFARBE = 'rgba(176, 132, 74, 0.22)';
+const PALETTENFARBE = 'rgba(176, 132, 74, 0.38)';
+
+/** Die Linien der Palette: derselbe Holzton, nur kräftiger. */
+const PALETTENLINIE = 'rgba(120, 84, 38, 0.85)';
 
 /**
  * Eine Länge in Metern, so kurz wie möglich.
@@ -2209,24 +2212,8 @@ export function ElementSymbol({
         const b = shape.width();
         const t = shape.height();
 
-        // 0. Die Paletten als blasse Fläche, vor allem anderen.
-        //
-        //    Sie liegen damit im Hintergrund des Regals: Die Böden, das
-        //    Achsmaßzeichen und die Beschriftung werden darübergezeichnet
-        //    und bleiben lesbar. Ein warmes Holzton-Grau, weil eine Palette
-        //    aus Holz ist und weil es sich von jedem Möbelgrau abhebt,
-        //    ohne im Plan zu schreien.
-        const paletten = element.felderUnten || element.felderOben
-          ? palettenflaechen(element, b, t)
-          : [];
-        if (paletten.length > 0) {
-          ctx.save();
-          ctx.beginPath();
-          for (const f of paletten) ctx.rect(f.x, f.y, f.breite, f.tiefe);
-          ctx.setAttr('fillStyle', PALETTENFARBE);
-          ctx.fill();
-          ctx.restore();
-        }
+        const paletten =
+          element.felderUnten || element.felderOben ? palettenflaechen(element, b, t) : [];
 
         // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
         //    Linienfarbe des Elements.
@@ -2254,12 +2241,6 @@ export function ElementSymbol({
           element.kisten,
           gestellstuetzen(element, b),
         );
-        // Die Paletten: Umriss und Bretter, über der blassen Fläche.
-        if (paletten.length > 0) {
-          const ersteSeite = felderVon(element, 'unten').find((f) => f.palette)?.palette;
-          zeichnePaletten(ctx, paletten, ersteSeite?.laengs ?? true, element.beidseitig ? t / 2 : t);
-        }
-
         // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
         // die ganze Tiefe – so wie beim Regalzug.
         for (const x of einheitenNaehte(element, b)) {
@@ -2269,6 +2250,31 @@ export function ElementSymbol({
         zeichneAchsmass(ctx, element, b, t);
         zeichneFuehrungsrohr(ctx, element, b, t);
         ctx.fillStrokeShape(shape);
+
+        // 1b. Die Paletten – erst jetzt, nach der Möbelfüllung.
+        //
+        //     Vorher lagen sie davor und wurden von `fillStrokeShape`
+        //     zugedeckt: Der Hauptpfad enthält den Möbelumriss, und der
+        //     wird mit der Möbelfarbe gefüllt. Sichtbar war dann nur noch
+        //     Grau.
+        //
+        //     Erst die blasse Fläche, dann ihre Linien darüber – so liegt
+        //     die Palette im Regal und nicht als Deckel darauf.
+        if (paletten.length > 0) {
+          ctx.save();
+          ctx.beginPath();
+          for (const f of paletten) ctx.rect(f.x, f.y, f.breite, f.tiefe);
+          ctx.setAttr('fillStyle', PALETTENFARBE);
+          ctx.fill();
+
+          const ersteSeite = felderVon(element, 'unten').find((f) => f.palette)?.palette;
+          ctx.setAttr('strokeStyle', PALETTENLINIE);
+          ctx.setAttr('lineWidth', 1 / zoom);
+          ctx.beginPath();
+          zeichnePaletten(ctx, paletten, ersteSeite?.laengs ?? true, element.beidseitig ? t / 2 : t);
+          ctx.stroke();
+          ctx.restore();
+        }
 
         // 2. Die hellen Stufenkanten darüber. Sie brauchen eine eigene Farbe
         //    und deshalb einen zweiten Durchgang.
