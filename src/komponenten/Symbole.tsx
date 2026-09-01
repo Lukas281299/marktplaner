@@ -338,6 +338,18 @@ export const SymbolPfeilAb = () => (
   </Zeichnung>
 );
 
+export const SymbolPfeilRechts = () => (
+  <Zeichnung>
+    <path d="m9 6 6 6-6 6" />
+  </Zeichnung>
+);
+
+export const SymbolPfeilLinks = () => (
+  <Zeichnung>
+    <path d="m15 6-6 6 6 6" />
+  </Zeichnung>
+);
+
 /** Ausrichten – die Kennung gibt an, welche Kante bündig wird. */
 export const SymbolAusrichten = ({ art }: { art: string }) => {
   const linien: Record<string, ReactNode> = {

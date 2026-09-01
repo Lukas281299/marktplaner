@@ -111,12 +111,17 @@ export default function App() {
   }, [projekt, geladenerStand, geladen]);
 
   const linkerReiter = usePlanStore((s) => s.linkerReiter);
+  const rechtsOffen = usePlanStore((s) => s.rechteSpalteOffen);
   const assistentOffen = useAssistentStore((s) => s.offen);
 
   return (
     <div className="app">
       <Werkzeugleiste />
-      <div className={`arbeitsbereich${assistentOffen ? ' mit-assistent' : ''}`}>
+      <div
+        className={`arbeitsbereich${assistentOffen ? ' mit-assistent' : ''}${
+          rechtsOffen ? '' : ' rechts-zu'
+        }`}
+      >
         {linkerReiter === 'warengruppen' ? <Warengruppenfenster /> : <Elementbibliothek />}
         <Zeichenflaeche />
         <Eigenschaftenfenster />

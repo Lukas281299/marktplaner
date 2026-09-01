@@ -305,6 +305,10 @@ function Vorlagenliste({
  * Eingefügt wird deshalb mit einem Doppelklick oder, genauer, indem man die
  * Vorlage an ihre Stelle zieht.
  *
+ * Wirkungslos ist der Klick trotzdem nicht: Er zeigt die Vorlage rechts im
+ * Eigenschaftenfenster an. So geht man eine Liste durch und liest Maße nach,
+ * ohne den Plan anzufassen.
+ *
  * Im Tauschmodus bleibt der einzelne Klick: Dort fragt das Banner nach einer
  * Vorlage, und die Antwort darauf ist ein Klick.
  */
@@ -323,7 +327,7 @@ function Vorlage({
 }) {
   const geste = sofort
     ? 'Klicken stellt die Auswahl auf diese Vorlage um'
-    : 'Auf den Plan ziehen – oder Doppelklick setzt es in die Mitte';
+    : 'Klicken zeigt die Maße rechts · auf den Plan ziehen oder Doppelklick setzt es';
   return (
     <div
       className="vorlage"
@@ -333,7 +337,11 @@ function Vorlage({
         e.dataTransfer.setData('text/plain', vorlage.id);
         e.dataTransfer.effectAllowed = 'copy';
       }}
-      onClick={sofort ? () => einfuegen(vorlage) : undefined}
+      onClick={
+        sofort
+          ? () => einfuegen(vorlage)
+          : () => usePlanStore.getState().zeigeVorlage(vorlage)
+      }
       onDoubleClick={sofort ? undefined : () => einfuegen(vorlage)}
     >
       <button

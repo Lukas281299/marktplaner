@@ -50,6 +50,8 @@
   --fuss-hoehe: 28px;
   --spalte-links: 264px;
   --spalte-rechts: 304px;
+  /* Zugeklappt bleibt nur der Streifen mit dem Pfeil stehen. */
+  --spalte-rechts-zu: 30px;
   --spalte-assistent: 340px;
 
   color-scheme: light;
@@ -107,6 +109,60 @@ body {
 
 .spalte-rechts {
   border-left: 1px solid var(--rand);
+}
+
+/* Rechte Leiste zugeklappt: Der Plan bekommt die 304 Punkte. */
+.arbeitsbereich.rechts-zu {
+  grid-template-columns: var(--spalte-links) 1fr var(--spalte-rechts-zu);
+}
+
+.arbeitsbereich.rechts-zu.mit-assistent {
+  grid-template-columns:
+    var(--spalte-links) 1fr var(--spalte-rechts-zu)
+    var(--spalte-assistent);
+}
+
+.spalte-zu {
+  align-items: center;
+  padding-top: var(--abstand-2);
+}
+
+.spalten-schalter {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-schwach);
+  cursor: pointer;
+}
+
+.spalten-schalter:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text);
+}
+
+.spalten-schalter svg {
+  width: 15px;
+  height: 15px;
+}
+
+.spalte-kopf-zeile {
+  display: flex;
+  align-items: center;
+  gap: var(--abstand-1);
+}
+
+.spalte-titel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .spalte-kopf {

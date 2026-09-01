@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
-import { KATEGORIEN } from '../daten/kategorien';
+import { KATEGORIEN, findeKategorie } from '../daten/kategorien';
 import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { alleNamen } from '../daten/warengruppen';
 import {
@@ -23,7 +23,7 @@ import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
 import { PALETTEN, palettenAnzahl, palettenmass, stehtUeber } from '../logik/paletten';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
-import { wandlaenge, wandwinkel } from '../logik/waende';
+import { wandlaenge, wandwinkel, flaechenwandmasse } from '../logik/waende';
 import type {
   Grundform,
   KategorieId,
@@ -39,8 +39,7 @@ import type {
   Regalfeld,
   Verkaufsflaeche,
   Wand,
-  Warengruppenabschnitt,
-} from '../typen/modell';
+  Warengruppenabschnitt, BibliothekEintrag } from '../typen/modell';
 import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
 import {
   Auswahlfeld,
@@ -61,6 +60,8 @@ import {
   SymbolNachHinten,
   SymbolNachVorne,
   SymbolSchloss,
+  SymbolPfeilLinks,
+  SymbolPfeilRechts,
 } from './Symbole';
 
 const FORMEN: { wert: Grundform; text: string }[] = [
@@ -102,7 +103,39 @@ export function Eigenschaftenfenster() {
       ? projekt.verkaufsflaechen.find((v) => v.id === sonderauswahl.id)
       : undefined;
 
-  const titel = raum
+  const gemerkt = usePlanStore((s) => s.vorschau);
+  const offen = usePlanStore((s) => s.rechteSpalteOffen);
+
+  /**
+   * Die Vorschau tritt hinter jede Auswahl zurück.
+   *
+   * Sonst bliebe sie stehen, wenn etwas anderes gewählt wird, ohne dass
+   * `waehleSonder` im Spiel war – eine frisch gezeichnete Wand etwa setzt
+   * ihre Auswahl selbst. Wer im Plan etwas anfasst, will das sehen und
+   * nicht mehr den Katalogeintrag von vorhin.
+   */
+  const vorschau =
+    gemerkt && !sonderauswahl && ausgewaehlte.length === 0 ? gemerkt : null;
+
+  // Zugeklappt bleibt ein schmaler Streifen mit dem Pfeil stehen. Ganz
+  // verschwinden darf die Leiste nicht – sonst fände niemand zurück.
+  if (!offen) {
+    return (
+      <aside className="spalte spalte-rechts spalte-zu">
+        <button
+          className="spalten-schalter"
+          title="Projektleiste einblenden"
+          onClick={() => usePlanStore.getState().schalteRechteSpalte()}
+        >
+          <SymbolPfeilLinks />
+        </button>
+      </aside>
+    );
+  }
+
+  const titel = vorschau
+    ? 'Vorlage'
+    : raum
     ? 'Raum'
     : wand
       ? 'Wand'
@@ -120,9 +153,20 @@ export function Eigenschaftenfenster() {
 
   return (
     <aside className="spalte spalte-rechts">
-      <div className="spalte-kopf">{titel}</div>
+      <div className="spalte-kopf spalte-kopf-zeile">
+        <span className="spalte-titel">{titel}</span>
+        <button
+          className="spalten-schalter"
+          title="Projektleiste ausblenden"
+          onClick={() => usePlanStore.getState().schalteRechteSpalte()}
+        >
+          <SymbolPfeilRechts />
+        </button>
+      </div>
       <div className="spalte-inhalt">
-        {raum ? (
+        {vorschau ? (
+          <VorlagenVorschau vorlage={vorschau} />
+        ) : raum ? (
           <RaumEigenschaften raum={raum} />
         ) : wand ? (
           <WandEigenschaften wand={wand} />
@@ -234,6 +278,14 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
 
   const laenge = wandlaenge(wand);
   const winkel = wandwinkel(wand.von, wand.bis);
+  /**
+   * Eine als Fläche gezeichnete Wand rechnet ihre Maße aus dem Umriss.
+   *
+   * Länge und Winkel sind dort keine Einstellung mehr, sondern ein Ergebnis –
+   * verstellen ließen sie sich nur, indem man den Umriss verzieht. Deshalb
+   * stehen sie als Auskunft da und nicht als Feld.
+   */
+  const flaeche = wand.umriss && wand.umriss.length >= 3 ? flaechenwandmasse(wand.umriss) : null;
 
   /**
    * Dreht die Wand um ihren Anfangspunkt.
@@ -269,37 +321,56 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
   return (
     <>
       <div className="gruppe">
-        <div className="feld-zeile">
-          <Massfeld
-            label="Länge"
-            cm={laenge}
-            einheit={einheit}
-            min={10}
-            beiStart={beiStart}
-            aendern={setzeLaenge}
-          />
-          <Massfeld
-            label="Wandstärke"
-            cm={wand.staerke}
-            einheit={einheit}
-            min={2}
-            beiStart={beiStart}
-            aendern={(staerke) => setze({ staerke })}
-          />
-        </div>
-        <div className="feld-zeile">
-          <Zahlfeld
-            label="Winkel (°)"
-            wert={winkel}
-            min={-90}
-            max={90}
-            schritt={15}
-            nachkommastellen={1}
-            titel="Dreht die Wand um ihren Anfangspunkt. 0° ist waagerecht, 90° senkrecht."
-            beiStart={beiStart}
-            aendern={setzeWinkel}
-          />
-        </div>
+        {flaeche ? (
+          <>
+            <div className="kennzahl">
+              <span>Fläche</span>
+              <span className="kennzahl-wert">{formatiereFlaeche(flaeche.flaeche)}</span>
+            </div>
+            <div className="kennzahl">
+              <span>Länge</span>
+              <span className="kennzahl-wert">{formatiereLaenge(flaeche.laenge, einheit)}</span>
+            </div>
+            <div className="kennzahl">
+              <span>Dicke (im Mittel)</span>
+              <span className="kennzahl-wert">{formatiereLaenge(flaeche.dicke, einheit)}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="feld-zeile">
+              <Massfeld
+                label="Länge"
+                cm={laenge}
+                einheit={einheit}
+                min={10}
+                beiStart={beiStart}
+                aendern={setzeLaenge}
+              />
+              <Massfeld
+                label="Wandstärke"
+                cm={wand.staerke}
+                einheit={einheit}
+                min={2}
+                beiStart={beiStart}
+                aendern={(staerke) => setze({ staerke })}
+              />
+            </div>
+            <div className="feld-zeile">
+              <Zahlfeld
+                label="Winkel (°)"
+                wert={winkel}
+                min={-90}
+                max={90}
+                schritt={15}
+                nachkommastellen={1}
+                titel="Dreht die Wand um ihren Anfangspunkt. 0° ist waagerecht, 90° senkrecht."
+                beiStart={beiStart}
+                aendern={setzeWinkel}
+              />
+            </div>
+          </>
+        )}
         <div className="feld-zeile einspaltig">
           <Auswahlfeld<Wand['art']>
             label="Art"
@@ -345,9 +416,9 @@ function WandEigenschaften({ wand }: { wand: Wand }) {
 
       <div className="gruppe">
         <p className="hinweis">
-          Länge und Winkel werden vom Anfangspunkt aus geändert – das Ende wandert mit. Im Plan
-          zieht man dafür an den Endpunkten; sie rasten an anderen Wänden und auf Vielfachen von
-          15° ein. Zum Verschieben die ganze Wand ziehen.
+          {flaeche
+            ? 'Länge und Dicke ergeben sich aus dem Umriss. Im Plan zieht man an den Ecken; auf den Kantenmitten setzt ein Klick eine neue Ecke, ein Doppelklick auf einer Ecke nimmt sie weg. So entsteht ein trapezförmiger Zwickel.'
+            : 'Länge und Winkel werden vom Anfangspunkt aus geändert – das Ende wandert mit. Im Plan zieht man dafür an den Endpunkten; sie rasten an anderen Wänden und auf Vielfachen von 15° ein. Zum Verschieben die ganze Wand ziehen.'}
         </p>
       </div>
     </>
@@ -2882,6 +2953,83 @@ function ProjektEigenschaften() {
           Es ist nichts ausgewählt. Klicke ein Element auf dem Plan an, um seine Eigenschaften zu
           bearbeiten. Das gesamte Gebäude misst {formatiereLaenge(masse.breite, einheit)} ×{' '}
           {formatiereLaenge(masse.laenge, einheit)}.
+        </p>
+      </div>
+    </>
+  );
+}
+
+
+// ===========================================================================
+//  Eine Vorlage aus der Liste – zum Ansehen, nicht zum Ändern
+// ===========================================================================
+
+/**
+ * Was rechts steht, wenn man in der Elementliste auf eine Vorlage klickt.
+ *
+ * Alles Auskunft, kein Feld: Eine Vorlage im Katalog ändert man nicht, man
+ * sieht sie sich an. Geändert wird erst das Möbel, das daraus im Plan steht.
+ */
+function VorlagenVorschau({ vorlage }: { vorlage: BibliothekEintrag }) {
+  const einheit = usePlanStore((s) => s.projekt.einstellungen.anzeigeEinheit);
+  const kategorie = findeKategorie(vorlage.kategorie);
+
+  return (
+    <>
+      <div className="gruppe">
+        <div className="gruppe-titel">{vorlage.name}</div>
+        <div className="kennzahl">
+          <span>Abteilung</span>
+          <span className="kennzahl-wert">{kategorie.name}</span>
+        </div>
+        {vorlage.gruppe && (
+          <div className="kennzahl">
+            <span>Gruppe</span>
+            <span className="kennzahl-wert">{vorlage.gruppe}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="gruppe">
+        <div className="gruppe-titel">Maße</div>
+        <div className="kennzahl">
+          <span>Breite</span>
+          <span className="kennzahl-wert">{formatiereLaenge(vorlage.breite, einheit)}</span>
+        </div>
+        <div className="kennzahl">
+          <span>Tiefe</span>
+          <span className="kennzahl-wert">{formatiereLaenge(vorlage.tiefe, einheit)}</span>
+        </div>
+        {vorlage.hoehe !== undefined && vorlage.hoehe > 0 && (
+          <div className="kennzahl">
+            <span>Höhe</span>
+            <span className="kennzahl-wert">{formatiereLaenge(vorlage.hoehe, einheit)}</span>
+          </div>
+        )}
+        <div className="kennzahl">
+          <span>Stellfläche</span>
+          <span className="kennzahl-wert">
+            {formatiereFlaeche(vorlage.breite * vorlage.tiefe)}
+          </span>
+        </div>
+        {vorlage.achsmass !== undefined && vorlage.achsmass > 0 && (
+          <div className="kennzahl">
+            <span>Achsmaß</span>
+            <span className="kennzahl-wert">{formatiereLaenge(vorlage.achsmass, einheit)}</span>
+          </div>
+        )}
+      </div>
+
+      {vorlage.hinweis && (
+        <div className="gruppe">
+          <p className="hinweis">{vorlage.hinweis}</p>
+        </div>
+      )}
+
+      <div className="gruppe">
+        <p className="hinweis">
+          Zum Setzen die Vorlage auf den Plan ziehen – oder doppelt anklicken, dann landet sie in
+          der Mitte des Marktes.
         </p>
       </div>
     </>
