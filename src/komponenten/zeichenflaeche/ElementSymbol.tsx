@@ -1641,6 +1641,48 @@ export function zeichneForm(
       break;
     }
 
+    case 'dpgBehaelter': {
+      // Der Sammelbehälter für Einwegpfand: der Kasten mit dem Kreuz, so
+      // wie er im Aufstellplan steht. Das Kreuz sagt „hier steht ein
+      // Behälter, kein Möbel" – dieselbe Kurzschrift wie bei den Gitterboxen
+      // im Bauplan.
+      ctx.rect(0, 0, b, t);
+      const rand = Math.min(b, t) * 0.07;
+      ctx.moveTo(rand, rand);
+      ctx.lineTo(b - rand, t - rand);
+      ctx.moveTo(b - rand, rand);
+      ctx.lineTo(rand, t - rand);
+      break;
+    }
+
+    case 'kastenablage': {
+      // Die Ablage für Mehrwegkästen: zwei Bahnen längs, quer dazu die
+      // Plätze. Ein Kasten misst 400 mm – daran richtet sich die Teilung,
+      // damit man im Plan abzählen kann, wie viele daraufgehen.
+      ctx.rect(0, 0, b, t);
+      // Die Längsteilung: bei genug Tiefe zwei Bahnen nebeneinander.
+      const bahnen = t >= 70 ? 2 : 1;
+      for (let i = 1; i < bahnen; i++) {
+        const y = (t * i) / bahnen;
+        ctx.moveTo(0, y);
+        ctx.lineTo(b, y);
+      }
+      // Und die Kastenplätze quer: ein Kasten misst 400 mm.
+      //
+      // Abgerundet, nicht gerundet – gezeichnet wird, was wirklich
+      // draufpasst. Auf 3,00 m sind das sieben Kästen und nicht acht, auch
+      // wenn 3,00 / 0,40 nach siebeneinhalb aussieht. Der Rest bleibt als
+      // Luft am Ende stehen, so wie im Gestell auch.
+      const plaetze = Math.max(1, Math.floor(b / 40));
+      for (let i = 1; i <= plaetze; i++) {
+        const x = Math.min(b, 40 * i);
+        if (x >= b - 0.5) break;
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, t);
+      }
+      break;
+    }
+
     case 'foerderband':
       // Der Verlauf ist bereits gezeichnet; ohne Verlauf bleibt ein leeres
       // Band übrig, und das ist ein Rechteck.

@@ -72,6 +72,8 @@ export type Grundform =
   | 'getraenkegestell'
   | 'leergutRuecknahme'
   | 'leergutEinweg'
+  | 'dpgBehaelter'
+  | 'kastenablage'
   | 'foerderband'
   /**
    * Eine Aktions- oder Saisonfläche: eine Zone, kein Möbel.

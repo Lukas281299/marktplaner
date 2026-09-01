@@ -725,6 +725,14 @@ export /**
  */
 const LEERGUT_GRAU = '#c9cdd2';
 
+/**
+ * Einwegpfand blau, Mehrweg grün – die Farben, an denen man im Lager
+ * auseinanderhält, was wohin gehört. Gedämpft gehalten: Sie sollen den Blick
+ * führen, nicht den Plan beherrschen.
+ */
+const DPG_BLAU = '#a8c4e0';
+const MW_GRUEN = '#a9cfae';
+
 const GETRAENKE_GRAU = '#c6c6c6';
 
 /**
@@ -1202,6 +1210,18 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'leergut-einweg', name: 'Einwegpfand-Presse', kategorie: 'kassen', breite: 100, tiefe: 125, hoehe: 180, form: 'leergutEinweg', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Sammelbehälter mit Presse · H 1,80 m, keine Nachtabschaltung' },
   { id: 'leergut-einweg-gross', name: 'Einwegpfand-Presse groß', kategorie: 'kassen', breite: 130, tiefe: 150, hoehe: 180, form: 'leergutEinweg', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Für zwei Automaten, wenn beide auf eine Presse laufen' },
   { id: 'leergut-band-gerade', name: 'Förderband, gerade 6 m', kategorie: 'kassen', breite: 600, tiefe: 40, hoehe: 25, form: 'rechteck', farbe: LEERGUT_GRAU, gruppe: 'Leergut', hinweis: 'Für einen geraden Lauf · frei geführt geht es mit dem Werkzeug „Förderband"' },
+
+  // Der Sammelbehälter fürs Einwegpfand steht im Plan blau, die Ablage für
+  // die Mehrwegkästen grün: An der Farbe erkennt man im Lager auf einen
+  // Blick, was wohin gehört – DPG in den Behälter, Kästen aufs Gestell.
+  { id: 'dpg-behaelter', name: 'DPG-Behälter 1200×800', kategorie: 'kassen', breite: 120, tiefe: 80, hoehe: 100, form: 'dpgBehaelter', farbe: DPG_BLAU, gruppe: 'Leergut', hinweis: 'Sammelbehälter für Einwegpfand · Grundmaß einer Europalette' },
+  { id: 'dpg-behaelter-quer', name: 'DPG-Behälter 800×1200', kategorie: 'kassen', breite: 80, tiefe: 120, hoehe: 100, form: 'dpgBehaelter', farbe: DPG_BLAU, gruppe: 'Leergut', hinweis: 'Derselbe Behälter quer gestellt' },
+  { id: 'dpg-behaelter-klein', name: 'DPG-Behälter 800×600', kategorie: 'kassen', breite: 80, tiefe: 60, hoehe: 100, form: 'dpgBehaelter', farbe: DPG_BLAU, gruppe: 'Leergut', hinweis: 'Der kleine Behälter, auf halber Palette' },
+
+  { id: 'mw-ablage-200', name: 'Kastenablage MW 2,00 m', kategorie: 'kassen', breite: 200, tiefe: 90, hoehe: 180, form: 'kastenablage', farbe: MW_GRUEN, gruppe: 'Leergut', hinweis: 'Zwei Bahnen · 5 Kästen je Bahn (Kastenmaß 400 mm)' },
+  { id: 'mw-ablage-300', name: 'Kastenablage MW 3,00 m', kategorie: 'kassen', breite: 300, tiefe: 90, hoehe: 180, form: 'kastenablage', farbe: MW_GRUEN, gruppe: 'Leergut', hinweis: 'Zwei Bahnen · 7 Kästen je Bahn · so steht es im Bestandsplan' },
+  { id: 'mw-ablage-400', name: 'Kastenablage MW 4,00 m', kategorie: 'kassen', breite: 400, tiefe: 90, hoehe: 180, form: 'kastenablage', farbe: MW_GRUEN, gruppe: 'Leergut', hinweis: 'Zwei Bahnen · 10 Kästen je Bahn' },
+  { id: 'mw-ablage-schmal', name: 'Kastenablage MW 3,00 m, einbahnig', kategorie: 'kassen', breite: 300, tiefe: 45, hoehe: 180, form: 'kastenablage', farbe: MW_GRUEN, gruppe: 'Leergut', hinweis: 'Eine Bahn · 7 Kästen · für den Gang an der Wand' },
 
   // -------------------------------------------- Aktions- & Sonderflächen
   // ------------------------------------------ Aktions- und Sonderflächen
