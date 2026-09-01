@@ -106,11 +106,21 @@ export function Elementbibliothek() {
   };
 
   /**
-   * Was ein Klick auf eine Vorlage bewirkt.
+   * Wartet die Anwendung gerade auf eine Vorlage zum Austauschen?
    *
-   * Im Regelfall wird eingefügt. Wartet die Anwendung dagegen auf eine
-   * Vorlage zum Austauschen, ersetzt derselbe Klick die Auswahl – das ist
-   * der schnellste Weg, einen ganzen Zug auf ein anderes Regal umzustellen.
+   * Dann genügt ein einzelner Klick: Der Nutzer hat „Austauschen" gedrückt,
+   * das Banner fragt ihn nach einer Vorlage, und die Antwort darauf ist ein
+   * Klick. Sonst wird eingefügt – und dafür braucht es mehr als einen Klick,
+   * siehe unten.
+   */
+  const tauschbereit = tauschModus && auswahl.length > 0;
+
+  /**
+   * Was das Anwählen einer Vorlage bewirkt.
+   *
+   * Im Regelfall wird eingefügt. Im Tauschmodus ersetzt dieselbe Geste die
+   * Auswahl – das ist der schnellste Weg, einen ganzen Zug auf ein anderes
+   * Regal umzustellen.
    */
   const waehlen = (vorlage: BibliothekEintrag) => {
     const store = usePlanStore.getState();
@@ -178,6 +188,7 @@ export function Elementbibliothek() {
                           favoriten={favoriten}
                           einheit={einheit}
                           einfuegen={waehlen}
+                          sofort={tauschbereit}
                         />
                       )}
 
@@ -204,6 +215,7 @@ export function Elementbibliothek() {
                                 favoriten={favoriten}
                                 einheit={einheit}
                                 einfuegen={waehlen}
+                                sofort={tauschbereit}
                               />
                             )}
                           </div>
@@ -242,11 +254,14 @@ function Vorlagenliste({
   favoriten,
   einheit,
   einfuegen,
+  sofort,
 }: {
   eintraege: BibliothekEintrag[];
   favoriten: string[];
   einheit: Massinheit;
   einfuegen: (vorlage: BibliothekEintrag) => void;
+  /** Genügt ein einzelner Klick? Nur im Tauschmodus. */
+  sofort: boolean;
 }) {
   const angeheftet = eintraege.filter((v) => favoriten.includes(v.id));
   return (
@@ -259,6 +274,7 @@ function Vorlagenliste({
               vorlage={vorlage}
               einheit={einheit}
               einfuegen={einfuegen}
+              sofort={sofort}
               favorit
             />
           ))}
@@ -271,6 +287,7 @@ function Vorlagenliste({
             vorlage={vorlage}
             einheit={einheit}
             einfuegen={einfuegen}
+            sofort={sofort}
             favorit={favoriten.includes(vorlage.id)}
           />
         ))}
@@ -279,41 +296,54 @@ function Vorlagenliste({
   );
 }
 
-/** Eine einzelne Vorlage in der Liste. */
+/**
+ * Eine einzelne Vorlage in der Liste.
+ *
+ * **Ein Klick setzt nichts.** Beim Suchen fährt man die Liste entlang und
+ * klickt dabei auf Zeilen, um sie zu lesen – jede davon legte vorher ein
+ * Möbel in die Mitte des Marktes, das man hinterher wieder wegräumen musste.
+ * Eingefügt wird deshalb mit einem Doppelklick oder, genauer, indem man die
+ * Vorlage an ihre Stelle zieht.
+ *
+ * Im Tauschmodus bleibt der einzelne Klick: Dort fragt das Banner nach einer
+ * Vorlage, und die Antwort darauf ist ein Klick.
+ */
 function Vorlage({
   vorlage,
   einheit,
   einfuegen,
+  sofort,
   favorit = false,
 }: {
   vorlage: BibliothekEintrag;
   einheit: Massinheit;
   einfuegen: (vorlage: BibliothekEintrag) => void;
+  sofort: boolean;
   favorit?: boolean;
 }) {
+  const geste = sofort
+    ? 'Klicken stellt die Auswahl auf diese Vorlage um'
+    : 'Auf den Plan ziehen – oder Doppelklick setzt es in die Mitte';
   return (
     <div
       className="vorlage"
       draggable
-      title={
-        vorlage.hinweis
-          ? `${vorlage.hinweis} — Ziehen oder klicken zum Einfügen`
-          : 'Ziehen oder klicken zum Einfügen'
-      }
+      title={vorlage.hinweis ? `${vorlage.hinweis} — ${geste}` : geste}
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', vorlage.id);
         e.dataTransfer.effectAllowed = 'copy';
       }}
-      onClick={() => einfuegen(vorlage)}
+      onClick={sofort ? () => einfuegen(vorlage) : undefined}
+      onDoubleClick={sofort ? undefined : () => einfuegen(vorlage)}
     >
       <button
         className={`sternknopf${favorit ? ' aktiv' : ''}`}
         title={favorit ? 'Aus den Favoriten nehmen' : 'Als Favorit oben anheften'}
         aria-pressed={favorit}
         onClick={(e) => {
-          // Der Stern sitzt in der Zeile, die selbst einfügt. Ohne das
-          // Anhalten würde ein Klick auf den Stern zusätzlich ein Element
-          // auf den Plan setzen.
+          // Der Stern sitzt in der Zeile, die im Tauschmodus selbst wirkt.
+          // Ohne das Anhalten würde ein Klick auf den Stern dort zusätzlich
+          // die Auswahl umstellen.
           e.stopPropagation();
           usePlanStore.getState().schalteFavorit(vorlage.id);
         }}
