@@ -25,7 +25,7 @@ import {
 import { feldkanten } from '../../logik/warengruppenzuordnung';
 import { GESTELL_STAERKE, kistenbelegung } from '../../logik/getraenkekisten';
 import { palettenAnzahl, palettenmass } from '../../logik/paletten';
-import type { Grundform, Palettenplatz, PlanElement, Punkt, Regalfeld } from '../../typen/modell';
+import type { Grundform, PlanElement, Punkt, Regalfeld } from '../../typen/modell';
 
 /**
  * Ein einzelnes Element auf dem Plan.
@@ -418,6 +418,15 @@ function istGenauEinFeld(von: number, bis: number, kanten: number[]): boolean {
  * dem Ausdruck noch lesbar sein.
  */
 const METERFARBE = '#b3261e';
+
+/**
+ * Der Holzton, mit dem eine Palette hinterlegt wird.
+ *
+ * Blass genug, dass Böden, Achsmaßzeichen und Beschriftung darüber lesbar
+ * bleiben, und warm genug, dass man sie von jedem Möbelgrau unterscheidet.
+ * Sie wird vor allem anderen gemalt und liegt damit im Hintergrund.
+ */
+const PALETTENFARBE = 'rgba(176, 132, 74, 0.22)';
 
 /**
  * Eine Länge in Metern, so kurz wie möglich.
@@ -886,61 +895,92 @@ function zeichneFoerderband(
 }
 
 /**
- * Die Paletten unter einem Regalfeld.
+ * Wo die Paletten eines Möbels liegen, in Bildkoordinaten.
+ *
+ * Einmal gerechnet für beides: die blasse Fläche, die vor allem anderen
+ * gemalt wird, und die Striche darüber. Zwei Rechnungen für dieselben
+ * Rechtecke gingen früher oder später auseinander.
+ */
+export function palettenflaechen(
+  element: PlanElement,
+  b: number,
+  t: number,
+): { x: number; y: number; breite: number; tiefe: number }[] {
+  const unten = felderVon(element, 'unten');
+  const oben = element.beidseitig ? felderVon(element, 'oben') : [];
+  const faktor = seitenFaktor(b, oben, unten);
+  const hoehe = element.beidseitig ? t / 2 : t;
+  const baender = element.beidseitig
+    ? [
+        { felder: oben, von: 0 },
+        { felder: unten, von: t / 2 },
+      ]
+    : [{ felder: unten, von: 0 }];
+
+  const flaechen: { x: number; y: number; breite: number; tiefe: number }[] = [];
+  for (const band of baender) {
+    for (const platz of feldplaetze(band.felder, faktor)) {
+      const palette = platz.feld.palette;
+      if (platz.feld.leer || !palette) continue;
+      const laengs = palette.laengs ?? true;
+      const mass = palettenmass(palette.art, laengs);
+      const anzahl = palettenAnzahl(palette, platz.weite);
+      const gesamt = anzahl * mass.breite;
+      const luecke = anzahl > 1 ? Math.max(0, (platz.weite - gesamt) / (anzahl + 1)) : 0;
+      const start = anzahl > 1 ? luecke : Math.max(0, (platz.weite - mass.breite) / 2);
+      for (let i = 0; i < anzahl; i++) {
+        flaechen.push({
+          x: platz.x + start + i * (mass.breite + luecke),
+          // An der Rückwand: bei der oberen Seite von oben, bei der unteren
+          // von unten – dort steht die Palette im Markt auch.
+          y: band.von === 0 && element.beidseitig ? hoehe - mass.tiefe : band.von,
+          breite: mass.breite,
+          tiefe: mass.tiefe,
+        });
+      }
+    }
+  }
+  return flaechen;
+}
+
+/**
+ * Die Umrisse der Paletten und ihre Bretter.
  *
  * Gezeichnet wie im Bauplan: der Umriss und darin die Bretter quer – daran
- * erkennt man eine Palette im Plan, ohne sie beschriften zu müssen.
+ * erkennt man eine Palette im Plan, ohne sie beschriften zu müssen. Die
+ * blasse Fläche darunter kommt vorher, im Hintergrund des Möbels.
  *
- * Sie sitzt hinten im Feld, an der Rückwand: Dort steht sie im Markt auch,
- * damit vorne der Griff frei bleibt. Ragt sie tiefer als das Möbel, wird sie
- * trotzdem ganz gezeichnet – man will sehen, dass sie übersteht.
+ * Ragt eine Palette tiefer als das Möbel, bekommt sie an dessen Kante einen
+ * zweiten Strich: Im Plan sieht man dann, dass sie in den Gang steht, und
+ * muss nicht nachmessen.
  */
 function zeichnePaletten(
   ctx: Konva.Context,
-  platz: Palettenplatz,
-  feldX: number,
-  feldY: number,
-  feldbreite: number,
-  feldtiefe: number,
+  flaechen: { x: number; y: number; breite: number; tiefe: number }[],
+  laengs: boolean,
+  moebeltiefeImBild: number,
 ) {
-  const laengs = platz.laengs ?? true;
-  const mass = palettenmass(platz.art, laengs);
-  const anzahl = palettenAnzahl(platz, feldbreite);
+  for (const f of flaechen) {
+    ctx.rect(f.x, f.y, f.breite, f.tiefe);
 
-  // Gleichmäßig über die Feldbreite verteilt, damit zwei Paletten in einem
-  // breiten Feld nicht links kleben.
-  const gesamt = anzahl * mass.breite;
-  const luecke = anzahl > 1 ? Math.max(0, (feldbreite - gesamt) / (anzahl + 1)) : 0;
-  const start = anzahl > 1 ? luecke : Math.max(0, (feldbreite - mass.breite) / 2);
-
-  for (let i = 0; i < anzahl; i++) {
-    const x = feldX + start + i * (mass.breite + luecke);
-    const y = feldY;   // an der Rückwand
-    const b = mass.breite;
-    const t = mass.tiefe;
-
-    ctx.rect(x, y, b, t);
-
-    // Steht sie vorne über, bekommt sie dort einen zweiten Strich: Im Plan
-    // sieht man dann, dass sie in den Gang ragt, und muss nicht nachmessen.
-    if (t > feldtiefe + 1) {
-      ctx.moveTo(x, feldY + feldtiefe);
-      ctx.lineTo(x + b, feldY + feldtiefe);
-    }
-
-    // Die Bretter quer zur langen Seite – fünf Stück, wie bei einer echten
-    // Palette die Decklage.
+    // Fünf Bretter quer zur langen Seite, wie bei der Decklage einer echten
+    // Palette.
     const bretter = 5;
     for (let n = 1; n < bretter; n++) {
       if (laengs) {
-        const bx = x + (b * n) / bretter;
-        ctx.moveTo(bx, y);
-        ctx.lineTo(bx, y + t);
+        const bx = f.x + (f.breite * n) / bretter;
+        ctx.moveTo(bx, f.y);
+        ctx.lineTo(bx, f.y + f.tiefe);
       } else {
-        const by = y + (t * n) / bretter;
-        ctx.moveTo(x, by);
-        ctx.lineTo(x + b, by);
+        const by = f.y + (f.tiefe * n) / bretter;
+        ctx.moveTo(f.x, by);
+        ctx.lineTo(f.x + f.breite, by);
       }
+    }
+
+    if (f.y + f.tiefe > moebeltiefeImBild + 1) {
+      ctx.moveTo(f.x, moebeltiefeImBild);
+      ctx.lineTo(f.x + f.breite, moebeltiefeImBild);
     }
   }
 }
@@ -1304,12 +1344,6 @@ export function zeichneForm(
           ctx.lineTo(platz.x, band.bis);
         });
 
-        // Paletten unter den Böden – vor dem Achsmaßzeichen, damit dessen
-        // Diagonale darüber liegt und das Feld zusammenhält.
-        for (const platz of plaetze) {
-          if (platz.feld.leer || !platz.feld.palette) continue;
-          zeichnePaletten(ctx, platz.feld.palette, platz.x, band.von, platz.weite, band.bis - band.von);
-        }
 
         // Das Achsmaß-Zeichen steht in jedem Feld, nicht einmal über den
         // ganzen Zug: Ein 6-m-Zug aus 1,25er Feldern hat fünf Diagonalen.
@@ -2175,6 +2209,25 @@ export function ElementSymbol({
         const b = shape.width();
         const t = shape.height();
 
+        // 0. Die Paletten als blasse Fläche, vor allem anderen.
+        //
+        //    Sie liegen damit im Hintergrund des Regals: Die Böden, das
+        //    Achsmaßzeichen und die Beschriftung werden darübergezeichnet
+        //    und bleiben lesbar. Ein warmes Holzton-Grau, weil eine Palette
+        //    aus Holz ist und weil es sich von jedem Möbelgrau abhebt,
+        //    ohne im Plan zu schreien.
+        const paletten = element.felderUnten || element.felderOben
+          ? palettenflaechen(element, b, t)
+          : [];
+        if (paletten.length > 0) {
+          ctx.save();
+          ctx.beginPath();
+          for (const f of paletten) ctx.rect(f.x, f.y, f.breite, f.tiefe);
+          ctx.setAttr('fillStyle', PALETTENFARBE);
+          ctx.fill();
+          ctx.restore();
+        }
+
         // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
         //    Linienfarbe des Elements.
         ctx.beginPath();
@@ -2201,6 +2254,12 @@ export function ElementSymbol({
           element.kisten,
           gestellstuetzen(element, b),
         );
+        // Die Paletten: Umriss und Bretter, über der blassen Fläche.
+        if (paletten.length > 0) {
+          const ersteSeite = felderVon(element, 'unten').find((f) => f.palette)?.palette;
+          zeichnePaletten(ctx, paletten, ersteSeite?.laengs ?? true, element.beidseitig ? t / 2 : t);
+        }
+
         // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
         // die ganze Tiefe – so wie beim Regalzug.
         for (const x of einheitenNaehte(element, b)) {
