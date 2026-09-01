@@ -767,6 +767,15 @@ function getraenkeEintraege(): BibliothekEintrag[] {
 const BLUMEN_GRUEN = '#b6dfa6';
 
 /**
+ * Holzton für Blenden und Verkleidungen.
+ *
+ * Warm und gedämpft: Eine Blende ist Ausbau, kein Möbel. Sie soll im Plan
+ * als Holz zu erkennen sein, ohne dem Regal darin die Aufmerksamkeit zu
+ * nehmen.
+ */
+const HOLZ_EICHE = '#cda274';
+
+/**
  * Die Blumen- und Pflanzenmöbel von CMS Metasys.
  *
  * Alle Maße stammen von den Produktseiten des Herstellers (Kategorie
@@ -1279,6 +1288,13 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'abfallbehaelter', name: 'Abfallbehälter', kategorie: 'ausstattung', breite: 60, tiefe: 60, hoehe: 90, form: 'kreis', farbe: '#b0b6bc', gruppe: 'Einrichtung' },
   { id: 'hubwagen', name: 'Hubwagenstellplatz', kategorie: 'ausstattung', breite: 200, tiefe: 100, hoehe: 0, form: 'stellflaeche', farbe: '#d9dde1', hinweis: 'Freizuhaltende Fläche', gruppe: 'Einrichtung' },
   { id: 'rollcontainer', name: 'Rollcontainer', kategorie: 'ausstattung', breite: 80, tiefe: 70, hoehe: 180, form: 'wagenbox', farbe: '#cfd4d9', gruppe: 'Einrichtung' },
+
+  // Holzblenden. Sie werden um ein Regal herumgebaut und sind deshalb
+  // innen offen: Was sie einfassen, bleibt im Plan sichtbar. Die Maße sind
+  // Anfangswerte – gezogen wird die Blende auf das Regal, das darin steht.
+  { id: 'holzblende-rahmen', name: 'Holzblende umlaufend', kategorie: 'ausstattung', breite: 320, tiefe: 65, hoehe: 220, form: 'holzblende', farbe: HOLZ_EICHE, gruppe: 'Einrichtung', standardBeschriftung: 'Holzblende', hinweis: 'Rahmen rundum · innen offen, das Regal bleibt sichtbar · Brett 8 cm' },
+  { id: 'holzblende-u', name: 'Holzblende U-förmig', kategorie: 'ausstattung', breite: 320, tiefe: 65, hoehe: 220, form: 'holzblendeU', farbe: HOLZ_EICHE, gruppe: 'Einrichtung', standardBeschriftung: 'Holzblende', hinweis: 'Drei Seiten, eine Langseite offen – für einen Zug an der Wand · mit „Um 90° drehen“ ausrichten' },
+  { id: 'holzblende-gerade', name: 'Holzblende gerade', kategorie: 'ausstattung', breite: 200, tiefe: 8, hoehe: 220, form: 'rechteck', farbe: HOLZ_EICHE, gruppe: 'Einrichtung', standardBeschriftung: 'Holzblende', hinweis: 'Ein einzelnes Brett – für die Front oder eine Seite' },
 
   // ---------------------------------------------------- Bau und Technik
   //

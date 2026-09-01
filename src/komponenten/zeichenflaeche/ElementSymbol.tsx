@@ -426,6 +426,15 @@ const METERFARBE = '#b3261e';
  * bleiben, und warm genug, dass man sie von jedem Möbelgrau unterscheidet.
  * Sie wird vor allem anderen gemalt und liegt damit im Hintergrund.
  */
+/**
+ * Stärke eines Blendenbretts in cm.
+ *
+ * Acht Zentimeter sind nicht die Stärke der Platte, sondern die des
+ * fertigen Aufbaus mit Unterkonstruktion. Zwei Zentimeter wären im Plan
+ * ein Strich und keine Blende.
+ */
+const BLENDENSTAERKE = 8;
+
 const PALETTENFARBE = 'rgba(176, 132, 74, 0.38)';
 
 /** Die Linien der Palette: derselbe Holzton, nur kräftiger. */
@@ -1851,6 +1860,45 @@ export function zeichneForm(
       // tun – ein Rechteck wäre falsch, gerade bei einer kreuzförmigen
       // Stütze.
       break;
+
+    case 'holzblende':
+    case 'holzblendeU': {
+      // Eine Blende ist ein Brett, kein Körper.
+      //
+      // Von oben sieht man deshalb nur den Rahmen; in der Mitte bleibt das
+      // Regal sichtbar, um das sie herumgebaut ist. Wäre die Fläche gefüllt,
+      // verdeckte die Blende genau das, was sie einfassen soll.
+      //
+      // Das Loch entsteht durch die **Gegenrichtung**: Die äußere Bahn läuft
+      // im Uhrzeigersinn, die innere dagegen. Wo sich beide überdecken, hebt
+      // die Füllregel der Leinwand sie auf.
+      const brett = Math.min(BLENDENSTAERKE, Math.min(b, t) / 2 - 1);
+      if (brett <= 0) {
+        ctx.rect(0, 0, b, t);
+        break;
+      }
+      if (form === 'holzblende') {
+        ctx.rect(0, 0, b, t);
+        ctx.moveTo(brett, brett);
+        ctx.lineTo(brett, t - brett);
+        ctx.lineTo(b - brett, t - brett);
+        ctx.lineTo(b - brett, brett);
+        ctx.closePath();
+      } else {
+        // Drei Seiten, die vierte offen – für einen Zug, der an der Wand
+        // steht und dort keine Blende braucht.
+        ctx.moveTo(0, 0);
+        ctx.lineTo(brett, 0);
+        ctx.lineTo(brett, t - brett);
+        ctx.lineTo(b - brett, t - brett);
+        ctx.lineTo(b - brett, 0);
+        ctx.lineTo(b, 0);
+        ctx.lineTo(b, t);
+        ctx.lineTo(0, t);
+        ctx.closePath();
+      }
+      break;
+    }
 
     case 'rechteck':
     default:

@@ -74,6 +74,8 @@ export type Grundform =
   | 'leergutEinweg'
   | 'dpgBehaelter'
   | 'kastenablage'
+  | 'holzblende'
+  | 'holzblendeU'
   | 'foerderband'
   /**
    * Eine Aktions- oder Saisonfläche: eine Zone, kein Möbel.

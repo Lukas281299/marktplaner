@@ -80,7 +80,7 @@ export const KATEGORIEN: Kategorie[] = [
     id: 'ausstattung',
     name: 'Weitere Ausstattung',
     farbe: '#d5d8dc',
-    beschreibung: 'Treppe, Aufzug, Säulen, Türen und Stellflächen',
+    beschreibung: 'Treppe, Aufzug, Säulen, Türen, Holzblenden und Stellflächen',
   },
   {
     id: 'eigene',
