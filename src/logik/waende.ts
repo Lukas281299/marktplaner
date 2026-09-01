@@ -193,3 +193,53 @@ export function richteWandAus(von: Punkt, bis: Punkt, toleranzGrad = 8): Punkt {
 export function wandlaenge(wand: Wand): number {
   return Math.hypot(wand.bis.x - wand.von.x, wand.bis.y - wand.von.y);
 }
+
+/**
+ * Die Stärke der Wand, die auf dieser Kante liegt – 0, wenn dort keine ist.
+ *
+ * Gebraucht für die Kantenmaße abgetrennter Räume. Seit Räume keine eigene
+ * Wand mehr zeichnen, zieht der Planer sie selbst, und der Raum weiß nichts
+ * davon. Stünde die Zahl trotzdem knapp neben der Raumgrenze, läge sie im
+ * Mauerwerk – grau auf grau, und damit weg.
+ *
+ * Als „auf der Kante" gilt eine Wand, die parallel dazu läuft, deren Achse
+ * höchstens eine Wandstärke daneben liegt und die sich mit der Kante der
+ * Länge nach überschneidet. Eine Wand, die die Kante nur kreuzt, zählt
+ * nicht: Sie steht anderswo im Weg, nicht dort, wo die Zahl hin soll.
+ */
+export function wandstaerkeAufKante(a: Punkt, b: Punkt, achsen: Wandachse[]): number {
+  const laenge = Math.hypot(b.x - a.x, b.y - a.y);
+  if (laenge === 0) return 0;
+  const ex = (b.x - a.x) / laenge;
+  const ey = (b.y - a.y) / laenge;
+
+  /** Abstand quer zur Kante. */
+  const quer = (p: Punkt) => Math.abs((p.x - a.x) * ey - (p.y - a.y) * ex);
+  /** Lage längs der Kante, von `a` aus gezählt. */
+  const laengs = (p: Punkt) => (p.x - a.x) * ex + (p.y - a.y) * ey;
+
+  let staerkste = 0;
+  for (const achse of achsen) {
+    if (achse.staerke <= 0) continue;
+    const wx = achse.bis.x - achse.von.x;
+    const wy = achse.bis.y - achse.von.y;
+    const wLaenge = Math.hypot(wx, wy);
+    if (wLaenge === 0) continue;
+
+    // Parallel? Bei gekreuzten Richtungen ist das Kreuzprodukt groß.
+    // 0,09 sind gut fünf Grad – genug für eine von Hand gezogene Wand.
+    if (Math.abs((wx * ey - wy * ex) / wLaenge) > 0.09) continue;
+
+    // Nah genug an der Kantenlinie? Eine Wandstärke Abstand ist die Grenze:
+    // Der Umriss kann auf der Achse liegen oder auf einer ihrer Seiten.
+    if (Math.max(quer(achse.von), quer(achse.bis)) > achse.staerke) continue;
+
+    // Und überschneiden sie sich der Länge nach überhaupt?
+    const von = Math.min(laengs(achse.von), laengs(achse.bis));
+    const bis = Math.max(laengs(achse.von), laengs(achse.bis));
+    if (bis <= 0 || von >= laenge) continue;
+
+    staerkste = Math.max(staerkste, achse.staerke);
+  }
+  return staerkste;
+}

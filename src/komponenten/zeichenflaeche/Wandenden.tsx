@@ -38,7 +38,9 @@ export function Wandenden({
 }: Props) {
   // Gleichbleibend groß auf dem Bildschirm, egal wie weit man hineinzoomt.
   const griff = 7 / zoom;
-  const schrift = 13 / zoom;
+  const schrift = 11 / zoom;
+  /** Abstand zwischen Wandkante und Zahl. */
+  const luft = 5 / zoom;
 
   const laenge = Math.hypot(wand.bis.x - wand.von.x, wand.bis.y - wand.von.y);
   const mitte = { x: (wand.von.x + wand.bis.x) / 2, y: (wand.von.y + wand.bis.y) / 2 };
@@ -51,18 +53,35 @@ export function Wandenden({
 
   return (
     <Group listening>
-      {/* Das Maß, mittig neben der Wand. */}
-      <Text
-        x={mitte.x - (waagerecht ? laenge / 2 : wand.staerke)}
-        y={mitte.y - (waagerecht ? wand.staerke / 2 + schrift * 1.4 : schrift / 2)}
-        width={waagerecht ? laenge : undefined}
-        align={waagerecht ? 'center' : 'left'}
-        text={formatiereLaenge(laenge, einheit)}
-        fontSize={schrift}
-        fontStyle="600"
-        fill="#1d4ed8"
-        listening={false}
-      />
+      {/* Das Maß **neben** der Wand, nicht darin.
+          Eine senkrechte Wand bekam die Zahl bisher linksbündig eine
+          Wandstärke links der Achse – von dort lief sie nach rechts quer
+          über die Wand. Jetzt endet sie an der Wandkante. */}
+      {waagerecht ? (
+        <Text
+          x={mitte.x - laenge / 2}
+          y={mitte.y - wand.staerke / 2 - luft - schrift}
+          width={laenge}
+          align="center"
+          text={formatiereLaenge(laenge, einheit)}
+          fontSize={schrift}
+          fontStyle="600"
+          fill="#1d4ed8"
+          listening={false}
+        />
+      ) : (
+        <Text
+          x={mitte.x - wand.staerke / 2 - luft - schrift * 6}
+          y={mitte.y - schrift / 2}
+          width={schrift * 6}
+          align="right"
+          text={formatiereLaenge(laenge, einheit)}
+          fontSize={schrift}
+          fontStyle="600"
+          fill="#1d4ed8"
+          listening={false}
+        />
+      )}
 
       {enden.map(({ punkt, index }) => (
         <Circle

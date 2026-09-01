@@ -19,7 +19,12 @@ import { formatiereLaenge } from '../../logik/masse';
 import { fangePunkt, fangpunkte } from '../../logik/messen';
 import { rahmen as umrissRahmen, rechteckAusEcken, vereinige, ziehAb } from '../../logik/polygon';
 import { punktEinfuegen, punktEntfernen, punktVerschieben } from '../../logik/umrissBearbeiten';
-import { alleWandachsen, fangbereich, findeWand } from '../../logik/waende';
+import {
+  alleWandachsen,
+  fangbereich,
+  findeWand,
+  wandstaerkeAufKante,
+} from '../../logik/waende';
 import {
   FANGWEITE_PIXEL,
   fangeAufEcke,
@@ -404,6 +409,20 @@ export function Zeichenflaeche() {
       FANGWEITE_PIXEL / store.ansicht.zoom,
     );
   }, []);
+
+  /**
+   * Wie dick die Wand auf einer Raumkante ist – für den Abstand der
+   * Kantenmaße. Neu berechnet, sobald sich am Grundriss etwas ändert.
+   */
+  const wandstaerkeAn = useCallback(
+    (a: Punkt, b: Punkt) =>
+      wandstaerkeAufKante(
+        a,
+        b,
+        alleWandachsen(projekt.grundflaeche, projekt.raeume, projekt.waende),
+      ),
+    [projekt.grundflaeche, projekt.raeume, projekt.waende],
+  );
 
   /** Zeigt kurz eine Rückmeldung über der Zeichenfläche an. */
   const melde = useCallback((text: string) => {
@@ -1329,6 +1348,7 @@ export function Zeichenflaeche() {
             <Raeume
               raeume={projekt.raeume}
               einheit={einheit}
+              wandstaerkeAn={wandstaerkeAn}
               ausgewaehlt={sonderauswahl?.art === 'raum' ? sonderauswahl.id : null}
               zoom={zoom}
               anklickbar={werkzeug === 'auswahl' && !raeumeGesperrt}

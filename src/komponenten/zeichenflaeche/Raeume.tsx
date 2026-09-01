@@ -21,6 +21,13 @@ interface Props {
   raeume: Raum[];
   /** Für die Kantenmaße – Meter oder Zentimeter. */
   einheit: Massinheit;
+  /**
+   * Wie dick die Wand auf einer Kante ist, für den Abstand der Kantenmaße.
+   *
+   * Ein Raum kennt seine Wände nicht mehr selbst – gezogen werden sie
+   * einzeln, und nur von außen ist zu sehen, welche auf welcher Kante liegt.
+   */
+  wandstaerkeAn: (a: Punkt, b: Punkt) => number;
   ausgewaehlt: string | null;
   zoom: number;
   /** Räume anklickbar? Beim Zeichnen von Flächen sollen sie nicht stören. */
@@ -34,6 +41,7 @@ interface Props {
 export function Raeume({
   raeume,
   einheit,
+  wandstaerkeAn,
   ausgewaehlt,
   zoom,
   anklickbar,
@@ -50,8 +58,8 @@ export function Raeume({
    * kleinen Räumen lagen dann drei Maße übereinander und keins war lesbar.
    */
   const kanten = useMemo(
-    () => kantenmasseOhneUeberdeckung(raeume, einheit, SCHRIFT_FLAECHE * 0.62),
-    [raeume, einheit],
+    () => kantenmasseOhneUeberdeckung(raeume, einheit, SCHRIFT_KANTE, wandstaerkeAn),
+    [raeume, einheit, wandstaerkeAn],
   );
 
   return (
@@ -75,6 +83,18 @@ export function Raeume({
   );
 }
 
+/**
+ * Höhe der Kantenmaße im Plan, in cm.
+ *
+ * Kleiner als die Raumbeschriftung: Die Zahl an der Kante ist eine Beigabe,
+ * kein Titel. Bei 45 cm wie der Flächenangabe war sie fast so hoch wie die
+ * Wand daneben dick ist.
+ */
+export const SCHRIFT_KANTE = 21;
+
+/** Luft zwischen Wandinnenkante und Zahl, in cm. */
+const LUFT = 8;
+
 /** Ein Kantenmaß: wo die Zahl steht, wie lang die Kante ist, wie gedreht. */
 export interface Kantenmass {
   x: number;
@@ -86,11 +106,28 @@ export interface Kantenmass {
 /**
  * Für jede Kante des Raums ihr Maß, samt Lage und Drehung.
  *
- * Der Text läuft an der Kante entlang und wird nach innen gerückt – außen
- * läge er in der Wand oder im Nachbarraum. Kopfstehende Zahlen werden
- * umgedreht: Ein Maß, das man nur mit geneigtem Kopf liest, ist keins.
+ * Der Text läuft an der Kante entlang und steht **mittig auf dem Ankerpunkt**,
+ * der weit genug nach innen gerückt ist, dass die ganze Zahl neben der Wand
+ * liegt und nicht darin.
+ *
+ * Vorher war der Anker nur 14 cm nach innen gesetzt und der Text von dort aus
+ * um gut eine Schrifthöhe versetzt – in der gedrehten Achse der Kante. Deren
+ * Richtung wechselt aber mit dem Umlaufsinn: An drei von vier Kanten eines
+ * Rechtecks zeigte der Versatz nach **außen**, und die Zahl landete im
+ * Mauerwerk. Daher stand sie mal da und mal nicht.
+ *
+ * `staerkeAn` sagt, wie dick die Wand auf einer Kante ist. Räume zeichnen
+ * seit Fassung 16 keine eigene mehr; die Wände zieht der Planer selbst, und
+ * ohne diese Auskunft wüsste der Raum nichts von ihnen.
+ *
+ * Kopfstehende Zahlen werden umgedreht: Ein Maß, das man nur mit geneigtem
+ * Kopf liest, ist keins.
  */
-export function kantenmasse(raum: Raum): Kantenmass[] {
+export function kantenmasse(
+  raum: Raum,
+  schrift: number = SCHRIFT_KANTE,
+  staerkeAn: (a: Punkt, b: Punkt) => number = () => 0,
+): Kantenmass[] {
   const mitte = raum.umriss.reduce(
     (s, p) => ({ x: s.x + p.x / raum.umriss.length, y: s.y + p.y / raum.umriss.length }),
     { x: 0, y: 0 },
@@ -106,7 +143,13 @@ export function kantenmasse(raum: Raum): Kantenmass[] {
       const mx = (a.x + b.x) / 2;
       const my = (a.y + b.y) / 2;
       const zurMitte = Math.hypot(mitte.x - mx, mitte.y - my);
-      const ein = Math.min(raum.wandstaerke + 14, zurMitte * 0.5);
+
+      // So weit nach innen, dass die halbe Wand, etwas Luft und die halbe
+      // Schrifthöhe darunter Platz haben – in einem engen Raum höchstens bis
+      // kurz vor die Mitte, sonst kämen sich gegenüberliegende Zahlen ins
+      // Gehege.
+      const halbeWand = Math.max(raum.wandstaerke, staerkeAn(a, b)) / 2;
+      const ein = Math.min(halbeWand + LUFT + schrift * 0.5, zurMitte * 0.6);
       const x = mx + (zurMitte > 0 ? ((mitte.x - mx) / zurMitte) * ein : 0);
       const y = my + (zurMitte > 0 ? ((mitte.y - my) / zurMitte) * ein : 0);
 
@@ -254,9 +297,10 @@ export function kantenmasseOhneUeberdeckung(
   raeume: Raum[],
   einheit: Massinheit,
   schrift: number,
+  staerkeAn: (a: Punkt, b: Punkt) => number = () => 0,
 ): Map<string, Kantenmass[]> {
   const alle = raeume.flatMap((raum) =>
-    kantenmasse(raum).map((k) => ({ ...k, raumId: raum.id })),
+    kantenmasse(raum, schrift, staerkeAn).map((k) => ({ ...k, raumId: raum.id })),
   );
   alle.sort((a, b) => b.laenge - a.laenge);
 
@@ -320,7 +364,7 @@ function RaumBild({
   const punkte = flach(raum.umriss);
   const kasten = useMemo(() => rahmen(raum.umriss), [raum.umriss]);
   const ziehbar = anklickbar && !raum.gesperrt;
-  const kantenschrift = SCHRIFT_FLAECHE * 0.62;
+  const kantenschrift = SCHRIFT_KANTE;
   // Die Platzsuche legt ein Raster über den Raum und misst zu jeder Kante –
   // das ist zu viel Rechnerei für jeden Bildaufbau. Sie hängt allein am
   // Raum, also reicht sie einmal je Änderung.
@@ -380,7 +424,12 @@ function RaumBild({
       {/* Kantenmaße: an jeder Kante ihre Länge, klein und nach innen
           gerückt. Beim Abzeichnen eines Bestandsplans zieht man den Raum
           auf, bis die Zahl stimmt – und dafür muss sie an der Kante stehen,
-          nicht in einem Feld am Bildschirmrand. */}
+          nicht in einem Feld am Bildschirmrand.
+
+          Die Zahl sitzt mittig auf ihrem Ankerpunkt; der liegt schon weit
+          genug innen. Ein Versatz in der gedrehten Achse zeigte je nach
+          Umlaufsinn der Kante mal nach innen und mal nach außen – das war
+          der Grund, warum manche Maße in der Wand verschwanden. */}
       {lesbar(kantenschrift, zoom) &&
         kanten.map((kante, i) => (
           <Text
@@ -390,7 +439,7 @@ function RaumBild({
             y={kante.y}
             rotation={kante.drehung}
             offsetX={kante.laenge / 2}
-            offsetY={kantenschrift * 1.15}
+            offsetY={kantenschrift / 2}
             width={kante.laenge}
             align="center"
             text={formatiereLaenge(kante.laenge, einheit)}

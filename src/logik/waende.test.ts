@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { Grundflaeche, Raum, Wand } from '../typen/modell';
+import type { Grundflaeche, Punkt, Raum, Wand } from '../typen/modell';
 import { rechteck } from './polygon';
 import {
   alleWandachsen,
   aufStrecke,
   fangbereich,
   findeWand,
+  wandstaerkeAufKante,
+  type Wandachse,
   richteWandAus,
   wandlaenge,
   wandwinkel,
@@ -248,5 +250,48 @@ describe('Öffnung in der Wand verschieben', () => {
     const punkt = { x: 1600, y: 95 };
     expect(findeWand(punkt, ACHSEN, fangbereich(1))).toBeUndefined();
     expect(findeWand(punkt, ACHSEN, fangbereich(1) * 4)).toBeDefined();
+  });
+});
+
+describe('Wandstärke auf einer Raumkante', () => {
+  const achse = (
+    von: Punkt,
+    bis: Punkt,
+    staerke: number,
+  ): Wandachse => ({ von, bis, staerke, quelle: 'innen' });
+
+  it('findet die Wand, die auf der Kante liegt', () => {
+    const waende = [achse({ x: 0, y: 0 }, { x: 1000, y: 0 }, 24)];
+    expect(wandstaerkeAufKante({ x: 0, y: 0 }, { x: 1000, y: 0 }, waende)).toBe(24);
+  });
+
+  it('nimmt die dickste, wenn mehrere darauf liegen', () => {
+    const waende = [
+      achse({ x: 0, y: 0 }, { x: 500, y: 0 }, 11.5),
+      achse({ x: 500, y: 0 }, { x: 1000, y: 0 }, 36.5),
+    ];
+    expect(wandstaerkeAufKante({ x: 0, y: 0 }, { x: 1000, y: 0 }, waende)).toBe(36.5);
+  });
+
+  it('zählt eine Wand nicht mit, die die Kante nur kreuzt', () => {
+    // Sie steht quer im Raum – dort, wo die Zahl steht, ist sie nicht.
+    const quer = [achse({ x: 500, y: -200 }, { x: 500, y: 400 }, 24)];
+    expect(wandstaerkeAufKante({ x: 0, y: 0 }, { x: 1000, y: 0 }, quer)).toBe(0);
+  });
+
+  it('zählt eine parallele Wand weiter drinnen nicht mit', () => {
+    const weiter = [achse({ x: 0, y: 300 }, { x: 1000, y: 300 }, 24)];
+    expect(wandstaerkeAufKante({ x: 0, y: 0 }, { x: 1000, y: 0 }, weiter)).toBe(0);
+  });
+
+  it('lässt eine Wand gelten, die neben der Achse auf der Kante liegt', () => {
+    // Der Umriss kann auf der Achse liegen oder auf einer ihrer Seiten.
+    const versetzt = [achse({ x: 0, y: 12 }, { x: 1000, y: 12 }, 24)];
+    expect(wandstaerkeAufKante({ x: 0, y: 0 }, { x: 1000, y: 0 }, versetzt)).toBe(24);
+  });
+
+  it('zählt eine Wand nicht mit, die nur daneben endet', () => {
+    const daneben = [achse({ x: 1200, y: 0 }, { x: 1800, y: 0 }, 24)];
+    expect(wandstaerkeAufKante({ x: 0, y: 0 }, { x: 1000, y: 0 }, daneben)).toBe(0);
   });
 });

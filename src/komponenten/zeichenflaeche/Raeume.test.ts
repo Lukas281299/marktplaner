@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { rechteck, rahmen } from '../../logik/polygon';
 import type { Raum } from '../../typen/modell';
 import { textbreite } from '../../logik/beschriftung';
-import { beschriftungsplatz, kantenmasse, kantenmasseOhneUeberdeckung } from './Raeume';
+import {
+  SCHRIFT_KANTE,
+  beschriftungsplatz,
+  kantenmasse,
+  kantenmasseOhneUeberdeckung,
+} from './Raeume';
 
 /**
  * Beschriftung und Kantenmaße abgetrennter Räume.
@@ -42,6 +47,40 @@ describe('Kantenmaße', () => {
     // Die obere Kante liegt bei y=0; ihre Zahl muss darunter stehen.
     const oben = kanten.find((k) => Math.abs(k.laenge - 1000) < 1 && k.y < 300);
     expect(oben!.y).toBeGreaterThan(0);
+  });
+
+  it('hält jede der vier Zahlen frei von der Wand', () => {
+    // Der alte Fehler: Der Versatz lief in der gedrehten Achse der Kante,
+    // und deren Richtung wechselt mit dem Umlaufsinn. An drei von vier
+    // Kanten zeigte er nach außen, und die Zahl lag im Mauerwerk.
+    const staerke = 24;
+    const kanten = kantenmasse(raum(1000, 600, 'Lager', 0), SCHRIFT_KANTE, () => staerke);
+    expect(kanten).toHaveLength(4);
+
+    for (const k of kanten) {
+      const zumRand = Math.min(k.x, k.y, 1000 - k.x, 600 - k.y);
+      // Von der Mitte der Zahl aus: erst ihre halbe Höhe, dann die halbe
+      // Wand. Was darunter bliebe, stünde im Mauerwerk.
+      expect(zumRand).toBeGreaterThanOrEqual(staerke / 2 + SCHRIFT_KANTE / 2);
+    }
+  });
+
+  it('rückt bei einer dickeren Wand weiter herein', () => {
+    const duenn = kantenmasse(raum(1000, 600, 'Lager', 0), SCHRIFT_KANTE, () => 11.5);
+    const dick = kantenmasse(raum(1000, 600, 'Lager', 0), SCHRIFT_KANTE, () => 36.5);
+    expect(dick[0].y).toBeGreaterThan(duenn[0].y);
+  });
+
+  it('bleibt in einem engen Raum diesseits der Mitte', () => {
+    // Ein Putzmittelschrank von 80 cm: Zwei Zahlen dürfen sich nicht in der
+    // Mitte treffen, sonst stehen sie übereinander.
+    const lang = kantenmasse(raum(300, 80, 'Putzraum', 0), SCHRIFT_KANTE, () => 24).filter(
+      (k) => k.laenge > 100,
+    );
+    expect(lang).toHaveLength(2);
+    // Die obere Zahl bleibt oberhalb der Mitte, die untere darunter.
+    expect(Math.min(...lang.map((k) => k.y))).toBeLessThan(40);
+    expect(Math.max(...lang.map((k) => k.y))).toBeGreaterThan(40);
   });
 
   it('lässt sehr kurze Kanten aus', () => {
