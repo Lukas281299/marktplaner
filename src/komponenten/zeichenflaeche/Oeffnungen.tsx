@@ -136,8 +136,21 @@ function OeffnungBild({
             und damit außerhalb der Öffnung – die Türblätter hingen neben
             der Wand in der Luft.
           */}
-          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={-halbB / 2} />
-          <Tuerblatt breite={halbB} seite={seite} strich={strich} versatz={halbB / 2} gespiegeltX />
+          <Tuerblatt
+            breite={halbB}
+            seite={seite}
+            strich={strich}
+            versatz={-halbB / 2}
+            mitAnschlag={false}
+          />
+          <Tuerblatt
+            breite={halbB}
+            seite={seite}
+            strich={strich}
+            versatz={halbB / 2}
+            gespiegeltX
+            mitAnschlag={false}
+          />
         </>
       )}
 
@@ -327,12 +340,15 @@ function Tuerblatt({
   strich,
   versatz = 0,
   gespiegeltX = false,
+  mitAnschlag = true,
 }: {
   breite: number;
   seite: number;
   strich: number;
   versatz?: number;
   gespiegeltX?: boolean;
+  /** Den blassen Strich zur geschlossenen Lage zeichnen? */
+  mitAnschlag?: boolean;
 }) {
   const halb = breite / 2;
   // Das Scharnier liegt am äußeren Ende des Blattes.
@@ -367,13 +383,21 @@ function Tuerblatt({
           ctx.strokeShape(shape);
         }}
       />
-      {/* Ein Strich vom Scharnier zur Wandkante schließt das Bild ab. */}
-      <Line
-        points={[scharnier, 0, scharnier + richtung * breite, 0]}
-        stroke="#3c4650"
-        strokeWidth={strich}
-        opacity={0.35}
-      />
+      {/*
+        Ein Strich vom Scharnier zur Wandkante schließt das Bild ab.
+
+        Bei zwei Flügeln bleibt er weg: Dort träfen sich beide Striche in
+        der Mitte und machten aus den Bögen eine Linse – man sähe nicht
+        mehr, welcher Flügel wohin schlägt.
+      */}
+      {mitAnschlag && (
+        <Line
+          points={[scharnier, 0, scharnier + richtung * breite, 0]}
+          stroke="#3c4650"
+          strokeWidth={strich}
+          opacity={0.35}
+        />
+      )}
     </>
   );
 }
