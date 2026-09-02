@@ -181,3 +181,54 @@ export function seitenanteil(element: Pick<PlanElement, 'beidseitig' | 'tiefe' |
   if (!oben || oben <= 0 || oben >= element.tiefe || element.tiefe <= 0) return 0.5;
   return oben / element.tiefe;
 }
+
+/**
+ * Die 70 mm hinter dem Grundboden, die wire tech immer braucht.
+ *
+ * Bei einer Gondel teilen sich beide Seiten diese Zone – sie liegt in der
+ * Mitte und zählt nur einmal: 2 × 600 + 70 = 1270, nicht 1340.
+ */
+export const TOTE_ZONE = 7;
+
+/** Trägt dieses Möbel die tote Zone zwischen seinen Seiten? */
+function mitToterZone(form: PlanElement['form']): boolean {
+  return form === 'wt100' || form === 'wt100Rund' || form === 'wt100Eck';
+}
+
+/**
+ * Wie tief die **Böden** je Seite sind – das Maß, das im Katalog steht.
+ *
+ * Am Möbel steht die Gesamttiefe, weil daran Fläche und Auswahlrahmen
+ * hängen. Geplant wird aber andersherum: Man baut eine 600er Gondel, und
+ * 1270 ist das, was hinten dabei herauskommt. Diese Funktion rechnet den
+ * Weg zurück, damit im Eigenschaftenfenster die Zahl steht, die der Planer
+ * im Kopf hat.
+ */
+export function bodentiefen(
+  element: Pick<PlanElement, 'beidseitig' | 'tiefe' | 'tiefeOben' | 'form'>,
+): { vorn: number; hinten: number; zone: number } {
+  const zone = element.beidseitig && mitToterZone(element.form) ? TOTE_ZONE : 0;
+  if (!element.beidseitig) {
+    return { vorn: Math.max(0, element.tiefe - zone), hinten: 0, zone };
+  }
+  const vorn = Math.max(0, element.tiefe * seitenanteil(element) - zone / 2);
+  return { vorn, hinten: Math.max(0, element.tiefe - zone - vorn), zone };
+}
+
+/**
+ * Der umgekehrte Weg: aus zwei Bodentiefen die Maße des Möbels.
+ *
+ * Damit trägt man ein, was man bauen will – „vorn 600, hinten 400" – und
+ * bekommt Gesamttiefe und Trennlinie ausgerechnet. Das ist der Handgriff,
+ * um den es geht: Man soll nicht zwei Wandregale Rücken an Rücken stellen
+ * müssen, nur weil die eine Seite flacher sein soll als die andere.
+ */
+export function ausBodentiefen(
+  form: PlanElement['form'],
+  vorn: number,
+  hinten: number,
+): { tiefe: number; tiefeOben: number } {
+  const zone = mitToterZone(form) ? TOTE_ZONE : 0;
+  const rund = (z: number) => Math.round(z * 100) / 100;
+  return { tiefe: rund(vorn + hinten + zone), tiefeOben: rund(vorn + zone / 2) };
+}

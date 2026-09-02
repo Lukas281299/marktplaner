@@ -14,7 +14,7 @@ import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { summe } from '../logik/feldaufteilung';
 import { modulName, modulsatzFuer, satzAusAchsmass, type Modulsatz } from '../daten/module';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
-import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/regalseiten';
+import { felderVon, seitenEinzeln, seitenTrennbar, type Seite, ausBodentiefen, bodentiefen } from '../logik/regalseiten';
 import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
 import { gestelltiefe, kistenbelegung, kistenseiten, kistenzahl } from '../logik/getraenkekisten';
 import { warengruppenVon } from '../logik/warengruppenzuordnung';
@@ -2008,6 +2008,9 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
 
   const store = usePlanStore.getState();
 
+  /** Was auf jeder Seite an Bodentiefe steht – die Zahl aus dem Katalog. */
+  const boeden = bodentiefen(erstes);
+
   return (
     <>
       {mehrere && (
@@ -2073,48 +2076,64 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
             min={2}
             beiStart={beiStart}
             aendern={(tiefe) => {
+              // Wandert die Gesamttiefe, wandert die Trennlinie im gleichen
+              // Verhältnis mit. Sonst bliebe sie absolut stehen und aus einer
+              // gleichmäßigen Gondel würde beim Tieferziehen eine schiefe.
+              const geteilt =
+                erstes.beidseitig && erstes.tiefeOben && erstes.tiefe > 0
+                  ? { tiefeOben: Math.round(erstes.tiefeOben * (tiefe / erstes.tiefe) * 100) / 100 }
+                  : {};
               if (seitenverhaeltnisHalten && erstes.tiefe > 0) {
                 const faktor = tiefe / erstes.tiefe;
-                setze({ tiefe, breite: Math.round(erstes.breite * faktor * 10) / 10 });
+                setze({ tiefe, breite: Math.round(erstes.breite * faktor * 10) / 10, ...geteilt });
               } else {
-                setze({ tiefe });
+                setze({ tiefe, ...geteilt });
               }
             }}
           />
         </div>
 
-        {/* Bei einer Gondel dürfen die beiden Seiten verschieden tief sein.
-            Eingetragen wird die vordere; die hintere ist der Rest, damit das
-            Gesamtmaß dasselbe bleibt und der Auswahlrahmen stimmt. */}
+        {/* Bei einer Gondel wird **je Seite** bemaßt, nicht die Gesamttiefe
+            aufgeteilt. Man baut eine 600er Gondel und sagt dann: hinten
+            reicht mir eine 400er. Die Gesamttiefe rechnet sich daraus – bei
+            wire tech samt der toten Zone, die beide Seiten sich teilen. */}
         {erstes.beidseitig && (
           <>
             <div className="feld-zeile">
               <Massfeld
-                label="davon vordere Seite"
-                cm={erstes.tiefeOben ?? erstes.tiefe / 2}
+                label="Boden vorn"
+                cm={boeden.vorn}
                 einheit={einheit}
-                min={5}
+                min={10}
                 beiStart={beiStart}
-                titel="Wie tief die vordere Seite ist. Die hintere bekommt den Rest – die Gesamttiefe bleibt."
-                aendern={(vorn) =>
-                  setze({
-                    tiefeOben:
-                      Math.abs(vorn - erstes.tiefe / 2) < 0.05
-                        ? undefined
-                        : Math.min(erstes.tiefe - 5, Math.max(5, vorn)),
-                  })
-                }
+                titel="Die Bodentiefe der vorderen Seite – das Maß aus dem Katalog, ohne die tote Zone."
+                aendern={(vorn) => setze(ausBodentiefen(erstes.form, vorn, boeden.hinten))}
               />
-              <div className="feld">
-                <label>hintere Seite</label>
-                <div className="kennzahl-wert" style={{ padding: '6px 0' }}>
-                  {formatiereLaenge(erstes.tiefe - (erstes.tiefeOben ?? erstes.tiefe / 2), einheit)}
-                </div>
-              </div>
+              <Massfeld
+                label="Boden hinten"
+                cm={boeden.hinten}
+                einheit={einheit}
+                min={10}
+                beiStart={beiStart}
+                titel="Die Bodentiefe der hinteren Seite. Beide zusammen ergeben die Gesamttiefe."
+                aendern={(hinten) => setze(ausBodentiefen(erstes.form, boeden.vorn, hinten))}
+              />
             </div>
             <p className="hinweis" style={{ marginTop: 0, marginBottom: 8 }}>
-              Eine Gondel steht oft mit 600er Böden zur Hauptgasse und mit 400ern zur Nebengasse.
-              Die Gesamttiefe bleibt – es wandert nur die Rückwand.
+              {boeden.zone > 0 ? (
+                <>
+                  Gesamttiefe <strong>{formatiereLaenge(erstes.tiefe, einheit)}</strong> ={' '}
+                  {formatiereLaenge(boeden.vorn, einheit)} + {formatiereLaenge(boeden.hinten, einheit)} +{' '}
+                  {formatiereLaenge(boeden.zone, einheit)} tote Zone, die beide Seiten sich teilen.
+                </>
+              ) : (
+                <>
+                  Gesamttiefe <strong>{formatiereLaenge(erstes.tiefe, einheit)}</strong> – beide
+                  Seiten zusammen.
+                </>
+              )}{' '}
+              So baut man eine Gondel mit 600ern zur Hauptgasse und 400ern zur Nebengasse, ohne
+              zwei Wandregale Rücken an Rücken zu stellen.
             </p>
           </>
         )}

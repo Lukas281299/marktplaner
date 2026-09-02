@@ -1,4 +1,5 @@
 import { modulName, modulsatzFuer, satzAusAchsmass } from '../daten/module';
+import { bodentiefen, grundfelder } from './regalseiten';
 import type { PlanElement } from '../typen/modell';
 
 /**
@@ -169,11 +170,19 @@ export function bezeichnungFuer(element: PlanElement): string | undefined {
   const schrift = einheitenschrift(element);
   if (!schrift) return undefined;
 
-  // Nur was wirklich in Felder geteilt ist. `felderVon` baut für jedes Möbel
-  // ein Ersatzfeld – dabei käme ein Maß heraus, das es dort gar nicht gibt.
+  // Die Felder, notfalls aus der Grundeinteilung erschlossen.
+  //
+  // Früher zählte hier nur, was ausdrücklich eingeteilt war: `grundfelder`
+  // baut für **jedes** Möbel ein Ersatzfeld, und bei einer Kasse käme dabei
+  // ein Achsmaß heraus, das es dort nicht gibt. Seit `einheitenschrift` oben
+  // schon aussortiert, was nicht aus Einheiten gebaut ist, kann das nicht
+  // mehr passieren – und ein frisch gesetztes Regal, dessen Tiefe man
+  // ändert, bekommt seine Bezeichnung nachgezogen statt erst dann, wenn
+  // jemand einmal an den Feldern war.
   const unten = element.felderUnten ?? [];
   const oben = element.felderOben ?? [];
-  const breiten = (unten.length > 0 ? unten : oben).map((f) => f.breite).filter((b) => b > 0);
+  const eigene = (unten.length > 0 ? unten : oben).map((f) => f.breite).filter((b) => b > 0);
+  const breiten = eigene.length > 0 ? eigene : grundfelder(element).filter((b) => b > 0);
   if (breiten.length === 0) return undefined;
 
   const { kopf, rest } = zerlegeName(element.beschriftung || element.name);
@@ -181,10 +190,19 @@ export function bezeichnungFuer(element: PlanElement): string | undefined {
   // Tiefe und Höhe stehen in Millimetern und werden mitgezogen – aber nur,
   // wo sie schon in dieser einfachen Form stehen. „T1200+600“ bei Obst und
   // Gemüse meint hinten und vorn; das kann hier niemand nachrechnen.
-  const tiefeMm = Math.round((element.beidseitig ? element.tiefe / 2 : element.tiefe) * 10);
+  // Die Tiefe kommt aus den Bodentiefen und nicht aus der halben
+  // Gesamttiefe: Eine Gondel darf vorn 600 und hinten 400 haben, und dann
+  // ist „T2×500" eine Zahl, die es an diesem Möbel nirgends gibt.
+  const boeden = bodentiefen(element);
+  const mm = (cm: number) => Math.round(cm * 10);
+  const tiefeMm = element.beidseitig ? mm(boeden.vorn) : mm(element.tiefe);
+  const zweiseitig =
+    Math.abs(boeden.vorn - boeden.hinten) < 0.5
+      ? `T2×${mm(boeden.vorn)}`
+      : `T${mm(boeden.vorn)}+${mm(boeden.hinten)}`;
   const nachgezogen = (teil: string): string => {
-    if (/^T\d+$/.test(teil)) return `T${tiefeMm}`;
-    if (/^T2×\d+$/.test(teil)) return `T2×${tiefeMm}`;
+    if (/^T\d+$/.test(teil)) return element.beidseitig ? zweiseitig : `T${tiefeMm}`;
+    if (/^T2×\d+$/.test(teil)) return zweiseitig;
     const hoehe = element.hoehe ?? 0;
     if (/^H\d+$/.test(teil) && hoehe > 0) return `H${Math.round(hoehe * 10)}`;
     return teil;

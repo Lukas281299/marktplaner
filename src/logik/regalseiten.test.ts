@@ -9,7 +9,7 @@ import {
   seitenTrennbar,
   seitenbreite,
   uebernehmeBreiten,
-  vollStuecke, seitenanteil } from './regalseiten';
+  vollStuecke, seitenanteil, ausBodentiefen, bodentiefen } from './regalseiten';
 import type { PlanElement, Regalfeld } from '../typen/modell';
 
 /**
@@ -218,5 +218,40 @@ describe('Wo die Trennlinie einer Gondel liegt', () => {
   it('gilt nur für beidseitige Möbel', () => {
     // Ein Wandregal hat keine zweite Seite – die ganze Tiefe gehört ihm.
     expect(seitenanteil({ beidseitig: false, tiefe: 67, tiefeOben: 30 } as PlanElement)).toBe(1);
+  });
+});
+
+describe('Bodentiefen je Seite', () => {
+  const gondel = (zusatz: Partial<PlanElement> = {}) =>
+    ({ beidseitig: true, form: 'wt100', tiefe: 127, ...zusatz }) as PlanElement;
+
+  it('liest aus einer 600er Gondel zweimal 600 heraus', () => {
+    // 2 × 600 + 70 tote Zone = 1270 – so steht sie im Katalog.
+    const { vorn, hinten, zone } = bodentiefen(gondel());
+    expect(Math.round(vorn)).toBe(60);
+    expect(Math.round(hinten)).toBe(60);
+    expect(zone).toBe(7);
+  });
+
+  it('rechnet den Weg zurück: vorn 600, hinten 400', () => {
+    const { tiefe, tiefeOben } = ausBodentiefen('wt100', 60, 40);
+    // 600 + 400 + 70 = 1070
+    expect(tiefe).toBe(107);
+    // Die Trennlinie liegt in der Mitte der toten Zone.
+    expect(tiefeOben).toBe(63.5);
+    // Und hin und zurück ergibt wieder dieselben Böden.
+    const zurueck = bodentiefen(gondel({ tiefe, tiefeOben }));
+    expect(Math.round(zurueck.vorn)).toBe(60);
+    expect(Math.round(zurueck.hinten)).toBe(40);
+  });
+
+  it('kennt keine tote Zone, wo das System keine hat', () => {
+    // Eine beidseitige Truhe ist ein Koerper, kein Regal mit Rückwand.
+    expect(ausBodentiefen('tkTruhe', 60, 40)).toEqual({ tiefe: 100, tiefeOben: 60 });
+  });
+
+  it('gibt einem einseitigen Möbel seine ganze Tiefe', () => {
+    const wand = { beidseitig: false, form: 'wt100', tiefe: 67 } as PlanElement;
+    expect(bodentiefen(wand)).toMatchObject({ vorn: 67, hinten: 0 });
   });
 });
