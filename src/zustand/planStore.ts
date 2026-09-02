@@ -211,6 +211,7 @@ export type Werkzeug =
   | 'raumZeichnen'
   | 'foerderband'
   | 'wandZeichnen'
+  | 'elementZeichnen'
   | 'textfeld';
 
 /**
@@ -346,6 +347,15 @@ export interface PlanStore {
    * Liste durchgehen und nachsehen, ohne den Plan anzufassen.
    */
   vorschau: BibliothekEintrag | null;
+  /**
+   * Die Vorlage, deren Umriss gerade gezeichnet wird.
+   *
+   * Ein Eckstück passt selten so, wie es der Katalog führt: Zwischen zwei
+   * BakeOff-Türmen steht kein 45-Grad-Dreieck, sondern der Zwickel, der
+   * eben übrig ist. Deshalb lässt sich der Umriss vor dem Setzen zeichnen,
+   * Ecke für Ecke, statt ihn danach an den Punkten zurechtzuziehen.
+   */
+  zeichenvorlage: BibliothekEintrag | null;
   /**
    * Welche Abteilungen im Warengruppen-Reiter aufgeklappt sind.
    *
@@ -672,6 +682,10 @@ export interface PlanStore {
   schalteRechteSpalte(): void;
   /** Zeigt eine Vorlage im Eigenschaftenfenster an, ohne sie zu setzen. */
   zeigeVorlage(vorlage: BibliothekEintrag | null): void;
+  /** Beginnt, den Umriss einer Vorlage von Hand zu zeichnen. */
+  beginneUmrissZeichnen(vorlage: BibliothekEintrag): void;
+  /** Setzt die Vorlage mit dem gezeichneten Umriss in den Plan. */
+  fuegeElementAusUmrissHinzu(vorlage: BibliothekEintrag, umriss: Punkt[]): string | null;
   waehleAlle(): void;
   hebeAuswahlAuf(): void;
 
@@ -708,6 +722,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   linkerReiter: 'bibliothek',
   rechteSpalteOffen: true,
   vorschau: null,
+  zeichenvorlage: null,
   offeneAbteilungen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
@@ -2053,6 +2068,48 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   schalteRechteSpalte() {
     set((s) => ({ rechteSpalteOffen: !s.rechteSpalteOffen }));
+  },
+
+  beginneUmrissZeichnen(vorlage) {
+    set({
+      zeichenvorlage: vorlage,
+      werkzeug: 'elementZeichnen',
+      vorschau: vorlage,
+      auswahl: [],
+      sonderauswahl: null,
+    });
+  },
+
+  fuegeElementAusUmrissHinzu(vorlage, umriss) {
+    if (umriss.length < 3) return null;
+    const xs = umriss.map((p) => p.x);
+    const ys = umriss.map((p) => p.y);
+    const links = Math.min(...xs);
+    const rechts = Math.max(...xs);
+    const oben = Math.min(...ys);
+    const unten = Math.max(...ys);
+    const breite = rechts - links;
+    const tiefe = unten - oben;
+    if (breite < 1 || tiefe < 1) return null;
+
+    // Das Polygon liegt am Element **relativ zu seiner Mitte** – so wie bei
+    // jeder anderen Umrissvorlage auch. Sonst stünde das Möbel woanders als
+    // seine Form.
+    const mx = (links + rechts) / 2;
+    const my = (oben + unten) / 2;
+    const id = get().fuegeElementHinzu(
+      {
+        ...vorlage,
+        form: 'umriss',
+        breite,
+        tiefe,
+        polygon: umriss.map((p) => ({ x: p.x - mx, y: p.y - my })),
+      },
+      mx,
+      my,
+    );
+    set({ zeichenvorlage: null, vorschau: null });
+    return id;
   },
 
   zeigeVorlage(vorlage) {

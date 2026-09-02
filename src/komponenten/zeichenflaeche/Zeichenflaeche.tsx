@@ -85,7 +85,8 @@ function zeichnetZug(werkzeug: Werkzeug): boolean {
     werkzeug === 'verkaufsflaeche' ||
     werkzeug === 'raumZeichnen' ||
     werkzeug === 'foerderband' ||
-    werkzeug === 'wandZeichnen'
+    werkzeug === 'wandZeichnen' ||
+    werkzeug === 'elementZeichnen'
   );
 }
 
@@ -216,6 +217,32 @@ export function Zeichenflaeche() {
       setMeldung(
         `Förderband über ${(meter / 100).toFixed(2)} m gelegt. ` +
           `Breite und Höhe stellst du rechts ein.`,
+      );
+      return;
+    }
+
+    // Ein Möbel, dessen Umriss man selbst zieht. Gebraucht wird das bei den
+    // Eckstücken: Zwischen zwei BakeOff-Türmen steht kein 45-Grad-Dreieck,
+    // sondern der Zwickel, der eben übrig ist.
+    if (store.werkzeug === 'elementZeichnen') {
+      const vorlage = store.zeichenvorlage;
+      if (!vorlage) {
+        store.setzeWerkzeug('auswahl');
+        return;
+      }
+      if (!taugtAlsUmriss(sauber)) {
+        setMeldung('Zu wenige Ecken – ein Umriss braucht mindestens drei.');
+        return;
+      }
+      const id = store.fuegeElementAusUmrissHinzu(vorlage, sauber);
+      setZugMaus(null);
+      if (!id) {
+        setMeldung('Der Umriss hat keine Fläche – nichts angelegt.');
+        return;
+      }
+      store.setzeWerkzeug('auswahl');
+      setMeldung(
+        `${vorlage.name} mit ${sauber.length} Ecken gesetzt. Die Ecken lassen sich einzeln nachziehen.`,
       );
       return;
     }
@@ -1842,6 +1869,7 @@ function zugfarbe(werkzeug: Werkzeug): string {
   if (werkzeug === 'foerderband') return '#5b7386';
   // Der Grauton der Trennwand – man sieht beim Zeichnen schon, was entsteht.
   if (werkzeug === 'wandZeichnen') return '#66707c';
+  if (werkzeug === 'elementZeichnen') return '#b07d3a';
   if (werkzeug === 'verkaufsflaeche') return '#2ea043';
   return '#0a84ff';
 }
@@ -1913,6 +1941,11 @@ const WERKZEUG_TEXT: Record<Exclude<Werkzeug, 'auswahl'>, { titel: string; hinwe
     titel: 'Raum frei umfahren',
     hinweis:
       'Klicken setzt eine Ecke · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · Art und Name danach rechts einstellen',
+  },
+  elementZeichnen: {
+    titel: 'Möbel umfahren',
+    hinweis:
+      'Ecke für Ecke klicken · Ziehen macht daraus einen Bogen · auf die erste Ecke klicken oder Enter schließt · Rückschritt nimmt eine Ecke zurück · für Eckstücke, die keinem Katalogmaß folgen',
   },
   wandZeichnen: {
     titel: 'Wand als Fläche umfahren',

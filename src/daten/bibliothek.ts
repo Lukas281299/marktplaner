@@ -1184,6 +1184,7 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
     gruppe: 'Ecken und Abschlüsse',
   },
   { id: 'vt-eck-innen-800', name: 'O&G Eck 45° · T800', kategorie: 'obstgemuese', breite: 95.5 * ECK_ANTEIL, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-eck-frei', name: 'O&G Eckstück frei', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'umriss', farbe: OG_GRUEN, polygon: [{ x: -47.75, y: -47.75 }, { x: 47.75, y: -47.75 }, { x: 47.75, y: 47.75 }], hinweis: 'Umriss selbst zeichnen: Doppelklick, dann Ecke für Ecke setzen – für jeden Winkel, nicht nur 45°', gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-eck-innen-1200', name: 'O&G Eck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7 * ECK_ANTEIL, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN, gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges', gruppe: 'Ecken und Abschlüsse' },
@@ -1206,6 +1207,10 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'bakeoff-turm-schneider', name: 'BakeOff-Turm Brotschneider', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d0ad82', hinweis: 'Für Brotschneidemaschine – BO3.0 01.003', gruppe: 'Türme' },
   { id: 'bakeoff-turm-einzel', name: 'BakeOff-Turm einzeln', kategorie: 'backwaren', breite: 100, tiefe: 88.5, hoehe: 185.5, form: 'bakeoff', farbe: '#d8bc98', hinweis: 'Stand-Alone, freistehend – BO3.0 01.004', gruppe: 'Türme' },
   { id: 'bakeoff-ecke', name: 'BakeOff-Eckstück 45°', kategorie: 'backwaren', breite: 88.5, tiefe: 88.5, hoehe: 185.5, form: 'bakeoffEcke', farbe: '#c49a6c', hinweis: 'Füllt die Ecke, wenn die Zeile abknickt', gruppe: 'Ecken und Anbauten' },
+  // Das Eckstück zum Selberzeichnen. Der Katalog führt genau ein Dreieck
+  // mit 45 Grad; im Markt knückt die Zeile aber in dem Winkel ab, den der
+  // Raum vorgibt. Diesen Zwickel umfährt man Ecke für Ecke.
+  { id: 'bakeoff-ecke-frei', name: 'BakeOff-Eckstück frei', kategorie: 'backwaren', breite: 88.5, tiefe: 88.5, hoehe: 185.5, form: 'umriss', farbe: '#c49a6c', polygon: [{ x: -44.25, y: -44.25 }, { x: 44.25, y: -44.25 }, { x: 44.25, y: 44.25 }], hinweis: 'Umriss selbst zeichnen: Doppelklick, dann Ecke für Ecke setzen – für jeden Winkel, nicht nur 45°', gruppe: 'Ecken und Anbauten' },
   { id: 'bakeoff-ablage', name: 'Klappbare Ablage', kategorie: 'backwaren', breite: 100, tiefe: 40, hoehe: 90, form: 'rechteck', farbe: '#e8dcc8', hinweis: 'Vor der Zeile, im Plan gestrichelt', gruppe: 'Ecken und Anbauten' },
   // Das freie Element: gleiches Symbol, aber alle Maße selbst bestimmbar –
   // für Sonderbauten und für alles, was das Workbook nicht hergibt.

@@ -124,7 +124,14 @@ export function Elementbibliothek() {
    */
   const waehlen = (vorlage: BibliothekEintrag) => {
     const store = usePlanStore.getState();
-    if (store.tauschModus && store.auswahl.length > 0) store.tauscheVorlage(vorlage);
+    if (store.tauschModus && store.auswahl.length > 0) {
+      store.tauscheVorlage(vorlage);
+      return;
+    }
+    // Eine Vorlage, die nur aus einem Umriss besteht, wird nicht in die Mitte
+    // gelegt, sondern gezeichnet: Ein Eckstück passt selten so, wie es der
+    // Katalog führt – man umfährt den Zwickel, der wirklich übrig ist.
+    if (vorlage.form === 'umriss') store.beginneUmrissZeichnen(vorlage);
     else inDieMitte(vorlage);
   };
 
@@ -327,7 +334,9 @@ function Vorlage({
 }) {
   const geste = sofort
     ? 'Klicken stellt die Auswahl auf diese Vorlage um'
-    : 'Klicken zeigt die Maße rechts · auf den Plan ziehen oder Doppelklick setzt es';
+    : vorlage.form === 'umriss'
+      ? 'Klicken zeigt die Maße rechts · Doppelklick zeichnet den Umriss selbst'
+      : 'Klicken zeigt die Maße rechts · auf den Plan ziehen oder Doppelklick setzt es';
   return (
     <div
       className="vorlage"
