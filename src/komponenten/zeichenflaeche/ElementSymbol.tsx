@@ -1142,11 +1142,30 @@ export function zeichneForm(
       break;
     }
     case 'bakeoffEcke': {
-      // Das Eckstück: ein Keil, der die Lücke füllt, wenn die Zeile abknickt.
-      // Bei gleicher Breite und Tiefe steht die Schräge genau auf 45°.
-      ctx.moveTo(0, 0);
-      ctx.lineTo(b, 0);
-      ctx.lineTo(0, t);
+      // Das Eckstück: der Keil, der die Lücke füllt, wenn die Zeile abknickt.
+      //
+      // **Ein Trapez, kein Dreieck.** Ein Möbel, das auf einen Punkt zuläuft,
+      // gibt es nicht: Hinten schließt es mit voller Breite an den Turm an,
+      // vorn nimmt die Tiefe unter 45 Grad ab und lässt eine Front stehen.
+      // Dieselbe Regel wie beim Eckstück von Obst & Gemüse – zwei davon,
+      // eines je Zeile und das zweite seitenverkehrt, fasen die Ecke
+      // gemeinsam ab.
+      //
+      // Nur wenn jemand die Breite auf die volle Tiefe zieht, läuft die
+      // Front auf null und es wird doch ein Dreieck. Das ist dann seine
+      // Entscheidung und nicht die Voreinstellung.
+      const restBo = Math.max(0, t - b);
+      if (gespiegelt) {
+        ctx.moveTo(0, 0);
+        ctx.lineTo(b, 0);
+        ctx.lineTo(b, t);
+        ctx.lineTo(0, restBo);
+      } else {
+        ctx.moveTo(0, 0);
+        ctx.lineTo(b, 0);
+        ctx.lineTo(b, restBo);
+        ctx.lineTo(0, t);
+      }
       ctx.closePath();
       break;
     }
@@ -2254,7 +2273,7 @@ const MIT_STRICHEN = new Set<Grundform>([
  * ersetzen: 180 Grad vertauschen zwar links und rechts, drehen aber auch
  * vorn und hinten – die Front schaute dann zur Wand.
  */
-export const SPIEGELBAR = new Set<Grundform>(['vitableEckInnen']);
+export const SPIEGELBAR = new Set<Grundform>(['vitableEckInnen', 'bakeoffEcke']);
 
 const MIT_ACHSMASS = new Set<Grundform>([
   'rechteck',
