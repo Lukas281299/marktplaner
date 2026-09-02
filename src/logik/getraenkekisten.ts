@@ -90,15 +90,69 @@ export function kistenbelegung(
   };
 }
 
+/** Wie eine Seite eines Gestells bestückt ist. */
+export interface Kistenseite {
+  lage: Kistenlage;
+  reihen: number;
+}
+
+/** Was am Möbel über seine Kisten steht. */
+export interface Kistenangabe {
+  lage: Kistenlage;
+  reihen: number;
+  einseitig?: boolean;
+  rueckseite?: Kistenseite;
+}
+
+/**
+ * Die beiden Seiten eines Gestells, aufgelöst.
+ *
+ * `vorne` ist die Seite zur Gasse, `hinten` die dahinter – oder `null`, wenn
+ * das Gestell an der Wand steht. Fehlt die Angabe zur Rückseite, ist sie wie
+ * die Vorderseite: Das ist der Regelfall, und ihn zweimal einzutragen wäre
+ * eine Gelegenheit, sich zu widersprechen.
+ */
+export function kistenseiten(kisten?: Kistenangabe): {
+  vorne: Kistenseite;
+  hinten: Kistenseite | null;
+} {
+  const vorne: Kistenseite = {
+    lage: kisten?.lage ?? 'laengs',
+    reihen: Math.max(0, Math.round(kisten?.reihen ?? 1)),
+  };
+  if (kisten?.einseitig) return { vorne, hinten: null };
+  const roh = kisten?.rueckseite;
+  return {
+    vorne,
+    hinten: roh
+      ? { lage: roh.lage, reihen: Math.max(0, Math.round(roh.reihen)) }
+      : { ...vorne },
+  };
+}
+
+/** Wie tief die Kisten **einer** Seite bauen, in cm. */
+export function seitentiefe(seite: Kistenseite): number {
+  return seite.reihen * (seite.lage === 'laengs' ? KISTE.breite : KISTE.laenge);
+}
+
 /**
  * Die Tiefe, die ein Gestell samt Kisten im Plan einnimmt.
  *
- * Gestell in der Mitte, Kisten davor. Das ist die Zahl, die im Plan zählt:
- * Sie sagt, wie breit die Gasse daneben noch ist.
+ * Gestell dazwischen, Kisten davor und dahinter. Das ist die Zahl, die im
+ * Plan zählt: Sie sagt, wie breit die Gasse daneben noch ist. Beide Seiten
+ * werden einzeln gerechnet – sie müssen nicht gleich sein.
  */
-export function gestelltiefe(lage: Kistenlage, reihen: number, seiten: 1 | 2 = 2): number {
-  const belegung = kistenbelegung(100, lage, reihen, seiten);
-  return GESTELL_STAERKE + belegung.seitentiefe * seiten;
+export function gestelltiefe(kisten?: Kistenangabe): number {
+  const { vorne, hinten } = kistenseiten(kisten);
+  return GESTELL_STAERKE + seitentiefe(vorne) + (hinten ? seitentiefe(hinten) : 0);
+}
+
+/** Wie viele Kisten insgesamt stehen – beide Seiten zusammen. */
+export function kistenzahl(gestelllaenge: number, kisten?: Kistenangabe): number {
+  const { vorne, hinten } = kistenseiten(kisten);
+  const je = (seite: Kistenseite) =>
+    kistenbelegung(gestelllaenge, seite.lage, seite.reihen, 1).jeReihe * seite.reihen;
+  return je(vorne) + (hinten ? je(hinten) : 0);
 }
 
 /**

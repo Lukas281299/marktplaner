@@ -108,3 +108,24 @@ describe('Kisten und Kühlmöbel', () => {
     expect(stehtUeber({ art: 'kuehlmoebel', breite: 125, tiefe: 90 }, 60)).toBe(30);
   });
 });
+
+describe('Kartoffelkiste', () => {
+  it('misst 1,00 × 0,90 m', () => {
+    expect(UNTERBAUTEN.kartoffelkiste).toMatchObject({ lang: 100, kurz: 90 });
+    expect(unterbaumass({ art: 'kartoffelkiste', laengs: true })).toEqual({
+      breite: 100,
+      tiefe: 90,
+    });
+  });
+
+  it('steht vor einem 600er Möbel heraus – und sagt, wie weit', () => {
+    // Ein wt100 T600 baut 67 cm tief: 23 cm ragen in den Gang.
+    expect(stehtUeber({ art: 'kartoffelkiste', laengs: true }, 67)).toBe(23);
+    // Bei genau 60 cm Korpus sind es 30.
+    expect(stehtUeber({ art: 'kartoffelkiste', laengs: true }, 60)).toBe(30);
+  });
+
+  it('passt zweimal nebeneinander in ein 2-m-Feld', () => {
+    expect(unterbauAnzahl({ art: 'kartoffelkiste', laengs: true }, 200)).toBe(2);
+  });
+});

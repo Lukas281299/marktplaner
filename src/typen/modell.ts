@@ -296,7 +296,14 @@ export interface Unterbauplatz {
  * ist ein Gerät. Im Plan belegen sie denselben Platz und werden deshalb
  * gleich behandelt – gezeichnet wird jedes anders.
  */
-export type Unterbauart = 'euro' | 'chep' | 'halb' | 'viertel' | 'kiste' | 'kuehlmoebel';
+export type Unterbauart =
+  | 'euro'
+  | 'chep'
+  | 'halb'
+  | 'viertel'
+  | 'kiste'
+  | 'kartoffelkiste'
+  | 'kuehlmoebel';
 
 /**
  * Eine Warengruppen-Beschriftung auf einer Strecke des Möbels.
@@ -600,10 +607,22 @@ export interface PlanElement {
   kisten?: {
     /** Liegt die lange Seite der Kiste parallel zum Gestell oder quer dazu? */
     lage: 'laengs' | 'quer';
-    /** Wie viele Reihen hintereinander, je Seite. */
+    /** Wie viele Reihen hintereinander. */
     reihen: number;
     /** Nur eine Seite bestücken – so steht ein Gestell an der Wand. */
     einseitig?: boolean;
+    /**
+     * Die Rückseite, wenn sie anders bestückt ist als die Vorderseite.
+     *
+     * Der Regelfall ist, dass beide Seiten gleich aussehen – dann fehlt die
+     * Angabe und `lage`/`reihen` gelten für beide. Gleich sind sie aber
+     * nicht immer: Zur Gasse hin stehen drei Reihen quer, zur Wand hin zwei
+     * längs, weil dort weniger Platz ist. Wer das plant, plant genau das.
+     */
+    rueckseite?: {
+      lage: 'laengs' | 'quer';
+      reihen: number;
+    };
   };
   /**
    * Dürfen die beiden Seiten verschieden eingeteilt sein?

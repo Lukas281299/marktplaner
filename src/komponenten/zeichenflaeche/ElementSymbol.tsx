@@ -23,7 +23,7 @@ import {
   textImKasten,
 } from '../../logik/warengruppe';
 import { feldkanten } from '../../logik/warengruppenzuordnung';
-import { GESTELL_STAERKE, kistenbelegung } from '../../logik/getraenkekisten';
+import { GESTELL_STAERKE, kistenbelegung, kistenseiten, seitentiefe, type Kistenseite } from '../../logik/getraenkekisten';
 import { unterbauAnzahl, unterbaumass } from '../../logik/unterbau';
 import type { Grundform, PlanElement, Punkt, Regalfeld, Unterbauart } from '../../typen/modell';
 
@@ -526,6 +526,9 @@ const UNTERBAUFARBEN: Record<Unterbauart, { flaeche: string; linie: string }> = 
   halb: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
   viertel: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
   kiste: { flaeche: 'rgba(96, 122, 138, 0.34)', linie: 'rgba(46, 70, 86, 0.85)' },
+  // Orange wie im Bestandsplan – die Kartoffelkiste fällt dort auf, weil sie
+  // als einzige aus der Zeile heraussteht.
+  kartoffelkiste: { flaeche: 'rgba(230, 126, 34, 0.45)', linie: 'rgba(158, 74, 8, 0.9)' },
   kuehlmoebel: { flaeche: 'rgba(79, 151, 212, 0.34)', linie: 'rgba(30, 92, 148, 0.9)' },
 };
 
@@ -861,14 +864,12 @@ function zeichneGetraenkegestell(
   kisten: PlanElement['kisten'],
   stuetzen: number[] = [0, b],
 ): void {
-  const lage = kisten?.lage ?? 'laengs';
-  const reihen = Math.max(0, Math.round(kisten?.reihen ?? 1));
-  const seiten: 1 | 2 = kisten?.einseitig ? 1 : 2;
-  const belegung = kistenbelegung(b, lage, reihen, seiten);
+  const { vorne, hinten } = kistenseiten(kisten);
 
-  // Das Gestell liegt mittig, wenn beidseitig bestückt wird – sonst hinten,
-  // denn einseitig steht es an der Wand.
-  const gestellVon = seiten === 2 ? (t - GESTELL_STAERKE) / 2 : t - GESTELL_STAERKE;
+  // Das Gestell steht dort, wo die Vorderseite aufhört – bei zwei gleich
+  // bestückten Seiten ist das die Mitte, sonst eben nicht. Einseitig steht es
+  // hinten an der Wand.
+  const gestellVon = hinten ? seitentiefe(vorne) : t - GESTELL_STAERKE;
   const gestellBis = gestellVon + GESTELL_STAERKE;
 
   ctx.rect(0, gestellVon, b, GESTELL_STAERKE);
@@ -893,15 +894,18 @@ function zeichneGetraenkegestell(
     ctx.closePath();
   }
 
-  if (belegung.jeReihe === 0 || reihen === 0) return;
+  // Die Kisten: je Seite ein eigenes Raster, mit ihrer eigenen Lage und
+  // Reihenzahl. Sie beginnen am Gestell und wachsen nach außen – so wie sie
+  // auch gestapelt werden.
+  const seiten: { seite: Kistenseite; kante: number; richtung: 1 | -1 }[] = [
+    { seite: vorne, kante: gestellVon, richtung: -1 },
+  ];
+  if (hinten) seiten.push({ seite: hinten, kante: gestellBis, richtung: 1 });
 
-  // Die Kisten: je Seite ein Raster aus `jeReihe` × `reihen` Kästen. Sie
-  // beginnen am Gestell und wachsen nach außen – so wie sie auch gestapelt
-  // werden.
-  const richtungen: (1 | -1)[] = seiten === 2 ? [-1, 1] : [-1];
-  for (const richtung of richtungen) {
-    const kante = richtung < 0 ? gestellVon : gestellBis;
-    for (let reihe = 0; reihe < reihen; reihe++) {
+  for (const { seite, kante, richtung } of seiten) {
+    const belegung = kistenbelegung(b, seite.lage, seite.reihen, 1);
+    if (belegung.jeReihe === 0 || seite.reihen === 0) continue;
+    for (let reihe = 0; reihe < seite.reihen; reihe++) {
       const von = kante + richtung * reihe * belegung.reihentiefe;
       const bis = von + richtung * belegung.reihentiefe;
       for (let i = 0; i < belegung.jeReihe; i++) {
@@ -1059,8 +1063,9 @@ export function unterbauflaechen(element: PlanElement, b: number, t: number): Un
  *
  *  - **Palette:** der Umriss und darin die Bretter quer zur langen Seite,
  *    wie bei der Decklage einer echten Palette.
- *  - **Getränkekiste:** der Umriss und ein zweiter dicht daneben – der Rand
- *    des Kastens. So sieht ein Stapel Kisten von oben aus.
+ *  - **Getränke- und Kartoffelkiste:** der Umriss und ein zweiter dicht
+ *    daneben – der Rand des Kastens. So sieht eine Kiste von oben aus; die
+ *    Farbe sagt, welche.
  *  - **Kühlmöbel:** der Umriss und vorn eine zweite Linie für die Scheibe.
  *    Daran erkennt man, wo man hineingreift.
  *
@@ -1076,7 +1081,7 @@ function zeichneUnterbau(
   for (const f of flaechen) {
     ctx.rect(f.x, f.y, f.breite, f.tiefe);
 
-    if (f.art === 'kiste') {
+    if (f.art === 'kiste' || f.art === 'kartoffelkiste') {
       // Der Kastenrand, gut zwei Zentimeter nach innen.
       const rand = Math.min(2.5, Math.min(f.breite, f.tiefe) / 6);
       ctx.rect(f.x + rand, f.y + rand, f.breite - 2 * rand, f.tiefe - 2 * rand);

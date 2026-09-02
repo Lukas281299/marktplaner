@@ -4,8 +4,7 @@ import {
   GESTELL_STAERKE,
   gestelltiefe,
   KISTE,
-  kistenbelegung,
-} from './getraenkekisten';
+  kistenbelegung, kistenseiten, kistenzahl } from './getraenkekisten';
 
 /**
  * Prüfungen für die Getränkekisten vor dem Preisgestell.
@@ -74,24 +73,39 @@ describe('Was vor ein Gestell passt', () => {
 describe('Die Tiefe im Plan', () => {
   it('ist Gestell plus Kisten auf beiden Seiten', () => {
     // Eine Reihe längs je Seite: 6 + 30 + 30.
-    expect(gestelltiefe('laengs', 1)).toBe(GESTELL_STAERKE + 60);
+    expect(gestelltiefe({ lage: 'laengs', reihen: 1 })).toBe(GESTELL_STAERKE + 60);
   });
 
   it('wächst mit jeder Reihe – das ist der Sinn der Anzeige', () => {
     // Zwei Reihen je Seite sind 60 cm mehr, und genau so viel fehlt der Gasse.
-    expect(gestelltiefe('laengs', 2) - gestelltiefe('laengs', 1)).toBe(60);
+    expect(
+      gestelltiefe({ lage: 'laengs', reihen: 2 }) - gestelltiefe({ lage: 'laengs', reihen: 1 }),
+    ).toBe(60);
   });
 
   it('wird quer tiefer als längs', () => {
-    expect(gestelltiefe('quer', 1)).toBe(GESTELL_STAERKE + 80);
+    expect(gestelltiefe({ lage: 'quer', reihen: 1 })).toBe(GESTELL_STAERKE + 80);
   });
 
   it('ist einseitig nur halb so tief', () => {
-    expect(gestelltiefe('laengs', 1, 1)).toBe(GESTELL_STAERKE + 30);
+    expect(gestelltiefe({ lage: 'laengs', reihen: 1, einseitig: true })).toBe(
+      GESTELL_STAERKE + 30,
+    );
+  });
+
+  it('rechnet jede Seite für sich, wenn sie verschieden sind', () => {
+    // Vorn drei Reihen quer (3 × 40), hinten zwei längs (2 × 30).
+    expect(
+      gestelltiefe({
+        lage: 'quer',
+        reihen: 3,
+        rueckseite: { lage: 'laengs', reihen: 2 },
+      }),
+    ).toBe(GESTELL_STAERKE + 120 + 60);
   });
 
   it('ist ohne Kisten nur das Gestell', () => {
-    expect(gestelltiefe('laengs', 0)).toBe(GESTELL_STAERKE);
+    expect(gestelltiefe({ lage: 'laengs', reihen: 0 })).toBe(GESTELL_STAERKE);
   });
 });
 
@@ -159,5 +173,36 @@ describe('Mehrere Gestelle hintereinander', () => {
     expect(einzeln).toBe(14);
     // Am Stück: 600 / 40 = 15. Eine Kiste mehr, und keine Lücke dazwischen.
     expect(kistenbelegung(600, 'laengs', 1, 1).jeReihe).toBe(15);
+  });
+});
+
+describe('Beide Seiten einzeln', () => {
+  it('nimmt die Vorderseite für die Rückseite, wenn nichts anderes dasteht', () => {
+    const { vorne, hinten } = kistenseiten({ lage: 'quer', reihen: 2 });
+    expect(vorne).toEqual({ lage: 'quer', reihen: 2 });
+    expect(hinten).toEqual({ lage: 'quer', reihen: 2 });
+  });
+
+  it('lässt die Rückseite anders sein', () => {
+    const { vorne, hinten } = kistenseiten({
+      lage: 'quer',
+      reihen: 3,
+      rueckseite: { lage: 'laengs', reihen: 2 },
+    });
+    expect(vorne).toEqual({ lage: 'quer', reihen: 3 });
+    expect(hinten).toEqual({ lage: 'laengs', reihen: 2 });
+  });
+
+  it('hat einseitig gar keine Rückseite', () => {
+    const { hinten } = kistenseiten({ lage: 'laengs', reihen: 2, einseitig: true });
+    expect(hinten).toBeNull();
+  });
+
+  it('zählt die Kisten beider Seiten zusammen', () => {
+    // 2,00 m Gestell: vorn quer (30 breit) sind 6 je Reihe, zwei Reihen = 12.
+    // Hinten längs (40 breit) sind 5 je Reihe, eine Reihe = 5. Zusammen 17.
+    expect(
+      kistenzahl(200, { lage: 'quer', reihen: 2, rueckseite: { lage: 'laengs', reihen: 1 } }),
+    ).toBe(17);
   });
 });

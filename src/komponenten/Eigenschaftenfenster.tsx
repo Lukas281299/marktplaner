@@ -16,7 +16,7 @@ import { modulName, modulsatzFuer, satzAusAchsmass, type Modulsatz } from '../da
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
-import { gestelltiefe, kistenbelegung } from '../logik/getraenkekisten';
+import { gestelltiefe, kistenbelegung, kistenseiten, kistenzahl } from '../logik/getraenkekisten';
 import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
@@ -1581,71 +1581,114 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
 }
 
 /**
+ * Eine Seite eines Getränkegestells: Lage der Kisten und Zahl der Reihen.
+ *
+ * Zweimal dieselbe Zeile, einmal je Seite – deshalb steht sie hier und nicht
+ * zweimal ausgeschrieben im Fenster darunter. Null Reihen sind erlaubt: So
+ * lässt man eine Seite frei, ohne das ganze Gestell einseitig zu machen.
+ */
+function Kistenseitenzeile({
+  titel,
+  seite,
+  aendern,
+}: {
+  titel: string;
+  seite: { lage: 'laengs' | 'quer'; reihen: number };
+  aendern: (werte: { lage?: 'laengs' | 'quer'; reihen?: number }) => void;
+}) {
+  return (
+    <div className="feld-zeile einspaltig" style={{ marginBottom: 6 }}>
+      <div className="feld">
+        <label>{titel}</label>
+        <div className="knopfreihe" style={{ marginBottom: 4 }}>
+          {(['laengs', 'quer'] as const).map((lage) => (
+            <button
+              key={lage}
+              className={`knopf${seite.lage === lage ? ' aktiv' : ''}`}
+              style={{ flex: 1 }}
+              title={
+                lage === 'laengs'
+                  ? 'Die lange Seite der Kiste liegt am Gestell – weniger nebeneinander, dafür schmaler'
+                  : 'Die kurze Seite liegt am Gestell – mehr nebeneinander, dafür tiefer'
+              }
+              onClick={() => aendern({ lage })}
+            >
+              {lage === 'laengs' ? 'Längs' : 'Quer'}
+            </button>
+          ))}
+        </div>
+        <div className="knopfreihe" style={{ gap: 'var(--abstand-2)' }}>
+          {[0, 1, 2, 3, 4].map((n) => (
+            <button
+              key={n}
+              className={`knopf${seite.reihen === n ? ' aktiv' : ''}`}
+              style={{ flex: 1 }}
+              title={n === 0 ? 'Diese Seite bleibt leer' : `${n} Reihen hintereinander`}
+              onClick={() => aendern({ reihen: n })}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Die Kisten vor einem Getränkegestell.
  *
- * Drei Angaben, und die vierte rechnet sich: Lage der Kisten, Zahl der
- * Reihen, ein oder zwei Seiten – daraus folgt, **wie viele nebeneinander
- * passen** und **wie tief** das Ganze wird. Die Tiefe ist die Zahl, um die es
- * geht: Was hier dazukommt, fehlt der Gasse daneben.
+ * Angegeben werden Lage und Reihenzahl, der Rest rechnet sich: **wie viele
+ * nebeneinander passen** und **wie tief** das Ganze wird. Die Tiefe ist die
+ * Zahl, um die es geht – was hier dazukommt, fehlt der Gasse daneben.
+ *
+ * Beide Seiten lassen sich einzeln bestücken. Der Regelfall ist, dass sie
+ * gleich aussehen; gleich sind sie aber nicht immer. Zur Gasse hin stehen
+ * drei Reihen quer, zur Wand hin zwei längs, weil dort weniger Platz ist –
+ * und wer das plant, will es auch so eintragen können.
  */
 function Getraenkekisten({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
   const kisten = element.kisten ?? { lage: 'laengs' as const, reihen: 1 };
-  const seiten: 1 | 2 = kisten.einseitig ? 1 : 2;
-  const belegung = kistenbelegung(element.breite, kisten.lage, kisten.reihen, seiten);
-  const tiefe = gestelltiefe(kisten.lage, kisten.reihen, seiten);
+  const { vorne, hinten } = kistenseiten(kisten);
+  const getrennt = Boolean(kisten.rueckseite) && !kisten.einseitig;
+  const belegungVorne = kistenbelegung(element.breite, vorne.lage, vorne.reihen, 1);
+  const tiefe = gestelltiefe(kisten);
 
   const setze = (werte: Partial<NonNullable<PlanElement['kisten']>>) => {
     const neu = { ...kisten, ...werte };
-    const seitenNeu: 1 | 2 = neu.einseitig ? 1 : 2;
     usePlanStore.getState().schnappschuss();
     // Tiefe und Kisten in einem Zug: Die Tiefe **ist** das Ergebnis der
     // Kisten, und ein Möbel, dessen Maß nicht zu seinem Inhalt passt, wäre
     // im Plan eine falsche Angabe.
-    usePlanStore.getState().aendereElemente([element.id], {
-      kisten: neu,
-      tiefe: gestelltiefe(neu.lage, neu.reihen, seitenNeu),
-    });
+    usePlanStore.getState().aendereElemente([element.id], { kisten: neu, tiefe: gestelltiefe(neu) });
   };
 
   return (
     <div className="gruppe">
       <div className="gruppe-titel">Kisten vor dem Gestell</div>
 
-      <div className="knopfreihe" style={{ marginBottom: 6 }}>
-        {(['laengs', 'quer'] as const).map((lage) => (
-          <button
-            key={lage}
-            className={`knopf${kisten.lage === lage ? ' aktiv' : ''}`}
-            style={{ flex: 1 }}
-            title={
-              lage === 'laengs'
-                ? 'Die lange Seite der Kiste liegt am Gestell – weniger nebeneinander, dafür schmaler'
-                : 'Die kurze Seite liegt am Gestell – mehr nebeneinander, dafür tiefer'
-            }
-            onClick={() => setze({ lage })}
-          >
-            {lage === 'laengs' ? 'Längs' : 'Quer'}
-          </button>
-        ))}
-      </div>
+      <Kistenseitenzeile
+        titel={getrennt ? 'Vorderseite · Lage und Reihen' : 'Lage und Reihen (beide Seiten)'}
+        seite={vorne}
+        aendern={setze}
+      />
 
-      <div className="feld-zeile einspaltig">
-        <div className="feld">
-          <label>Reihen hintereinander (je Seite)</label>
-          <div className="knopfreihe" style={{ gap: 'var(--abstand-2)' }}>
-            {[1, 2, 3, 4].map((n) => (
-              <button
-                key={n}
-                className={`knopf${kisten.reihen === n ? ' aktiv' : ''}`}
-                style={{ flex: 1 }}
-                onClick={() => setze({ reihen: n })}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {hinten && (
+        <>
+          <Schalter
+            label="Rückseite getrennt einstellen"
+            wert={getrennt}
+            aendern={(an) => setze({ rueckseite: an ? { ...vorne } : undefined })}
+          />
+          {getrennt && (
+            <Kistenseitenzeile
+              titel="Rückseite · Lage und Reihen"
+              seite={hinten}
+              aendern={(werte) => setze({ rueckseite: { ...hinten, ...werte } })}
+            />
+          )}
+        </>
+      )}
 
       <Schalter
         label="Nur eine Seite bestücken"
@@ -1657,21 +1700,29 @@ function Getraenkekisten({ element, einheit }: { element: PlanElement; einheit: 
       </p>
 
       <div className="kennzahl">
-        <span>Kisten nebeneinander</span>
-        <span className="kennzahl-wert">{belegung.jeReihe}</span>
+        <span>Kisten nebeneinander{getrennt ? ' (vorn)' : ''}</span>
+        <span className="kennzahl-wert">{belegungVorne.jeReihe}</span>
       </div>
+      {getrennt && hinten && (
+        <div className="kennzahl">
+          <span>Kisten nebeneinander (hinten)</span>
+          <span className="kennzahl-wert">
+            {kistenbelegung(element.breite, hinten.lage, hinten.reihen, 1).jeReihe}
+          </span>
+        </div>
+      )}
       <div className="kennzahl">
         <span>Kisten insgesamt</span>
-        <span className="kennzahl-wert">{belegung.gesamt}</span>
+        <span className="kennzahl-wert">{kistenzahl(element.breite, kisten)}</span>
       </div>
       <div className="kennzahl">
         <span>Tiefe mit Kisten</span>
         <span className="kennzahl-wert">{formatiereLaenge(tiefe, einheit)}</span>
       </div>
-      {belegung.rest > 0.5 && (
+      {belegungVorne.rest > 0.5 && (
         <div className="kennzahl">
           <span>Rest am Ende</span>
-          <span className="kennzahl-wert">{formatiereLaenge(belegung.rest, einheit)}</span>
+          <span className="kennzahl-wert">{formatiereLaenge(belegungVorne.rest, einheit)}</span>
         </div>
       )}
 

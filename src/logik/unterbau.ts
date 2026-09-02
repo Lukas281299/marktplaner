@@ -10,6 +10,7 @@ import type { Unterbauart, Unterbauplatz } from '../typen/modell';
  *
  *  - **Paletten**, aus denen nachgefüllt wird
  *  - **Getränkekisten**, vor dem untersten Boden gestapelt
+ *  - eine **Kartoffelkiste**, 1,00 × 0,90 m, die vor dem Regal steht
  *  - ein **Kühlmöbel**, das in die Regalzeile eingebaut ist – eine
  *    Kühlvitrine für Backwaren etwa, über der die Drahtböden weiterlaufen
  *
@@ -33,6 +34,9 @@ export const UNTERBAUTEN: Record<
   halb: { lang: 80, kurz: 60, name: 'Halbe (Düsseldorfer)' },
   viertel: { lang: 60, kurz: 40, name: 'Viertel' },
   kiste: { lang: KISTE.laenge, kurz: KISTE.breite, name: 'Getränkekiste' },
+  // Die Kartoffelkiste steht vor dem O&G-Regal und ragt heraus: Bei einem
+  // 600er Möbel sind das gut zwei Handbreit, und genau die fehlen dem Gang.
+  kartoffelkiste: { lang: 100, kurz: 90, name: 'Kartoffelkiste' },
   // Kühlmöbel gibt es in jeder Länge. 1250 × 800 ist die Größe, die in eine
   // Regalzeile passt, ohne die Gasse zu fressen – als Anfangswert taugt sie,
   // verstellt wird sie am Feld.
