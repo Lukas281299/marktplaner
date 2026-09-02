@@ -454,6 +454,12 @@ const SAEULE_B = 11;
 const SAEULE_T = 23;
 /** Halbmesser eines Begrenzungsstandfußes. */
 const FUSS = 4;
+/** Kundenführung Classic: Verbindungsrohr Ø 40 mm. */
+const ROHR_KF = 4;
+/** Halbmesser eines Standfußes, Ø 50 mm. */
+const FUSS_KF = 2.5;
+/** Längstes Verbindungsrohr im Katalog: 2000 mm. */
+const ROHR_MAX = 200;
 
 /**
  * Die Schwenkbügel einer eGate-Anlage: wo sie sitzen und wie lang sie sind.
@@ -2030,6 +2036,25 @@ export function zeichneForm(
         ctx.lineTo(b, t);
         ctx.lineTo(0, t);
         ctx.closePath();
+      }
+      break;
+    }
+
+    case 'kundenfuehrung': {
+      // Kundenführung Classic: Standfüße mit einem Rohr dazwischen.
+      //
+      // Im Grundriss ist das ein schmaler Streifen mit einem Kreis an jedem
+      // Ende – dem Standfuß mit seiner Fußplatte. Bei einer langen Führung
+      // steht an jeder Rohrstoßstelle ein weiterer: Die Rohre gibt es bis
+      // 2000 mm, alles darüber ist zusammengesteckt, und im Plan soll man
+      // sehen, wo die Füße stehen.
+      const mitteY = t / 2;
+      ctx.rect(0, mitteY - ROHR_KF / 2, b, ROHR_KF);
+      const abstand = Math.max(1, Math.ceil(b / ROHR_MAX));
+      for (let i = 0; i <= abstand; i++) {
+        const x = Math.min(b, (b * i) / abstand);
+        ctx.moveTo(x + FUSS_KF, mitteY);
+        ctx.arc(x, mitteY, FUSS_KF, 0, Math.PI * 2);
       }
       break;
     }

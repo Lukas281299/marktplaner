@@ -1232,6 +1232,17 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'egate-doppel-1430', name: 'eGate Doppelanlage 1,43 m', kategorie: 'kassen', breite: 180, tiefe: 125.5, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Durchgang 1430 mm · Außenmaß 1800 mm · Schwenkbügel 680 mm' },
   { id: 'egate-doppel-1770', name: 'eGate Doppelanlage 1,77 m', kategorie: 'kassen', breite: 214, tiefe: 125.5, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Durchgang 1770 mm · Außenmaß 2140 mm · Schwenkbügel 850 mm · die gebräuchlichste Größe' },
   { id: 'egate-doppel-2030', name: 'eGate Doppelanlage 2,03 m', kategorie: 'kassen', breite: 240, tiefe: 125.5, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Durchgang 2030 mm · Außenmaß 2400 mm · Schwenkbügel 980 mm' },
+  // Kundenführungen Classic – die Rohre, die links und rechts neben der
+  // Anlage weiterlaufen und den Kunden in den Markt führen. Standfuß
+  // Ø 50 mm, Verbindungsrohr Ø 40, Höhe 1070; die vier Längen sind die
+  // gelieferten Rohrlängen. Längere Strecken steckt man zusammen – dann
+  // einfach die Breite ziehen, das Symbol setzt die Füße nach.
+  { id: 'kundenfuehrung-50', name: 'Kundenführung 0,50 m', kategorie: 'kassen', breite: 50, tiefe: 5, hoehe: 107, form: 'kundenfuehrung', farbe: EINGANG_ANTHRAZIT, gruppe: 'Kundenführungen', hinweis: 'Wanzl 03.06 Classic · zweirohrig · Standfuß Ø 50 mm' },
+  { id: 'kundenfuehrung-100', name: 'Kundenführung 1,00 m', kategorie: 'kassen', breite: 100, tiefe: 5, hoehe: 107, form: 'kundenfuehrung', farbe: EINGANG_ANTHRAZIT, gruppe: 'Kundenführungen', hinweis: 'Wanzl 03.06 Classic · zweirohrig · Verbindungsrohr Ø 40 mm' },
+  { id: 'kundenfuehrung-150', name: 'Kundenführung 1,50 m', kategorie: 'kassen', breite: 150, tiefe: 5, hoehe: 107, form: 'kundenfuehrung', farbe: EINGANG_ANTHRAZIT, gruppe: 'Kundenführungen', hinweis: 'Wanzl 03.06 Classic · zweirohrig' },
+  { id: 'kundenfuehrung-200', name: 'Kundenführung 2,00 m', kategorie: 'kassen', breite: 200, tiefe: 5, hoehe: 107, form: 'kundenfuehrung', farbe: EINGANG_ANTHRAZIT, gruppe: 'Kundenführungen', hinweis: 'Wanzl 03.06 Classic · zweirohrig · das längste gelieferte Rohr' },
+  { id: 'kundenfuehrung-frei', name: 'Kundenführung frei', kategorie: 'kassen', breite: 400, tiefe: 5, hoehe: 107, form: 'kundenfuehrung', farbe: EINGANG_ANTHRAZIT, gruppe: 'Kundenführungen', hinweis: 'Länge frei ziehen – alle 2,00 m setzt das Symbol einen Standfuß' },
+
   { id: 'egate-doppel-1770-zweifach', name: 'eGate Doppelanlage 1,77 m, 2-fach', kategorie: 'kassen', breite: 214, tiefe: 175, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Zwei Säulenpaare hintereinander · Nachlauf 1750 mm · höchster Schutz vor Inventurdifferenzen' },
 
   { id: 'eingangsbereich', name: 'Eingangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#d8e6c8', gruppe: 'Ein- und Ausgang' },

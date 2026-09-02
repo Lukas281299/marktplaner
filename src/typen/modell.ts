@@ -77,6 +77,7 @@ export type Grundform =
   | 'holzblende'
   | 'holzblendeU'
   | 'schiebetueranlage'
+  | 'kundenfuehrung'
   | 'egateEinzel'
   | 'egateDoppel'
   | 'foerderband'
