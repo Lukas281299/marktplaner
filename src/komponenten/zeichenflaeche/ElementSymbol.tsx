@@ -435,6 +435,50 @@ const METERFARBE = '#b3261e';
  */
 export const BLENDENSTAERKE = 8;
 
+/**
+ * Maße der Wanzl-Eingangsanlagen in cm, aus dem Kundenführungs-Katalog.
+ *
+ * Sie stehen hier und nicht in der Bibliothek, weil sie die **Zeichnung**
+ * bestimmen und nicht die Größe des Möbels: Wer eine Anlage im Plan breiter
+ * zieht, bekommt einen breiteren Durchgang – die Gehäuse, die Säulen und die
+ * Rohre bleiben, was sie sind.
+ */
+/** Breite eines SlidingDoor-Gehäuses (1000 mm). */
+const GEHAEUSE_BREITE = 100;
+/** Stärke eines Türblatts (50 mm). */
+const BLATT_STAERKE = 5;
+/** Durchmesser der Führungsrohre (Ø 50 mm). */
+const ROHR = 5;
+/** Grundriss einer eGate-Säule (110 × 230 mm). */
+const SAEULE_B = 11;
+const SAEULE_T = 23;
+/** Halbmesser eines Begrenzungsstandfußes. */
+const FUSS = 4;
+
+/**
+ * Die Schwenkbügel einer eGate-Anlage: wo sie sitzen und wie lang sie sind.
+ *
+ * Einmal gerechnet, zweimal gebraucht – für den Bügel selbst im Füllpfad und
+ * für seinen Schwenkbogen im Durchgang danach.
+ */
+export function egateBuegel(
+  form: Grundform,
+  b: number,
+): { x: number; laenge: number; richtung: 1 | -1 }[] {
+  const drehpunktLinks = ROHR + SAEULE_B;
+  const drehpunktRechts = b - ROHR - SAEULE_B;
+  if (form === 'egateDoppel') {
+    const laenge = Math.max(10, (drehpunktRechts - drehpunktLinks) / 2);
+    return [
+      { x: drehpunktLinks, laenge, richtung: 1 },
+      { x: drehpunktRechts - laenge, laenge, richtung: -1 },
+    ];
+  }
+  return [
+    { x: drehpunktLinks, laenge: Math.max(10, drehpunktRechts - drehpunktLinks), richtung: 1 },
+  ];
+}
+
 /** Wie breit ein Trefferbereich auf dem Bildschirm mindestens sein soll. */
 const GRIFF_MINDESTBREITE = 11;
 
@@ -1932,6 +1976,69 @@ export function zeichneForm(
       break;
     }
 
+    case 'schiebetueranlage': {
+      // SlidingDoor: zwei Gehäuse, dazwischen der Durchgang. Die beiden
+      // Türblätter fahren in die Gehäuse hinein – die Pfeile zeigen, wohin.
+      //
+      // Die Gehäuse sind im Katalog 1000 mm breit; bei einer schmaler
+      // gezogenen Anlage schrumpfen sie mit, damit der Durchgang nicht
+      // verschwindet.
+      const gehaeuse = Math.min(GEHAEUSE_BREITE, b / 3);
+      ctx.rect(0, 0, gehaeuse, t);
+      ctx.rect(b - gehaeuse, 0, gehaeuse, t);
+
+      const durchgang = b - 2 * gehaeuse;
+      const blatt = durchgang / 2 - 1;
+      const oben = t / 2 - BLATT_STAERKE / 2;
+      ctx.rect(gehaeuse, oben, blatt, BLATT_STAERKE);
+      ctx.rect(b - gehaeuse - blatt, oben, blatt, BLATT_STAERKE);
+
+      // Die Fahrtrichtung: zwei Spitzen, die auseinanderzeigen.
+      const mitte = t / 2;
+      const spitze = Math.min(8, durchgang / 6);
+      for (const [x, richtung] of [
+        [gehaeuse + blatt * 0.55, -1],
+        [b - gehaeuse - blatt * 0.55, 1],
+      ] as const) {
+        ctx.moveTo(x + richtung * spitze, mitte - spitze * 0.6);
+        ctx.lineTo(x, mitte);
+        ctx.lineTo(x + richtung * spitze, mitte + spitze * 0.6);
+      }
+      break;
+    }
+
+    case 'egateEinzel':
+    case 'egateDoppel': {
+      // eGate: vorn die Säulen mit den Schwenkbügeln, dahinter die
+      // Führungsrohre – zwei Holme an den Seiten, hinten verbunden. Die
+      // Rohre sind das, was im Markt den Weg vorgibt; ohne sie wäre die
+      // Anlage im Plan nur ein Kasten.
+      ctx.rect(0, 0, ROHR, t);
+      ctx.rect(b - ROHR, 0, ROHR, t);
+      ctx.rect(ROHR, t - ROHR, Math.max(0, b - 2 * ROHR), ROHR);
+
+      const linkeSaeule = ROHR;
+      const rechteSaeule = b - ROHR - SAEULE_B;
+      ctx.rect(linkeSaeule, 0, SAEULE_B, SAEULE_T);
+
+      // Der Schwenkbügel im geschlossenen Zustand: ein Rohr quer im
+      // Durchgang. Sein Weg beim Öffnen kommt als Bogen hinterher – der
+      // gehört nicht in den Füllpfad, sonst wäre er eine graue Sichel.
+      for (const arm of egateBuegel(form, b)) {
+        ctx.rect(arm.x, SAEULE_T / 2 - ROHR / 2, arm.laenge, ROHR);
+      }
+
+      if (form === 'egateDoppel') {
+        ctx.rect(rechteSaeule, 0, SAEULE_B, SAEULE_T);
+      } else {
+        // Einzelanlage: gegenüber steht nur ein Begrenzungsstandfuß.
+        const fussX = rechteSaeule + SAEULE_B / 2;
+        ctx.moveTo(fussX + FUSS, SAEULE_T / 2);
+        ctx.arc(fussX, SAEULE_T / 2, FUSS, 0, Math.PI * 2);
+      }
+      break;
+    }
+
     case 'rechteck':
     default:
       ctx.rect(0, 0, b, t);
@@ -2395,6 +2502,33 @@ export function ElementSymbol({
           ctx.setAttr('lineWidth', 1 / zoom);
           ctx.beginPath();
           zeichnePaletten(ctx, paletten, ersteSeite?.laengs ?? true, element.beidseitig ? t / 2 : t);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // 1c. Der Schwenkweg der eGate-Bügel – als Linie, nicht als Fläche.
+        //     Er zeigt, wie weit der Bügel in den Markt ausschwenkt, so wie
+        //     der Anschlagbogen an einer Tür.
+        if (element.form === 'egateEinzel' || element.form === 'egateDoppel') {
+          ctx.save();
+          ctx.setAttr('strokeStyle', 'rgba(45, 55, 68, 0.45)');
+          ctx.setAttr('lineWidth', 1 / zoom);
+          ctx.beginPath();
+          for (const arm of egateBuegel(element.form, b)) {
+            const drehX = arm.richtung > 0 ? arm.x : arm.x + arm.laenge;
+            const drehY = SAEULE_T / 2;
+            ctx.moveTo(drehX, drehY);
+            ctx.lineTo(drehX, drehY + arm.laenge);
+            ctx.moveTo(drehX + arm.richtung * arm.laenge, drehY);
+            ctx.arc(
+              drehX,
+              drehY,
+              arm.laenge,
+              arm.richtung > 0 ? 0 : Math.PI,
+              Math.PI / 2,
+              arm.richtung < 0,
+            );
+          }
           ctx.stroke();
           ctx.restore();
         }

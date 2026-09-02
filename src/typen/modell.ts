@@ -76,6 +76,9 @@ export type Grundform =
   | 'kastenablage'
   | 'holzblende'
   | 'holzblendeU'
+  | 'schiebetueranlage'
+  | 'egateEinzel'
+  | 'egateDoppel'
   | 'foerderband'
   /**
    * Eine Aktions- oder Saisonfläche: eine Zone, kein Möbel.

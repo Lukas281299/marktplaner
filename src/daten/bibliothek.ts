@@ -785,6 +785,14 @@ const HOLZ_EICHE = '#cda274';
 const METALL_SILBER = '#b8c0c8';
 
 /**
+ * Anthrazit für die Eingangsanlagen.
+ *
+ * Wanzl liefert Säulen und Gehäuse serienmäßig in RAL 7016; im Plan etwas
+ * aufgehellt, damit die Beschriftung darauf lesbar bleibt.
+ */
+const EINGANG_ANTHRAZIT = '#8f9aa4';
+
+/**
  * Die Blumen- und Pflanzenmöbel von CMS Metasys.
  *
  * Alle Maße stammen von den Produktseiten des Herstellers (Kategorie
@@ -1207,6 +1215,20 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   ...kassenEintraege(),
   { id: 'kassentisch', name: 'Kassentisch', kategorie: 'kassen', breite: 200, tiefe: 80, hoehe: 90, form: 'rechteck', farbe: KASSE_SAND, gruppe: 'Übriges' },
   { id: 'kassensperre', name: 'Kassensperre', kategorie: 'kassen', breite: 100, tiefe: 15, hoehe: 100, form: 'linie', farbe: '#c9b47a', gruppe: 'Übriges' },
+  // Eingangsanlagen von Wanzl. Die Maße stammen aus dem Katalog
+  // Kundenführungen: SlidingDoor 01.01 und eGate 01.04, samt der
+  // Installationsmaße von den Serviceseiten. Angegeben ist die Fläche,
+  // die die Anlage im Grundriss wirklich belegt – beim eGate also
+  // einschließlich der Führungsrohre im Nachlauf.
+  { id: 'slidingdoor-900', name: 'SlidingDoor 0,90 m', kategorie: 'kassen', breite: 290, tiefe: 15, hoehe: 118, form: 'schiebetueranlage', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.01 · Durchgang 900 mm · Außenmaß 2900 mm · Gehäuse je 1000 mm' },
+  { id: 'slidingdoor-1200', name: 'SlidingDoor 1,20 m', kategorie: 'kassen', breite: 320, tiefe: 15, hoehe: 118, form: 'schiebetueranlage', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.01 · Durchgang 1200 mm · Außenmaß 3200 mm · die Standardausführung' },
+  { id: 'egate-einzel-870', name: 'eGate Einzelanlage 0,87 m', kategorie: 'kassen', breite: 120, tiefe: 125.5, hoehe: 133.2, form: 'egateEinzel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Schwenkbügel 850 mm · Durchgang 870 mm · Nachlauf 1255 mm' },
+  { id: 'egate-einzel-1000', name: 'eGate Einzelanlage 1,00 m', kategorie: 'kassen', breite: 133, tiefe: 125.5, hoehe: 133.2, form: 'egateEinzel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Schwenkbügel 980 mm · Nachlauf 1255 mm' },
+  { id: 'egate-doppel-1430', name: 'eGate Doppelanlage 1,43 m', kategorie: 'kassen', breite: 180, tiefe: 125.5, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Durchgang 1430 mm · Außenmaß 1800 mm · Schwenkbügel 680 mm' },
+  { id: 'egate-doppel-1770', name: 'eGate Doppelanlage 1,77 m', kategorie: 'kassen', breite: 214, tiefe: 125.5, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Durchgang 1770 mm · Außenmaß 2140 mm · Schwenkbügel 850 mm · die gebräuchlichste Größe' },
+  { id: 'egate-doppel-2030', name: 'eGate Doppelanlage 2,03 m', kategorie: 'kassen', breite: 240, tiefe: 125.5, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Wanzl 01.04 · Durchgang 2030 mm · Außenmaß 2400 mm · Schwenkbügel 980 mm' },
+  { id: 'egate-doppel-1770-zweifach', name: 'eGate Doppelanlage 1,77 m, 2-fach', kategorie: 'kassen', breite: 214, tiefe: 175, hoehe: 133.2, form: 'egateDoppel', farbe: EINGANG_ANTHRAZIT, gruppe: 'Eingangsanlagen', hinweis: 'Zwei Säulenpaare hintereinander · Nachlauf 1750 mm · höchster Schutz vor Inventurdifferenzen' },
+
   { id: 'eingangsbereich', name: 'Eingangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#d8e6c8', gruppe: 'Ein- und Ausgang' },
   { id: 'ausgangsbereich', name: 'Ausgangsbereich', kategorie: 'kassen', breite: 300, tiefe: 200, hoehe: 0, form: 'zugang', farbe: '#e6d8c8', gruppe: 'Ein- und Ausgang' },
   { id: 'einkaufswagenbox', name: 'Einkaufswagenbox', kategorie: 'kassen', breite: 200, tiefe: 120, hoehe: 100, form: 'wagenbox', farbe: '#dfe3e6', gruppe: 'Ein- und Ausgang' },
