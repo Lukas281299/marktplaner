@@ -12,8 +12,7 @@ import {
   gleicheEinteilung,
   ohneLuecke,
   seitenbreite,
-  vollStuecke,
-} from '../../logik/regalseiten';
+  vollStuecke, seitenanteil } from '../../logik/regalseiten';
 import {
   GRUPPE_GROESSEN,
   GRUPPE_NORMAL,
@@ -329,11 +328,12 @@ export function zeichneFeldnotizen(
   const faktor = seitenFaktor(b, oben, unten);
   const masse = masszeilen(element);
 
-  const hoehe = element.beidseitig ? t / 2 : t;
+  const mitte = seitenanteil(element) * t;
+  const hoehe = element.beidseitig ? mitte : t;
   const baender = element.beidseitig
     ? [
         { felder: oben, von: 0 },
-        { felder: unten, von: t / 2 },
+        { felder: unten, von: mitte },
       ]
     : [{ felder: unten, von: 0 }];
 
@@ -1026,11 +1026,12 @@ export function unterbauflaechen(element: PlanElement, b: number, t: number): Un
   const unten = felderVon(element, 'unten');
   const oben = element.beidseitig ? felderVon(element, 'oben') : [];
   const faktor = seitenFaktor(b, oben, unten);
-  const hoehe = element.beidseitig ? t / 2 : t;
+  const mitte = seitenanteil(element) * t;
+  const hoehe = element.beidseitig ? mitte : t;
   const baender = element.beidseitig
     ? [
         { felder: oben, von: 0 },
-        { felder: unten, von: t / 2 },
+        { felder: unten, von: mitte },
       ]
     : [{ felder: unten, von: 0 }];
 
@@ -1130,6 +1131,8 @@ export function zeichneForm(
   felderOben?: Regalfeld[],
   kisten?: PlanElement['kisten'],
   stuetzen?: number[],
+  /** Wo die Trennlinie eines beidseitigen Möbels liegt, als Anteil der Tiefe. */
+  anteil = 0.5,
 ) {
   switch (form) {
     case 'abgerundet': {
@@ -1446,8 +1449,10 @@ export function zeichneForm(
       // immer braucht. Ein Regal mit 600er Boden ist deshalb 670 tief. Bei
       // der Gondel teilen sich beide Seiten diese Zone, sie liegt dort in
       // der Mitte und zählt nur einmal: 2 × 600 + 70 = 1270, nicht 1340.
+      // Die tote Zone liegt um die Trennlinie herum – mittig, solange beide
+      // Seiten gleich tief sind, und sonst dort, wo die Trennlinie ist.
       const zone = Math.min(TOTE_ZONE, t / 2);
-      const zoneVon = beidseitig ? (t - zone) / 2 : 0;
+      const zoneVon = beidseitig ? Math.max(0, Math.min(t - zone, anteil * t - zone / 2)) : 0;
 
       // Ohne Liste wird gleichmäßig nach Achsmaß geteilt – so wurde bis
       // dahin jeder Zug gezeichnet, und für eine ältere Planung ist das die
@@ -1559,10 +1564,13 @@ export function zeichneForm(
       // einer Gondel – die Umrisse sehen sonst gleich aus.
       ctx.rect(0, 0, b, t);
       if (beidseitig) {
-        ctx.moveTo(0, t * 0.47);
-        ctx.lineTo(b, t * 0.47);
-        ctx.moveTo(0, t * 0.53);
-        ctx.lineTo(b, t * 0.53);
+        // Zwei Striche um die Trennlinie: die beiden Rückwände, die dort
+        // aneinanderstoßen. Sie wandern mit, wenn eine Seite tiefer ist.
+        const rueck = t * anteil;
+        ctx.moveTo(0, rueck - t * 0.03);
+        ctx.lineTo(b, rueck - t * 0.03);
+        ctx.moveTo(0, rueck + t * 0.03);
+        ctx.lineTo(b, rueck + t * 0.03);
       } else {
         ctx.moveTo(0, t * 0.14);
         ctx.lineTo(b, t * 0.14);
@@ -2553,6 +2561,7 @@ export function ElementSymbol({
           element.beidseitig ? felderVon(element, 'oben') : undefined,
           element.kisten,
           gestellstuetzen(element, b),
+          seitenanteil(element),
         );
         // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
         // die ganze Tiefe – so wie beim Regalzug.

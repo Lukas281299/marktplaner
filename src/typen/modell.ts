@@ -640,6 +640,21 @@ export interface PlanElement {
    */
   seitenGetrennt?: boolean;
   /**
+   * Wie tief die **obere** Seite eines beidseitigen Möbels ist, in cm.
+   *
+   * Normalerweise teilen sich die beiden Seiten die Tiefe genau zur Hälfte,
+   * und dann fehlt diese Angabe. Gleich tief sind sie aber nicht immer: Eine
+   * Gondel steht mit 600er Böden zur Hauptgasse und mit 400ern zur
+   * Nebengasse, weil dort weniger Platz ist. Im Plan macht das den
+   * Unterschied zwischen einer Gasse, durch die ein Wagen passt, und einer,
+   * durch die keiner passt.
+   *
+   * `tiefe` bleibt das Gesamtmaß – daran hängen Fläche, Auswahlrahmen und
+   * alles andere. Verschoben wird nur die Trennlinie: Die untere Seite ist
+   * `tiefe - tiefeOben` tief.
+   */
+  tiefeOben?: number;
+  /**
    * Tiefe des untersten Bodens in cm.
    *
    * Bei einem Kühlmöbel der Boden, auf dem die schwere Ware steht – das

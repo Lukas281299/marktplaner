@@ -164,3 +164,20 @@ export function vollStuecke(felder: Regalfeld[]): { von: number; bis: number }[]
 export function uebernehmeBreiten(alt: Regalfeld[], breiten: number[]): Regalfeld[] {
   return breiten.map((breite, i) => ({ ...alt[i], breite }));
 }
+
+/**
+ * Wo die Trennlinie eines beidseitigen Möbels liegt – als Anteil der Tiefe.
+ *
+ * Ohne eigene Angabe genau in der Mitte. Wer die eine Seite tiefer macht als
+ * die andere, verschiebt sie: Eine Gondel mit 600er Böden zur Hauptgasse und
+ * 400ern zur Nebengasse hat ihre Rückwand nicht in der Mitte.
+ *
+ * Als **Anteil** und nicht in Zentimetern, weil die Zeichnung im Bildmaß
+ * rechnet: Dort ist die Tiefe `t`, und die Trennlinie liegt bei `anteil * t`.
+ */
+export function seitenanteil(element: Pick<PlanElement, 'beidseitig' | 'tiefe' | 'tiefeOben'>): number {
+  if (!element.beidseitig) return 1;
+  const oben = element.tiefeOben;
+  if (!oben || oben <= 0 || oben >= element.tiefe || element.tiefe <= 0) return 0.5;
+  return oben / element.tiefe;
+}

@@ -9,8 +9,7 @@ import {
   seitenTrennbar,
   seitenbreite,
   uebernehmeBreiten,
-  vollStuecke,
-} from './regalseiten';
+  vollStuecke, seitenanteil } from './regalseiten';
 import type { PlanElement, Regalfeld } from '../typen/modell';
 
 /**
@@ -194,5 +193,30 @@ describe('Neue Breiten übernehmen', () => {
   it('nimmt die Lücke mit', () => {
     const alt: Regalfeld[] = [{ breite: 100 }, { breite: 100, leer: true }];
     expect(uebernehmeBreiten(alt, [125, 125])[1]).toEqual({ breite: 125, leer: true });
+  });
+});
+
+describe('Wo die Trennlinie einer Gondel liegt', () => {
+  const gondel = (zusatz: Partial<PlanElement> = {}) =>
+    ({ beidseitig: true, tiefe: 127, ...zusatz }) as PlanElement;
+
+  it('liegt ohne Angabe genau in der Mitte', () => {
+    expect(seitenanteil(gondel())).toBe(0.5);
+  });
+
+  it('wandert mit, wenn eine Seite tiefer ist', () => {
+    // 600er Böden vorn, 400er hinten: 67 von 107 cm.
+    expect(seitenanteil(gondel({ tiefe: 107, tiefeOben: 67 }))).toBeCloseTo(67 / 107, 6);
+  });
+
+  it('lässt sich nicht über den Rand hinausschieben', () => {
+    expect(seitenanteil(gondel({ tiefeOben: 0 }))).toBe(0.5);
+    expect(seitenanteil(gondel({ tiefeOben: 127 }))).toBe(0.5);
+    expect(seitenanteil(gondel({ tiefeOben: -20 }))).toBe(0.5);
+  });
+
+  it('gilt nur für beidseitige Möbel', () => {
+    // Ein Wandregal hat keine zweite Seite – die ganze Tiefe gehört ihm.
+    expect(seitenanteil({ beidseitig: false, tiefe: 67, tiefeOben: 30 } as PlanElement)).toBe(1);
   });
 });

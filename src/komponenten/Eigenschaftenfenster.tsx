@@ -2106,6 +2106,43 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
             }}
           />
         </div>
+
+        {/* Bei einer Gondel dürfen die beiden Seiten verschieden tief sein.
+            Eingetragen wird die vordere; die hintere ist der Rest, damit das
+            Gesamtmaß dasselbe bleibt und der Auswahlrahmen stimmt. */}
+        {erstes.beidseitig && (
+          <>
+            <div className="feld-zeile">
+              <Massfeld
+                label="davon vordere Seite"
+                cm={erstes.tiefeOben ?? erstes.tiefe / 2}
+                einheit={einheit}
+                min={5}
+                beiStart={beiStart}
+                titel="Wie tief die vordere Seite ist. Die hintere bekommt den Rest – die Gesamttiefe bleibt."
+                aendern={(vorn) =>
+                  setze({
+                    tiefeOben:
+                      Math.abs(vorn - erstes.tiefe / 2) < 0.05
+                        ? undefined
+                        : Math.min(erstes.tiefe - 5, Math.max(5, vorn)),
+                  })
+                }
+              />
+              <div className="feld">
+                <label>hintere Seite</label>
+                <div className="kennzahl-wert" style={{ padding: '6px 0' }}>
+                  {formatiereLaenge(erstes.tiefe - (erstes.tiefeOben ?? erstes.tiefe / 2), einheit)}
+                </div>
+              </div>
+            </div>
+            <p className="hinweis" style={{ marginTop: 0, marginBottom: 8 }}>
+              Eine Gondel steht oft mit 600er Böden zur Hauptgasse und mit 400ern zur Nebengasse.
+              Die Gesamttiefe bleibt – es wandert nur die Rückwand.
+            </p>
+          </>
+        )}
+
         <div className="feld-zeile">
           <Massfeld
             label="Höhe"
