@@ -21,7 +21,13 @@ import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
-import { PALETTEN, palettenAnzahl, palettenmass, stehtUeber } from '../logik/paletten';
+import {
+  UNTERBAUTEN,
+  freiesMass,
+  stehtUeber,
+  unterbauAnzahl,
+  unterbaumass,
+} from '../logik/unterbau';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel, flaechenwandmasse } from '../logik/waende';
 import type {
@@ -31,8 +37,8 @@ import type {
   Masslinie,
   Oeffnung,
   Oeffnungsart,
-  Palettenart,
-  Palettenplatz,
+  Unterbauart,
+  Unterbauplatz,
   PlanElement,
   Raum,
   Raumart,
@@ -990,16 +996,16 @@ function Seitenaufteilung({
                 ))}
               </select>
               <button
-                className={`knopf knopf-nur-symbol${feld.palette ? ' aktiv' : ''}`}
+                className={`knopf knopf-nur-symbol${feld.unterbau ? ' aktiv' : ''}`}
                 disabled={feld.leer}
                 title={
-                  feld.palette
-                    ? `${PALETTEN[feld.palette.art].name} unter den Böden – anklicken nimmt sie weg`
-                    : 'Eine Palette unter die Böden stellen. Art und Lage danach unten einstellen.'
+                  feld.unterbau
+                    ? `${UNTERBAUTEN[feld.unterbau.art].name} unter den Böden – anklicken nimmt es weg`
+                    : 'Etwas unter die Böden stellen: Palette, Getränkekisten oder ein Kühlmöbel. Art und Lage danach unten einstellen.'
                 }
                 onClick={() =>
                   aendereFeld(i, {
-                    palette: feld.palette ? undefined : { art: 'halb', laengs: true },
+                    unterbau: feld.unterbau ? undefined : { art: 'halb', laengs: true },
                   })
                 }
               >
@@ -1044,14 +1050,14 @@ function Seitenaufteilung({
               </button>
             </div>
 
-            {/* Die Palette unter den Böden: Art, Lage, wie viele. */}
-            {feld.palette && !feld.leer && (
-              <Palettenzeile
-                platz={feld.palette}
+            {/* Was unter den Böden steht: Art, Lage, wie viele. */}
+            {feld.unterbau && !feld.leer && (
+              <Unterbauzeile
+                platz={feld.unterbau}
                 feldbreite={feld.breite}
                 moebeltiefe={element.tiefe}
                 einheit={einheit}
-                aendern={(werte) => aendereFeld(i, { palette: { ...feld.palette!, ...werte } })}
+                aendern={(werte) => aendereFeld(i, { unterbau: { ...feld.unterbau!, ...werte } })}
               />
             )}
 
@@ -1326,31 +1332,37 @@ function Warengruppenliste() {
 }
 
 /**
- * Die Palette unter einem Regalfeld: Art, Lage, Anzahl.
+ * Was unter einem Regalfeld steht: Art, Lage, Anzahl.
+ *
+ * Eine Zeile für drei Dinge, weil es im Plan dieselbe Frage ist: Was belegt
+ * den Platz unter den Böden? Die Paletten und die Getränkekiste haben ein
+ * Normmaß und werden nur gedreht und gezählt. Das Kühlmöbel hat keines –
+ * dort stehen Breite und Tiefe zum Eintragen, und es steht immer einzeln.
  *
  * Wie viele hineinpassen, rechnet die Anwendung aus – wer ein 2,50-m-Feld
  * mit Viertelpaletten belegt, will nicht abzählen. Festlegen lässt sich die
  * Zahl trotzdem, denn manchmal soll eben nur eine dort stehen.
  *
- * Steht die Palette tiefer als das Möbel, sagt es die Zeile: Im Markt stellt
- * man sie trotzdem hin, aber man will wissen, wie weit sie in den Gang ragt.
+ * Steht etwas tiefer als das Möbel, sagt es die Zeile: Im Markt stellt man
+ * es trotzdem hin, aber man will wissen, wie weit es in den Gang ragt.
  */
-function Palettenzeile({
+function Unterbauzeile({
   platz,
   feldbreite,
   moebeltiefe,
   einheit,
   aendern,
 }: {
-  platz: Palettenplatz;
+  platz: Unterbauplatz;
   feldbreite: number;
   moebeltiefe: number;
   einheit: Massinheit;
-  aendern: (werte: Partial<Palettenplatz>) => void;
+  aendern: (werte: Partial<Unterbauplatz>) => void;
 }) {
+  const frei = freiesMass(platz.art);
   const laengs = platz.laengs ?? true;
-  const mass = palettenmass(platz.art, laengs);
-  const passen = palettenAnzahl({ ...platz, anzahl: undefined }, feldbreite);
+  const mass = unterbaumass(platz);
+  const passen = unterbauAnzahl({ ...platz, anzahl: undefined }, feldbreite);
   const ueber = stehtUeber(platz, moebeltiefe);
 
   return (
@@ -1358,38 +1370,66 @@ function Palettenzeile({
       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
         <select
           value={platz.art}
-          onChange={(e) => aendern({ art: e.target.value as Palettenart })}
-          title="Welche Palette"
+          onChange={(e) => aendern({ art: e.target.value as Unterbauart })}
+          title="Was steht unter den Böden?"
         >
-          {(Object.keys(PALETTEN) as Palettenart[]).map((art) => (
+          {(Object.keys(UNTERBAUTEN) as Unterbauart[]).map((art) => (
             <option key={art} value={art}>
-              {PALETTEN[art].name} · {PALETTEN[art].lang}×{PALETTEN[art].kurz}
+              {UNTERBAUTEN[art].name}
+              {UNTERBAUTEN[art].frei
+                ? ''
+                : ` · ${UNTERBAUTEN[art].lang}×${UNTERBAUTEN[art].kurz}`}
             </option>
           ))}
         </select>
-        <button
-          className="knopf"
-          onClick={() => aendern({ laengs: !laengs })}
-          title="Liegt die lange Seite parallel zur Regalfront?"
-        >
-          {laengs ? 'längs' : 'quer'}
-        </button>
-        <select
-          value={String(platz.anzahl ?? 0)}
-          onChange={(e) => {
-            const n = Number(e.target.value);
-            aendern({ anzahl: n === 0 ? undefined : n });
-          }}
-          title="Wie viele nebeneinander"
-        >
-          <option value="0">{passen}× (so viel wie passt)</option>
-          {[1, 2, 3, 4].map((n) => (
-            <option key={n} value={String(n)}>
-              {n}×
-            </option>
-          ))}
-        </select>
+        {!frei && (
+          <>
+            <button
+              className="knopf"
+              onClick={() => aendern({ laengs: !laengs })}
+              title="Liegt die lange Seite parallel zur Regalfront?"
+            >
+              {laengs ? 'längs' : 'quer'}
+            </button>
+            <select
+              value={String(platz.anzahl ?? 0)}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                aendern({ anzahl: n === 0 ? undefined : n });
+              }}
+              title="Wie viele nebeneinander"
+            >
+              <option value="0">{passen}× (so viel wie passt)</option>
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <option key={n} value={String(n)}>
+                  {n}×
+                </option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
+
+      {/* Ein Kühlmöbel hat kein Normmaß: Breite und Tiefe trägt man ein. */}
+      {frei && (
+        <div className="feld-zeile">
+          <Massfeld
+            label="Breite"
+            cm={mass.breite}
+            einheit={einheit}
+            min={20}
+            aendern={(breite) => aendern({ breite })}
+          />
+          <Massfeld
+            label="Tiefe"
+            cm={mass.tiefe}
+            einheit={einheit}
+            min={20}
+            aendern={(tiefe) => aendern({ tiefe })}
+          />
+        </div>
+      )}
+
       <span className="hinweis" style={{ fontSize: '0.85em' }}>
         {formatiereLaenge(mass.breite, einheit)} breit, {formatiereLaenge(mass.tiefe, einheit)} tief
         {ueber > 0 && (
@@ -1403,14 +1443,6 @@ function Palettenzeile({
   );
 }
 
-/**
- * Bandbreite und Eckradius eines Förderbands.
- *
- * Beides ist am Modul festgelegt und nicht am Plan: Eine Rollenbahn ist
- * 400 mm breit oder 600, und in der Ecke sitzt ein Kurvenmodul mit einem
- * Radius. Deshalb Zahlen und Regler statt Aufziehen – aufgezogen wird die
- * Route, nicht das Profil.
- */
 function Foerderbandfelder({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
   const beiStart = () => usePlanStore.getState().schnappschuss();
   const setze = (werte: Partial<PlanElement>) =>

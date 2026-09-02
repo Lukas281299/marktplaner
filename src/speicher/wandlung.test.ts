@@ -572,3 +572,52 @@ describe('Fassung 17 · Bezeichnungen nachziehen', () => {
     expect(neu.elemente[0].beschriftung).toBe('Einzelstehkasse · Band 1500 mm');
   });
 });
+
+describe('Fassung 18 · Aus der Palette wird der Unterbau', () => {
+  const mitFeldern = (felder: unknown[]) =>
+    alteFassung({
+      version: 17,
+      waende: [],
+      oeffnungen: [],
+      elemente: [
+        {
+          id: 'el1',
+          vorlageId: 'wt100',
+          ebeneId: 'einrichtung',
+          name: 'Wandregal',
+          beschriftung: 'Wandregal',
+          kategorie: 'regale',
+          form: 'wt100',
+          x: 500,
+          y: 500,
+          breite: 250,
+          tiefe: 70,
+          hoehe: 220,
+          drehung: 0,
+          farbe: WT_GRAU,
+          gesperrt: false,
+          reihenfolge: 1,
+          beschriftungSichtbar: true,
+          schriftgroesse: 12,
+          felderUnten: felder,
+        },
+      ],
+    });
+
+  it('nimmt die Palette mit unter ihren neuen Namen', () => {
+    const neu = wandleProjekt(
+      mitFeldern([{ breite: 125, palette: { art: 'euro', laengs: false } }, { breite: 125 }]),
+    );
+    const felder = neu.elemente[0].felderUnten!;
+    expect(felder[0].unterbau).toEqual({ art: 'euro', laengs: false });
+    expect((felder[0] as { palette?: unknown }).palette).toBeUndefined();
+    // Und ein Feld ohne Palette bleibt eines ohne Unterbau.
+    expect(felder[1].unterbau).toBeUndefined();
+  });
+
+  it('lässt ein Möbel ohne Paletten in Ruhe', () => {
+    const neu = wandleProjekt(mitFeldern([{ breite: 125 }, { breite: 125 }]));
+    expect(neu.elemente[0].felderUnten).toHaveLength(2);
+    expect(neu.elemente[0].felderUnten!.every((f) => !f.unterbau)).toBe(true);
+  });
+});

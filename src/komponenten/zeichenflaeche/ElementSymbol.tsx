@@ -24,8 +24,8 @@ import {
 } from '../../logik/warengruppe';
 import { feldkanten } from '../../logik/warengruppenzuordnung';
 import { GESTELL_STAERKE, kistenbelegung } from '../../logik/getraenkekisten';
-import { palettenAnzahl, palettenmass } from '../../logik/paletten';
-import type { Grundform, PlanElement, Punkt, Regalfeld } from '../../typen/modell';
+import { unterbauAnzahl, unterbaumass } from '../../logik/unterbau';
+import type { Grundform, PlanElement, Punkt, Regalfeld, Unterbauart } from '../../typen/modell';
 
 /**
  * Ein einzelnes Element auf dem Plan.
@@ -511,10 +511,23 @@ export function griffZugabe(element: PlanElement, zoom: number): number | 'auto'
   return zugabe > 0 ? zugabe : 'auto';
 }
 
-const PALETTENFARBE = 'rgba(176, 132, 74, 0.38)';
-
-/** Die Linien der Palette: derselbe Holzton, nur kräftiger. */
-const PALETTENLINIE = 'rgba(120, 84, 38, 0.85)';
+/**
+ * Die Farben dessen, was unter den Böden steht.
+ *
+ * Je Art ein eigener Ton, blass hinterlegt und mit kräftigeren Linien
+ * darüber: Holz für die Palette, ein kühles Grau für die Getränkekiste, das
+ * Blau der Kühlung für ein Kühlmöbel. So sieht man auf dem Plan, was da
+ * steht, ohne es zu beschriften – und es bleibt erkennbar, dass es **unter**
+ * dem Regal liegt und nicht darauf.
+ */
+const UNTERBAUFARBEN: Record<Unterbauart, { flaeche: string; linie: string }> = {
+  euro: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
+  chep: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
+  halb: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
+  viertel: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
+  kiste: { flaeche: 'rgba(96, 122, 138, 0.34)', linie: 'rgba(46, 70, 86, 0.85)' },
+  kuehlmoebel: { flaeche: 'rgba(79, 151, 212, 0.34)', linie: 'rgba(30, 92, 148, 0.9)' },
+};
 
 /**
  * Eine Länge in Metern, so kurz wie möglich.
@@ -989,11 +1002,17 @@ function zeichneFoerderband(
  * gemalt wird, und die Striche darüber. Zwei Rechnungen für dieselben
  * Rechtecke gingen früher oder später auseinander.
  */
-export function palettenflaechen(
-  element: PlanElement,
-  b: number,
-  t: number,
-): { x: number; y: number; breite: number; tiefe: number }[] {
+export interface Unterbauflaeche {
+  x: number;
+  y: number;
+  breite: number;
+  tiefe: number;
+  art: Unterbauart;
+  /** Liegt die lange Seite parallel zur Front? Für die Bretterrichtung. */
+  laengs: boolean;
+}
+
+export function unterbauflaechen(element: PlanElement, b: number, t: number): Unterbauflaeche[] {
   const unten = felderVon(element, 'unten');
   const oben = element.beidseitig ? felderVon(element, 'oben') : [];
   const faktor = seitenFaktor(b, oben, unten);
@@ -1005,14 +1024,14 @@ export function palettenflaechen(
       ]
     : [{ felder: unten, von: 0 }];
 
-  const flaechen: { x: number; y: number; breite: number; tiefe: number }[] = [];
+  const flaechen: Unterbauflaeche[] = [];
   for (const band of baender) {
     for (const platz of feldplaetze(band.felder, faktor)) {
-      const palette = platz.feld.palette;
-      if (platz.feld.leer || !palette) continue;
-      const laengs = palette.laengs ?? true;
-      const mass = palettenmass(palette.art, laengs);
-      const anzahl = palettenAnzahl(palette, platz.weite);
+      const unterbau = platz.feld.unterbau;
+      if (platz.feld.leer || !unterbau) continue;
+      const laengs = unterbau.laengs ?? true;
+      const mass = unterbaumass(unterbau);
+      const anzahl = unterbauAnzahl(unterbau, platz.weite);
       const gesamt = anzahl * mass.breite;
       const luecke = anzahl > 1 ? Math.max(0, (platz.weite - gesamt) / (anzahl + 1)) : 0;
       const start = anzahl > 1 ? luecke : Math.max(0, (platz.weite - mass.breite) / 2);
@@ -1024,6 +1043,8 @@ export function palettenflaechen(
           y: band.von === 0 && element.beidseitig ? hoehe - mass.tiefe : band.von,
           breite: mass.breite,
           tiefe: mass.tiefe,
+          art: unterbau.art,
+          laengs,
         });
       }
     }
@@ -1032,37 +1053,50 @@ export function palettenflaechen(
 }
 
 /**
- * Die Umrisse der Paletten und ihre Bretter.
+ * Die Umrisse dessen, was unter den Böden steht – jede Art auf ihre Weise.
  *
- * Gezeichnet wie im Bauplan: der Umriss und darin die Bretter quer – daran
- * erkennt man eine Palette im Plan, ohne sie beschriften zu müssen. Die
- * blasse Fläche darunter kommt vorher, im Hintergrund des Möbels.
+ * Gezeichnet wie im Bauplan, damit man es ohne Beschriftung erkennt:
  *
- * Ragt eine Palette tiefer als das Möbel, bekommt sie an dessen Kante einen
- * zweiten Strich: Im Plan sieht man dann, dass sie in den Gang steht, und
- * muss nicht nachmessen.
+ *  - **Palette:** der Umriss und darin die Bretter quer zur langen Seite,
+ *    wie bei der Decklage einer echten Palette.
+ *  - **Getränkekiste:** der Umriss und ein zweiter dicht daneben – der Rand
+ *    des Kastens. So sieht ein Stapel Kisten von oben aus.
+ *  - **Kühlmöbel:** der Umriss und vorn eine zweite Linie für die Scheibe.
+ *    Daran erkennt man, wo man hineingreift.
+ *
+ * Ragt etwas tiefer als das Möbel, bekommt es an dessen Kante einen zweiten
+ * Strich: Im Plan sieht man dann, dass es in den Gang steht, und muss nicht
+ * nachmessen.
  */
-function zeichnePaletten(
+function zeichneUnterbau(
   ctx: Konva.Context,
-  flaechen: { x: number; y: number; breite: number; tiefe: number }[],
-  laengs: boolean,
+  flaechen: Unterbauflaeche[],
   moebeltiefeImBild: number,
 ) {
   for (const f of flaechen) {
     ctx.rect(f.x, f.y, f.breite, f.tiefe);
 
-    // Fünf Bretter quer zur langen Seite, wie bei der Decklage einer echten
-    // Palette.
-    const bretter = 5;
-    for (let n = 1; n < bretter; n++) {
-      if (laengs) {
-        const bx = f.x + (f.breite * n) / bretter;
-        ctx.moveTo(bx, f.y);
-        ctx.lineTo(bx, f.y + f.tiefe);
-      } else {
-        const by = f.y + (f.tiefe * n) / bretter;
-        ctx.moveTo(f.x, by);
-        ctx.lineTo(f.x + f.breite, by);
+    if (f.art === 'kiste') {
+      // Der Kastenrand, gut zwei Zentimeter nach innen.
+      const rand = Math.min(2.5, Math.min(f.breite, f.tiefe) / 6);
+      ctx.rect(f.x + rand, f.y + rand, f.breite - 2 * rand, f.tiefe - 2 * rand);
+    } else if (f.art === 'kuehlmoebel') {
+      // Die Scheibe vorn: eine Linie eine Handbreit hinter der Kante.
+      const scheibe = Math.min(8, f.tiefe / 4);
+      ctx.moveTo(f.x, f.y + f.tiefe - scheibe);
+      ctx.lineTo(f.x + f.breite, f.y + f.tiefe - scheibe);
+    } else {
+      const bretter = 5;
+      for (let n = 1; n < bretter; n++) {
+        if (f.laengs) {
+          const bx = f.x + (f.breite * n) / bretter;
+          ctx.moveTo(bx, f.y);
+          ctx.lineTo(bx, f.y + f.tiefe);
+        } else {
+          const by = f.y + (f.tiefe * n) / bretter;
+          ctx.moveTo(f.x, by);
+          ctx.lineTo(f.x + f.breite, by);
+        }
       }
     }
 
@@ -2461,8 +2495,8 @@ export function ElementSymbol({
         const b = shape.width();
         const t = shape.height();
 
-        const paletten =
-          element.felderUnten || element.felderOben ? palettenflaechen(element, b, t) : [];
+        const unterbau =
+          element.felderUnten || element.felderOben ? unterbauflaechen(element, b, t) : [];
 
         // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
         //    Linienfarbe des Elements.
@@ -2509,19 +2543,24 @@ export function ElementSymbol({
         //
         //     Erst die blasse Fläche, dann ihre Linien darüber – so liegt
         //     die Palette im Regal und nicht als Deckel darauf.
-        if (paletten.length > 0) {
+        if (unterbau.length > 0) {
           ctx.save();
-          ctx.beginPath();
-          for (const f of paletten) ctx.rect(f.x, f.y, f.breite, f.tiefe);
-          ctx.setAttr('fillStyle', PALETTENFARBE);
-          ctx.fill();
-
-          const ersteSeite = felderVon(element, 'unten').find((f) => f.palette)?.palette;
-          ctx.setAttr('strokeStyle', PALETTENLINIE);
           ctx.setAttr('lineWidth', 1 / zoom);
-          ctx.beginPath();
-          zeichnePaletten(ctx, paletten, ersteSeite?.laengs ?? true, element.beidseitig ? t / 2 : t);
-          ctx.stroke();
+          // Je Art ein eigener Durchgang: Palette, Kiste und Kühlmöbel haben
+          // verschiedene Farben, und eine Leinwand kennt nur eine auf einmal.
+          for (const art of new Set(unterbau.map((f) => f.art))) {
+            const gleiche = unterbau.filter((f) => f.art === art);
+            const farbe = UNTERBAUFARBEN[art];
+            ctx.beginPath();
+            for (const f of gleiche) ctx.rect(f.x, f.y, f.breite, f.tiefe);
+            ctx.setAttr('fillStyle', farbe.flaeche);
+            ctx.fill();
+
+            ctx.setAttr('strokeStyle', farbe.linie);
+            ctx.beginPath();
+            zeichneUnterbau(ctx, gleiche, element.beidseitig ? t / 2 : t);
+            ctx.stroke();
+          }
           ctx.restore();
         }
 

@@ -15,6 +15,7 @@ import {
   type Projekt,
   type Raum,
   type Regalfeld,
+  type Unterbauplatz,
   type Warengruppenabschnitt,
 } from '../typen/modell';
 
@@ -103,9 +104,41 @@ export function wandleProjekt(roh: unknown): Projekt {
     // sonst gingen genau die verloren, die den Umweg mitgemacht haben.
     )
       .map(aufsMeterband)
+      // Fassung 18: aus der Palette wird der Unterbau.
+      .map(ausPaletteWirdUnterbau)
       // Fassung 17: ganz zuletzt, wenn Felder, Maße und Seiten stehen.
       .map(ziehBezeichnungNach),
   };
+}
+
+/**
+ * Fassung 18: Aus der Palette unter den Böden wird der Unterbau.
+ *
+ * Unter einem Regalfeld steht nicht nur eine Palette: Genauso oft ein
+ * Stapel Getränkekisten oder ein Kühlmöbel, das in die Zeile eingebaut
+ * ist. Das Feld trägt deshalb `unterbau` statt `palette`; die Art heißt
+ * weiter `euro`, `halb` und so fort, es sind nur ein paar dazugekommen.
+ *
+ * Umgeschrieben wird nur der Name des Feldes – die Palette bleibt, was
+ * sie war, und steht nach dem Öffnen an derselben Stelle.
+ */
+function ausPaletteWirdUnterbau(element: PlanElement): PlanElement {
+  const alt = element as PlanElement & {
+    felderUnten?: (Regalfeld & { palette?: Unterbauplatz })[];
+    felderOben?: (Regalfeld & { palette?: Unterbauplatz })[];
+  };
+  const wandle = (felder?: (Regalfeld & { palette?: Unterbauplatz })[]) => {
+    if (!felder || !felder.some((f) => f?.palette)) return felder;
+    return felder.map((f) => {
+      if (!f?.palette) return f;
+      const { palette, ...rest } = f;
+      return { ...rest, unterbau: f.unterbau ?? palette };
+    });
+  };
+  const unten = wandle(alt.felderUnten);
+  const oben = wandle(alt.felderOben);
+  if (unten === alt.felderUnten && oben === alt.felderOben) return element;
+  return { ...element, felderUnten: unten, felderOben: oben };
 }
 
 /**

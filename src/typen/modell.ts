@@ -247,27 +247,28 @@ export interface Regalfeld {
   notiz?: string;
 
   /**
-   * Eine Palette unter den Böden.
+   * Was unter den Böden steht.
    *
-   * Im Markt üblich: Oben ein, zwei Böden für die Sichtware, darunter steht
-   * die Palette, aus der nachgefüllt wird. Im Plan ist das ein Feld wie
-   * jedes andere – nur dass unten eine Palette drinsteht.
+   * Im Markt üblich: Oben ein, zwei Böden für die Sichtware, darunter der
+   * Nachschub. Das kann eine Palette sein, ein Stapel Getränkekisten oder
+   * ein Kühlmöbel, das in die Zeile eingebaut ist. Im Plan ist das ein Feld
+   * wie jedes andere – nur dass unten etwas drinsteht.
    *
-   * Am Feld und nicht am Möbel: In einem Zug aus zehn Feldern stehen selten
-   * unter allen Paletten. Wer sie überall haben will, stellt sie für jedes
+   * Am Feld und nicht am Möbel: In einem Zug aus zehn Feldern steht selten
+   * unter allen dasselbe. Wer es überall haben will, stellt es für jedes
    * Feld ein, und das ist derselbe Handgriff wie beim Bödenschreiben.
    */
-  palette?: Palettenplatz;
+  unterbau?: Unterbauplatz;
 }
 
 /**
- * Was für eine Palette unter einem Regalfeld steht.
+ * Was unter einem Regalfeld steht.
  *
- * Die Maße stehen in `logik/paletten.ts` – dort auch, welche wie herum in
+ * Die Maße stehen in `logik/unterbau.ts` – dort auch, wie viele wie herum in
  * ein Feld passen.
  */
-export interface Palettenplatz {
-  art: Palettenart;
+export interface Unterbauplatz {
+  art: Unterbauart;
   /**
    * Wie viele nebeneinander.
    *
@@ -278,9 +279,24 @@ export interface Palettenplatz {
   anzahl?: number;
   /** Liegt die lange Seite parallel zur Regalfront? */
   laengs?: boolean;
+  /**
+   * Breite und Tiefe in cm – nur bei Arten ohne Normmaß.
+   *
+   * Ein Kühlmöbel gibt es in jeder Länge; eine Palette nicht. Deshalb steht
+   * das Maß hier nur dort, wo es wirklich eine Entscheidung ist.
+   */
+  breite?: number;
+  tiefe?: number;
 }
 
-export type Palettenart = 'euro' | 'chep' | 'halb' | 'viertel';
+/**
+ * Was für ein Ding unter den Böden steht.
+ *
+ * Die vier Paletten sind Ladungsträger, die Kiste ist Ware, das Kühlmöbel
+ * ist ein Gerät. Im Plan belegen sie denselben Platz und werden deshalb
+ * gleich behandelt – gezeichnet wird jedes anders.
+ */
+export type Unterbauart = 'euro' | 'chep' | 'halb' | 'viertel' | 'kiste' | 'kuehlmoebel';
 
 /**
  * Eine Warengruppen-Beschriftung auf einer Strecke des Möbels.
@@ -996,4 +1012,4 @@ export interface Projekt {
  * Auswahl von Möbeln, statt sie an ein einzelnes Feld zu hängen. Ein neues
  * Feld ohne Umwandlung: Was nicht dasteht, gibt es nicht.
  */
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
