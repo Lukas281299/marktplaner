@@ -88,6 +88,8 @@ body {
 
 .arbeitsbereich {
   display: grid;
+  /* Bezugsrahmen für die Greifstreifen an den Spaltenkanten. */
+  position: relative;
   grid-template-columns: var(--spalte-links) 1fr var(--spalte-rechts);
   /* Ohne diese beiden Zeilen kann die Zeichenfläche das Fenster aufblähen. */
   min-height: 0;
@@ -111,15 +113,58 @@ body {
   border-left: 1px solid var(--rand);
 }
 
-/* Rechte Leiste zugeklappt: Der Plan bekommt die 304 Punkte. */
+/* Zugeklappte Leisten: Der Plan bekommt ihren Platz. */
 .arbeitsbereich.rechts-zu {
   grid-template-columns: var(--spalte-links) 1fr var(--spalte-rechts-zu);
+}
+
+.arbeitsbereich.links-zu {
+  grid-template-columns: var(--spalte-rechts-zu) 1fr var(--spalte-rechts);
+}
+
+.arbeitsbereich.links-zu.rechts-zu {
+  grid-template-columns: var(--spalte-rechts-zu) 1fr var(--spalte-rechts-zu);
 }
 
 .arbeitsbereich.rechts-zu.mit-assistent {
   grid-template-columns:
     var(--spalte-links) 1fr var(--spalte-rechts-zu)
     var(--spalte-assistent);
+}
+
+.arbeitsbereich.links-zu.mit-assistent {
+  grid-template-columns:
+    var(--spalte-rechts-zu) 1fr var(--spalte-rechts)
+    var(--spalte-assistent);
+}
+
+.arbeitsbereich.links-zu.rechts-zu.mit-assistent {
+  grid-template-columns:
+    var(--spalte-rechts-zu) 1fr var(--spalte-rechts-zu)
+    var(--spalte-assistent);
+}
+
+/* Der Greifstreifen an der inneren Kante einer Seitenleiste.
+
+   Unsichtbar, bis der Zeiger darüber steht: Eine ständig sichtbare Leiste
+   wäre ein Strich mehr im Bild, und davon hat ein Plan schon genug. Er liegt
+   über der Zeichenfläche, damit man ihn auch dort greift, wo der Plan bis an
+   die Kante reicht. */
+.spaltengriff {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  z-index: 6;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.spaltengriff:hover,
+.spaltengriff:active {
+  background: var(--betont, #0a84ff);
+  opacity: 0.35;
 }
 
 .spalte-zu {

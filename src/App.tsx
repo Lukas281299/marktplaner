@@ -3,6 +3,7 @@ import { Assistentenfenster } from './komponenten/Assistentenfenster';
 import { Eigenschaftenfenster } from './komponenten/Eigenschaftenfenster';
 import { Elementbibliothek } from './komponenten/Elementbibliothek';
 import { Warengruppenfenster } from './komponenten/Warengruppenfenster';
+import { Spaltengriff, Spaltenstreifen } from './komponenten/Spaltengriffe';
 import { Statusleiste } from './komponenten/Statusleiste';
 import { Werkzeugleiste } from './komponenten/Werkzeugleiste';
 import { Zeichenflaeche } from './komponenten/zeichenflaeche/Zeichenflaeche';
@@ -15,9 +16,11 @@ import {
   listeVorlagen,
   holeSortimentsliste,
   holeFavoriten,
+  holeSpaltenstand,
   holeMoebelkennzahlen,
   merkeZuletztGeoeffnet,
   speichereProjekt,
+  speichereSpaltenstand,
 } from './speicher/projektArchiv';
 import { useAssistentStore } from './zustand/assistentStore';
 import { usePlanStore } from './zustand/planStore';
@@ -49,6 +52,7 @@ export default function App() {
     const starten = async () => {
       const vorlagen = await listeVorlagen().catch(() => []);
       const favoriten = await holeFavoriten().catch(() => []);
+      const spalten = await holeSpaltenstand().catch(() => ({}));
       const kennzahlen = await holeMoebelkennzahlen().catch(() => ({}));
       const sortiment = await holeSortimentsliste().catch(() => null);
 
@@ -68,6 +72,7 @@ export default function App() {
       }
       if (abgebrochen) return;
 
+      usePlanStore.getState().setzeSpaltenstand(spalten);
       usePlanStore.getState().setzeEigeneVorlagen(vorlagen);
       usePlanStore.getState().setzeFavoriten(favoriten);
       usePlanStore.getState().setzeMoebelkennzahlen(kennzahlen);
@@ -110,8 +115,31 @@ export default function App() {
     return () => window.clearTimeout(uhrRef.current);
   }, [projekt, geladenerStand, geladen]);
 
+  // ------------------------------------------- Breite der Seitenleisten merken
+  //
+  // Verzögert, weil beim Ziehen dreißig Änderungen je Sekunde anfallen und
+  // jede einzelne zu schreiben die Datenbank beschäftigt, ohne dass jemand
+  // etwas davon hätte.
+  const linksOffenJetzt = usePlanStore((s) => s.linkeSpalteOffen);
+  const rechtsOffenJetzt = usePlanStore((s) => s.rechteSpalteOffen);
+  const breitenJetzt = usePlanStore((s) => s.spaltenbreite);
+  useEffect(() => {
+    if (!geladen) return;
+    const uhr = window.setTimeout(() => {
+      void speichereSpaltenstand({
+        links: breitenJetzt.links,
+        rechts: breitenJetzt.rechts,
+        linksOffen: linksOffenJetzt,
+        rechtsOffen: rechtsOffenJetzt,
+      }).catch(() => {});
+    }, 400);
+    return () => window.clearTimeout(uhr);
+  }, [breitenJetzt, linksOffenJetzt, rechtsOffenJetzt, geladen]);
+
   const linkerReiter = usePlanStore((s) => s.linkerReiter);
+  const linksOffen = usePlanStore((s) => s.linkeSpalteOffen);
   const rechtsOffen = usePlanStore((s) => s.rechteSpalteOffen);
+  const spaltenbreite = usePlanStore((s) => s.spaltenbreite);
   const assistentOffen = useAssistentStore((s) => s.offen);
 
   return (
@@ -120,12 +148,30 @@ export default function App() {
       <div
         className={`arbeitsbereich${assistentOffen ? ' mit-assistent' : ''}${
           rechtsOffen ? '' : ' rechts-zu'
-        }`}
+        }${linksOffen ? '' : ' links-zu'}`}
+        // Die Breiten stehen als Stilwerte am Raster – so wandert die
+        // Trennung mit, ohne dass die Zeichenfläche etwas davon wissen muss.
+        style={
+          {
+            '--spalte-links': `${spaltenbreite.links}px`,
+            '--spalte-rechts': `${spaltenbreite.rechts}px`,
+          } as React.CSSProperties
+        }
       >
-        {linkerReiter === 'warengruppen' ? <Warengruppenfenster /> : <Elementbibliothek />}
+        {linksOffen ? (
+          linkerReiter === 'warengruppen' ? (
+            <Warengruppenfenster />
+          ) : (
+            <Elementbibliothek />
+          )
+        ) : (
+          <Spaltenstreifen seite="links" />
+        )}
         <Zeichenflaeche />
         <Eigenschaftenfenster />
         {assistentOffen && <Assistentenfenster />}
+        {linksOffen && <Spaltengriff seite="links" />}
+        {rechtsOffen && !assistentOffen && <Spaltengriff seite="rechts" />}
       </div>
       <Statusleiste />
     </div>

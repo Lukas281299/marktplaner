@@ -4,6 +4,7 @@ import { SCHEMA_VERSION, type BibliothekEintrag, type Projekt } from '../typen/m
 import type { Grabstein, Verzeichniseintrag } from './abgleich';
 import { db } from './datenbank';
 import { wandleProjekt } from './wandlung';
+import type { Spaltenstand } from '../zustand/planStore';
 
 /**
  * Alles rund um Speichern, Laden, Kopieren und den Austausch als JSON-Datei.
@@ -556,4 +557,33 @@ export function ladeDateiHerunter(blob: Blob, dateiname: string): void {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+// ------------------------------------------------ Breite der Seitenleisten
+
+/**
+ * Wie breit die beiden Seitenleisten stehen und ob sie aufgeklappt sind.
+ *
+ * Eine Einstellung des Arbeitsplatzes und nicht der Planung: Sie liegt
+ * deshalb neben den Projekten und nicht darin. Wer am zweiten Rechner
+ * arbeitet, richtet sich dort seine eigene Breite ein.
+ */
+export async function holeSpaltenstand(): Promise<Partial<Spaltenstand>> {
+  const datenbank = await db();
+  const wert = await datenbank.get('einstellungen', 'spaltenstand');
+  if (!wert || typeof wert !== 'object') return {};
+  const roh = wert as Record<string, unknown>;
+  const zahl = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+  const jaNein = (v: unknown) => (typeof v === 'boolean' ? v : undefined);
+  return {
+    links: zahl(roh.links),
+    rechts: zahl(roh.rechts),
+    linksOffen: jaNein(roh.linksOffen),
+    rechtsOffen: jaNein(roh.rechtsOffen),
+  };
+}
+
+export async function speichereSpaltenstand(stand: Spaltenstand): Promise<void> {
+  const datenbank = await db();
+  await datenbank.put('einstellungen', stand, 'spaltenstand');
 }

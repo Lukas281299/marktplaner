@@ -6,6 +6,7 @@ import { rahmen } from '../logik/polygon';
 import type { BibliothekEintrag, KategorieId, Massinheit } from '../typen/modell';
 import { usePlanStore } from '../zustand/planStore';
 import { SymbolPfeilAb, SymbolPfeilAuf, SymbolStern, SymbolSuche } from './Symbole';
+import { Spaltenschalter } from './Spaltengriffe';
 
 /**
  * Die Elementbibliothek auf der linken Seite.
@@ -137,7 +138,10 @@ export function Elementbibliothek() {
 
   return (
     <aside className="spalte spalte-links">
-      <div className="spalte-kopf">Elemente</div>
+      <div className="spalte-kopf spalte-kopf-zeile">
+        <span className="spalte-titel">Elemente</span>
+        <Spaltenschalter seite="links" />
+      </div>
 
       {tauschModus && (
         <div className="tausch-banner">

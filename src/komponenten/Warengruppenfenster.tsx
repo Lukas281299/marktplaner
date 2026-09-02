@@ -21,6 +21,7 @@ import {
   type Standwert,
 } from '../logik/sortiment';
 import { usePlanStore } from '../zustand/planStore';
+import { Spaltenschalter } from './Spaltengriffe';
 
 /**
  * Die Sortimentsliste als Reiter neben der Bibliothek.
@@ -131,6 +132,7 @@ export function Warengruppenfenster() {
           >
             ✎
           </button>
+          <Spaltenschalter seite="links" />
         </div>
 
         <input

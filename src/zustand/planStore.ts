@@ -197,6 +197,30 @@ function mitSkaliertemVerlauf(
   };
 }
 
+/** Welche der beiden Seitenleisten gemeint ist. */
+export type Spaltenseite = 'links' | 'rechts';
+
+/** Breite und Zustand beider Seitenleisten – das, was gemerkt wird. */
+export interface Spaltenstand {
+  links: number;
+  rechts: number;
+  linksOffen: boolean;
+  rechtsOffen: boolean;
+}
+
+/**
+ * Wie breit die Seitenleisten anfangs sind – dieselben Werte wie im Stil.
+ *
+ * Sie stehen hier **und** in `global.css`, weil beide Seiten sie brauchen:
+ * die Anwendung, um sie zu verstellen, und der Stil, damit das Fenster schon
+ * richtig steht, bevor der gemerkte Wert aus der Datenbank da ist.
+ */
+export const SPALTE_STANDARD = { links: 264, rechts: 304 } as const;
+
+/** Grenzen fürs Ziehen. Schmaler wird unleserlich, breiter frisst den Plan. */
+export const SPALTE_MIN = 190;
+export const SPALTE_MAX = 620;
+
 export type Werkzeug =
   | 'auswahl'
   | 'umriss'
@@ -337,7 +361,17 @@ export interface PlanStore {
    * Sie ist gut dreihundert Punkte breit, und beim Zeichnen eines großen
    * Grundrisses will man diese dreihundert Punkte lieber für den Plan.
    */
+  /**
+   * Sind die beiden Seitenleisten aufgeklappt, und wie breit sind sie?
+   *
+   * Beides gehört zusammen und beides hält: Wer die Elementliste breiter
+   * zieht, weil er lange Möbelnamen lesen will, will sie morgen genauso
+   * breit wiederfinden. Gespeichert wird deshalb neben der Planung, nicht
+   * darin – es ist eine Einstellung des Arbeitsplatzes und keine des Marktes.
+   */
+  linkeSpalteOffen: boolean;
   rechteSpalteOffen: boolean;
+  spaltenbreite: { links: number; rechts: number };
   /**
    * Die Vorlage, die in der Liste angeklickt wurde – zum Ansehen.
    *
@@ -678,8 +712,12 @@ export interface PlanStore {
 
   // -------------------------------------------------------------- Auswahl
   waehleAus(ids: string[], modus?: Auswahlmodus): void;
-  /** Klappt die Projektleiste rechts auf oder zu. */
-  schalteRechteSpalte(): void;
+  /** Klappt eine der beiden Seitenleisten auf oder zu. */
+  schalteSpalte(seite: Spaltenseite): void;
+  /** Zieht eine Seitenleiste breiter oder schmaler, in Bildpunkten. */
+  setzeSpaltenbreite(seite: Spaltenseite, breite: number): void;
+  /** Setzt den gemerkten Stand beim Start – ohne ihn gleich wieder zu sichern. */
+  setzeSpaltenstand(stand: Partial<Spaltenstand>): void;
   /** Zeigt eine Vorlage im Eigenschaftenfenster an, ohne sie zu setzen. */
   zeigeVorlage(vorlage: BibliothekEintrag | null): void;
   /** Beginnt, den Umriss einer Vorlage von Hand zu zeichnen. */
@@ -720,7 +758,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   warengruppenPinsel: null,
   warengruppenMarkierung: [],
   linkerReiter: 'bibliothek',
+  linkeSpalteOffen: true,
   rechteSpalteOffen: true,
+  spaltenbreite: { links: SPALTE_STANDARD.links, rechts: SPALTE_STANDARD.rechts },
   vorschau: null,
   zeichenvorlage: null,
   offeneAbteilungen: [],
@@ -2066,8 +2106,28 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set({ auswahl: [], sonderauswahl: null, vorschau: null });
   },
 
-  schalteRechteSpalte() {
-    set((s) => ({ rechteSpalteOffen: !s.rechteSpalteOffen }));
+  schalteSpalte(seite) {
+    set((s) =>
+      seite === 'links'
+        ? { linkeSpalteOffen: !s.linkeSpalteOffen }
+        : { rechteSpalteOffen: !s.rechteSpalteOffen },
+    );
+  },
+
+  setzeSpaltenbreite(seite, breite) {
+    const begrenzt = Math.round(Math.min(SPALTE_MAX, Math.max(SPALTE_MIN, breite)));
+    set((s) => ({ spaltenbreite: { ...s.spaltenbreite, [seite]: begrenzt } }));
+  },
+
+  setzeSpaltenstand(stand) {
+    set((s) => ({
+      linkeSpalteOffen: stand.linksOffen ?? s.linkeSpalteOffen,
+      rechteSpalteOffen: stand.rechtsOffen ?? s.rechteSpalteOffen,
+      spaltenbreite: {
+        links: stand.links ?? s.spaltenbreite.links,
+        rechts: stand.rechts ?? s.spaltenbreite.rechts,
+      },
+    }));
   },
 
   beginneUmrissZeichnen(vorlage) {

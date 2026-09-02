@@ -66,9 +66,8 @@ import {
   SymbolNachHinten,
   SymbolNachVorne,
   SymbolSchloss,
-  SymbolPfeilLinks,
-  SymbolPfeilRechts,
 } from './Symbole';
+import { Spaltenschalter, Spaltenstreifen } from './Spaltengriffe';
 
 const FORMEN: { wert: Grundform; text: string }[] = [
   { wert: 'rechteck', text: 'Rechteck' },
@@ -125,19 +124,7 @@ export function Eigenschaftenfenster() {
 
   // Zugeklappt bleibt ein schmaler Streifen mit dem Pfeil stehen. Ganz
   // verschwinden darf die Leiste nicht – sonst fände niemand zurück.
-  if (!offen) {
-    return (
-      <aside className="spalte spalte-rechts spalte-zu">
-        <button
-          className="spalten-schalter"
-          title="Projektleiste einblenden"
-          onClick={() => usePlanStore.getState().schalteRechteSpalte()}
-        >
-          <SymbolPfeilLinks />
-        </button>
-      </aside>
-    );
-  }
+  if (!offen) return <Spaltenstreifen seite="rechts" />;
 
   const titel = vorschau
     ? 'Vorlage'
@@ -161,13 +148,7 @@ export function Eigenschaftenfenster() {
     <aside className="spalte spalte-rechts">
       <div className="spalte-kopf spalte-kopf-zeile">
         <span className="spalte-titel">{titel}</span>
-        <button
-          className="spalten-schalter"
-          title="Projektleiste ausblenden"
-          onClick={() => usePlanStore.getState().schalteRechteSpalte()}
-        >
-          <SymbolPfeilRechts />
-        </button>
+        <Spaltenschalter seite="rechts" />
       </div>
       <div className="spalte-inhalt">
         {vorschau ? (
@@ -2027,11 +2008,6 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
 
   const store = usePlanStore.getState();
 
-  /** Name der Gruppe, in der das erste ausgewählte Element steckt. */
-  const gruppenName = usePlanStore((s) =>
-    erstes.gruppeId ? (s.projekt.gruppen.find((g) => g.id === erstes.gruppeId)?.name ?? null) : null,
-  );
-
   return (
     <>
       {mehrere && (
@@ -2181,6 +2157,35 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           aendern={setzeSeitenverhaeltnisHalten}
           titel="Gilt für die Eckanfasser und für die Eingabefelder oben."
         />
+
+        {/* Beidseitig gehört zu den Maßen und nicht zum Gruppieren: Der
+            Schalter entscheidet, ob die Tiefe einem Möbel gehört oder zwei
+            Seiten – und gleich darüber steht, wie sie sich aufteilt. */}
+        <Schalter
+          label="Beidseitig bestückt (Gondel)"
+          wert={Boolean(erstes.beidseitig)}
+          aendern={(beidseitig) => setzeMitPunkt({ beidseitig })}
+        />
+        <p className="hinweis" style={{ marginTop: 4 }}>
+          Zählt bei den Regalmetern doppelt. Gemeint ist <strong>ein</strong> Möbel mit zwei
+          Seiten. Zwei Wandregale Rücken an Rücken sind zwei einseitige Möbel – die werden schon
+          von selbst zweimal gezählt.
+        </p>
+
+        {SPIEGELBAR.has(erstes.form) && (
+          <>
+            <Schalter
+              label="Seitenverkehrt (rechte Ausführung)"
+              wert={Boolean(erstes.gespiegelt)}
+              aendern={(gespiegelt) => setzeMitPunkt({ gespiegelt })}
+            />
+            <p className="hinweis" style={{ marginTop: 4 }}>
+              Ein 45°-Eck gibt es links und rechts. Für eine 90°-Ecke braucht es beide: eines
+              normal, eines seitenverkehrt. Über die Drehung geht das nicht — 180° vertauschen
+              zwar links und rechts, drehen aber auch die Front nach hinten.
+            </p>
+          </>
+        )}
       </div>
 
       {/* -------------------------------------------------- Position/Drehung */}
@@ -2350,15 +2355,6 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         <div className="gruppe-titel">Zusatzangaben</div>
         <div className="feld-zeile einspaltig">
           <Textfeld
-            label="Warengruppe"
-            wert={erstes.warengruppe ?? ''}
-            vorschlaege={alleNamen(usePlanStore.getState().sortiment)}
-            beiStart={beiStart}
-            aendern={(warengruppe) => setze({ warengruppe })}
-          />
-        </div>
-        <div className="feld-zeile einspaltig">
-          <Textfeld
             label="Hersteller / Modell"
             wert={erstes.hersteller ?? ''}
             platzhalter="optional"
@@ -2458,84 +2454,6 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         </button>
       </div>
 
-      {/* ------------------------------------------- Gruppe und Regalmeter */}
-      <div className="gruppe">
-        <div className="gruppe-titel">Zusammenfassen</div>
-
-        {SPIEGELBAR.has(erstes.form) && (
-          <>
-            <Schalter
-              label="Seitenverkehrt (rechte Ausführung)"
-              wert={Boolean(erstes.gespiegelt)}
-              aendern={(gespiegelt) => setzeMitPunkt({ gespiegelt })}
-            />
-            <p className="hinweis" style={{ marginTop: 4 }}>
-              Ein 45°-Eck gibt es links und rechts. Für eine 90°-Ecke braucht es beide: eines
-              normal, eines seitenverkehrt. Über die Drehung geht das nicht — 180° vertauschen
-              zwar links und rechts, drehen aber auch die Front nach hinten.
-            </p>
-          </>
-        )}
-
-        <Schalter
-          label="Beidseitig bestückt (Gondel)"
-          wert={Boolean(erstes.beidseitig)}
-          aendern={(beidseitig) => setzeMitPunkt({ beidseitig })}
-        />
-        <p className="hinweis" style={{ marginTop: 4 }}>
-          Zählt bei den Regalmetern doppelt. Gemeint ist <strong>ein</strong> Möbel mit zwei
-          Seiten. Zwei Wandregale Rücken an Rücken sind zwei einseitige Möbel – die werden schon
-          von selbst zweimal gezählt.
-        </p>
-
-        <div className="kennzahl">
-          <span>Gruppe</span>
-          <span className="kennzahl-wert">{gruppenName ?? 'keine'}</span>
-        </div>
-
-        <div className="knopfreihe">
-          <button
-            className="knopf"
-            disabled={ausgewaehlte.length < 2}
-            onClick={() => store.gruppiere('zug')}
-            title="Als Regalzug zusammenfassen (Strg+G)"
-          >
-            Zug
-          </button>
-          <button
-            className="knopf"
-            disabled={ausgewaehlte.length < 2}
-            onClick={() => store.gruppiere('gondel')}
-            title="Als Gondel zusammenfassen (Strg+G)"
-          >
-            Gondel
-          </button>
-          <button
-            className="knopf"
-            disabled={!gruppenName}
-            onClick={() => store.hebeGruppeAuf()}
-            title="Gruppierung auflösen (Strg+Umschalt+G)"
-          >
-            Lösen
-          </button>
-        </div>
-
-        <div className="knopfreihe">
-          <button
-            className="knopf"
-            disabled={ausgewaehlte.length < 2}
-            onClick={() => store.reiheAneinanderAus()}
-            title="Lückenlos aneinanderschieben"
-          >
-            Aneinanderreihen
-          </button>
-        </div>
-
-        <p className="hinweis">
-          Ein Klick auf ein gruppiertes Regal wählt die ganze Gruppe. Mit gedrückter{' '}
-          <strong>Alt</strong>-Taste greifst du ein einzelnes Feld heraus.
-        </p>
-      </div>
     </>
   );
 }
