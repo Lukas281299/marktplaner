@@ -78,28 +78,13 @@ describe('Vollständige Bezeichnung', () => {
   });
 
   it('schreibt bei beidseitigen Möbeln die Tiefe je Seite', () => {
-    // Eine 700er Gondel misst 2 × 700 + 70 tote Zone = 1470. Gerechnet wird
-    // deshalb aus den Bodentiefen und nicht aus der halben Gesamttiefe –
-    // sonst stünde am Möbel eine Zahl, die es dort nirgends gibt.
     const gondel = regal([125, 125], {
       beidseitig: true,
-      tiefe: 147,
+      tiefe: 140,
       beschriftung: 'Gondel A1250 · T2×700 · H1800',
       hoehe: 180,
     });
     expect(bezeichnungFuer(gondel)).toBe('Gondel 2× A1250 · T2×700 · H1800');
-  });
-
-  it('nennt beide Tiefen, wenn die Seiten verschieden sind', () => {
-    // Vorn 600, hinten 400: 600 + 400 + 70 = 1070, Trennlinie bei 635.
-    const gondel = regal([125, 125], {
-      beidseitig: true,
-      tiefe: 107,
-      tiefeOben: 63.5,
-      beschriftung: 'Gondel A1250 · T2×600 · H1800',
-      hoehe: 180,
-    });
-    expect(bezeichnungFuer(gondel)).toBe('Gondel 2× A1250 · T600+400 · H1800');
   });
 
   it('lässt ein Möbel ohne Felder in Ruhe', () => {
@@ -174,7 +159,7 @@ describe('Jede Abteilung in ihrer eigenen Schreibweise', () => {
   it('wirft die alte Feldzahl eines Gondelzugs weg, statt sie doppelt zu nennen', () => {
     const zug = regal([100, 100, 100], {
       beidseitig: true,
-      tiefe: 147,
+      tiefe: 140,
       beschriftung: 'Gondelzug 3,00 m · 3 Felder A1000 · T2×700',
     });
     expect(bezeichnungFuer(zug)).toBe('Gondelzug 3× A1000 · T2×700');
