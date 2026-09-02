@@ -1,5 +1,7 @@
-import { Circle, Group, Text } from 'react-konva';
+import { useState } from 'react';
+import { Circle, Group, Line, Text } from 'react-konva';
 import { formatiereLaenge } from '../../logik/masse';
+import { rasteGrad } from '../../logik/wandfang';
 import type { Massinheit, Oeffnung } from '../../typen/modell';
 
 /**
@@ -16,6 +18,12 @@ import type { Massinheit, Oeffnung } from '../../typen/modell';
  *
  * Die Griffe liegen im gedrehten Maß der Öffnung – dadurch zieht man immer
  * längs und quer zu ihr, gleich wie sie im Plan steht.
+ *
+ * Dazu kommt der **Drehregler** über der Öffnung. Eine Tür sitzt nicht immer
+ * in einer waagerechten Wand: In einem abgeschrägten Windfang steht sie
+ * schief, und dann muss sie sich auch schief stellen lassen. Gerastet wird
+ * auf Vielfache von 15° – wer einen krummen Winkel braucht, hält beim Drehen
+ * **Alt** und bekommt jeden.
  */
 interface Props {
   oeffnung: Oeffnung;
@@ -35,10 +43,14 @@ export function Oeffnungsgriffe({
   beiZiehen,
   beiZiehEnde,
 }: Props) {
+  /** Zeigt den Winkel an, solange gedreht wird. */
+  const [dreht, setDreht] = useState(false);
   const griff = 6.5 / zoom;
   const schrift = 12 / zoom;
   const halbB = oeffnung.breite / 2;
   const halbT = oeffnung.tiefe / 2;
+  /** Wie weit der Drehknopf über der Öffnung sitzt. */
+  const stiel = halbT + 34 / zoom;
   const bogen = (oeffnung.drehung * Math.PI) / 180;
   const cos = Math.cos(bogen);
   const sin = Math.sin(bogen);
@@ -140,6 +152,77 @@ export function Oeffnungsgriffe({
       {anfasser('breite-rechts', halbB, 0, 'breite', 1)}
       {anfasser('tiefe-oben', 0, -halbT, 'tiefe', -1)}
       {anfasser('tiefe-unten', 0, halbT, 'tiefe', 1)}
+
+      {/* Der Drehregler: ein Stiel nach oben, ein Knopf am Ende. Er sitzt
+          außerhalb der Breitengriffe, damit man ihn nicht mit ihnen
+          verwechselt. */}
+      <Line
+        listening={false}
+        points={[0, -halbT, 0, -stiel]}
+        stroke="#0a84ff"
+        strokeWidth={1.4 / zoom}
+      />
+      {dreht && (
+        <Text
+          listening={false}
+          x={-schrift * 3}
+          y={-stiel - griff - schrift * 1.9}
+          width={schrift * 6}
+          align="center"
+          text={`${oeffnung.drehung.toFixed(1)}°`}
+          fontSize={schrift}
+          fontStyle="600"
+          fill="#0a84ff"
+        />
+      )}
+      <Circle
+        x={0}
+        y={-stiel}
+        radius={griff}
+        fill="#0a84ff"
+        stroke="#ffffff"
+        strokeWidth={2 / zoom}
+        hitStrokeWidth={14 / zoom}
+        draggable
+        onDragStart={(e) => {
+          e.cancelBubble = true;
+          setDreht(true);
+          beiZiehStart();
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true;
+          const buehne = e.target.getStage();
+          if (!buehne) return;
+          const zeiger = buehne.getPointerPosition();
+          if (!zeiger) return;
+
+          // Gerechnet wird im Planmaß: Der Zeiger kommt in Bildschirmpunkten,
+          // und die Öffnung steht in Zentimetern.
+          const nachPlan = buehne.getAbsoluteTransform().copy().invert();
+          const p = nachPlan.point(zeiger);
+          const roh =
+            (Math.atan2(p.y - oeffnung.y, p.x - oeffnung.x) * 180) / Math.PI + 90;
+
+          // Der Knopf bleibt an seinem Stiel; gedreht wird die Öffnung.
+          e.target.position({ x: 0, y: -stiel });
+          // Auf Vielfache von 15° einrasten – Alt hebt das auf.
+          beiZiehen({ drehung: rasteGrad(roh, e.evt.altKey) });
+        }}
+        onDragEnd={(e) => {
+          e.cancelBubble = true;
+          e.target.position({ x: 0, y: -stiel });
+          setDreht(false);
+          beiZiehEnde();
+        }}
+        onMouseEnter={(e) => {
+          const buehne = e.target.getStage();
+          if (buehne) buehne.container().style.cursor = 'grab';
+        }}
+        onMouseLeave={(e) => {
+          const buehne = e.target.getStage();
+          if (buehne) buehne.container().style.cursor = '';
+        }}
+      />
     </Group>
   );
 }

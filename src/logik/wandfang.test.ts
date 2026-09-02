@@ -8,6 +8,7 @@ import {
   fangeWand,
   fangeWandende,
   grundrissEcken,
+  rasteGrad,
 } from './wandfang';
 
 /**
@@ -223,5 +224,29 @@ describe('Wandende ziehen', () => {
 
   it('nimmt auf den Achsen weiter das Raster', () => {
     expect(fangeWandende(fest, { x: 487, y: 6 }, [], 20, raster)).toEqual({ x: 500, y: 0 });
+  });
+});
+
+describe('Winkel am Drehregler', () => {
+  it('zieht einen fast geraden Winkel auf das Raster', () => {
+    expect(rasteGrad(44)).toBe(45);
+    expect(rasteGrad(-2.4)).toBe(0);
+    expect(rasteGrad(88)).toBe(90);
+  });
+
+  it('lässt einen Winkel zwischen zwei Rasterpunkten stehen', () => {
+    // 37 ist von 30 wie von 45 zu weit weg – wer das einstellt, meint es so.
+    expect(rasteGrad(36.6)).toBe(36.6);
+  });
+
+  it('hebt das Einrasten mit der freien Wahl auf', () => {
+    expect(rasteGrad(44, true)).toBe(44);
+    expect(rasteGrad(89.7, true)).toBe(89.7);
+  });
+
+  it('bringt jeden Winkel auf -180 bis 180', () => {
+    expect(rasteGrad(190, true)).toBe(-170);
+    expect(rasteGrad(-190, true)).toBe(170);
+    expect(rasteGrad(720, true)).toBe(0);
   });
 });

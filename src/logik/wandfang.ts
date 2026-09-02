@@ -294,3 +294,20 @@ export function fangeWandende(
   }
   return gerichtet === roh ? aufRaster(roh) : gerichtet;
 }
+
+/**
+ * Rastet einen einzelnen Winkel auf das Raster – für den Drehregler.
+ *
+ * Zurück kommt ein Wert zwischen -180 und 180, auf den Zehntelgrad gerundet.
+ * `frei` hebt das Einrasten auf: Wer die Alt-Taste hält, will genau den
+ * Winkel, auf den er zeigt – auch 44,3°, direkt neben der 45.
+ */
+export function rasteGrad(grad: number, frei = false): number {
+  const normiert = (((grad % 360) + 540) % 360) - 180;
+  const gerastert = Math.round(normiert / WINKELRASTER) * WINKELRASTER;
+  const nah = !frei && Math.abs(normiert - gerastert) <= WINKEL_TOLERANZ;
+  const gerundet = Math.round((nah ? gerastert : normiert) * 10) / 10;
+  // Aus -0 wird 0: Sonst stünde im Feld irgendwann „-0°“, und das ist keine
+  // Richtung, sondern ein Rechenrest.
+  return gerundet === 0 ? 0 : gerundet;
+}
