@@ -85,7 +85,6 @@ describe('Fassung 7: fehlende Standardebenen', () => {
       'verkaufsflaeche',
       'einrichtung',
       'beschriftung',
-      'laufwege',
     ]);
   });
 
@@ -619,5 +618,32 @@ describe('Fassung 18 · Aus der Palette wird der Unterbau', () => {
     const neu = wandleProjekt(mitFeldern([{ breite: 125 }, { breite: 125 }]));
     expect(neu.elemente[0].felderUnten).toHaveLength(2);
     expect(neu.elemente[0].felderUnten!.every((f) => !f.unterbau)).toBe(true);
+  });
+});
+
+describe('Fassung 19 · Die Ebene „Laufwege" fällt weg', () => {
+  it('nimmt sie aus einer vorhandenen Planung heraus', () => {
+    // Sie stand in jedem Projekt, ohne dass ein Werkzeug darauf zeichnen
+    // konnte – eine Zeile in der Liste, die nichts konnte.
+    const neu = wandleProjekt(
+      alteFassung({
+        version: 18,
+        ebenen: [
+          { id: 'einrichtung', name: 'Einrichtung', sichtbar: true, gesperrt: false },
+          { id: 'laufwege', name: 'Laufwege', sichtbar: true, gesperrt: false },
+        ],
+      }),
+    );
+    expect(neu.ebenen.map((e) => e.id)).not.toContain('laufwege');
+  });
+
+  it('lässt eine selbst angelegte Ebene stehen', () => {
+    const neu = wandleProjekt(
+      alteFassung({
+        version: 18,
+        ebenen: [{ id: 'eigene-laufwege', name: 'Laufwege', sichtbar: true, gesperrt: false }],
+      }),
+    );
+    expect(neu.ebenen.map((e) => e.id)).toContain('eigene-laufwege');
   });
 });

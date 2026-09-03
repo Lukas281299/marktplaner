@@ -417,7 +417,16 @@ function ergaenzeEbenen(vorhanden: Ebene[] | undefined): Ebene[] {
   const alte = new Map((vorhanden ?? []).map((e) => [e.id, e]));
   const standard = STANDARD_EBENEN.map((e) => alte.get(e.id) ?? { ...e });
   const bekannt = new Set(STANDARD_EBENEN.map((e) => e.id));
-  const eigene = (vorhanden ?? []).filter((e) => !bekannt.has(e.id));
+  // Fassung 19: Die Ebene „Laufwege" fliegt raus.
+  //
+  // Sie stand in jedem Projekt, aber es gab kein Werkzeug, das darauf
+  // zeichnet – im ganzen Programm kam sie nur an der Stelle vor, an der sie
+  // angelegt wurde. Eine Ebene, die nichts kann, kostet jeden Blick auf die
+  // Liste eine Zeile und erweckt den Eindruck, man hätte etwas übersehen.
+  //
+  // Eigene Ebenen bleiben, auch eine selbst angelegte namens „Laufwege" –
+  // deshalb wird nur die mit genau dieser Kennung entfernt.
+  const eigene = (vorhanden ?? []).filter((e) => !bekannt.has(e.id) && e.id !== 'laufwege');
   return [...standard, ...eigene];
 }
 

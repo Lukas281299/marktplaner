@@ -1216,6 +1216,34 @@ export function Zeichenflaeche() {
     setAbstaende([]);
   };
 
+  /*
+   * Ein Zug, der ohne `dragend` endet, darf nichts hinterlassen.
+   *
+   * Konva meldet das Ende eines Ziehens über sein eigenes Ereignis. Bleibt
+   * das aus – die Maus verlässt das Fenster, ein Rahmen klappt weg, ein
+   * Bild fällt aus –, blieb `ziehRef` gesetzt. Und weil der Effekt, der die
+   * Anfasser anhängt, bei laufendem Zug nichts tut, erschien der
+   * Auswahlrahmen danach **bis zum Neuladen** nicht mehr.
+   *
+   * Ein Mausloslassen am Fenster räumt deshalb in jedem Fall auf. Es kommt
+   * immer, auch wenn Konva nichts mehr meldet.
+   */
+  useEffect(() => {
+    const aufraeumen = () => {
+      if (ziehRef.current) beiZiehEnde();
+    };
+    window.addEventListener('pointerup', aufraeumen);
+    window.addEventListener('pointercancel', aufraeumen);
+    window.addEventListener('blur', aufraeumen);
+    return () => {
+      window.removeEventListener('pointerup', aufraeumen);
+      window.removeEventListener('pointercancel', aufraeumen);
+      window.removeEventListener('blur', aufraeumen);
+    };
+    // `beiZiehEnde` setzt nur Zustand zurück und hängt an nichts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /**
    * Das frei geformte Element, das gerade allein ausgewählt ist.
    *

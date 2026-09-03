@@ -12,7 +12,6 @@ export const STANDARD_EBENEN: Ebene[] = [
   { id: 'verkaufsflaeche', name: 'Verkaufsfläche', sichtbar: true, gesperrt: false },
   { id: 'einrichtung', name: 'Einrichtung', sichtbar: true, gesperrt: false },
   { id: 'beschriftung', name: 'Beschriftungen', sichtbar: true, gesperrt: false },
-  { id: 'laufwege', name: 'Laufwege', sichtbar: true, gesperrt: false },
 ];
 
 /** Die Ebene, auf der neue Elemente standardmäßig landen. */
