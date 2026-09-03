@@ -236,11 +236,23 @@ describe('Türen an Kühlmöbeln', () => {
     expect(boegen('kuehlSchrank', 250)).toHaveLength(4);
   });
 
-  it('macht jede Tür genau 62,5 cm breit', () => {
+  it('macht die Tür eines Kühlmöbels 62,5 cm breit', () => {
     // Der Schwenkradius ist die Türbreite – daran hängt, wie viel Gang eine
     // offene Tür braucht. Stimmt die Zahl der Türen, muss auch der Radius
     // stimmen, sonst teilt die Zeichnung die Front falsch auf.
-    for (const radius of boegen('tkSchrank', 375)) expect(radius).toBeCloseTo(62.5, 6);
+    for (const radius of boegen('kuehlSchrank', 250)) expect(radius).toBeCloseTo(62.5, 6);
+  });
+
+  it('macht die Tür eines Tiefkühlschranks 78,1 cm breit', () => {
+    // Der Eclipse hat ein anderes Raster als die Truhen: 781 mm je Tür.
+    // Mit dem Truhenmaß von 625 zeichnete ein 3124er Schrank fünf Türen
+    // statt vier – wer zwei Zweitürer aneinandersetzte, sah eine Tür zu
+    // viel.
+    for (const radius of boegen('tkSchrank', 312.4)) expect(radius).toBeCloseTo(78.1, 6);
+    expect(boegen('tkSchrank', 312.4)).toHaveLength(4);
+    expect(boegen('tkSchrank', 156.2)).toHaveLength(2);
+    expect(boegen('tkSchrank', 234.3)).toHaveLength(3);
+    expect(boegen('tkSchrank', 389.8)).toHaveLength(5);
   });
 
   it('führt die Katalogmaße auf ganze Türen', () => {

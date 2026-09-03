@@ -1384,7 +1384,7 @@ export function zeichneForm(
       // Schwenkbogen davor – so sieht man im Plan sofort, wie weit sie
       // aufgehen und ob der Gang dafür reicht.
       ctx.rect(0, 0, b, t);
-      const tueren = tuerAnzahl(b);
+      const tueren = tuerAnzahl(b, 'tkSchrank');
       const breiteJeTuer = b / tueren;
       for (let i = 1; i < tueren; i++) {
         ctx.moveTo(i * breiteJeTuer, 0);
@@ -2545,20 +2545,36 @@ function zeichneAusgangsfluegel(ctx: Konva.Context, b: number, t: number) {
 const TRUHENMODUL = 62.5;
 
 /**
- * Türbreite an Kühlmöbeln und Tiefkühlschränken in cm.
+ * Türbreite an Kühlmöbeln in cm.
  *
  * Eine Tür alle 62,5 cm – dasselbe Rastermaß wie beim TRUHENMODUL. Ein
  * 2,50-m-Möbel hat damit vier Türen. Die Zahl der Türen wird berechnet statt
  * gespeichert: Zieht jemand den Schrank länger, kommen Türen dazu, und genau
  * so wird er auch bestellt.
- *
- * Die Katalogmaße gehen auf: 937, 1250, 1875, 2500 und 3750 mm ergeben 1, 2,
- * 3, 4 und 6 Türen.
  */
 const TUERBREITE = TRUHENMODUL;
 
-function tuerAnzahl(breite: number): number {
-  return Math.max(1, Math.round(breite / TUERBREITE));
+/**
+ * Türbreite am **Tiefkühlschrank** in cm – und die ist eine andere.
+ *
+ * Der WSL-Katalog führt die Eclipse-Schränke nach Türzahl: 1562 mm mit zwei,
+ * 2343 mit drei, 3124 mit vier und 3898 mit fünf Türen. Die ersten drei sind
+ * genau 781 mm je Tür; nur der Fünftürer fällt mit 3898 um 7 mm aus dem
+ * Raster. Maßgeblich ist deshalb 781, nicht der Durchschnitt.
+ *
+ * Mit dem Truhenraster von 625 kam bei jedem Schrank ab drei Türen eine zu
+ * viel heraus: 2343 / 625 = 3,75 wurde zu vier, 3124 / 625 = 5,0 zu fünf. Wer
+ * zwei Zweitürer aneinandersetzte, sah im Plan fünf Türen an einem Möbel, das
+ * vier hat.
+ */
+const TUERBREITE_TK = 78.1;
+
+function tuerbreiteFuer(form: Grundform): number {
+  return form === 'tkSchrank' ? TUERBREITE_TK : TUERBREITE;
+}
+
+function tuerAnzahl(breite: number, form: Grundform = 'kuehlSchrank'): number {
+  return Math.max(1, Math.round(breite / tuerbreiteFuer(form)));
 }
 
 /**
@@ -2617,7 +2633,7 @@ export function zeichneStriche(
 ) {
   const tueren = MIT_TUEREN.get(form);
   if (tueren !== undefined) {
-    zeichneTuerboegen(ctx, b, t, tueren === 'nachBreite' ? tuerAnzahl(b) : tueren);
+    zeichneTuerboegen(ctx, b, t, tueren === 'nachBreite' ? tuerAnzahl(b, form) : tueren);
   }
   if (form === 'kasseSitz') zeichneStuhl(ctx, b, t, false, gespiegelt);
   if (form === 'kasseDoppel') zeichneStuhl(ctx, b, t, true, gespiegelt);

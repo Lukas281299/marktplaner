@@ -41,10 +41,18 @@ describe('Modulsätze', () => {
     }
   });
 
-  it('deckt die Tiefkühlschränke ab', () => {
+  it('rastert die Tiefkühlschränke nach Türen, nicht nach ganzen Geräten', () => {
+    // Der Katalog benennt die Eclipse-Schränke selbst nach ihrer Türzahl.
+    // Eine Tür ist deshalb die Einheit, so wie das 625er Modul bei den
+    // Truhen – wer eine Tür mehr braucht, hängt eine an, statt zu rechnen.
     const satz = modulsatzFuer('tkSchrank')!;
+    expect(satz.laengen).toEqual([78.1]);
+    expect(satz.einheit).toBe('Tür');
+
+    // Und jede Bibliotheksbreite ist eine ganze Zahl von Türen.
     for (const breite of breitenZuForm('tkSchrank')) {
-      expect(satz.laengen.some((l) => Math.abs(l - breite) < 0.05)).toBe(true);
+      const tueren = breite / 78.1;
+      expect(Math.abs(tueren - Math.round(tueren)), `${breite} cm`).toBeLessThan(0.05);
     }
   });
 
@@ -131,12 +139,26 @@ describe('Breite in Einheiten zerlegen', () => {
   it('gibt jede Bibliotheksgröße sauber zurück', () => {
     // Die eigentliche Zusage: Was in der Bibliothek steht, muss sich in
     // Einheiten dieser Abteilung ausdrücken lassen.
+    //
+    // Eine Ausnahme, und sie steht im Katalog: Der fünftürige Eclipse misst
+    // 3898 mm statt 5 × 781 = 3905. Diese sieben Millimeter lassen sich nicht
+    // wegrechnen, ohne ein Maß zu erfinden – der Schrank bleibt deshalb in
+    // einem Stück, und genau das verspricht `zerlegeInModule` für alles, was
+    // nicht auf dem Raster liegt.
+    const AUSSERHALB = 389.8;
     for (const form of ['kuehlSchrank', 'tkSchrank', 'tkKombi', 'tkTruhe', 'vitable', 'bakeoff']) {
       const satz = modulsatzFuer(form as Grundform)!;
       for (const breite of breitenZuForm(form as Grundform)) {
         const teile = zerlegeInModule(breite, satz);
         expect(teile.reduce((a, b) => a + b, 0)).toBeCloseTo(breite, 1);
-        expect(teile.every((t) => satz.laengen.some((l) => Math.abs(l - t) < 0.05))).toBe(true);
+        if (form === 'tkSchrank' && Math.abs(breite - AUSSERHALB) < 0.05) {
+          expect(teile).toEqual([breite]);
+          continue;
+        }
+        expect(
+          teile.every((t) => satz.laengen.some((l) => Math.abs(l - t) < 0.05)),
+          `${form} ${breite}`,
+        ).toBe(true);
       }
     }
   });

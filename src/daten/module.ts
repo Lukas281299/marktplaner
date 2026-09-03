@@ -63,15 +63,21 @@ const SAETZE: { formen: Grundform[]; satz: Modulsatz }[] = [
     },
   },
   {
-    // Tiefkühlschränke: die Längen des WSL-Katalogs, 2 bis 5 Türen.
-    // Sie folgen keinem Modulraster – 1562, 2343, 3124 und 3898 mm sind
-    // schlicht die vier Geräte, die es gibt.
+    // Tiefkühlschränke: gerastert nach **Türen**, nicht nach ganzen Geräten.
+    //
+    // Vorher standen hier die vier Kataloglängen 1562 / 2343 / 3124 / 3898 mm.
+    // Damit ließ sich nur ein ganzer Schrank anhängen – wer eine Tür mehr
+    // brauchte, musste rechnen. Der Katalog benennt die Geräte aber selbst
+    // nach ihrer Türzahl, und 781 mm je Tür ergeben genau diese vier Längen.
+    // Eine Tür ist deshalb die richtige Einheit, so wie das 625er Modul bei
+    // den Truhen.
     formen: ['tkSchrank'],
     satz: {
-      einheit: 'Schrank',
-      mehrzahl: 'Schränke',
-      laengen: [156.2, 234.3, 312.4, 389.8],
-      herkunft: 'Kataloglängen WSL · 2 bis 5 Türen',
+      einheit: 'Tür',
+      mehrzahl: 'Türen',
+      laengen: [78.1],
+      herkunft: 'WSL Eclipse · 781 mm je Tür (1562 = 2×, 2343 = 3×, 3124 = 4×)',
+      knopf: meter,
     },
   },
   {

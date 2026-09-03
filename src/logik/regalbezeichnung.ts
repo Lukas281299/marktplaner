@@ -25,6 +25,14 @@ import type { PlanElement } from '../typen/modell';
  * eine erfundene Angabe.
  */
 
+/**
+ * Türbreite eines Tiefkühlschranks in cm.
+ *
+ * Steht auch in `ElementSymbol.tsx`, weil dort gezeichnet wird. Beide Stellen
+ * gehen auf dieselbe Katalogzeile zurück: WSL Eclipse, 781 mm je Tür.
+ */
+const TUER_TK = 78.1;
+
 /** Ein Achsmaß so, wie es im Plan steht: „A1250“. */
 export function achsText(achsmass: number): string {
   return `A${Math.round(achsmass * 10)}`;
@@ -187,6 +195,14 @@ export function bezeichnungFuer(element: PlanElement): string | undefined {
     if (/^T2×\d+$/.test(teil)) return `T2×${tiefeMm}`;
     const hoehe = element.hoehe ?? 0;
     if (/^H\d+$/.test(teil) && hoehe > 0) return `H${Math.round(hoehe * 10)}`;
+    // Die Türzahl eines Tiefkühlschranks steht im Namen und ergibt sich aus
+    // der Breite. Ohne Nachziehen behielte ein auf vier Türen verlängerter
+    // Schrank sein „3 Türen" – und man bestellte danach.
+    const tueren = teil.match(/^(\d+)\s+(Tür|Türen)$/);
+    if (tueren && element.form === 'tkSchrank') {
+      const zahl = Math.max(1, Math.round(element.breite / TUER_TK));
+      return `${zahl} ${zahl === 1 ? 'Tür' : 'Türen'}`;
+    }
     return teil;
   };
 
