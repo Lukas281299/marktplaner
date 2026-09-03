@@ -1,6 +1,5 @@
 import { felderVon } from './regalseiten';
 import { KISTE, kistenseiten } from './getraenkekisten';
-import { KISTEN_JE_METER } from './ifko';
 import type { Auslagenanteil, Streckenmeter } from './warengruppenmeter';
 import type { PlanElement, Regalfeld } from '../typen/modell';
 
@@ -141,21 +140,15 @@ export function moebelauslagen(
       break;
   }
 
-  // Obst und Gemüse rechnet in **grünen Kisten** und nicht in Böden. Wie
-  // viele auf ein Möbel gehen, steht am Möbel; hier wird daraus eine Zahl je
-  // laufendem Meter, damit sie sich mit dem Rest des Marktes addieren lässt
-  // (siehe `KISTEN_JE_METER`).
+  // Obst und Gemüse trägt seine Auslagen am Möbel: Ein Vitable-Tisch bringt
+  // sie aus dem Modul mit, nicht aus der Planung.
   //
-  // Die Kistenzahl gilt für das **ganze** Möbel. Eine Gondel wird zweimal
-  // durchlaufen – einmal je Seite –, also bekommt jede Seite die Hälfte.
-  if (element.kategorie === 'obstgemuese' && element.ifkoKisten) {
-    const seiten = element.beidseitig ? 2 : 1;
-    const laenge = element.breite / 100;
-    if (laenge > 0) return element.ifkoKisten / seiten / laenge / KISTEN_JE_METER;
-  }
-
-  // Sonst die Auslagen, die am Möbel stehen – der Vitable-Tisch bringt sie
-  // aus dem Modul mit, nicht aus der Planung.
+  // **Die grünen Kisten stehen bewusst nicht in dieser Spalte.** Wie viele
+  // Kisten einem Meter entsprechen, hängt daran, wie sie liegen und wie tief
+  // die Auflage ist – es gibt keinen einzelnen Umrechnungskurs (siehe
+  // `KISTEN_JE_METER` in `logik/ifko.ts`). Eine Spalte, die Kisten und Meter
+  // addierte, ergäbe eine Zahl, die nichts bedeutet. Die Kisten laufen
+  // deshalb als eigene Zahl mit – siehe `kistenAnteil`.
   if (element.auslagen && element.auslagen > 0) return element.auslagen;
 
   return undefined;
@@ -176,10 +169,20 @@ export function ohneAuslagenbegriff(element: PlanElement): boolean {
   return element.kategorie === 'blumen';
 }
 
-/** Wie viele grüne Kisten auf dieser Strecke stehen – nur bei Obst und Gemüse. */
+/**
+ * Wie viele grüne Kisten auf dieser Strecke stehen.
+ *
+ * Gilt für jedes Möbel, an dem eine Kistenzahl steht – auch für ein
+ * Kartoffelregal, das aus der Kategorie „Regale" kommt und trotzdem in der
+ * Obstabteilung steht. Die Abteilung entscheidet die Warengruppe, nicht der
+ * Katalog.
+ *
+ * Die Zahl gilt für das **ganze** Möbel. Eine Gondel wird zweimal durchlaufen
+ * – einmal je Seite –, also bekommt jede Seite die Hälfte.
+ */
 export function kistenAnteil(strecke: Streckenmeter): number {
   const el = strecke.element;
-  if (el.kategorie !== 'obstgemuese' || !el.ifkoKisten || !(el.breite > 0)) return 0;
+  if (!el.ifkoKisten || !(el.breite > 0)) return 0;
   const seiten = el.beidseitig ? 2 : 1;
   const jeCm = el.ifkoKisten / seiten / el.breite;
   return (strecke.bis - strecke.von) * jeCm;

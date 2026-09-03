@@ -26,6 +26,7 @@ import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
 import { gestelltiefe, kistenbelegung, kistenseiten, kistenzahl } from '../logik/getraenkekisten';
 import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { ifkoVorschlag } from '../logik/ifko';
+import { bodentiefeMm } from '../logik/feldnotiz';
 import { aktionsflaechen, palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
 import { getraenkezahlen } from '../logik/getraenkezahlen';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
@@ -1801,22 +1802,44 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
     (vorschlagKisten !== undefined && element.ifkoKisten === undefined) ||
     (vorschlagAuslagen !== undefined && element.auslagen === undefined);
 
+  /**
+   * Woraus der Vorschlag kommt – das gehört danebengeschrieben.
+   *
+   * Bei einem gestuften Möbel aus seinen Auflagen, bei einem Regal aus
+   * Bodenzahl und Bodentiefe. Wer die Zahl übernimmt, soll wissen, worauf sie
+   * beruht.
+   */
+  const herkunft = element.stufen?.length
+    ? `${element.stufen.map((t) => `T${t * 10}`).join(' + ')}${element.beidseitig ? ', beidseitig' : ''}`
+    : `${Math.round(bodentiefeMm(element))} mm tiefe Böden${element.beidseitig ? ', beidseitig' : ''}`;
+
+  /**
+   * Trägt dieses Möbel seine Auslagen am Möbel oder am Feld?
+   *
+   * Ein Vitable-Tisch bringt seine Stufen aus dem Modul mit – dort steht die
+   * Zahl am Möbel. Ein Regal hat Felder, und jedes trägt seine eigene
+   * Bodenzahl; ein zweites Feld dafür wäre eine zweite Wahrheit.
+   */
+  const auslagenAmMoebel = Boolean(element.stufen?.length) || element.auslagen !== undefined;
+
   return (
     <div className="gruppe">
       <div className="gruppe-titel">Auslagen und Kisten</div>
       <div className="feld-zeile">
-        <div className="feld">
-          <label>Auslagen (Böden)</label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={element.auslagen ?? ''}
-            placeholder="—"
-            title="Wie viele Böden dieser Möbeltyp trägt. Steht im Plan oben links in der Ecke."
-            onChange={(e) => setze({ auslagen: zahl(e.target.value) })}
-          />
-        </div>
+        {auslagenAmMoebel && (
+          <div className="feld">
+            <label>Auslagen (Böden)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={element.auslagen ?? ''}
+              placeholder="—"
+              title="Wie viele Böden dieser Möbeltyp trägt. Steht im Plan oben links in der Ecke."
+              onChange={(e) => setze({ auslagen: zahl(e.target.value) })}
+            />
+          </div>
+        )}
         <div className="feld">
           <label>Grüne Kisten</label>
           <input
@@ -1834,9 +1857,12 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
           Angeboten und nicht eingetragen: Die Zahl gehört dem Planer. */}
       {offen && (
         <p className="hinweis" style={{ marginTop: 2, marginBottom: 4 }}>
-          Nach den Stufen dieses Möbels ({element.stufen?.map((t) => `T${t * 10}`).join(' + ')}
-          {element.beidseitig ? ', beidseitig' : ''}):{' '}
-          <strong>{vorschlagAuslagen ?? '—'} Auslagen</strong> und{' '}
+          Nach dem Bau dieses Möbels ({herkunft}):{' '}
+          {vorschlagAuslagen !== undefined && (
+            <>
+              <strong>{vorschlagAuslagen} Auslagen</strong> und{' '}
+            </>
+          )}
           <strong>{vorschlagKisten ?? '—'} Kisten</strong>.{' '}
           <button
             className="knopf-flach"
@@ -1855,10 +1881,21 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
 
       <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
         Gilt für <strong>alle {gleiche === 1 ? 'Möbel dieser Art' : `${gleiche} Möbel dieser Art`}</strong>
-        {' '}— einmal eintragen, auch für die nächsten. Im Plan steht oben links{' '}
-        <strong>{element.auslagen ?? 0}+</strong> und darunter{' '}
-        <strong>{element.ifkoKisten ?? 0} iK</strong>; die Summe über die Abteilung steht in der
-        Flächenübersicht.
+        {' '}— einmal eintragen, auch für die nächsten.{' '}
+        {auslagenAmMoebel ? (
+          <>
+            Im Plan steht oben links <strong>{element.auslagen ?? 0}+</strong> und darunter{' '}
+            <strong>{element.ifkoKisten ?? 0} iK</strong>.
+          </>
+        ) : (
+          <>
+            Die Bodenzahl steht am Feld; hier zählen nur die Kisten. Auch ein Regal darf welche
+            tragen — ein Kartoffelregal steht in der Obstabteilung, egal aus welcher Kategorie es
+            kommt.
+          </>
+        )}{' '}
+        Die Kisten laufen in der Warengruppentabelle grün neben dem Namen mit und werden in der
+        Übersicht zusammengezählt.
       </p>
     </div>
   );
@@ -2601,9 +2638,15 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         <Kassenband element={erstes} einheit={einheit} />
       )}
 
-      {ausgewaehlte.length === 1 && erstes.kategorie === 'obstgemuese' && (
-        <ObstGemueseKennzahlen element={erstes} />
-      )}
+      {/*
+        Auch am Regal und am Kühlmöbel: Das Kartoffelregal kommt aus der
+        Kategorie „Regale", steht aber in der Obstabteilung und trägt
+        Kisten. Die Abteilung entscheidet die Warengruppe, nicht der Katalog.
+      */}
+      {ausgewaehlte.length === 1 &&
+        (erstes.kategorie === 'obstgemuese' ||
+          erstes.kategorie === 'regale' ||
+          erstes.kategorie === 'kuehlung') && <ObstGemueseKennzahlen element={erstes} />}
 
       {ausgewaehlte.length === 1 && erstes.form === 'aktionsflaeche' && (
         <Aktionspaletten element={erstes} />
@@ -3314,9 +3357,9 @@ function ProjektEigenschaften() {
           </>
         )}
 
-        {/* Die Getränke zählen in Kistenfacings – wie breit das Sortiment
-            ist – und daneben in Reihen: wie tief es steht. Zwei Zahlen,
-            weil zwei Fragen. */}
+        {/* Die Getränke zählen in Kistenfacings – die vorderste Reihe, also
+            wie breit das Sortiment ist. Mit der Tiefe wird daraus das
+            Volumen: alle Kisten vor den Gestellen. */}
         {getraenke.gestelle > 0 && (
           <>
             <div className="kennzahl">
@@ -3331,7 +3374,7 @@ function ProjektEigenschaften() {
             </div>
             <div className="kennzahl">
               <span>
-                Kisten insgesamt
+                Kisten insgesamt (Facings × Tiefe)
                 <span className="kategorie-anzahl">
                   {' '}
                   ·{' '}

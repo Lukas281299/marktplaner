@@ -3,6 +3,7 @@ import {
   auslagenAnteil,
   feldauslagen,
   frontfaktor,
+  kistenAnteil,
   moebelauslagen,
   TK_FACH,
   TK_TOTZONE,
@@ -185,22 +186,22 @@ describe('Was ein Möbel mitbringt', () => {
     expect(moebelauslagen(gestell, 'oben')).toBe(2.5);
   });
 
-  it('rechnet beim Obstmöbel aus den grünen Kisten', () => {
-    // Lukas rechnet Obst und Gemüse in ifko-Kisten. Damit sich die Spalte
-    // mit dem Rest des Marktes addieren lässt, werden sie über
-    // KISTEN_JE_METER in Meter umgerechnet – 2,5 Kisten sind ein Meter.
+  it('lässt die grünen Kisten aus der Meterspalte heraus', () => {
+    // Wie viele Kisten einem Meter entsprechen, hängt an ihrer Lage und an
+    // der Tiefe der Auflage – es gibt keinen einzelnen Umrechnungskurs. Eine
+    // Spalte, die Kisten und Meter addierte, ergäbe eine Zahl ohne Bedeutung.
     const tisch = element({
       form: 'vitable',
       kategorie: 'obstgemuese',
       breite: 125,
       ifkoKisten: 7,
+      auslagen: 2,
     });
-    // 7 Kisten auf 1,25 m sind 5,6 Kisten je Meter, also 2,24 Auslagen.
-    expect(moebelauslagen(tisch)).toBeCloseTo(7 / 1.25 / 2.5, 6);
+    expect(moebelauslagen(tisch)).toBe(2);
   });
 
-  it('teilt die Kisten einer Gondel auf ihre zwei Seiten', () => {
-    // Die Kistenzahl gilt für das ganze Möbel, die Auswertung läuft je Seite.
+  it('führt die Kisten als eigene Zahl mit', () => {
+    // Die Zahl gilt für das ganze Möbel; eine Gondel wird je Seite durchlaufen.
     const wand = element({ form: 'vitable', kategorie: 'obstgemuese', breite: 125, ifkoKisten: 7 });
     const gondel = element({
       form: 'vitable',
@@ -209,7 +210,25 @@ describe('Was ein Möbel mitbringt', () => {
       ifkoKisten: 14,
       beidseitig: true,
     });
-    expect(moebelauslagen(gondel)).toBeCloseTo(moebelauslagen(wand)!, 6);
+    const auf = (el: PlanElement) =>
+      kistenAnteil({ name: 'Äpfel', laenge: 125, element: el, seite: 'unten', von: 0, bis: 125 });
+    expect(auf(wand)).toBeCloseTo(7, 6);
+    expect(auf(gondel)).toBeCloseTo(7, 6);
+  });
+
+  it('zählt auch am Kartoffelregal die Kisten', () => {
+    // Es kommt aus der Kategorie „Regale", steht aber in der Obstabteilung.
+    // Die Abteilung entscheidet die Warengruppe, nicht der Katalog.
+    const regal = element({ kategorie: 'regale', breite: 100, ifkoKisten: 6 });
+    const anteil = kistenAnteil({
+      name: 'Kartoffeln',
+      laenge: 100,
+      element: regal,
+      seite: 'unten',
+      von: 0,
+      bis: 100,
+    });
+    expect(anteil).toBeCloseTo(6, 6);
   });
 
   it('sagt beim Regal nichts – dort entscheidet der Planer', () => {
