@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Leinwandmitschreiber } from './leinwandmitschreiber';
 import { moebelschritte } from './planvektor';
+import { pfadVon } from './pfadschreiber';
+import { zeichneMoebelumriss } from '../komponenten/zeichenflaeche/ElementSymbol';
 import { BIBLIOTHEK } from '../daten/bibliothek';
 import type { PlanElement } from '../typen/modell';
 
@@ -203,6 +205,37 @@ describe('Ein Möbel vollständig mitschreiben', () => {
       }
     }
     expect(leer, 'Möbel ohne jede Zeichnung').toBe(0);
+  });
+
+  it('lässt den Unterbau aus der Trefferfläche heraus', () => {
+    // Eine Kartoffelkiste steht 300 mm vor einem 600er Regal. Läge sie in der
+    // Trefferfläche, ließe sich das Regal davor nicht mehr anklicken – der
+    // Klick träfe die Kiste des Nachbarn und wählte den Nachbarn aus.
+    const el = ausVorlage(REGAL.id, {
+      tiefe: 60,
+      breite: REGAL.achsmass! * 2,
+      felderUnten: [
+        { breite: REGAL.achsmass!, unterbau: { art: 'kartoffelkiste', laengs: false } },
+        { breite: REGAL.achsmass! },
+      ],
+    } as Partial<PlanElement>);
+
+    /** Wie weit ein Pfad nach unten reicht. */
+    const tiefe = (d: string) => {
+      const zahlen = (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+      // Jede zweite Zahl ist ein y – bei M, L und den drei Punkten von C.
+      return Math.max(...zahlen.filter((_, i) => i % 2 === 1));
+    };
+
+    const gezeichnet = moebelschritte(el, 1)
+      .filter((s) => s.art !== 'text')
+      .map((s) => tiefe(s.d ?? ''));
+    const umriss = pfadVon((ctx) => zeichneMoebelumriss(ctx, el, el.breite, el.tiefe));
+
+    // Gezeichnet wird über die Möbeltiefe hinaus – die Kiste steht vor.
+    expect(Math.max(...gezeichnet)).toBeGreaterThan(el.tiefe + 10);
+    // Getroffen wird nur das Möbel.
+    expect(tiefe(umriss)).toBeLessThanOrEqual(el.tiefe + 0.01);
   });
 
   it('liefert für dasselbe Möbel zweimal dasselbe', () => {

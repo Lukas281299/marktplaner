@@ -528,15 +528,15 @@ export function griffZugabe(element: PlanElement, zoom: number): number | 'auto'
  * dem Regal liegt und nicht darauf.
  */
 const UNTERBAUFARBEN: Record<Unterbauart, { flaeche: string; linie: string }> = {
-  euro: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
-  chep: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
-  halb: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
-  viertel: { flaeche: 'rgba(176, 132, 74, 0.38)', linie: 'rgba(120, 84, 38, 0.85)' },
-  kiste: { flaeche: 'rgba(96, 122, 138, 0.34)', linie: 'rgba(46, 70, 86, 0.85)' },
+  euro: { flaeche: 'rgba(176, 132, 74, 0.2)', linie: 'rgba(120, 84, 38, 0.9)' },
+  chep: { flaeche: 'rgba(176, 132, 74, 0.2)', linie: 'rgba(120, 84, 38, 0.9)' },
+  halb: { flaeche: 'rgba(176, 132, 74, 0.2)', linie: 'rgba(120, 84, 38, 0.9)' },
+  viertel: { flaeche: 'rgba(176, 132, 74, 0.2)', linie: 'rgba(120, 84, 38, 0.9)' },
+  kiste: { flaeche: 'rgba(96, 122, 138, 0.18)', linie: 'rgba(46, 70, 86, 0.9)' },
   // Orange wie im Bestandsplan – die Kartoffelkiste fällt dort auf, weil sie
   // als einzige aus der Zeile heraussteht.
-  kartoffelkiste: { flaeche: 'rgba(230, 126, 34, 0.45)', linie: 'rgba(158, 74, 8, 0.9)' },
-  kuehlmoebel: { flaeche: 'rgba(79, 151, 212, 0.34)', linie: 'rgba(30, 92, 148, 0.9)' },
+  kartoffelkiste: { flaeche: 'rgba(230, 126, 34, 0.24)', linie: 'rgba(158, 74, 8, 0.95)' },
+  kuehlmoebel: { flaeche: 'rgba(79, 151, 212, 0.18)', linie: 'rgba(30, 92, 148, 0.95)' },
 };
 
 /**
@@ -2846,6 +2846,19 @@ export function ElementSymbol({
           ctx.fillStrokeShape(shape),
         )
       }
+      /*
+       * Getroffen wird nur das Möbel selbst.
+       *
+       * Ohne das läuft die Trefferfläche über alles, was drumherum gezeichnet
+       * wird – und die Kartoffelkiste steht dreißig Zentimeter vor dem Regal.
+       * Das Regal davor ließ sich dann nicht mehr anklicken: Der Klick traf
+       * die Kiste des Nachbarn und wählte den Nachbarn aus. Dasselbe galt für
+       * die Schwenkbögen der Türen und den Ausschwenkweg der Eingangsbügel.
+       */
+      hitFunc={(ctx, shape) => {
+        zeichneMoebelumriss(ctx, element, shape.width(), shape.height());
+        ctx.fillStrokeShape(shape);
+      }}
       onMouseDown={(e) => beiMausTaste(e, element.id)}
       onDragStart={(e) => beiZiehStart(e, element.id)}
       onDragMove={(e) => beiZiehen(e, element.id)}
@@ -2867,6 +2880,56 @@ export function ElementSymbol({
  * sich Farbe und Strichbreite dabei vom Element und nicht aus dem
  * Zeichenzustand, und deshalb muss der Aufrufer diesen Schritt beisteuern.
  */
+/**
+ * Nur das Möbel selbst – sein Umriss und was zu seinem Körper gehört.
+ *
+ * Eigene Funktion, weil sie zweimal gebraucht wird: einmal zum Zeichnen und
+ * einmal für die **Trefferfläche**. Was danach kommt – Paletten, Türbögen,
+ * Schwenkwege – gehört zum Bild, aber nicht zum Möbel. Läge es in der
+ * Trefferfläche, ließe sich ein Regal nicht mehr anklicken, sobald die
+ * Kartoffelkiste des Nachbarn darüber steht: Der Klick träfe dann das
+ * Nachbarregal, das gar nicht dort liegt.
+ */
+export function zeichneMoebelumriss(
+  ctx: Konva.Context,
+  element: PlanElement,
+  b: number,
+  t: number,
+) {
+  ctx.beginPath();
+  if (element.form === 'foerderband' && element.verlauf && element.verlauf.length >= 2) {
+    zeichneFoerderband(ctx, element.verlauf, element.bandbreite ?? 40, b, t, element.eckradius ?? 0);
+  } else if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
+    // Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der
+    // linken oberen Ecke, deshalb die halbe Größe dazu.
+    const p0 = element.polygon[0];
+    ctx.moveTo(p0.x + b / 2, p0.y + t / 2);
+    for (const p of element.polygon.slice(1)) ctx.lineTo(p.x + b / 2, p.y + t / 2);
+    ctx.closePath();
+  }
+  zeichneForm(
+    ctx,
+    element.form,
+    b,
+    t,
+    Boolean(element.beidseitig),
+    element.achsmass ?? 0,
+    felderVon(element, 'unten'),
+    Boolean(element.gespiegelt),
+    element.beidseitig ? felderVon(element, 'oben') : undefined,
+    element.kisten,
+    gestellstuetzen(element, b),
+  );
+  // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
+  // die ganze Tiefe – so wie beim Regalzug.
+  for (const x of einheitenNaehte(element, b)) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, t);
+  }
+  zeichneAchsmass(ctx, element, b, t);
+  zeichneFuehrungsrohr(ctx, element, b, t);
+}
+
 export function zeichneElement(
   ctx: Konva.Context,
   element: PlanElement,
@@ -2880,38 +2943,7 @@ export function zeichneElement(
 
     // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
     //    Linienfarbe des Elements.
-    ctx.beginPath();
-    if (element.form === 'foerderband' && element.verlauf && element.verlauf.length >= 2) {
-      zeichneFoerderband(ctx, element.verlauf, element.bandbreite ?? 40, b, t, element.eckradius ?? 0);
-    } else if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
-      // Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der
-      // linken oberen Ecke, deshalb die halbe Größe dazu.
-      const p0 = element.polygon[0];
-      ctx.moveTo(p0.x + b / 2, p0.y + t / 2);
-      for (const p of element.polygon.slice(1)) ctx.lineTo(p.x + b / 2, p.y + t / 2);
-      ctx.closePath();
-    }
-    zeichneForm(
-      ctx,
-      element.form,
-      b,
-      t,
-      Boolean(element.beidseitig),
-      element.achsmass ?? 0,
-      felderVon(element, 'unten'),
-      Boolean(element.gespiegelt),
-      element.beidseitig ? felderVon(element, 'oben') : undefined,
-      element.kisten,
-      gestellstuetzen(element, b),
-    );
-    // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
-    // die ganze Tiefe – so wie beim Regalzug.
-    for (const x of einheitenNaehte(element, b)) {
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, t);
-    }
-    zeichneAchsmass(ctx, element, b, t);
-    zeichneFuehrungsrohr(ctx, element, b, t);
+    zeichneMoebelumriss(ctx, element, b, t);
     abschluss();
 
     // 1b. Die Paletten – erst jetzt, nach der Möbelfüllung.
