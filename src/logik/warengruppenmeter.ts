@@ -91,6 +91,11 @@ const OHNE_WARE: ReadonlySet<Grundform> = new Set<Grundform>([
   'leergutRuecknahme',
   'leergutEinweg',
   'dpgBehaelter',
+  // Die Aktionsfläche misst sich in Palettenplätzen und nicht in Metern –
+  // siehe `logik/palettenplatz.ts`. Ihre Breite hängt daran, wie herum man
+  // sie gezogen hat; als laufende Meter wäre sie eine Zufallszahl, und in
+  // der Zeile „ohne Warengruppe" sähe sie aus wie vergessenes Regal.
+  'aktionsflaeche',
   // Ausbau und Anmerkungen.
   'holzblende',
   'holzblendeU',

@@ -292,6 +292,19 @@ describe('Summen', () => {
     expect(summe.ohneWarengruppe).toBe(0);
   });
 
+  it('misst eine Aktionsfläche nicht in Metern', () => {
+    // Sie zählt in Palettenplätzen. Ihre Breite hängt daran, wie herum man
+    // sie gezogen hat – als laufende Meter wäre sie eine Zufallszahl.
+    const flaeche = element({
+      id: 'a',
+      kategorie: 'aktion',
+      form: 'aktionsflaeche',
+      breite: 300,
+      felderUnten: [{ breite: 300 }],
+    });
+    expect(metersumme(warengruppenmeter(projekt([flaeche]))).laufend).toBe(0);
+  });
+
   it('lässt die Kassengondel aber mitzählen', () => {
     // Auf der liegt Ware, und genau darum geht es.
     const gondel = element({
