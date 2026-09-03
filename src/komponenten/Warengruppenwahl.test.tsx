@@ -8,10 +8,10 @@ import { usePlanStore } from '../zustand/planStore';
 /**
  * Das Auswahlmenü über die Sortimentsliste.
  *
- * Es steht neben einem Textfeld, das die eigentliche Arbeit tut – geprüft
- * wird deshalb vor allem, dass es sich nicht wichtigmacht: kein Menü ohne
- * Liste, und kein Zustand, der neben dem Textfeld eine zweite Wahrheit
- * behauptet.
+ * Es soll dieselbe Liste sein wie links – drei Stufen, aufklappbare
+ * Abteilungen, eine Suche. Ein Auswahlfeld konnte das nicht: zwei Ebenen,
+ * alles auf einmal, keine Suche. Geprüft wird deshalb vor allem, dass die
+ * Gruppierung wirklich ankommt und dass sich das Menü nicht wichtigmacht.
  */
 
 const LISTE = {
@@ -26,8 +26,15 @@ const LISTE = {
 
 afterEach(() => {
   cleanup();
-  usePlanStore.setState({ sortiment: { abteilungen: [] } });
+  usePlanStore.setState({ sortiment: { abteilungen: [] }, offeneAbteilungen: [] });
 });
+
+/** Öffnet das Menü und gibt den Knopf zurück. */
+async function oeffne() {
+  const knopf = screen.getByTitle('Aus der Sortimentsliste wählen');
+  await userEvent.click(knopf);
+  return knopf;
+}
 
 describe('Warengruppen wählen', () => {
   it('erscheint gar nicht, solange keine Liste geladen ist', () => {
@@ -36,26 +43,51 @@ describe('Warengruppen wählen', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('führt Warengruppen und Sortimente unter ihrer Abteilung', () => {
+  it('zeigt zugeklappt nur die Abteilungen', async () => {
     usePlanStore.setState({ sortiment: LISTE });
     render(<Warengruppenwahl waehle={() => {}} />);
-    // Beide Stufen im selben Menü: Beim Planen greift man mal auf der einen
-    // Höhe zu und mal auf der anderen.
-    expect(screen.getByRole('group', { name: 'Backwaren' })).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Trockensortiment' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: 'Bake Off' })).toBeTruthy();
-    expect(screen.getByRole('option', { name: /Croissants/ })).toBeTruthy();
+    await oeffne();
+    expect(screen.getByText('Backwaren')).toBeTruthy();
+    expect(screen.getByText('Trockensortiment')).toBeTruthy();
+    // Genau wie links: Was zu ist, ist zu.
+    expect(screen.queryByText('Bake Off')).toBeNull();
   });
 
-  it('gibt den gewählten Namen weiter und merkt sich nichts', async () => {
+  it('klappt eine Abteilung auf und zeigt beide Stufen', async () => {
     usePlanStore.setState({ sortiment: LISTE });
+    render(<Warengruppenwahl waehle={() => {}} />);
+    await oeffne();
+    await userEvent.click(screen.getByText('Backwaren'));
+    expect(screen.getByText('Bake Off')).toBeTruthy();
+    expect(screen.getByText('Croissants')).toBeTruthy();
+  });
+
+  it('sucht über alle drei Stufen und klappt dafür auf', async () => {
+    usePlanStore.setState({ sortiment: LISTE });
+    render(<Warengruppenwahl waehle={() => {}} />);
+    await oeffne();
+    await userEvent.type(screen.getByPlaceholderText('Suchen …'), 'crois');
+    // Wer sucht, will den Treffer sehen und ihn nicht erst aufklappen.
+    expect(screen.getByText('Croissants')).toBeTruthy();
+    expect(screen.queryByText('Trockensortiment')).toBeNull();
+  });
+
+  it('gibt den gewählten Namen weiter und schließt sich', async () => {
+    usePlanStore.setState({ sortiment: LISTE, offeneAbteilungen: ['Backwaren'] });
     const waehle = vi.fn();
     render(<Warengruppenwahl waehle={waehle} />);
-    const menue = screen.getByRole('combobox') as HTMLSelectElement;
-    await userEvent.selectOptions(menue, 'Croissants');
+    await oeffne();
+    await userEvent.click(screen.getByText('Croissants'));
     expect(waehle).toHaveBeenCalledWith('Croissants');
-    // Danach steht es wieder auf leer – der gewählte Name gehört ins
-    // Textfeld daneben und nicht zweimal in die Oberfläche.
-    expect(menue.value).toBe('');
+    expect(screen.queryByPlaceholderText('Suchen …')).toBeNull();
+  });
+
+  it('sagt bei einem Fehlschlag, dass man trotzdem tippen darf', async () => {
+    usePlanStore.setState({ sortiment: LISTE });
+    render(<Warengruppenwahl waehle={() => {}} />);
+    await oeffne();
+    await userEvent.type(screen.getByPlaceholderText('Suchen …'), 'zzz');
+    // Die Liste ist eine Hilfe und keine Vorschrift – das muss dastehen.
+    expect(screen.getByText(/eintippen/)).toBeTruthy();
   });
 });

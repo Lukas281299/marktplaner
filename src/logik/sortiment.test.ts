@@ -9,6 +9,7 @@ import {
   mitAbteilung,
   mitAufgenommenem,
   mitZuordnung,
+  mitsamtZugeordneten,
   mitSortiment,
   mitWarengruppe,
   ohneAbteilung,
@@ -437,5 +438,46 @@ describe('Abteilung eines Namens', () => {
     expect(abteilungVon(liste, 'Bake Off')).toBe('Backwaren');
     expect(abteilungVon(liste, 'croissants')).toBe('Backwaren');
     expect(abteilungVon(liste, 'Kaffee')).toBeUndefined();
+  });
+});
+
+describe('Die Liste kennt die Zuordnung', () => {
+  const liste = {
+    abteilungen: [
+      {
+        name: 'Feinbackwaren',
+        warengruppen: [{ name: 'Süßes', sortimente: ['Kuchen', 'Waffeln'] }],
+      },
+    ],
+  };
+  const z = { waffeln: 'Kuchen' };
+
+  it('zählt einen zugeordneten Namen nicht als offen', () => {
+    // „In der Liste fehlt dann keine bzw. es sieht nicht so aus, als sei sie
+    // vergessen worden." Waffeln laufen über Kuchen – also kein offener Punkt.
+    const ohne = gruppenstand(undefined, 'Feinbackwaren', liste.abteilungen[0].warengruppen[0]);
+    expect(ohne.zahlen.offen).toBe(2);
+
+    const mit = gruppenstand(undefined, 'Feinbackwaren', liste.abteilungen[0].warengruppen[0], z);
+    expect(mit.zahlen.offen).toBe(1);
+    expect(mit.zahlen.grau).toBe(1);
+  });
+
+  it('gibt dem Eintrag einen eigenen Zustand', () => {
+    expect(standVon(undefined, pfadVon('Feinbackwaren', 'Süßes', 'Waffeln'), z)).toBe('zugeordnet');
+    expect(standVon(undefined, pfadVon('Feinbackwaren', 'Süßes', 'Kuchen'), z)).toBe('rot');
+  });
+
+  it('lässt einen gesetzten Haken vorgehen', () => {
+    // Wer den Namen selbst abgehakt hat, meint das auch so.
+    const stand = { [pfadVon('Feinbackwaren', 'Süßes', 'Waffeln')]: 'gruen' as const };
+    expect(standVon(stand, pfadVon('Feinbackwaren', 'Süßes', 'Waffeln'), z)).toBe('gruen');
+  });
+
+  it('nennt beim Abhaken die zugeordneten Namen mit', () => {
+    // Wer „Kuchen" in den Plan malt, hat auch die Waffeln untergebracht.
+    expect(mitsamtZugeordneten('Kuchen', z).sort()).toEqual(['Kuchen', 'waffeln']);
+    expect(mitsamtZugeordneten('Kekse', z)).toEqual(['Kekse']);
+    expect(mitsamtZugeordneten('Kuchen', undefined)).toEqual(['Kuchen']);
   });
 });

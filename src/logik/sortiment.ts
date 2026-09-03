@@ -26,8 +26,16 @@ import type { Sortimentsgruppe } from '../daten/warengruppen';
  * der Name genau der Name und nicht ein Teil davon.
  */
 
-/** Die drei Zustände. Rot ist der Grundzustand und wird nicht gespeichert. */
-export type Standwert = 'rot' | 'gruen' | 'grau';
+/**
+ * Die vier Zustände. Rot ist der Grundzustand und wird nicht gespeichert.
+ *
+ * `zugeordnet` wird ebenfalls nicht gespeichert – er ergibt sich daraus, dass
+ * der Name einer anderen Warengruppe zugeschlagen ist (`Projekt.zuordnungen`).
+ * Er zählt wie grau **nicht** unter die offenen Punkte: Wer Waffeln dem
+ * Kuchen zuschlägt, hat sie nicht vergessen, er zeichnet sie nur nicht
+ * einzeln ein. Genau das war der Sinn der Zuordnung.
+ */
+export type Standwert = 'rot' | 'gruen' | 'grau' | 'zugeordnet';
 
 /** Was in der Planung steht – siehe `Projekt.sortimentsstand`. */
 export type Sortimentsstand = Record<string, 'gruen' | 'grau'>;
@@ -46,8 +54,23 @@ export function schluesselVon(abteilung: string, gruppe: string): string {
 }
 
 /** Der Zustand eines einzelnen Eintrags. */
-export function standVon(stand: Sortimentsstand | undefined, pfad: string): Standwert {
-  return stand?.[pfad] ?? 'rot';
+export function standVon(
+  stand: Sortimentsstand | undefined,
+  pfad: string,
+  zuordnungen?: Record<string, string>,
+): Standwert {
+  const gesetzt = stand?.[pfad];
+  if (gesetzt) return gesetzt;
+  // Ein zugeordneter Name ist nicht offen. Seine Meter laufen woanders, und
+  // rot zu bleiben hieße, dauerhaft etwas anzumahnen, das erledigt ist.
+  if (zuordnungen && zuordnungVon(zuordnungen, letzteStufe(pfad))) return 'zugeordnet';
+  return 'rot';
+}
+
+/** Der Name eines Pfades – die letzte Stufe. */
+function letzteStufe(pfad: string): string {
+  const teile = pfad.split(' › ');
+  return teile[teile.length - 1] ?? pfad;
 }
 
 /**
@@ -57,6 +80,9 @@ export function standVon(stand: Sortimentsstand | undefined, pfad: string): Stan
  * man ab, was steht, und nur ab und zu ist etwas gar nicht vorgesehen.
  */
 export function naechsterStand(jetzt: Standwert): Standwert {
+  // „Zugeordnet" ist kein Zustand, den man anklickt – er kommt von der
+  // Zuordnung. Ein Klick darauf beginnt die übliche Runde von vorn.
+  if (jetzt === 'zugeordnet') return 'gruen';
   return jetzt === 'rot' ? 'gruen' : jetzt === 'gruen' ? 'grau' : 'rot';
 }
 
@@ -94,12 +120,16 @@ export interface Standzahlen {
   grau: number;
 }
 
-function zaehle(stand: Sortimentsstand | undefined, pfade: string[]): Standzahlen {
+function zaehle(
+  stand: Sortimentsstand | undefined,
+  pfade: string[],
+  zuordnungen?: Record<string, string>,
+): Standzahlen {
   const zahlen: Standzahlen = { gruen: 0, offen: 0, grau: 0 };
   for (const pfad of pfade) {
-    const wert = standVon(stand, pfad);
+    const wert = standVon(stand, pfad, zuordnungen);
     if (wert === 'gruen') zahlen.gruen++;
-    else if (wert === 'grau') zahlen.grau++;
+    else if (wert === 'grau' || wert === 'zugeordnet') zahlen.grau++;
     else zahlen.offen++;
   }
   return zahlen;
@@ -117,19 +147,25 @@ export function gruppenstand(
   stand: Sortimentsstand | undefined,
   abteilung: string,
   gruppe: Sortimentsgruppeartig,
+  zuordnungen?: Record<string, string>,
 ): { wert: Standwert; zahlen: Standzahlen } {
   const eigen = pfadVon(abteilung, gruppe.name);
   if (gruppe.sortimente.length === 0) {
-    const wert = standVon(stand, eigen);
+    const wert = standVon(stand, eigen, zuordnungen);
     return {
       wert,
-      zahlen: { gruen: wert === 'gruen' ? 1 : 0, offen: wert === 'rot' ? 1 : 0, grau: wert === 'grau' ? 1 : 0 },
+      zahlen: {
+        gruen: wert === 'gruen' ? 1 : 0,
+        offen: wert === 'rot' ? 1 : 0,
+        grau: wert === 'grau' || wert === 'zugeordnet' ? 1 : 0,
+      },
     };
   }
 
   const zahlen = zaehle(
     stand,
     gruppe.sortimente.map((n) => pfadVon(abteilung, gruppe.name, n)),
+    zuordnungen,
   );
   return { wert: ausZahlen(zahlen), zahlen };
 }
@@ -138,20 +174,25 @@ export function gruppenstand(
 export function abteilungsstand(
   stand: Sortimentsstand | undefined,
   abteilung: Sortimentsabteilung,
+  zuordnungen?: Record<string, string>,
 ): { wert: Standwert; zahlen: Standzahlen } {
   if (abteilung.warengruppen.length === 0) {
-    const wert = standVon(stand, pfadVon(abteilung.name));
+    const wert = standVon(stand, pfadVon(abteilung.name), zuordnungen);
     return {
       wert,
-      zahlen: { gruen: wert === 'gruen' ? 1 : 0, offen: wert === 'rot' ? 1 : 0, grau: wert === 'grau' ? 1 : 0 },
+      zahlen: {
+        gruen: wert === 'gruen' ? 1 : 0,
+        offen: wert === 'rot' ? 1 : 0,
+        grau: wert === 'grau' || wert === 'zugeordnet' ? 1 : 0,
+      },
     };
   }
 
   const zahlen: Standzahlen = { gruen: 0, offen: 0, grau: 0 };
   for (const gruppe of abteilung.warengruppen) {
-    const wert = gruppenstand(stand, abteilung.name, gruppe).wert;
+    const wert = gruppenstand(stand, abteilung.name, gruppe, zuordnungen).wert;
     if (wert === 'gruen') zahlen.gruen++;
-    else if (wert === 'grau') zahlen.grau++;
+    else if (wert === 'grau' || wert === 'zugeordnet') zahlen.grau++;
     else zahlen.offen++;
   }
   return { wert: ausZahlen(zahlen), zahlen };
@@ -177,6 +218,26 @@ function ausZahlen(zahlen: Standzahlen): Standwert {
  * genau diesen Namen, nicht einen, in dem er vorkommt. Grün werden alle
  * Einträge, die so heißen – ein Name kann in zwei Abteilungen stehen.
  */
+/**
+ * Alle Namen, die einem Namen zugeschlagen sind – er selbst eingeschlossen.
+ *
+ * Wer „Kuchen" in den Plan malt, hakt damit auch „Waffeln" ab, wenn Waffeln
+ * dem Kuchen zugeordnet sind. Sonst bliebe der zugeordnete Name in der Liste
+ * rot, obwohl seine Meter im Plan stehen – genau das, was die Zuordnung
+ * verhindern soll.
+ */
+export function mitsamtZugeordneten(
+  name: string,
+  zuordnungen: Record<string, string> | undefined,
+): string[] {
+  const ziel = schluessel(name);
+  const namen = [name];
+  for (const [quelle, wohin] of Object.entries(zuordnungen ?? {})) {
+    if (schluessel(wohin) === ziel) namen.push(quelle);
+  }
+  return namen;
+}
+
 export function mitAbgehaktemNamen(
   liste: Sortimentsliste,
   stand: Sortimentsstand | undefined,
@@ -210,7 +271,11 @@ export function mitStand(
 ): Sortimentsstand {
   const neu: Sortimentsstand = { ...(stand ?? {}) };
   for (const pfad of pfade) {
-    if (wert === 'rot') delete neu[pfad];
+    // Rot ist der Grundzustand und wird nicht gemerkt. „Zugeordnet" auch
+    // nicht: Der Zustand ergibt sich aus `Projekt.zuordnungen` und ist
+    // nichts, was man am einzelnen Eintrag festhält – sonst stünde er noch
+    // da, wenn die Zuordnung längst weg ist.
+    if (wert === 'rot' || wert === 'zugeordnet') delete neu[pfad];
     else neu[pfad] = wert;
   }
   return neu;

@@ -358,6 +358,27 @@ export type Unterbauart =
  * (siehe `logik/warengruppe.ts`); sonst müsste jede Drehung die Daten
  * umschreiben.
  */
+/**
+ * Ein Stück innerhalb einer Warengruppenstrecke.
+ *
+ * Unter dem Möbel steht „Trockenobst" über drei Meter – aber auf dem ersten
+ * liegt die Eigenmarke, auf dem zweiten die Marke, auf dem dritten Bio. Diese
+ * Aufteilung gehört zur Planung, aber nicht in den Plan: Gedruckt machte sie
+ * ihn unlesbar, gerechnet ergäbe sie die Meter doppelt.
+ *
+ * **Gemessen in derselben Achse wie die Strecke darüber** – Zentimeter ab dem
+ * Anfang des Möbels. Damit lässt sich dieselbe Ordnungsregel anwenden, und
+ * niemand muss zwei Koordinatensysteme im Kopf halten. Ein Teil, das beim
+ * Kürzen aus seiner Strecke fällt, wird mit ihr beschnitten.
+ */
+export interface Teilsortiment {
+  /** Anfang in cm, ab dem Anfang des Möbels. */
+  von: number;
+  /** Ende in cm. */
+  bis: number;
+  text: string;
+}
+
 export interface Warengruppenabschnitt {
   /** Anfang in cm, ab dem Anfang des Möbels. */
   von: number;
@@ -374,15 +395,20 @@ export interface Warengruppenabschnitt {
   schrift?: number;
 
   /**
-   * Was hier im Einzelnen liegt – eine Notiz zur Strecke.
+   * Die Teilsortimente dieser Strecke, Meter für Meter.
    *
-   * Unter dem Möbel steht „Kaffee", aber es liegen dort Bohnen, gemahlener
-   * und Pads. Diese Aufteilung gehört zur Planung; sie im Plan mitzudrucken
-   * machte ihn unlesbar, und sie mitzurechnen ergäbe die Meter doppelt.
+   * „Drei Meter Trockenobst" ist die Warengruppe; welcher Meter Eigenmarke
+   * ist und welcher Bio, steht hier. **Nicht im Plan und in keiner
+   * Meterzahl** – siehe `Teilsortiment`.
+   */
+  teile?: Teilsortiment[];
+
+  /**
+   * Eine freie Notiz zur ganzen Strecke.
    *
-   * **Steht deshalb nicht im Plan und zählt in keiner Meterzahl mit.** Sie
-   * ist eine Erinnerung für den, der die Planung wieder aufmacht – und über
-   * die Suche zu finden.
+   * Für alles, was sich nicht auf einen bestimmten Meter bezieht. Steht
+   * ebenfalls nicht im Plan und zählt in keiner Meterzahl mit – aber die
+   * Suche findet es.
    */
   notiz?: string;
 }

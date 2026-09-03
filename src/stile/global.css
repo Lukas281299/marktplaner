@@ -789,9 +789,96 @@ p .wg-punkt {
  */
 .wg-wahl {
   flex: none;
-  width: 26px;
-  padding-left: 2px;
-  padding-right: 0;
+  width: 24px;
+  border: 1px solid var(--rand-stark);
+  background: var(--flaeche);
+  color: var(--text-schwach);
+  border-radius: var(--rundung);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+}
+
+.wg-wahl:hover {
+  background: var(--flaeche-3);
+  color: var(--text);
+}
+
+/*
+ * Das aufgeklappte Menü.
+ *
+ * Es hängt am Fenster, weil das Eigenschaftenfenster scrollt – darin würde
+ * es an der Unterkante abgeschnitten.
+ */
+.wg-menue {
+  position: fixed;
+  z-index: 60;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  background: var(--flaeche);
+  border: 1px solid var(--rand-stark);
+  border-radius: var(--rundung);
+  box-shadow: var(--schatten);
+  overflow: hidden;
+}
+
+.wg-menue-suche {
+  margin: 6px;
+  flex: none;
+}
+
+.wg-menue-liste {
+  overflow-y: auto;
+  padding: 0 4px 6px;
+}
+
+.wg-menue-abteilung,
+.wg-menue-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--rundung);
+}
+
+.wg-menue-abteilung {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-schwach);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-top: 4px;
+}
+
+.wg-menue-abteilung .kategorie-anzahl {
+  margin-left: auto;
+}
+
+.wg-menue-name {
+  font-size: 12.5px;
+}
+
+.wg-menue-name.wg-tief {
+  font-size: 12px;
+  padding-left: 20px;
+}
+
+.wg-menue-abteilung:hover,
+.wg-menue-name:hover {
+  background: var(--blau-hell);
+}
+
+.wg-pfeil {
+  width: 10px;
+  flex: none;
 }
 
 /*
@@ -801,6 +888,19 @@ p .wg-punkt {
  * zu der davor. Anklickbar bleibt es, damit man die Zuordnung ändern kann,
  * ohne erst in die Pflege zu wechseln.
  */
+/*
+ * Der Punkt eines zugeordneten Namens.
+ *
+ * Ein gestrichelter Ring: Er ist nicht offen – seine Meter laufen woanders –,
+ * aber auch nicht selbst eingezeichnet. Die Form unterscheidet ihn zusätzlich
+ * zur Farbe, wie bei den anderen dreien.
+ */
+.wg-punkt.zugeordnet {
+  background: transparent;
+  border-color: var(--text-schwach);
+  border-style: dashed;
+}
+
 .wg-zuordnung {
   flex: none;
   max-width: 45%;
@@ -1313,6 +1413,37 @@ details.erklaerung[open] > summary {
 .kennzahl-wert {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+/*
+ * Teilsortimente einer Warengruppenstrecke.
+ *
+ * Zugeklappt eine Zeile mit dem, was drinsteht – die meisten Strecken
+ * brauchen keine Aufteilung, und das Fenster ist ohnehin lang.
+ */
+.teilsortimente > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--abstand-2);
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  color: var(--text-schwach);
+  padding: 1px 0;
+}
+
+.teilsortimente > summary:hover {
+  color: var(--text);
+}
+
+.teilsortimente[open] > summary {
+  margin-bottom: 2px;
+}
+
+.teilsortimente .kategorie-anzahl {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ================================================= Meter je Warengruppe */

@@ -55,7 +55,7 @@ import type {
   Regalfeld,
   Verkaufsflaeche,
   Wand,
-  Warengruppenabschnitt, BibliothekEintrag } from '../typen/modell';
+  Warengruppenabschnitt, Teilsortiment, BibliothekEintrag } from '../typen/modell';
 import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
 import {
   Auswahlfeld,
@@ -1099,6 +1099,139 @@ function Seitenaufteilung({
 }
 
 /**
+ * Die Teilsortimente einer Warengruppenstrecke – Meter für Meter.
+ *
+ * Unter dem Möbel steht „Trockenobst" über drei Meter. Auf dem ersten liegt
+ * die Eigenmarke, auf dem zweiten die Marke, auf dem dritten Bio. Genau das
+ * steht hier.
+ *
+ * **Zugeklappt kostet es eine Zeile.** Die meisten Strecken brauchen keine
+ * Aufteilung, und das Eigenschaftenfenster ist ohnehin lang. Wer eine
+ * anlegt, sieht sie danach in der Kopfzeile stehen, ohne aufzuklappen.
+ *
+ * Im Plan steht nichts davon, und in keiner Meterzahl zählt es mit – die
+ * Meter der Warengruppe darüber sind schon gezählt. Zu finden ist es über die
+ * Suche.
+ */
+function Teilsortimente({
+  abschnitt,
+  aendern,
+  beiStart,
+}: {
+  abschnitt: Warengruppenabschnitt;
+  aendern: (werte: Partial<Warengruppenabschnitt>) => void;
+  beiStart: () => void;
+}) {
+  const teile = abschnitt.teile ?? [];
+  const meter = (cm: number) => (cm / 100).toFixed(2);
+
+  const setzeTeile = (neu: Teilsortiment[]) =>
+    aendern({ teile: neu.length > 0 ? neu : undefined });
+
+  const aendereTeil = (index: number, werte: Partial<Teilsortiment>) =>
+    setzeTeile(teile.map((t, j) => (j === index ? { ...t, ...werte } : t)));
+
+  /**
+   * Der nächste freie Meter innerhalb der Strecke.
+   *
+   * Hinter dem letzten Teil, höchstens einen Meter lang und nie über das Ende
+   * hinaus. So legt man drei Meter mit drei Klicks an, ohne Zahlen zu tippen.
+   */
+  const naechstesTeil = (): Teilsortiment => {
+    const letztes = teile[teile.length - 1];
+    const von = letztes ? Math.min(letztes.bis, abschnitt.bis) : abschnitt.von;
+    return { von, bis: Math.min(abschnitt.bis, von + 100), text: '' };
+  };
+
+  const platzUebrig = teile.length === 0 || teile[teile.length - 1].bis < abschnitt.bis - 0.5;
+
+  return (
+    <details className="teilsortimente">
+      <summary>
+        <span>Teilsortimente</span>
+        <span className="kategorie-anzahl">
+          {teile.length === 0
+            ? 'keine'
+            : teile
+                .map((t) => t.text.trim() || '—')
+                .join(' · ')
+                .slice(0, 40)}
+        </span>
+      </summary>
+
+      <p className="hinweis" style={{ margin: '2px 0 4px' }}>
+        Steht nicht im Plan und zählt in keiner Meterzahl mit — die Meter der Warengruppe darüber
+        sind schon gezählt. Über die Suche ist es trotzdem zu finden.
+      </p>
+
+      {teile.map((teil, j) => (
+        <div key={j} style={{ display: 'flex', gap: 3, alignItems: 'center', marginBottom: 3 }}>
+          <input
+            type="text"
+            style={{ flex: 1, minWidth: 0, fontSize: 11 }}
+            value={teil.text}
+            placeholder="z. B. Eigenmarke"
+            onFocus={beiStart}
+            onChange={(e) => aendereTeil(j, { text: e.target.value })}
+          />
+          <input
+            type="number"
+            step="0.05"
+            style={{ width: 52, fontSize: 11 }}
+            title="Anfang, in Metern ab dem Anfang des Möbels"
+            value={meter(teil.von)}
+            onFocus={beiStart}
+            onChange={(e) => aendereTeil(j, { von: Number(e.target.value) * 100 })}
+          />
+          <input
+            type="number"
+            step="0.05"
+            style={{ width: 52, fontSize: 11 }}
+            title="Ende, in Metern"
+            value={meter(teil.bis)}
+            onFocus={beiStart}
+            onChange={(e) => aendereTeil(j, { bis: Number(e.target.value) * 100 })}
+          />
+          <button
+            className="knopf knopf-nur-symbol"
+            title="Dieses Teilsortiment entfernen"
+            onClick={() => {
+              beiStart();
+              setzeTeile(teile.filter((_, k) => k !== j));
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+
+      {platzUebrig && (
+        <button
+          className="knopf"
+          style={{ width: '100%' }}
+          onClick={() => {
+            beiStart();
+            setzeTeile([...teile, naechstesTeil()]);
+          }}
+        >
+          + Teilsortiment
+        </button>
+      )}
+
+      {/* Für alles, was sich nicht auf einen bestimmten Meter bezieht. */}
+      <input
+        type="text"
+        style={{ width: '100%', fontSize: 11, marginTop: 4 }}
+        value={abschnitt.notiz ?? ''}
+        placeholder="Notiz zur ganzen Strecke"
+        onFocus={beiStart}
+        onChange={(e) => aendern({ notiz: e.target.value || undefined })}
+      />
+    </details>
+  );
+}
+
+/**
  * Die Warengruppen einer Seite, als Strecken in Zentimetern.
  *
  * Eigener Block und nicht in der Feldzeile: Eine Beschriftung gehört nicht zu
@@ -1215,20 +1348,10 @@ function Warengruppenband({
               </button>
             </div>
 
-            {/* Was im Einzelnen dort liegt. Steht nicht im Plan und zählt
-                in keiner Meterzahl mit – siehe `Warengruppenabschnitt`. */}
-            <input
-              type="text"
-              style={{ width: '100%', fontSize: 11 }}
-              value={abschnitt.notiz ?? ''}
-              placeholder="Teilsortimente (nur als Notiz)"
-              title={
-                'Was hier im Einzelnen liegt, etwa „Bohnen, gemahlen, Pads". ' +
-                'Steht nicht im Plan und zählt in keiner Meterzahl mit – über ' +
-                'die Suche ist es zu finden.'
-              }
-              onFocus={() => usePlanStore.getState().schnappschuss()}
-              onChange={(e) => aendere(i, { notiz: e.target.value || undefined })}
+            <Teilsortimente
+              abschnitt={abschnitt}
+              aendern={(werte) => aendere(i, werte)}
+              beiStart={() => usePlanStore.getState().schnappschuss()}
             />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -3199,7 +3322,10 @@ function ProjektEigenschaften() {
             <div className="kennzahl">
               <span>
                 Kistenfacings
-                <span className="kategorie-anzahl"> · {getraenke.gestelle} Gestelle</span>
+                <span className="kategorie-anzahl">
+                  {' '}
+                  · {getraenke.gestelle} {getraenke.gestelle === 1 ? 'Gestell' : 'Gestelle'}
+                </span>
               </span>
               <span className="kennzahl-wert">{getraenke.facings}</span>
             </div>
@@ -3226,7 +3352,10 @@ function ProjektEigenschaften() {
             <div className="kennzahl">
               <span>
                 Aktionsfläche
-                <span className="kategorie-anzahl"> · {aktion.anzahl} Flächen</span>
+                <span className="kategorie-anzahl">
+                  {' '}
+                  · {aktion.anzahl} {aktion.anzahl === 1 ? 'Fläche' : 'Flächen'}
+                </span>
               </span>
               <span className="kennzahl-wert">
                 {aktion.qm.toLocaleString('de-DE', { maximumFractionDigits: 1 })} m²

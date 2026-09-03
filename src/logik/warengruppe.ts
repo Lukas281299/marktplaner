@@ -1,4 +1,4 @@
-import type { Regalfeld, Warengruppenabschnitt } from '../typen/modell';
+import type { Regalfeld, Teilsortiment, Warengruppenabschnitt } from '../typen/modell';
 
 /**
  * Die Warengruppen-Beschriftung unter einem Regalzug.
@@ -76,12 +76,11 @@ export function geordnet(
   if (!abschnitte || abschnitte.length === 0) return [];
 
   const sauber = abschnitte
-    .map((a) => ({
-      ...a,
-      text: a.text,
-      von: Math.max(0, Math.min(a.von, a.bis)),
-      bis: Math.min(gesamtbreite, Math.max(a.von, a.bis)),
-    }))
+    .map((a) => {
+      const von = Math.max(0, Math.min(a.von, a.bis));
+      const bis = Math.min(gesamtbreite, Math.max(a.von, a.bis));
+      return { ...a, text: a.text, von, bis, teile: teileGeordnet(a.teile, von, bis) };
+    })
     .filter((a) => a.bis - a.von > GENAU)
     .sort((a, b) => a.von - b.von);
 
@@ -92,9 +91,46 @@ export function geordnet(
     const vorher = ergebnis[ergebnis.length - 1];
     const von = vorher ? Math.max(abschnitt.von, vorher.bis) : abschnitt.von;
     if (abschnitt.bis - von <= GENAU) continue;
-    ergebnis.push({ ...abschnitt, von });
+    ergebnis.push({ ...abschnitt, von, teile: teileGeordnet(abschnitt.teile, von, abschnitt.bis) });
   }
   return ergebnis;
+}
+
+/**
+ * Die Teilsortimente einer Strecke, auf sie beschnitten.
+ *
+ * Dieselbe Regel wie eine Stufe darüber: sortiert, überschneidungsfrei, und
+ * was außerhalb liegt, fällt weg. Wer einen Zug kürzt, verliert die
+ * Teilsortimente, die dabei aus dem Möbel fallen – stehen bleiben sie nur
+ * dort, wo sie noch hingehören.
+ *
+ * Ohne Teile kommt `undefined` heraus und nicht eine leere Liste: So steht in
+ * keiner gespeicherten Planung ein leeres Feld herum.
+ */
+export function teileGeordnet(
+  teile: Teilsortiment[] | undefined,
+  von: number,
+  bis: number,
+): Teilsortiment[] | undefined {
+  if (!teile || teile.length === 0) return undefined;
+
+  const sauber = teile
+    .map((t) => ({
+      text: t.text,
+      von: Math.max(von, Math.min(t.von, t.bis)),
+      bis: Math.min(bis, Math.max(t.von, t.bis)),
+    }))
+    .filter((t) => t.bis - t.von > GENAU)
+    .sort((a, b) => a.von - b.von);
+
+  const ergebnis: Teilsortiment[] = [];
+  for (const teil of sauber) {
+    const vorher = ergebnis[ergebnis.length - 1];
+    const anfang = vorher ? Math.max(teil.von, vorher.bis) : teil.von;
+    if (teil.bis - anfang <= GENAU) continue;
+    ergebnis.push({ ...teil, von: anfang });
+  }
+  return ergebnis.length > 0 ? ergebnis : undefined;
 }
 
 /**
@@ -165,10 +201,15 @@ export function ohneStrecke(
       ergebnis.push(alt);
       continue;
     }
-    // Was links übersteht, bleibt als eigener Abschnitt stehen.
-    if (alt.von < von - GENAU) ergebnis.push({ ...alt, bis: von });
+    // Was links übersteht, bleibt als eigener Abschnitt stehen – mit den
+    // Teilsortimenten, die noch darin liegen.
+    if (alt.von < von - GENAU) {
+      ergebnis.push({ ...alt, bis: von, teile: teileGeordnet(alt.teile, alt.von, von) });
+    }
     // Und was rechts übersteht, ebenso.
-    if (alt.bis > bis + GENAU) ergebnis.push({ ...alt, von: bis });
+    if (alt.bis > bis + GENAU) {
+      ergebnis.push({ ...alt, von: bis, teile: teileGeordnet(alt.teile, bis, alt.bis) });
+    }
   }
   return geordnet(ergebnis, gesamtbreite);
 }

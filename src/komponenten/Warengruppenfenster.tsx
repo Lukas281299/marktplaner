@@ -3,6 +3,7 @@ import {
   abteilungsstand,
   gefiltert,
   gruppenstand,
+  kenntNamen,
   leseSortimentsliste,
   mitAbteilung,
   mitSortiment,
@@ -67,7 +68,9 @@ export function Warengruppenfenster() {
       ? 'Steht im Markt — anklicken für „nicht vorgesehen"'
       : wert === 'grau'
         ? 'In diesem Markt nicht vorgesehen — anklicken für „offen"'
-        : 'Offen — anklicken für „steht im Markt"';
+        : wert === 'zugeordnet'
+          ? 'Zählt zu einer anderen Warengruppe — gilt damit als untergebracht'
+          : 'Offen — anklicken für „steht im Markt"';
 
   const pflegen = (liste: typeof sortiment) => usePlanStore.getState().pflegeSortiment(liste);
   const nimm = (name: string) =>
@@ -91,7 +94,21 @@ export function Warengruppenfenster() {
       jetzt,
     );
     if (antwort === null) return;
-    usePlanStore.getState().setzeZuordnung(name, antwort.trim() || null);
+    const ziel = antwort.trim();
+    // Ein Tippfehler im Ziel wäre unsichtbar: Die Meter liefen auf einen
+    // Namen, den es nicht gibt, und die Zeile sähe aus wie eine eigene
+    // Warengruppe. Deshalb einmal nachfragen, aber nicht verbieten – manche
+    // Namen legt man erst später an.
+    if (ziel && !kenntNamen(sortiment, ziel)) {
+      const weiter = window.confirm(
+        `„${ziel}" steht nicht in der Sortimentsliste.
+
+` +
+          'Trotzdem zuordnen? Die Meter laufen dann auf diesen Namen.',
+      );
+      if (!weiter) return;
+    }
+    usePlanStore.getState().setzeZuordnung(name, ziel || null);
   };
 
   /** Die Marke „→ Kuchen" hinter einem zugeordneten Namen. */
@@ -210,7 +227,7 @@ export function Warengruppenfenster() {
           // Zugeklappt ist der Anfang; beim Suchen geht alles auf, sonst
           // sähe man die Treffer nicht.
           const offen = sucht || offeneAbteilungen.includes(abteilung.name);
-          const zahl = abteilungsstand(stand, abteilung);
+          const zahl = abteilungsstand(stand, abteilung, zuordnungen);
           return (
             <div key={abteilung.name} className="wg-abteilung">
               <div className="wg-kopf">
@@ -270,7 +287,7 @@ export function Warengruppenfenster() {
               {offen &&
                 abteilung.warengruppen.map((gruppe) => {
                   const eigen = pfadVon(abteilung.name, gruppe.name);
-                  const gStand = gruppenstand(stand, abteilung.name, gruppe);
+                  const gStand = gruppenstand(stand, abteilung.name, gruppe, zuordnungen);
                   return (
                     <div key={gruppe.name}>
                       <div className="wg-zeile">
@@ -339,7 +356,7 @@ export function Warengruppenfenster() {
 
                       {gruppe.sortimente.map((name) => {
                         const pfad = pfadVon(abteilung.name, gruppe.name, name);
-                        const wert = standVon(stand, pfad);
+                        const wert = standVon(stand, pfad, zuordnungen);
                         return (
                         <div className="wg-zeile wg-tief" key={name}>
                           <button

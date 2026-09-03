@@ -56,7 +56,10 @@ export function Moebeluebersicht({ projekt }: { projekt: Projekt }) {
       <summary>
         <span>
           Möbelübersicht
-          <span className="kategorie-anzahl"> · {zeilen.length} Arten</span>
+          <span className="kategorie-anzahl">
+            {' '}
+            · {zeilen.length} {zeilen.length === 1 ? 'Art' : 'Arten'}
+          </span>
         </span>
         <span className="kennzahl-wert">{summe.anzahl} Stück</span>
       </summary>

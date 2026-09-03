@@ -36,6 +36,7 @@ import {
 import { STANDARD_SORTIMENT, type Sortimentsliste } from '../daten/warengruppen';
 import {
   mitAbgehaktemNamen,
+  mitsamtZugeordneten,
   mitAufgenommenem,
   mitStand,
   pfadeUnter,
@@ -921,7 +922,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       elemente: mitZugeordnetenFeldern(p.elemente, markierung, text),
       // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
       // ein Teil eines anderen – anders als beim früheren Textabgleich.
-      sortimentsstand: mitAbgehaktemNamen(get().sortiment, p.sortimentsstand, text),
+      // Ein zugeordneter Name gilt mit ab: Wer „Kuchen" malt, hat auch die
+      // Waffeln untergebracht, wenn er sie dem Kuchen zugeschlagen hat.
+      sortimentsstand: mitsamtZugeordneten(text, p.zuordnungen).reduce(
+        (stand, name) => mitAbgehaktemNamen(get().sortiment, stand, name),
+        p.sortimentsstand,
+      ),
     }));
     // Die Markierung ist damit erledigt. Wer sie stehen ließe, schriebe beim
     // nächsten Enter versehentlich noch einmal dorthin.

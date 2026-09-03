@@ -123,6 +123,9 @@ function felderVon(element: PlanElement): Feld[] {
     // die Suche sie finden, sonst weiß nur noch der Bescheid, der es
     // eingetippt hat.
     ...abschnitte.map((a) => ({ name: 'Teilsortiment', wert: a.notiz, gewicht: 6 })),
+    ...abschnitte.flatMap((a) =>
+      (a.teile ?? []).map((t) => ({ name: 'Teilsortiment', wert: t.text, gewicht: 6 })),
+    ),
     ...feldnotizen.map((t) => ({ name: 'Feldnotiz', wert: t, gewicht: 6 })),
     { name: 'Notiz', wert: element.notiz, gewicht: 8 },
     { name: 'Hersteller', wert: element.hersteller, gewicht: 10 },

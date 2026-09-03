@@ -8,6 +8,7 @@ import {
   mitVerschobenerKante,
   ohneStrecke,
   rastpunkte,
+  teileGeordnet,
 } from './warengruppe';
 import type { Regalfeld, Warengruppenabschnitt } from '../typen/modell';
 
@@ -213,5 +214,68 @@ describe('Der Fall, um den es ging', () => {
     expect(rastpunkte(bau)).toContain(150);
     // Und die Felder sind unangetastet geblieben.
     expect(bau.map((f) => f.breite)).toEqual([100, 100, 100]);
+  });
+});
+
+describe('Teilsortimente einer Strecke', () => {
+  it('ordnet, beschneidet und wirft Leeres weg', () => {
+    const teile = teileGeordnet(
+      [
+        { von: 200, bis: 300, text: 'Bio' },
+        { von: 0, bis: 100, text: 'Eigenmarke' },
+        { von: 400, bis: 500, text: 'liegt draußen' },
+        { von: 100, bis: 100, text: 'ohne Länge' },
+      ],
+      0,
+      300,
+    );
+    expect(teile?.map((t) => t.text)).toEqual(['Eigenmarke', 'Bio']);
+  });
+
+  it('kürzt ein Teil auf die Strecke', () => {
+    const teile = teileGeordnet([{ von: 0, bis: 400, text: 'Bio' }], 100, 300);
+    expect(teile).toEqual([{ von: 100, bis: 300, text: 'Bio' }]);
+  });
+
+  it('lässt Überlappungen dem früheren Teil', () => {
+    const teile = teileGeordnet(
+      [
+        { von: 0, bis: 200, text: 'A' },
+        { von: 100, bis: 300, text: 'B' },
+      ],
+      0,
+      300,
+    );
+    expect(teile).toEqual([
+      { von: 0, bis: 200, text: 'A' },
+      { von: 200, bis: 300, text: 'B' },
+    ]);
+  });
+
+  it('gibt nichts zurück statt einer leeren Liste', () => {
+    // Sonst stünde in jeder gespeicherten Planung ein leeres Feld herum.
+    expect(teileGeordnet(undefined, 0, 300)).toBeUndefined();
+    expect(teileGeordnet([], 0, 300)).toBeUndefined();
+    expect(teileGeordnet([{ von: 400, bis: 500, text: 'weg' }], 0, 300)).toBeUndefined();
+  });
+
+  it('nimmt die Teile mit, wenn eine Strecke geteilt wird', () => {
+    // Wer mitten in „Trockenobst" etwas anderes einträgt, behält links und
+    // rechts die Teilsortimente, die dort noch liegen.
+    const vorher = [
+      {
+        von: 0,
+        bis: 300,
+        text: 'Trockenobst',
+        teile: [
+          { von: 0, bis: 100, text: 'Eigenmarke' },
+          { von: 200, bis: 300, text: 'Bio' },
+        ],
+      },
+    ];
+    const nachher = ohneStrecke(vorher, 300, 100, 200);
+    expect(nachher).toHaveLength(2);
+    expect(nachher[0].teile?.map((t) => t.text)).toEqual(['Eigenmarke']);
+    expect(nachher[1].teile?.map((t) => t.text)).toEqual(['Bio']);
   });
 });
