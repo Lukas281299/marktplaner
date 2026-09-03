@@ -1,4 +1,5 @@
 import type { BibliothekEintrag, Grundform, Punkt } from '../typen/modell';
+import { BAND_STANDARD, gesamtlaenge } from '../logik/kassen';
 import {
   GESTELL_HOEHE,
   GESTELL_LAENGEN,
@@ -539,62 +540,119 @@ function wt100Eintraege(): BibliothekEintrag[] {
 const KASSE_SAND = '#f5dda0';
 const KASSE_SAND_HELL = '#f7e5b8';
 
-/** Länge der festen Abschnitte in cm: Kopf + Kassenplatz + Abpacktisch. */
-const KASSE_FEST = 42.8 + 61.8 + 106.7;
-
-const KASSE_BANDLAENGEN = [150, 180, 200, 270, 330];
-
+/**
+ * Die Kassenzone.
+ *
+ * **Eine Bauart, ein Eintrag.** Die ITAB-Zeichnung führt 646 Blöcke – das
+ * sind aber dieselben acht Bauteile in elf Bandlängen, zwei Anschlägen und
+ * vier Ansichten. Eine Bibliothek, die das nachbaut, kann niemand mehr
+ * überblicken, und gebraucht würde jeder Eintrag höchstens einmal.
+ *
+ * Deshalb hier nur die Gegenstände, die sich wirklich unterscheiden. Was
+ * sich an ihnen ändert, ändert man am Möbel:
+ *
+ *  - Die **Bandlänge** wählt man rechts über Knöpfe – im echten Raster von
+ *    900 bis 3900 mm. Siehe `logik/kassen.ts`.
+ *  - Den **Anschlag** links oder rechts über *Spiegeln*.
+ *
+ * Vorher standen hier fünfzehn Kassen mit fest eingebauten Bandlängen, und
+ * eine davon – 2000 mm – gibt es bei ITAB gar nicht. Im Plan war das nicht
+ * zu sehen.
+ */
 function kassenEintraege(): BibliothekEintrag[] {
-  const eintraege: BibliothekEintrag[] = [];
+  const bandKasse = gesamtlaenge(BAND_STANDARD);
+  const gemeinsam = { kategorie: 'kassen' as const, farbe: KASSE_SAND };
 
-  const bauarten: { kennung: string; name: string; form: Grundform; tiefe: number; gruppe: string }[] = [
-    { kennung: 'steh', name: 'Einzelstehkasse', form: 'kasse', tiefe: 58.4, gruppe: 'Einzelkassen stehend' },
-    { kennung: 'sitz', name: 'Einzelsitzkasse', form: 'kasseSitz', tiefe: 58.4, gruppe: 'Einzelkassen sitzend' },
-    { kennung: 'doppel', name: 'Doppelsitzkasse', form: 'kasseDoppel', tiefe: 181.2, gruppe: 'Doppelkassen' },
-  ];
-
-  for (const bauart of bauarten) {
-    for (const band of KASSE_BANDLAENGEN) {
-      const gesamt = Math.round((band + KASSE_FEST) * 10) / 10;
-      eintraege.push({
-        id: `kasse-${bauart.kennung}-${band * 10}`,
-        name: `${bauart.name} · Band ${band * 10} mm`,
-        kategorie: 'kassen',
-        breite: gesamt,
-        tiefe: bauart.tiefe,
-        hoehe: 96,
-        form: bauart.form,
-        farbe: KASSE_SAND,
-        gruppe: bauart.gruppe,
-        hinweis: `ITAB Straight IV · Gesamtlänge ${Math.round(gesamt * 10)} mm, Arbeitshöhe 960 mm`,
-      });
-    }
-    eintraege.push({
-      id: `kasse-${bauart.kennung}-frei`,
-      name: `${bauart.name} frei`,
-      kategorie: 'kassen',
-      breite: Math.round((180 + KASSE_FEST) * 10) / 10,
-      tiefe: bauart.tiefe,
+  return [
+    // --- Die Kassenzeile selbst
+    {
+      ...gemeinsam,
+      id: 'kasse-steh',
+      name: 'Einzelstehkasse',
+      breite: bandKasse,
+      tiefe: 58.4,
       hoehe: 96,
-      form: bauart.form,
-      farbe: KASSE_SAND,
-      gruppe: bauart.gruppe,
-      hinweis: 'Länger ziehen verlängert nur das Warenband',
-    });
-  }
+      form: 'kasse',
+      gruppe: 'Kassenzeile',
+      hinweis: `ITAB Straight IV · Band ${BAND_STANDARD * 10} mm, rechts einstellbar · Arbeitshöhe 960 mm`,
+    },
+    {
+      ...gemeinsam,
+      id: 'kasse-sitz',
+      name: 'Einzelsitzkasse',
+      breite: bandKasse,
+      tiefe: 58.4,
+      hoehe: 96,
+      form: 'kasseSitz',
+      gruppe: 'Kassenzeile',
+      hinweis: 'Wie die Stehkasse, mit Stuhl daneben – der Kreis zeigt, wie viel Gang er braucht',
+    },
+    {
+      ...gemeinsam,
+      id: 'kasse-doppel',
+      name: 'Doppelsitzkasse',
+      breite: bandKasse,
+      tiefe: 181.2,
+      hoehe: 96,
+      form: 'kasseDoppel',
+      gruppe: 'Kassenzeile',
+      hinweis: 'Zwei Bänder à 480 mm mit der Bedieninsel von 745 mm dazwischen',
+    },
+    {
+      ...gemeinsam,
+      id: 'kasse-express',
+      name: 'Expresskasse',
+      breite: 120,
+      tiefe: 58.4,
+      hoehe: 96,
+      form: 'kasseExpress',
+      gruppe: 'Kassenzeile',
+      hinweis: 'Ohne Warenband – für den Korb, nicht für den Wagen',
+    },
 
-  // Selbstbedienung und die Anlage, durch die der Kunde danach hinausgeht.
-  eintraege.push(
+    // --- Was die Zeile abschließt und ergänzt
+    {
+      ...gemeinsam,
+      id: 'kasse-gondel',
+      name: 'Kassengondel',
+      breite: 125,
+      tiefe: 58.4,
+      hoehe: 140,
+      form: 'kassengondel',
+      gruppe: 'Kassenzeile',
+      hinweis: 'Der Kopf am Ende der Kassenzeile – Quengelware auf beiden Seiten',
+    },
+    {
+      ...gemeinsam,
+      id: 'kasse-packrutsche',
+      name: 'Packrutsche',
+      breite: 100,
+      tiefe: 58.4,
+      hoehe: 96,
+      form: 'packrutsche',
+      gruppe: 'Kassenzeile',
+      hinweis: 'PR 1000 · hinter dem Kassenplatz, auch als halbe zu 500 mm',
+    },
+    {
+      ...gemeinsam,
+      id: 'kasse-fuellstueck',
+      name: 'Füllstück',
+      breite: 29.5,
+      tiefe: 58.4,
+      hoehe: 96,
+      form: 'rechteck',
+      gruppe: 'Kassenzeile',
+      hinweis: 'Schließt die Lücke zur Wand · 295 mm und Vielfache davon bis 2065 mm',
+    },
+
+    // --- Selbstbedienung und der Weg hinaus
     { id: 'kasse-sb-schmal', name: 'SB-Kasse schmal · 0,70 × 0,80 m', kategorie: 'kassen', breite: 70, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen' },
     { id: 'kasse-sb', name: 'SB-Kasse · 0,90 × 0,80 m', kategorie: 'kassen', breite: 90, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen' },
     { id: 'kasse-sb-breit', name: 'SB-Kasse mit Ablage · 1,20 × 0,80 m', kategorie: 'kassen', breite: 120, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen' },
-    { id: 'kasse-sb-frei', name: 'SB-Kasse frei', kategorie: 'kassen', breite: 90, tiefe: 80, hoehe: 150, form: 'sbKasse', farbe: KASSE_SAND_HELL, gruppe: 'SB-Kassen', hinweis: 'Maße frei einstellbar' },
     { id: 'ausgang-90', name: 'Ausgangsanlage 0,90 m', kategorie: 'kassen', breite: 90, tiefe: 15, hoehe: 100, form: 'ausgangsanlage', farbe: '#c9b47a', gruppe: 'SB-Kassen', hinweis: 'Der Bogen zeigt, wie weit der Flügel aufschlägt' },
     { id: 'ausgang-120', name: 'Ausgangsanlage 1,20 m', kategorie: 'kassen', breite: 120, tiefe: 15, hoehe: 100, form: 'ausgangsanlage', farbe: '#c9b47a', gruppe: 'SB-Kassen' },
     { id: 'ausgang-180', name: 'Ausgangsanlage 1,80 m · breit', kategorie: 'kassen', breite: 180, tiefe: 15, hoehe: 100, form: 'ausgangsanlage', farbe: '#c9b47a', gruppe: 'SB-Kassen', hinweis: 'Barrierefreier Durchgang' },
-  );
-
-  return eintraege;
+  ];
 }
 
 /**

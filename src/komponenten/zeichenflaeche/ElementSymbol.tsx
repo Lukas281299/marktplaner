@@ -2,6 +2,7 @@ import { Shape, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { modulsatzFuer } from '../../daten/module';
+import { KASSE_BAND, KASSE_FEST, KASSE_KOPF, KASSE_PLATZ } from '../../logik/kassen';
 import { achsmassZeichen } from '../../logik/achsmass';
 import { laeuftRueckwaerts, lesbar } from '../../logik/beschriftung';
 import { feldliste } from '../../logik/feldaufteilung';
@@ -1916,12 +1917,60 @@ export function zeichneForm(
     // ------------------------------------------------------------- Kassen
     case 'kasse':
     case 'kasseSitz':
-      zeichneKasse(ctx, b, t, false);
+      zeichneKasse(ctx, b, t, false, gespiegelt);
       break;
 
     case 'kasseDoppel':
-      zeichneKasse(ctx, b, t, true);
+      zeichneKasse(ctx, b, t, true, gespiegelt);
       break;
+
+    case 'kasseExpress': {
+      // Expresskasse: kein Warenband, nur Kassenplatz und eine kurze Ablage.
+      // Deshalb ist sie so kurz – und deshalb ist sie ein eigenes Möbel und
+      // keine Kasse mit ganz kurzem Band.
+      ctx.rect(0, 0, b, t);
+      const platz = Math.min(KASSE_PLATZ, b * 0.55);
+      ctx.moveTo(platz, 0);
+      ctx.lineTo(platz, t);
+      // Scanner und Lade wie bei der großen Schwester, damit man sie als
+      // Kasse erkennt.
+      const rahmen = Math.min(t * 0.12, 6);
+      if (platz > 2 * rahmen && t > 2 * rahmen) {
+        ctx.rect(rahmen, (t - Math.min(t * 0.34, 22)) / 2, platz - 2 * rahmen, Math.min(t * 0.34, 22));
+      }
+      // Die Ablage dahinter.
+      if (b - platz > 2 * rahmen && t > 2 * rahmen) {
+        ctx.rect(platz + rahmen, rahmen, b - platz - 2 * rahmen, t - 2 * rahmen);
+      }
+      break;
+    }
+
+    case 'kassengondel': {
+      // Die Kassengondel schließt die Zeile ab: ein Regal am Kopfende, aus
+      // dem der Kunde im Anstehen noch etwas mitnimmt. Im Grundriss ist das
+      // ein Möbel mit Böden auf beiden Längsseiten.
+      ctx.rect(0, 0, b, t);
+      const boden = Math.min(t * 0.22, 18);
+      ctx.moveTo(0, boden);
+      ctx.lineTo(b, boden);
+      ctx.moveTo(0, t - boden);
+      ctx.lineTo(b, t - boden);
+      break;
+    }
+
+    case 'packrutsche': {
+      // Die Packrutsche hinter dem Kassenplatz: eine schräge Fläche, über die
+      // die Ware in den Wagen rutscht. Die Schräge ist ihr Kennzeichen – ohne
+      // sie wäre es ein Tisch. Und die Schräge zeigt, **wohin** die Ware
+      // rutscht: Beim anderen Anschlag läuft sie andersherum.
+      ctx.rect(0, 0, b, t);
+      const luft = Math.min(Math.min(b, t) * 0.12, 6);
+      ctx.moveTo(luft, gespiegelt ? t - luft : luft);
+      ctx.lineTo(b - luft, gespiegelt ? luft : t - luft);
+      ctx.moveTo(luft, t / 2);
+      ctx.lineTo(b - luft, t / 2);
+      break;
+    }
 
     case 'sbKasse': {
       // Selbstbedienungskasse: hinten der Terminalkopf mit Scanner und
@@ -2370,28 +2419,48 @@ export function zeichneForm(
  * das Element länger gezogen, wächst nur das Band – genau so wird eine Kasse
  * auch bestellt. Kopfteil, Kassenplatz und Abpacktisch bleiben, wie sie sind.
  */
-const KASSE_KOPF = 42.8;
-const KASSE_PLATZ = 61.8;
-const KASSE_ABPACK = 106.7;
-const KASSE_FEST = KASSE_KOPF + KASSE_PLATZ + KASSE_ABPACK;
-
-/** Breite eines Warenbands quer zur Laufrichtung, in cm. */
-const KASSE_BAND = 45;
+// Die Maße stehen in `logik/kassen.ts` – dort, wo auch die Bibliothek sie
+// herholt. Zwei Listen derselben Zahlen laufen früher oder später
+// auseinander, und dann steht im Plan eine andere Kasse als in der
+// Bestellung.
 
 /**
  * Zeichnet eine bediente Kasse: b ist die Länge in Laufrichtung, t die Breite
  * quer dazu. Die Doppelkasse hat zwei Bänder an den Außenseiten und dazwischen
  * die Insel, auf der bedient wird.
  */
-function zeichneKasse(ctx: Konva.Context, b: number, t: number, doppelt: boolean) {
-  ctx.rect(0, 0, b, t);
-
-  // Die Querteilung. Bei einem sehr kurz gezogenen Element bleibt vom Band
-  // nichts übrig – dann rücken die Fugen zusammen, statt sich zu überholen.
+/**
+ * Die Abschnittsgrenzen einer Kassenzeile, von links nach rechts.
+ *
+ * Bei einem sehr kurz gezogenen Element bleibt vom Band nichts übrig – dann
+ * rücken die Fugen zusammen, statt sich zu überholen.
+ *
+ * `gespiegelt` ist der Anschlag: Bei ITAB heißen die beiden Ausführungen LA
+ * und RA, und sie unterscheiden sich genau darin, von welcher Seite der Kunde
+ * seine Ware aufs Band legt. Über die Drehung ist das nicht zu ersetzen – 180
+ * Grad vertauschen zwar links und rechts, drehen aber auch vorn und hinten,
+ * und dann stünde die Bedienung auf der falschen Seite.
+ */
+export function kassenfugen(b: number, gespiegelt: boolean) {
   const band = Math.max(b - KASSE_FEST, 0);
   const x1 = Math.min(KASSE_KOPF, b);
   const x2 = Math.min(x1 + band, b);
   const x3 = Math.min(x2 + KASSE_PLATZ, b);
+  if (!gespiegelt) return { band, x1, x2, x3 };
+  // Gespiegelt läuft dieselbe Folge von rechts nach links.
+  return { band, x1: b - x3, x2: b - x2, x3: b - x1 };
+}
+
+function zeichneKasse(ctx: Konva.Context, b: number, t: number, doppelt: boolean, gespiegelt = false) {
+  ctx.rect(0, 0, b, t);
+
+  const { band, x1, x2, x3 } = kassenfugen(b, gespiegelt);
+  // Nach dem Spiegeln liegt das Band zwischen x2 und x3 statt zwischen x1
+  // und x2 – die Folge dreht sich um, die Abschnitte selbst nicht.
+  const bandVon = gespiegelt ? x2 : x1;
+  const bandBis = gespiegelt ? x3 : x2;
+  const packVon = gespiegelt ? 0 : x3;
+  const packBis = gespiegelt ? x1 : b;
   for (const x of [x1, x2, x3]) {
     if (x <= 0 || x >= b) continue;
     ctx.moveTo(x, 0);
@@ -2404,25 +2473,29 @@ function zeichneKasse(ctx: Konva.Context, b: number, t: number, doppelt: boolean
   if (band > 0.5 && bandBreite > 0) {
     if (doppelt) {
       // Ein Band an jeder Außenseite, die Insel bleibt in der Mitte.
-      ctx.rect(x1, rahmen, band, bandBreite);
-      ctx.rect(x1, t - rahmen - bandBreite, band, bandBreite);
+      ctx.rect(bandVon, rahmen, band, bandBreite);
+      ctx.rect(bandVon, t - rahmen - bandBreite, band, bandBreite);
     } else {
-      ctx.rect(x1, rahmen, band, Math.min(bandBreite, t - 2 * rahmen));
+      ctx.rect(bandVon, rahmen, band, Math.min(bandBreite, t - 2 * rahmen));
     }
   }
 
   // Der Kassenplatz: Scanner und Geldlade als eigener Kasten.
-  if (x3 - x2 > 1 && t > 4) {
-    const laenge = (x3 - x2) * 0.55;
+  const platzVon = gespiegelt ? x1 : x2;
+  const platzBis = gespiegelt ? x2 : x3;
+  if (platzBis - platzVon > 1 && t > 4) {
+    const laenge = (platzBis - platzVon) * 0.55;
     const tiefe = Math.min(t * 0.3, 25);
-    const mitte = (x2 + x3) / 2;
+    const mitte = (platzVon + platzBis) / 2;
     ctx.rect(mitte - laenge / 2, (t - tiefe) / 2, laenge, tiefe);
   }
 
   // Der Abpacktisch als eingesetzte Fläche.
-  if (b - x3 > 2 * rahmen && t > 2 * rahmen) {
-    ctx.rect(x3 + rahmen, rahmen, b - x3 - 2 * rahmen, t - 2 * rahmen);
+  if (packBis - packVon > 2 * rahmen && t > 2 * rahmen) {
+    ctx.rect(packVon + rahmen, rahmen, packBis - packVon - 2 * rahmen, t - 2 * rahmen);
   }
+  // `bandBis` wird nur gebraucht, damit die Folge lesbar bleibt.
+  void bandBis;
 }
 
 /**
@@ -2432,9 +2505,10 @@ function zeichneKasse(ctx: Konva.Context, b: number, t: number, doppelt: boolean
  * dahinter, und eine Lehne ist ein Bogen. Läge der Bogen im Hauptpfad, würde
  * die Füllung des Möbels ein Tortenstück daraus machen.
  */
-function zeichneStuhl(ctx: Konva.Context, b: number, t: number, mittig: boolean) {
-  const band = Math.max(b - KASSE_FEST, 0);
-  const mitte = Math.min(KASSE_KOPF + band + KASSE_PLATZ / 2, b);
+function zeichneStuhl(ctx: Konva.Context, b: number, t: number, mittig: boolean, gespiegelt = false) {
+  // Der Stuhl steht am Kassenplatz – und der wandert beim Spiegeln mit.
+  const { x1, x2, x3 } = kassenfugen(b, gespiegelt);
+  const mitte = gespiegelt ? (x1 + x2) / 2 : (x2 + x3) / 2;
   const r = Math.min(18, t * 0.3);
   if (r < 2) return;
 
@@ -2534,13 +2608,19 @@ function zeichneTuerboegen(ctx: Konva.Context, b: number, t: number, anzahl: num
  * jedem offenen Bogen würde dabei ein farbiges Tortenstück. Hier stehen sie
  * deshalb zusammen und werden allein gestrichelt.
  */
-export function zeichneStriche(ctx: Konva.Context, form: Grundform, b: number, t: number) {
+export function zeichneStriche(
+  ctx: Konva.Context,
+  form: Grundform,
+  b: number,
+  t: number,
+  gespiegelt = false,
+) {
   const tueren = MIT_TUEREN.get(form);
   if (tueren !== undefined) {
     zeichneTuerboegen(ctx, b, t, tueren === 'nachBreite' ? tuerAnzahl(b) : tueren);
   }
-  if (form === 'kasseSitz') zeichneStuhl(ctx, b, t, false);
-  if (form === 'kasseDoppel') zeichneStuhl(ctx, b, t, true);
+  if (form === 'kasseSitz') zeichneStuhl(ctx, b, t, false, gespiegelt);
+  if (form === 'kasseDoppel') zeichneStuhl(ctx, b, t, true, gespiegelt);
   if (form === 'ausgangsanlage') zeichneAusgangsfluegel(ctx, b, t);
 }
 
@@ -2565,7 +2645,19 @@ const MIT_STRICHEN = new Set<Grundform>([
  * ersetzen: 180 Grad vertauschen zwar links und rechts, drehen aber auch
  * vorn und hinten – die Front schaute dann zur Wand.
  */
-export const SPIEGELBAR = new Set<Grundform>(['vitableEckInnen', 'bakeoffEcke']);
+export const SPIEGELBAR = new Set<Grundform>([
+  'vitableEckInnen',
+  'bakeoffEcke',
+  // Bei ITAB heißen die beiden Ausführungen einer Kasse LA und RA – links
+  // oder rechts angeschlagen. Sie unterscheiden sich darin, von welcher Seite
+  // der Kunde seine Ware aufs Band legt, und sie sind nicht dasselbe Möbel
+  // gedreht: 180 Grad drehen auch vorn und hinten mit.
+  'kasse',
+  'kasseSitz',
+  'kasseDoppel',
+  'kasseExpress',
+  'packrutsche',
+]);
 
 const MIT_ACHSMASS = new Set<Grundform>([
   'rechteck',
@@ -2901,7 +2993,7 @@ export function zeichneElement(
       ctx.setAttr('strokeStyle', 'rgba(30,40,52,0.65)');
       ctx.setAttr('lineWidth', 1.1 / zoom);
       ctx.beginPath();
-      zeichneStriche(ctx, element.form, b, t);
+      zeichneStriche(ctx, element.form, b, t, Boolean(element.gespiegelt));
       ctx.stroke();
       ctx.restore();
     }

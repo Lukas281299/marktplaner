@@ -1,4 +1,4 @@
-import type { PlanElement } from '../typen/modell';
+import type { Grundform, PlanElement } from '../typen/modell';
 
 /**
  * Was in einem Regalfeld steht.
@@ -73,6 +73,23 @@ const TIEFEN_SPIEL = 2;
  *     Plan misst schon mal 680 statt 670 — bestellt wird trotzdem ein 600er
  *     Boden, und genau das soll dastehen.
  */
+/**
+ * Möbel, die keine Böden haben – dort steht keine Bodentiefe.
+ *
+ * Die Kassenzeile ist ein Tisch mit einem Band darauf, die Packrutsche eine
+ * schräge Fläche, das Füllstück ein Blech. Bei keinem davon gibt es eine
+ * Auflage, deren Tiefe man bestellen könnte.
+ */
+const OHNE_BODEN = new Set<Grundform>([
+  'kasse',
+  'kasseSitz',
+  'kasseDoppel',
+  'kasseExpress',
+  'packrutsche',
+  'sbKasse',
+  'ausgangsanlage',
+]);
+
 export function bodentiefeMm(
   element: Pick<PlanElement, 'tiefe' | 'beidseitig' | 'form' | 'grundboden' | 'stufen'>,
 ): number {
@@ -126,7 +143,13 @@ export function masszeilen(
 
   const zeilen: string[] = [];
   if (element.hoehe && element.hoehe > 0) zeilen.push(`H ${Math.round(element.hoehe * 10)}`);
-  const tiefe = bodentiefeMm(element);
-  if (tiefe > 0) zeilen.push(`T ${tiefe}`);
+  // Ein Möbel ohne Böden hat keine Bodentiefe. Bisher stand an einer Kasse
+  // „T 514" – ihre Tiefe von 584 mm minus die tote Zone eines Regals, die es
+  // dort gar nicht gibt. Eine erfundene Zahl im Plan ist schlimmer als keine:
+  // Sie wird abgeschrieben.
+  if (!OHNE_BODEN.has(element.form)) {
+    const tiefe = bodentiefeMm(element);
+    if (tiefe > 0) zeilen.push(`T ${tiefe}`);
+  }
   return zeilen;
 }

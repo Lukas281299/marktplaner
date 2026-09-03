@@ -125,27 +125,29 @@ describe('Trockensortiment: wire tech 100', () => {
 });
 
 describe('Kassen', () => {
-  const KASSEN = BIBLIOTHEK.filter((e) => e.kategorie === 'kassen');
-  const BEDIENT = KASSEN.filter((e) => /^kasse-(steh|sitz|doppel)-\d+$/.test(e.id));
+  const ZEILE = BIBLIOTHEK.filter((e) => e.gruppe === 'Kassenzeile');
+  const BEDIENT = ZEILE.filter((e) => ['kasse', 'kasseSitz', 'kasseDoppel'].includes(e.form));
 
   it('rechnet die Gesamtlänge aus Band und festen Abschnitten', () => {
     // Am Plan gemessen: Kopf 428 + Band + Kassenplatz 618 + Abpacktisch 1067.
     // Bei Band 1800 sind das 3913 mm – gemessen wurden 3912.
-    const eintrag = BEDIENT.find((e) => e.id === 'kasse-sitz-1800');
-    expect(eintrag).toBeDefined();
-    expect(Math.round(eintrag!.breite * 10)).toBe(3913);
+    for (const eintrag of BEDIENT) {
+      expect(Math.round(eintrag.breite * 10), eintrag.name).toBe(3913);
+    }
+    expect(BEDIENT.length).toBe(3);
   });
 
-  it('führt jede Bauart in allen fünf Bandlängen', () => {
-    for (const bauart of ['steh', 'sitz', 'doppel']) {
-      const treffer = BEDIENT.filter((e) => e.id.startsWith(`kasse-${bauart}-`));
-      expect(treffer).toHaveLength(5);
+  it('führt jede Bauart genau einmal – die Länge ist eine Eigenschaft', () => {
+    // Elf Bandlängen mal drei Bauarten wären dreiunddreißig Einträge, von
+    // denen man jeden höchstens einmal benutzt. Die Länge wählt man am Möbel.
+    for (const form of ['kasse', 'kasseSitz', 'kasseDoppel']) {
+      expect(ZEILE.filter((e) => e.form === form), form).toHaveLength(1);
     }
   });
 
   it('macht die Doppelkasse quer so breit wie zwei Bänder und die Insel', () => {
     // 480 + 745 + 480 plus Rahmen ergeben die gemessenen 1812 mm.
-    const doppel = BEDIENT.filter((e) => e.id.startsWith('kasse-doppel-'));
+    const doppel = ZEILE.filter((e) => e.form === 'kasseDoppel');
     expect(doppel.length).toBeGreaterThan(0);
     for (const eintrag of doppel) expect(eintrag.tiefe).toBe(181.2);
   });
@@ -153,6 +155,15 @@ describe('Kassen', () => {
   it('gibt allen Kassen die Arbeitshöhe 960 mm', () => {
     // Die Höhe ist in der DGUV-Information 208-002 festgelegt.
     for (const eintrag of BEDIENT) expect(eintrag.hoehe).toBe(96);
+  });
+
+  it('bringt die Bauteile mit, aus denen eine Zeile wirklich besteht', () => {
+    // Vorher fehlten sie alle: Ohne Expresskasse, Gondel und Packrutsche
+    // lässt sich eine Kassenzone nicht vollständig planen.
+    const formen = new Set(ZEILE.map((e) => e.form));
+    for (const form of ['kasseExpress', 'kassengondel', 'packrutsche']) {
+      expect(formen.has(form as never), form).toBe(true);
+    }
   });
 });
 

@@ -46,7 +46,7 @@ describe('Vorlagentausch', () => {
   });
 
   it('nimmt bei einem Möbel ohne Achsmaß die Maße der Vorlage', () => {
-    const kasse = lege('kasse-steh-1800');
+    const kasse = lege('kasse-steh');
     usePlanStore.getState().waehleAus([kasse.id]);
     usePlanStore.getState().tauscheVorlage(vorlage('kasse-sb'));
 

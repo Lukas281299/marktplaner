@@ -123,6 +123,12 @@ export type Grundform =
   // Kassenzone. `kasse` ist die Einzelstehkasse; die Sitzkasse kommt mit
   // Stuhl, die Doppelkasse mit zwei Bändern und einer Insel dazwischen.
   | 'kasse'
+  // Die übrigen Bauteile der ITAB-Kassenzeile. Sie sind eigene Gegenstände
+  // und keine anderen Längen: Die Expresskasse hat gar kein Band, die Gondel
+  // schließt die Zeile ab, die Packrutsche hängt hinten dran.
+  | 'kasseExpress'
+  | 'kassengondel'
+  | 'packrutsche'
   | 'kasseSitz'
   | 'kasseDoppel'
   | 'sbKasse'

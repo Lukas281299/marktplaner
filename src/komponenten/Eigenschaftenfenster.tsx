@@ -13,6 +13,14 @@ import { laeuftRueckwaerts } from '../logik/beschriftung';
 import { formatiereFlaeche, formatiereLaenge } from '../logik/masse';
 import { summe } from '../logik/feldaufteilung';
 import { modulName, modulsatzFuer, satzAusAchsmass, type Modulsatz } from '../daten/module';
+import {
+  BANDLAENGEN,
+  bandlaenge,
+  bandlaengeLieferbar,
+  gesamtlaenge,
+  hatBand,
+  naechsteBandlaenge,
+} from '../logik/kassen';
 import { hatEcken, kantenlaengen } from '../logik/elementEcken';
 import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/regalseiten';
 import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
@@ -1424,6 +1432,73 @@ function Unterbauzeile({
   );
 }
 
+/**
+ * Die Bandlänge einer Kassenzeile.
+ *
+ * **Warum das eine eigene Einstellung ist und keine Reihe von
+ * Bibliothekseinträgen.** An einer Kasse ist nur das Warenband wählbar –
+ * Kopfteil, Kassenplatz und Abpacktisch sind fest. Elf Bandlängen mal drei
+ * Bauarten wären dreiunddreißig Einträge, von denen man jeden höchstens
+ * einmal benutzt.
+ *
+ * Wichtiger als die Bequemlichkeit ist aber, dass hier **nur lieferbare
+ * Längen** entstehen. ITAB liefert in Schritten von 300 mm; wer frei zieht,
+ * bekommt leicht eine Kasse, die es nicht gibt. In der Bibliothek stand
+ * genau so ein Maß – 2000 mm –, und im Plan war ihm das nicht anzusehen.
+ */
+function Kassenband({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
+  const store = usePlanStore.getState();
+  const band = bandlaenge(element);
+  const lieferbar = bandlaengeLieferbar(band);
+
+  const setze = (neu: number) => {
+    store.schnappschuss();
+    store.aendereElemente([element.id], { breite: gesamtlaenge(neu) });
+  };
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Warenband</div>
+
+      <div className="kennzahl">
+        <span>Band</span>
+        <span className="kennzahl-wert">{formatiereLaenge(band, einheit)}</span>
+      </div>
+      <div className="kennzahl">
+        <span>Gesamtlänge</span>
+        <span className="kennzahl-wert">{formatiereLaenge(element.breite, einheit)}</span>
+      </div>
+
+      <div className="knopfreihe" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+        {BANDLAENGEN.map((laenge) => (
+          <button
+            key={laenge}
+            className={`knopf${Math.abs(laenge - band) < 0.5 ? ' aktiv' : ''}`}
+            style={{ flex: '1 0 22%', padding: '4px 2px', justifyContent: 'center' }}
+            title={`Warenband ${laenge * 10} mm · Kasse dann ${Math.round(gesamtlaenge(laenge) * 10)} mm lang`}
+            onClick={() => setze(laenge)}
+          >
+            {laenge * 10}
+          </button>
+        ))}
+      </div>
+
+      {lieferbar ? (
+        <p className="hinweis" style={{ marginBottom: 0 }}>
+          Nur das Band wächst – Kopfteil, Kassenplatz und Abpacktisch bleiben, wie sie sind. Den
+          Anschlag links oder rechts stellt man über <strong>Spiegeln</strong> ein.
+        </p>
+      ) : (
+        <p className="hinweis" style={{ marginBottom: 0, color: 'var(--hilfslinie)' }}>
+          <strong>{Math.round(band * 10)} mm gibt es nicht.</strong> ITAB liefert in Schritten von
+          300 mm; am nächsten liegt {naechsteBandlaenge(band) * 10} mm. So wie es dasteht, lässt
+          sich die Kasse nicht bestellen.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function Foerderbandfelder({ element, einheit }: { element: PlanElement; einheit: Massinheit }) {
   const beiStart = () => usePlanStore.getState().schnappschuss();
   const setze = (werte: Partial<PlanElement>) =>
@@ -2256,6 +2331,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
 
       {ausgewaehlte.length === 1 && erstes.form === 'foerderband' && (
         <Foerderbandfelder element={erstes} einheit={einheit} />
+      )}
+
+      {ausgewaehlte.length === 1 && hatBand(erstes.form) && (
+        <Kassenband element={erstes} einheit={einheit} />
       )}
 
       {ausgewaehlte.length === 1 && erstes.kategorie === 'obstgemuese' && (
