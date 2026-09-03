@@ -91,6 +91,27 @@ const OHNE_WARE: ReadonlySet<Grundform> = new Set<Grundform>([
   'leergutRuecknahme',
   'leergutEinweg',
   'dpgBehaelter',
+  'kastenablage',
+  // Bau, Technik und Gebäude. Sie stehen zwar in der Kategorie
+  // „Ausstattung", die ohnehin herausfällt – aber die Form ist eindeutig,
+  // und dann soll sie nicht allein an der Kategorie hängen. Wer eine Säule
+  // in ein eigenes Möbel umwidmet, hat trotzdem eine Säule.
+  'saeule',
+  'stuetzeEckig',
+  'einzelsaeule',
+  'unterzug',
+  'schacht',
+  'treppe',
+  'aufzug',
+  'tuerBlatt',
+  'fenster',
+  'schild',
+  'feuerloescher',
+  'notausgang',
+  'rauchabzug',
+  'bodenablauf',
+  'anschlussStrom',
+  'anschlussWasser',
   // Die Aktionsfläche misst sich in Palettenplätzen und nicht in Metern –
   // siehe `logik/palettenplatz.ts`. Ihre Breite hängt daran, wie herum man
   // sie gezogen hat; als laufende Meter wäre sie eine Zufallszahl, und in
@@ -104,8 +125,32 @@ const OHNE_WARE: ReadonlySet<Grundform> = new Set<Grundform>([
   'pfeil',
 ]);
 
+/**
+ * Vorlagen, die keine eigene Form haben und trotzdem keine Ware tragen.
+ *
+ * Ein Kassentisch ist ein Rechteck, eine Servicetheke ein abgerundetes
+ * Rechteck, ein Füllstück in der Kassenzeile auch nur ein Rechteck. An der
+ * Form sind sie von einem Warenträger nicht zu unterscheiden – am Eintrag,
+ * aus dem sie kommen, schon.
+ *
+ * Die Liste ist kurz und wird es bleiben: Wer ein neues Möbel baut, das
+ * keine Ware trägt, gibt ihm besser eine eigene Form.
+ */
+const OHNE_WARE_VORLAGEN: ReadonlySet<string> = new Set([
+  'kassentisch',
+  'kassensperre',
+  'kasse-fuellstueck',
+  'kundendienst',
+  'information',
+  'leergut-band-gerade',
+  // Zonenmarkierungen. Sie sagen, wo eine Abteilung liegt, und tragen
+  // selbst nichts – genau wie die Aktionsfläche.
+  'frische-og-flaeche',
+]);
+
 export function traegtWare(element: PlanElement): boolean {
   if (element.kategorie === 'ausstattung') return false;
+  if (OHNE_WARE_VORLAGEN.has(element.vorlageId)) return false;
   return !OHNE_WARE.has(element.form);
 }
 
@@ -185,6 +230,15 @@ export interface Auslagenanteil {
    * nichts, ein Möbel ohne eingetragene Bodenzahl trägt etwas Unbekanntes.
    */
   ohne: number;
+  /**
+   * Länge in cm, für die es **bewusst** keine Auslagenzahl gibt.
+   *
+   * Blumen und Pflanzen haben kaum klassische Böden – dort sind die
+   * laufenden Meter die ganze Aussage. Das ist etwas anderes als eine
+   * fehlende Zahl: Hier ist nichts nachzutragen, und die Auswertung darf
+   * nicht danach fragen.
+   */
+  ohneMassstab?: number;
 }
 
 /**
@@ -216,6 +270,13 @@ export interface Warengruppenzeile {
    * Zeile unvollständig – und man sieht, welches Möbel man noch ausfüllen muss.
    */
   ohneAuslagen: number;
+  /**
+   * Auf wie vielen Metern es **bewusst** keine zweite Zahl gibt.
+   *
+   * Blumen zählen nur laufend. Diese Meter dürfen nicht als Lücke erscheinen,
+   * sonst mahnt die Tabelle etwas an, das niemand nachtragen will.
+   */
+  nurLaufend: number;
   /** Wie viele Möbelseiten zu dieser Zeile beitragen. */
   strecken: number;
 }
@@ -254,7 +315,13 @@ export function warengruppenmeter(
   const nimm = (name: string) => {
     const vorhanden = zeilen.get(name);
     if (vorhanden) return vorhanden;
-    const neu: Warengruppenzeile = { name, laufend: 0, ohneAuslagen: 0, strecken: 0 };
+    const neu: Warengruppenzeile = {
+      name,
+      laufend: 0,
+      ohneAuslagen: 0,
+      nurLaufend: 0,
+      strecken: 0,
+    };
     zeilen.set(name, neu);
     return neu;
   };
@@ -272,12 +339,14 @@ export function warengruppenmeter(
     if (!anteil) {
       zeile.ohneAuslagen += strecke.laenge;
     } else {
+      const ohneMassstab = anteil.ohneMassstab ?? 0;
       // Eine Zahl bekommt die Zeile, sobald auch nur ein Stück der Strecke
       // bekannt ist – und daneben steht, wie viel davon noch offen war.
-      if (anteil.ohne < strecke.laenge - 0.005) {
+      if (anteil.ohne + ohneMassstab < strecke.laenge - 0.005) {
         zeile.tatsaechlich = (zeile.tatsaechlich ?? 0) + anteil.tatsaechlich;
       }
       zeile.ohneAuslagen += anteil.ohne;
+      zeile.nurLaufend += ohneMassstab;
     }
   }
 
@@ -301,6 +370,7 @@ export function warengruppenmeter(
       laufend: Math.round(z.laufend) / 100,
       tatsaechlich: z.tatsaechlich === undefined ? undefined : Math.round(z.tatsaechlich) / 100,
       ohneAuslagen: Math.round(z.ohneAuslagen) / 100,
+      nurLaufend: Math.round(z.nurLaufend) / 100,
     }))
     .sort((a, b) => {
       // Die namenlosen Meter stehen unten: Sie sind kein Sortiment.
@@ -315,16 +385,19 @@ export function metersumme(zeilen: Warengruppenzeile[]): {
   laufend: number;
   tatsaechlich: number;
   ohneAuslagen: number;
+  nurLaufend: number;
   ohneWarengruppe: number;
 } {
   let laufend = 0;
   let tatsaechlich = 0;
   let ohneAuslagen = 0;
+  let nurLaufend = 0;
   let ohneWarengruppe = 0;
   for (const z of zeilen) {
     laufend += z.laufend;
     tatsaechlich += z.tatsaechlich ?? 0;
     ohneAuslagen += z.ohneAuslagen;
+    nurLaufend += z.nurLaufend;
     if (z.name === OHNE_WARENGRUPPE) ohneWarengruppe += z.laufend;
   }
   const rund = (w: number) => Math.round(w * 100) / 100;
@@ -332,6 +405,7 @@ export function metersumme(zeilen: Warengruppenzeile[]): {
     laufend: rund(laufend),
     tatsaechlich: rund(tatsaechlich),
     ohneAuslagen: rund(ohneAuslagen),
+    nurLaufend: rund(nurLaufend),
     ohneWarengruppe: rund(ohneWarengruppe),
   };
 }

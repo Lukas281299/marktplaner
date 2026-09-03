@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { palettenplaetze } from './palettenplatz';
+import { aktionsflaechen, palettenplaetze } from './palettenplatz';
+import type { PlanElement, Projekt } from '../typen/modell';
 
 /**
  * Prüfungen für die Palettenplätze einer Aktionsfläche.
@@ -64,5 +65,89 @@ describe('Palettenplätze', () => {
     const anfang = Date.now();
     expect(palettenplaetze(5000, 3000).ganz).toBeGreaterThan(1500);
     expect(Date.now() - anfang).toBeLessThan(500);
+  });
+});
+
+function flaeche(teil: Partial<PlanElement>): PlanElement {
+  return {
+    id: 'a1',
+    vorlageId: 'aktion-2x2',
+    ebeneId: 'einrichtung',
+    name: 'Aktionsfläche',
+    kategorie: 'aktion',
+    x: 0,
+    y: 0,
+    breite: 200,
+    tiefe: 200,
+    drehung: 0,
+    form: 'aktionsflaeche',
+    farbe: '#eecc66',
+    beschriftung: 'Aktionsfläche',
+    beschriftungSichtbar: true,
+    schriftgroesse: 12,
+    gesperrt: false,
+    reihenfolge: 1,
+    ...teil,
+  } as PlanElement;
+}
+
+function projekt(elemente: PlanElement[], sichtbar = true): Projekt {
+  return {
+    id: 'p1',
+    name: 'Testmarkt',
+    version: 20,
+    erstelltAm: 0,
+    geaendertAm: 0,
+    grundflaeche: { umriss: [], wandstaerke: 30 },
+    einstellungen: {} as Projekt['einstellungen'],
+    ebenen: [{ id: 'einrichtung', name: 'Einrichtung', sichtbar, gesperrt: false }],
+    raeume: [],
+    waende: [],
+    oeffnungen: [],
+    elemente,
+    gruppen: [],
+    masslinien: [],
+    verkaufsflaechen: [],
+  } as unknown as Projekt;
+}
+
+describe('Aktionsflächen des ganzen Marktes', () => {
+  it('rechnet die Fläche in Paletten um', () => {
+    // Lukas' eigenes Beispiel: 200 m² Aktionsfläche. Eine CHEP misst
+    // 0,96 m², also 208 Stück; halbe 0,48 m² → 416; viertel 0,24 → 833.
+    const zehn = Array.from({ length: 50 }, (_, i) =>
+      flaeche({ id: `a${i}`, breite: 400, tiefe: 100 }),
+    );
+    const a = aktionsflaechen(projekt(zehn));
+    expect(a.qm).toBe(200);
+    expect(a.umrechnung.ganz).toBe(208);
+    expect(a.umrechnung.halb).toBe(416);
+    expect(a.umrechnung.viertel).toBe(833);
+  });
+
+  it('stellt daneben, was ein gerader Aufbau hergibt', () => {
+    // 4,00 × 1,00 m: rechnerisch vier CHEP, hinstellen lassen sich drei.
+    const a = aktionsflaechen(projekt([flaeche({ breite: 400, tiefe: 100 })]));
+    expect(a.umrechnung.ganz).toBe(4);
+    expect(a.packung.ganz).toBe(3);
+    // Die Packung ist nie größer als die Umrechnung – sonst stimmte eine der
+    // beiden Rechnungen nicht.
+    expect(a.packung.ganz).toBeLessThanOrEqual(a.umrechnung.ganz);
+  });
+
+  it('nimmt nur die Zonen und nicht die Möbel darauf', () => {
+    // In derselben Kategorie stehen Paletten, Drehständer und Displays.
+    const a = aktionsflaechen(
+      projekt([
+        flaeche({ breite: 200, tiefe: 200 }),
+        flaeche({ id: 'p', form: 'palette', vorlageId: 'palette-chep', breite: 120, tiefe: 80 }),
+      ]),
+    );
+    expect(a.anzahl).toBe(1);
+    expect(a.qm).toBe(4);
+  });
+
+  it('lässt eine ausgeblendete Ebene weg', () => {
+    expect(aktionsflaechen(projekt([flaeche({})], false)).anzahl).toBe(0);
   });
 });

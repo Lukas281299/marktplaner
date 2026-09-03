@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
-import { auslagenAnteil } from '../logik/auslagen';
+import { auslagenAnteil, kistenAnteil } from '../logik/auslagen';
 import { abteilungVon, zuordnungVon } from '../logik/sortiment';
 import {
   metersumme,
   OHNE_WARENGRUPPE,
+  strecken,
   warengruppenmeter,
   type Warengruppenzeile,
 } from '../logik/warengruppenmeter';
@@ -61,6 +62,27 @@ export function Warengruppenmeter({ projekt }: { projekt: Projekt }) {
     [projekt],
   );
   const summe = useMemo(() => metersumme(zeilen), [zeilen]);
+
+  /**
+   * Die grünen Kisten je Warengruppe.
+   *
+   * Obst und Gemüse rechnet in Kisten, und das ist die Zahl, mit der bestellt
+   * wird. In der Meterspalte steht sie umgerechnet, damit sich die Spalte
+   * addieren lässt; hier steht sie so, wie man sie braucht.
+   *
+   * Getrennt von `warengruppenmeter` gerechnet: Die Meterlogik gilt für den
+   * ganzen Markt und soll nicht wissen, dass es eine Obstabteilung gibt.
+   */
+  const kisten = useMemo(() => {
+    const nach = new Map<string, number>();
+    for (const strecke of strecken(projekt)) {
+      const zahl = kistenAnteil(strecke);
+      if (zahl <= 0) continue;
+      const ziel = zuordnungVon(projekt.zuordnungen, strecke.name) ?? strecke.name;
+      nach.set(ziel, (nach.get(ziel) ?? 0) + zahl);
+    }
+    return nach;
+  }, [projekt]);
 
   /**
    * Nach Abteilungen geordnet, in der Reihenfolge der Sortimentsliste.
@@ -129,17 +151,35 @@ export function Warengruppenmeter({ projekt }: { projekt: Projekt }) {
                   zeile.ohneAuslagen > 0
                     ? `Auf ${meter(zeile.ohneAuslagen)} m fehlt die Bodenzahl – ` +
                       'die tatsächlichen Meter sind so weit unvollständig.'
-                    : `${zeile.strecken} Möbelseite${zeile.strecken === 1 ? '' : 'n'}`
+                    : zeile.nurLaufend > 0
+                      ? 'Hier zählen nur laufende Meter – Blumen und Pflanzen ' +
+                        'haben kaum klassische Böden.'
+                      : `${zeile.strecken} Möbelseite${zeile.strecken === 1 ? '' : 'n'}`
                 }
               >
                 <span>
                   {zeile.name}
+                  {/* Die Kistenzahl steht am Namen und nicht in einer eigenen
+                      Spalte: Sie gilt nur für Obst und Gemüse, und eine Spalte,
+                      die überall sonst leer bleibt, verengt die anderen. */}
+                  {(kisten.get(zeile.name) ?? 0) >= 0.5 && (
+                    <span className="meterkisten">
+                      {' '}
+                      · {Math.round(kisten.get(zeile.name)!)} iK
+                    </span>
+                  )}
                   {zeile.ohneAuslagen > 0 && zeile.name !== OHNE_WARENGRUPPE && (
                     <span className="meterluecke"> · {meter(zeile.ohneAuslagen)} offen</span>
                   )}
                 </span>
                 <span>{meter(zeile.laufend)}</span>
-                <span>{zeile.tatsaechlich === undefined ? '–' : meter(zeile.tatsaechlich)}</span>
+                <span>
+                  {zeile.tatsaechlich !== undefined
+                    ? meter(zeile.tatsaechlich)
+                    : zeile.nurLaufend > 0
+                      ? 'nur lfm'
+                      : '–'}
+                </span>
               </div>
             ))}
           </div>
@@ -156,6 +196,13 @@ export function Warengruppenmeter({ projekt }: { projekt: Projekt }) {
         <div className="meterhinweis">
           Auf <strong>{meter(summe.ohneAuslagen)} m</strong> fehlt die Bodenzahl. Sie steht am Feld,
           links neben der Notiz – solange sie fehlt, bleiben die tatsächlichen Meter unvollständig.
+        </div>
+      )}
+
+      {summe.nurLaufend > 0 && (
+        <div className="meterhinweis">
+          <strong>{meter(summe.nurLaufend)} m</strong> zählen nur laufend – Blumen und Pflanzen
+          haben kaum klassische Böden. Das ist keine Lücke und muss nicht nachgetragen werden.
         </div>
       )}
     </details>

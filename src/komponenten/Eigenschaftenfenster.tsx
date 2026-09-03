@@ -5,7 +5,6 @@ import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { alleNamen } from '../daten/warengruppen';
 import {
   berechneFlaechen,
-  berechneRegalmeter,
   gruenekisten,
   raumflaeche,
 } from '../logik/flaechen';
@@ -27,7 +26,8 @@ import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
 import { gestelltiefe, kistenbelegung, kistenseiten, kistenzahl } from '../logik/getraenkekisten';
 import { warengruppenVon } from '../logik/warengruppenzuordnung';
 import { ifkoVorschlag } from '../logik/ifko';
-import { palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
+import { aktionsflaechen, palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
+import { getraenkezahlen } from '../logik/getraenkezahlen';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -2675,8 +2675,9 @@ function ProjektEigenschaften() {
    */
   const eigeneWaende = projekt.waende.length >= 5;
   const raumsumme = flaechen.raeume.reduce((summe, r) => summe + r.flaeche, 0);
-  const regalmeter = berechneRegalmeter(projekt);
   const kisten = gruenekisten(projekt);
+  const getraenke = getraenkezahlen(projekt);
+  const aktion = aktionsflaechen(projekt);
 
   const umriss = projekt.grundflaeche.umriss;
   const rechteckig = istRechteck(umriss);
@@ -3076,37 +3077,15 @@ function ProjektEigenschaften() {
           <span>Freie Verkaufsfläche</span>
           <span className="kennzahl-wert">{formatiereFlaeche(flaechen.frei)}</span>
         </div>
-        <div className="kennzahl">
-          <span>Regalmeter</span>
-          <span className="kennzahl-wert">
-            {regalmeter.toLocaleString('de-DE', { maximumFractionDigits: 1 })} lfm
-          </span>
-        </div>
+        {/*
+          Hier stand einmal eine einzige Zeile „Regalmeter … lfm".
 
-        {/* Dieselbe Zahl, aufgeschlüsselt: Wie viel Platz bekommt welches
-            Sortiment? Zugeklappt kostet sie eine Zeile. */}
-        <Warengruppenmeter projekt={projekt} />
-
-        {/* Und daneben, woraus der Markt besteht – die Stückliste. */}
-        <Moebeluebersicht projekt={projekt} />
-
-        {/* Obst und Gemüse zählt anders als der Rest: nicht in Metern,
-            sondern in Kisten. Die Zahl steht nur da, wenn sie jemand
-            eingetragen hat – eine Null wäre eine Behauptung. */}
-        {kisten.moebel > 0 && (
-          <>
-            <div className="kennzahl">
-              <span>Grüne Kisten (O&amp;G)</span>
-              <span className="kennzahl-wert">{kisten.kisten}</span>
-            </div>
-            <div className="kennzahl">
-              <span>Auslagen (O&amp;G)</span>
-              <span className="kennzahl-wert">
-                {kisten.auslagen} auf {kisten.moebel} Möbeln
-              </span>
-            </div>
-          </>
-        )}
+          Sie ist weg, und das ist der Punkt: Eine Zahl für den ganzen Markt
+          beantwortet keine Frage, die man beim Planen hat. Was an ihre Stelle
+          tritt, steht unten in einer eigenen Gruppe – aufgeschlüsselt nach
+          Warengruppen. Nebenbei zählte die alte Zahl nur Regale und Kühlung;
+          die neue zählt jedes Möbel, das Ware trägt.
+        */}
 
         {flaechen.verkaufsflaechen.length > 0 && (
           <div style={{ marginTop: 10 }}>
@@ -3177,6 +3156,99 @@ function ProjektEigenschaften() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/*
+        Meter, Kisten und Paletten – bewusst neben der Flächenübersicht und
+        nicht darin. Die misst Quadratmeter; hier stehen Längen und Stückzahlen.
+        Beides in einem Block zu zeigen hieße, zwei Fragen zu vermengen.
+      */}
+      <div className="gruppe">
+        <div className="gruppe-titel">Meter, Kisten und Paletten</div>
+
+        {/* Wie viel Platz bekommt welches Sortiment? Zugeklappt eine Zeile. */}
+        <Warengruppenmeter projekt={projekt} />
+
+        {/* Und woraus der Markt besteht – die Stückliste. */}
+        <Moebeluebersicht projekt={projekt} />
+
+        {/* Obst und Gemüse zählt anders als der Rest: nicht in Metern,
+            sondern in Kisten. Die Zahl steht nur da, wenn sie jemand
+            eingetragen hat – eine Null wäre eine Behauptung. */}
+        {kisten.moebel > 0 && (
+          <>
+            <div className="kennzahl">
+              <span>Grüne Kisten (O&amp;G)</span>
+              <span className="kennzahl-wert">{kisten.kisten}</span>
+            </div>
+            <div className="kennzahl">
+              <span>Auslagen (O&amp;G)</span>
+              <span className="kennzahl-wert">
+                {kisten.auslagen} auf {kisten.moebel} Möbeln
+              </span>
+            </div>
+          </>
+        )}
+
+        {/* Die Getränke zählen in Kistenfacings – wie breit das Sortiment
+            ist – und daneben in Reihen: wie tief es steht. Zwei Zahlen,
+            weil zwei Fragen. */}
+        {getraenke.gestelle > 0 && (
+          <>
+            <div className="kennzahl">
+              <span>
+                Kistenfacings
+                <span className="kategorie-anzahl"> · {getraenke.gestelle} Gestelle</span>
+              </span>
+              <span className="kennzahl-wert">{getraenke.facings}</span>
+            </div>
+            <div className="kennzahl">
+              <span>
+                Kisten insgesamt
+                <span className="kategorie-anzahl">
+                  {' '}
+                  ·{' '}
+                  {getraenke.reihenMindestens === getraenke.reihenHoechstens
+                    ? `${getraenke.reihenHoechstens} Reihen`
+                    : `${getraenke.reihenMindestens}–${getraenke.reihenHoechstens} Reihen`}
+                </span>
+              </span>
+              <span className="kennzahl-wert">{getraenke.kisten}</span>
+            </div>
+          </>
+        )}
+
+        {/* Aktionsflächen in Paletten. Zwei Zahlen: was rechnerisch
+            hineinginge und was ein gerader Aufbau wirklich hergibt. */}
+        {aktion.anzahl > 0 && (
+          <>
+            <div className="kennzahl">
+              <span>
+                Aktionsfläche
+                <span className="kategorie-anzahl"> · {aktion.anzahl} Flächen</span>
+              </span>
+              <span className="kennzahl-wert">
+                {aktion.qm.toLocaleString('de-DE', { maximumFractionDigits: 1 })} m²
+              </span>
+            </div>
+            <div className="kennzahl">
+              <span>Entspricht CHEP / ½ / ¼</span>
+              <span className="kennzahl-wert">
+                {aktion.umrechnung.ganz} / {aktion.umrechnung.halb} / {aktion.umrechnung.viertel}
+              </span>
+            </div>
+            <div className="kennzahl">
+              <span>Davon aufgebaut möglich</span>
+              <span className="kennzahl-wert">
+                {aktion.packung.ganz} / {aktion.packung.halb} / {aktion.packung.viertel}
+              </span>
+            </div>
+            <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+              Oben die Umrechnung der Fläche, unten was ein gerader Aufbau je Fläche wirklich
+              hergibt. Der Unterschied ist der Verschnitt der Zuschnitte.
+            </p>
+          </>
         )}
       </div>
 

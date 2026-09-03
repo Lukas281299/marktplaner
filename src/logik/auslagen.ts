@@ -1,5 +1,6 @@
 import { felderVon } from './regalseiten';
-import { kistenseiten } from './getraenkekisten';
+import { KISTE, kistenseiten } from './getraenkekisten';
+import { KISTEN_JE_METER } from './ifko';
 import type { Auslagenanteil, Streckenmeter } from './warengruppenmeter';
 import type { PlanElement, Regalfeld } from '../typen/modell';
 
@@ -75,9 +76,18 @@ export function moebelauslagen(
 ): number | undefined {
   const hoehe = element.hoehe ?? 0;
 
-  // Die Getränkeabteilung zählt in Kistenreihen und nicht in Böden: Jede
-  // Reihe vor dem Gestell ist eine Lage Ware über die ganze Länge, also
-  // genau das, was bei einem Regal ein Boden ist.
+  // Die Getränkeabteilung zählt in **Kistenfacings** und nicht in Böden.
+  //
+  // Eine Kiste misst 40 × 30 cm und ist damit nicht quadratisch: Wer sie
+  // längs stellt, bekommt 2,5 auf den laufenden Meter, wer sie quer stellt,
+  // 3,33. Genau dieser Unterschied ist die Entscheidung, um die es beim
+  // Einräumen geht – er darf in der Zahl nicht verschwinden.
+  //
+  // **Gezählt wird die vordere Reihe.** Ein Facing ist, was der Kunde sieht;
+  // was dahintersteht, ist Nachschub. Die Zahl der Reihen ist deshalb eine
+  // **eigene** Kennzahl neben dieser (siehe `logik/getraenkezahlen.ts`) und
+  // kein Faktor darin – sonst sagte eine Zahl zwei Dinge auf einmal, und man
+  // sähe nicht mehr, ob die Gasse eng oder das Sortiment breit ist.
   //
   // Die Seite zur Gasse zeichnet das Symbol **oben** – siehe
   // `zeichneGetraenkegestell`, wo `vorne` bis zur Gestellkante nach oben
@@ -87,7 +97,10 @@ export function moebelauslagen(
   if (element.form === 'getraenkegestell') {
     const { vorne, hinten } = kistenseiten(element.kisten);
     const dran = seite === 'oben' ? vorne : hinten;
-    return dran ? dran.reihen : 0;
+    // Keine Reihe heißt: Diese Seite steht an der Wand und zeigt nichts.
+    if (!dran || dran.reihen <= 0) return 0;
+    const kistenbreite = dran.lage === 'laengs' ? KISTE.laenge : KISTE.breite;
+    return 100 / kistenbreite;
   }
 
   switch (element.form) {
@@ -106,8 +119,13 @@ export function moebelauslagen(
         ) / 10
       );
 
-    // Bedienung und Selbstbedienung. Die flache Theke zeigt eine Lage Ware,
-    // das halbhohe Möbel drei.
+    // Bedienung und Selbstbedienung, nach den Schnittzeichnungen im
+    // WSL-Katalog: Die bediente Theke und die flache Selbstbedienung zeigen
+    // **eine** Lage Ware auf dem Auslageboden. Das halbhohe SV-Möbel trägt
+    // über dem Grundboden zwei weitere Etagen – zusammen drei.
+    //
+    // Die SV-Etagen hängen an einer gelochten Säule und sind verstellbar;
+    // wer vier einbaut, trägt am Feld eine 4 ein, und die gilt dann.
     case 'blinkTheke':
     case 'blinkSelf':
       return 1;
@@ -123,11 +141,48 @@ export function moebelauslagen(
       break;
   }
 
-  // Obst und Gemüse tragen ihre Auslagen schon am Möbel: Ein Vitable-Tisch
-  // bringt sie aus dem Modul mit, nicht aus der Planung.
+  // Obst und Gemüse rechnet in **grünen Kisten** und nicht in Böden. Wie
+  // viele auf ein Möbel gehen, steht am Möbel; hier wird daraus eine Zahl je
+  // laufendem Meter, damit sie sich mit dem Rest des Marktes addieren lässt
+  // (siehe `KISTEN_JE_METER`).
+  //
+  // Die Kistenzahl gilt für das **ganze** Möbel. Eine Gondel wird zweimal
+  // durchlaufen – einmal je Seite –, also bekommt jede Seite die Hälfte.
+  if (element.kategorie === 'obstgemuese' && element.ifkoKisten) {
+    const seiten = element.beidseitig ? 2 : 1;
+    const laenge = element.breite / 100;
+    if (laenge > 0) return element.ifkoKisten / seiten / laenge / KISTEN_JE_METER;
+  }
+
+  // Sonst die Auslagen, die am Möbel stehen – der Vitable-Tisch bringt sie
+  // aus dem Modul mit, nicht aus der Planung.
   if (element.auslagen && element.auslagen > 0) return element.auslagen;
 
   return undefined;
+}
+
+/**
+ * Möbel, für die es **bewusst** keine zweite Zahl gibt.
+ *
+ * Blumen und Pflanzen haben kaum klassische Böden: ein Trog, eine Treppe,
+ * ein Wagen. Dort sind die laufenden Meter die ganze Aussage.
+ *
+ * Das ist etwas anderes als eine fehlende Zahl. Zählte man diese Meter unter
+ * „Bodenzahl fehlt", mahnte die Auswertung dauerhaft etwas an, das niemand
+ * nachtragen will – und die eine Zeile, an der wirklich etwas fehlt, ginge
+ * darin unter.
+ */
+export function ohneAuslagenbegriff(element: PlanElement): boolean {
+  return element.kategorie === 'blumen';
+}
+
+/** Wie viele grüne Kisten auf dieser Strecke stehen – nur bei Obst und Gemüse. */
+export function kistenAnteil(strecke: Streckenmeter): number {
+  const el = strecke.element;
+  if (el.kategorie !== 'obstgemuese' || !el.ifkoKisten || !(el.breite > 0)) return 0;
+  const seiten = el.beidseitig ? 2 : 1;
+  const jeCm = el.ifkoKisten / seiten / el.breite;
+  return (strecke.bis - strecke.von) * jeCm;
 }
 
 /**
@@ -162,9 +217,21 @@ export function auslagenAnteil(strecke: Streckenmeter): Auslagenanteil {
   const vorgabe = moebelauslagen(strecke.element, strecke.seite);
   const felder = felderVon(strecke.element, strecke.seite);
 
+  // Wo es keinen Auslagenbegriff gibt, wandert eine fehlende Zahl nicht in
+  // die Mahnung, sondern in „zählt nur laufend". **Ausgestiegen wird hier
+  // aber nicht**: Steht am Feld doch eine Bodenzahl, gilt die – das ist die
+  // Leitregel dieser Datei, und ein Pflanzregal mit drei Böden hat eben drei.
+  const stumm = ohneAuslagenbegriff(strecke.element);
+
   let tatsaechlich = 0;
   let ohne = 0;
+  let ohneMassstab = 0;
   let anfang = 0;
+
+  const fehlt = (stueck: number) => {
+    if (stumm) ohneMassstab += stueck;
+    else ohne += stueck;
+  };
 
   for (const feld of felder) {
     const ende = anfang + feld.breite;
@@ -173,7 +240,7 @@ export function auslagenAnteil(strecke: Streckenmeter): Auslagenanteil {
     if (stueck <= 0) continue;
 
     const zahl = feldauslagen(feld, vorgabe);
-    if (zahl === undefined) ohne += stueck;
+    if (zahl === undefined) fehlt(stueck);
     else tatsaechlich += stueck * zahl;
   }
 
@@ -183,9 +250,34 @@ export function auslagenAnteil(strecke: Streckenmeter): Auslagenanteil {
   // Plan stehen.
   const ueberhang = strecke.bis - Math.max(strecke.von, anfang);
   if (ueberhang > 0) {
-    if (vorgabe === undefined) ohne += ueberhang;
+    if (vorgabe === undefined) fehlt(ueberhang);
     else tatsaechlich += ueberhang * vorgabe;
   }
 
-  return { tatsaechlich, ohne };
+  // Das Eckstück steht schräg: Seine Front ist länger als der Platz, den es
+  // am Boden belegt. Die **laufenden** Meter bleiben der Grundriss – daran
+  // hängen die Warengruppenstrecken –, die **tatsächlichen** rechnen mit der
+  // Front. Sonst fehlten an einer Backwarenecke zwei von sieben Metern.
+  return { tatsaechlich: tatsaechlich * frontfaktor(strecke.element), ohne, ohneMassstab };
+}
+
+/**
+ * Um wie viel länger die Front eines Möbels ist als sein Platz am Boden.
+ *
+ * Nur die schräg abgeschnittenen Eckstücke haben einen: Ein Stück von 44 cm
+ * Breite, vorn unter 45° abgeschnitten, zeigt eine Kante von 63 cm. Wer es
+ * mit seiner Breite rechnet, verliert knapp ein Drittel – und zwar an jeder
+ * Ecke im Markt.
+ *
+ * Für alles andere kommt 1 heraus, und dann ändert sich an keiner
+ * bestehenden Zahl etwas.
+ */
+export function frontfaktor(element: PlanElement): number {
+  if (element.form !== 'bakeoffEcke' && element.form !== 'vitableEckInnen') return 1;
+  const breite = element.breite;
+  if (!(breite > 0)) return 1;
+  // Die Schräge läuft über die Breite und höchstens über die volle Tiefe –
+  // genau die Kante, die das Symbol zeichnet.
+  const schraege = Math.hypot(breite, Math.min(breite, element.tiefe));
+  return schraege / breite;
 }

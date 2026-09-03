@@ -23,6 +23,23 @@ import type { PlanElement } from '../typen/modell';
  * beiden Seiten und damit das Doppelte.
  */
 
+/**
+ * Wie viele grüne Kisten einem tatsächlichen Meter entsprechen.
+ *
+ * **Die Brücke zwischen zwei Einheiten.** Obst und Gemüse rechnet in Kisten,
+ * der Rest des Marktes in Metern – und in einer Abteilung steht beides
+ * nebeneinander, sobald ein Kühlmöbel für Salate zwischen den Tischen steht.
+ * Ohne einen Umrechnungskurs ließen sich die beiden Zahlen nie addieren.
+ *
+ * Eine ifko misst 600 × 400 mm. Auf einer Auflage steht sie mit der kurzen
+ * Seite nach vorn – so kommen 2,5 Kisten auf einen laufenden Meter je
+ * Auslage. Genau in dieser Größenordnung liegt auch die gemessene Tabelle
+ * unten: ein 1,00-m-Feld mit T600 trägt drei Kisten.
+ *
+ * Wer den Kurs anders kennt, ändert diese eine Zahl.
+ */
+export const KISTEN_JE_METER = 2.5;
+
 /** Die Feldbreiten, für die gemessen wurde, in cm. */
 const BREITEN = [100, 125];
 

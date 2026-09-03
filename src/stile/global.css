@@ -1393,6 +1393,14 @@ details.erklaerung[open] > summary {
   font-size: 10px;
 }
 
+/* Die Kistenzahl der Obstabteilung – die Zahl, mit der bestellt wird. Sie
+   steht neben dem Namen und nicht in einer eigenen Spalte, weil sie überall
+   sonst leer bliebe. */
+.meterkisten {
+  color: #2f6f3e;
+  font-size: 10px;
+}
+
 .meterhinweis {
   margin-top: 6px;
   color: var(--text-schwach);

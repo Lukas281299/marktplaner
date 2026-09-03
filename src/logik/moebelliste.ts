@@ -1,5 +1,11 @@
 import { findeVorlage } from '../daten/bibliothek';
-import type { BibliothekEintrag, KategorieId, PlanElement, Projekt } from '../typen/modell';
+import type {
+  BibliothekEintrag,
+  Grundform,
+  KategorieId,
+  PlanElement,
+  Projekt,
+} from '../typen/modell';
 
 /**
  * Was im Markt steht, nach Möbeltypen gezählt.
@@ -33,6 +39,32 @@ export interface Moebelzeile {
 }
 
 /**
+ * Was in der Bibliothek selbst „kein Möbel" heißt.
+ *
+ * Eine Anmerkung im Plan, eine Zonenmarkierung, ein Strich: Sie liegen als
+ * Elemente im Projekt, aber niemand bestellt sie. In einer Stückliste stünden
+ * sie als „1 Stück Aktionsfläche, 6,00 m²" neben den Gondeln.
+ *
+ * Ein anderer Zuschnitt als `traegtWare` in `warengruppenmeter.ts`: Dort
+ * fällt heraus, was keine **Ware** trägt – die Kassenzeile etwa fehlt in der
+ * Meterauswertung, gehört aber sehr wohl in die Stückliste. Sie wird ja
+ * geliefert.
+ */
+const KEIN_MOEBEL: ReadonlySet<Grundform> = new Set<Grundform>([
+  'textfeld',
+  'linie',
+  'pfeil',
+  'aktionsflaeche',
+]);
+
+/** Zonenflächen ohne eigene Form – sie teilen sich das Rechteck mit Möbeln. */
+const ZONEN: ReadonlySet<string> = new Set(['frische-og-flaeche']);
+
+function istMoebel(element: PlanElement): boolean {
+  return !KEIN_MOEBEL.has(element.form) && !ZONEN.has(element.vorlageId);
+}
+
+/**
  * Der Name, unter dem ein Möbel in der Liste steht.
  *
  * Der Bibliotheksname, wenn es ihn gibt: Er nennt das Modell und die Länge
@@ -52,6 +84,7 @@ export function moebelliste(projekt: Projekt, eigene: BibliothekEintrag[] = []):
 
   for (const element of projekt.elemente ?? []) {
     if (element.ebeneId && !sichtbar.has(element.ebeneId)) continue;
+    if (!istMoebel(element)) continue;
 
     const vorlage = findeVorlage(element.vorlageId, eigene);
     const name = anzeigename(element, vorlage);

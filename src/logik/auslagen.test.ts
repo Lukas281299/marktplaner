@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   auslagenAnteil,
   feldauslagen,
+  frontfaktor,
   moebelauslagen,
   TK_FACH,
   TK_TOTZONE,
@@ -120,32 +121,56 @@ describe('Was ein Möbel mitbringt', () => {
     expect(moebelauslagen(el)).toBe(3);
   });
 
-  it('zählt beim Getränkegestell die Kistenreihen', () => {
-    // Jede Reihe vor dem Gestell ist eine Lage Ware über die ganze Länge –
-    // genau das, was bei einem Regal ein Boden ist.
-    const gestell = element({
+  it('zählt beim Getränkegestell die Kisten der vorderen Reihe', () => {
+    // Eine Kiste misst 40 × 30 cm. Längs gestellt passen 2,5 auf den
+    // laufenden Meter, quer 3,33 – genau der Unterschied, um den es beim
+    // Einräumen geht.
+    const laengs = element({
       form: 'getraenkegestell',
       kategorie: 'getraenke',
       beidseitig: true,
       kisten: { lage: 'laengs', reihen: 2 },
     });
-    expect(moebelauslagen(gestell, 'unten')).toBe(2);
-    expect(moebelauslagen(gestell, 'oben')).toBe(2);
+    expect(moebelauslagen(laengs, 'unten')).toBe(2.5);
+
+    const quer = element({
+      form: 'getraenkegestell',
+      kategorie: 'getraenke',
+      beidseitig: true,
+      kisten: { lage: 'quer', reihen: 2 },
+    });
+    expect(moebelauslagen(quer, 'unten')).toBeCloseTo(10 / 3, 6);
   });
 
-  it('nimmt je Seite die Reihen dieser Seite', () => {
+  it('lässt die Reihen die Facingzahl nicht verfälschen', () => {
+    // Ein Facing ist, was der Kunde sieht; was dahintersteht, ist Nachschub.
+    // Wie tief gestellt wird, ist eine eigene Kennzahl.
+    const flach = element({
+      form: 'getraenkegestell',
+      kategorie: 'getraenke',
+      kisten: { lage: 'laengs', reihen: 1 },
+    });
+    const tief = element({
+      form: 'getraenkegestell',
+      kategorie: 'getraenke',
+      kisten: { lage: 'laengs', reihen: 4 },
+    });
+    expect(moebelauslagen(tief, 'unten')).toBe(moebelauslagen(flach, 'unten'));
+  });
+
+  it('nimmt je Seite die Lage dieser Seite', () => {
     const gestell = element({
       form: 'getraenkegestell',
       kategorie: 'getraenke',
       beidseitig: true,
       kisten: { lage: 'laengs', reihen: 3, rueckseite: { lage: 'quer', reihen: 1 } },
     });
-    // Zur Gasse hin drei Reihen, zur Wand hin eine – zusammen vier.
     const beide = [
       moebelauslagen(gestell, 'unten')!,
       moebelauslagen(gestell, 'oben')!,
-    ].sort();
-    expect(beide).toEqual([1, 3]);
+    ].sort((a, b) => a - b);
+    expect(beide[0]).toBe(2.5);
+    expect(beide[1]).toBeCloseTo(10 / 3, 6);
   });
 
   it('gibt einem einseitigen Gestell hinten nichts', () => {
@@ -157,7 +182,34 @@ describe('Was ein Möbel mitbringt', () => {
     });
     // An der Wand steht nichts dahinter, und null ist hier eine Aussage.
     expect(moebelauslagen(gestell, 'unten')).toBe(0);
-    expect(moebelauslagen(gestell, 'oben')).toBe(2);
+    expect(moebelauslagen(gestell, 'oben')).toBe(2.5);
+  });
+
+  it('rechnet beim Obstmöbel aus den grünen Kisten', () => {
+    // Lukas rechnet Obst und Gemüse in ifko-Kisten. Damit sich die Spalte
+    // mit dem Rest des Marktes addieren lässt, werden sie über
+    // KISTEN_JE_METER in Meter umgerechnet – 2,5 Kisten sind ein Meter.
+    const tisch = element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite: 125,
+      ifkoKisten: 7,
+    });
+    // 7 Kisten auf 1,25 m sind 5,6 Kisten je Meter, also 2,24 Auslagen.
+    expect(moebelauslagen(tisch)).toBeCloseTo(7 / 1.25 / 2.5, 6);
+  });
+
+  it('teilt die Kisten einer Gondel auf ihre zwei Seiten', () => {
+    // Die Kistenzahl gilt für das ganze Möbel, die Auswertung läuft je Seite.
+    const wand = element({ form: 'vitable', kategorie: 'obstgemuese', breite: 125, ifkoKisten: 7 });
+    const gondel = element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite: 125,
+      ifkoKisten: 14,
+      beidseitig: true,
+    });
+    expect(moebelauslagen(gondel)).toBeCloseTo(moebelauslagen(wand)!, 6);
   });
 
   it('sagt beim Regal nichts – dort entscheidet der Planer', () => {
@@ -172,25 +224,41 @@ describe('Die Auslagen einer Strecke', () => {
     // Zwei Felder à 125 cm, fünf und sechs Böden. Über beide gerechnet:
     // 125 · 5 + 125 · 6 = 1375 cm tatsächlich.
     const el = felder({ breite: 125, boeden: 5 }, { breite: 125, boeden: 6 });
-    expect(auslagenAnteil(strecke(el, 0, 250))).toEqual({ tatsaechlich: 1375, ohne: 0 });
+    expect(auslagenAnteil(strecke(el, 0, 250))).toEqual({
+      tatsaechlich: 1375,
+      ohne: 0,
+      ohneMassstab: 0,
+    });
   });
 
   it('nimmt nur das Stück, das die Strecke wirklich abdeckt', () => {
     const el = felder({ breite: 125, boeden: 5 }, { breite: 125, boeden: 6 });
     // Von 60 bis 190: 65 cm im ersten Feld, 65 cm im zweiten.
-    expect(auslagenAnteil(strecke(el, 60, 190))).toEqual({ tatsaechlich: 65 * 5 + 65 * 6, ohne: 0 });
+    expect(auslagenAnteil(strecke(el, 60, 190))).toEqual({
+      tatsaechlich: 65 * 5 + 65 * 6,
+      ohne: 0,
+      ohneMassstab: 0,
+    });
   });
 
   it('meldet die Länge, auf der die Zahl fehlt – und rechnet den Rest trotzdem', () => {
     // Eine halb ausgefüllte Strecke ganz zu verlieren wäre schlimmer als
     // eine Zeile, die sagt, wie viel noch offen ist.
     const el = felder({ breite: 125, boeden: 5 }, { breite: 125 });
-    expect(auslagenAnteil(strecke(el, 0, 250))).toEqual({ tatsaechlich: 625, ohne: 125 });
+    expect(auslagenAnteil(strecke(el, 0, 250))).toEqual({
+      tatsaechlich: 625,
+      ohne: 125,
+      ohneMassstab: 0,
+    });
   });
 
   it('rechnet ein leeres Feld als null und nicht als unbekannt', () => {
     const el = felder({ breite: 125, boeden: 5 }, { breite: 125, leer: true });
-    expect(auslagenAnteil(strecke(el, 0, 250))).toEqual({ tatsaechlich: 625, ohne: 0 });
+    expect(auslagenAnteil(strecke(el, 0, 250))).toEqual({
+      tatsaechlich: 625,
+      ohne: 0,
+      ohneMassstab: 0,
+    });
   });
 
   it('füllt fehlende Felder mit der Vorgabe des Möbels', () => {
@@ -222,5 +290,76 @@ describe('Die Auslagen einer Strecke', () => {
     const a = auslagenAnteil({ ...strecke(el, 0, 250), laenge: 250 });
     expect(a.tatsaechlich).toBe(500);
     expect(a.ohne).toBe(150);
+  });
+});
+
+describe('Blumen zählen nur laufend', () => {
+  it('mahnt keine Bodenzahl an', () => {
+    // „Hier gibt es kaum klassische Böden, hier reichen mir fürs erste nur
+    // laufende Meter." Diese Meter dürfen nicht als Lücke erscheinen.
+    const trog = element({ form: 'blumentrog', kategorie: 'blumen', breite: 100 });
+    const a = auslagenAnteil({
+      name: 'Schnittblumen',
+      laenge: 100,
+      element: trog,
+      seite: 'unten',
+      von: 0,
+      bis: 100,
+    });
+    expect(a.ohne).toBe(0);
+    expect(a.ohneMassstab).toBe(100);
+    expect(a.tatsaechlich).toBe(0);
+  });
+
+  it('nimmt eine eingetragene Bodenzahl trotzdem ernst', () => {
+    // Die Leitregel gilt auch hier: Was am Feld steht, gewinnt. Ein
+    // Pflanzregal mit drei Böden hat drei.
+    const regal = element({
+      form: 'blumenregal',
+      kategorie: 'blumen',
+      breite: 100,
+      felderUnten: [{ breite: 100, boeden: 3 }],
+    });
+    const a = auslagenAnteil({
+      name: 'Grünpflanzen',
+      laenge: 100,
+      element: regal,
+      seite: 'unten',
+      von: 0,
+      bis: 100,
+    });
+    expect(a.tatsaechlich).toBe(300);
+    expect(a.ohneMassstab).toBe(0);
+  });
+});
+
+describe('Die Front eines Eckstücks', () => {
+  it('ist länger als sein Platz am Boden', () => {
+    // Ein Stück von 44,25 cm Breite, vorn unter 45° abgeschnitten, zeigt
+    // eine Kante von 62,6 cm. Wer mit der Breite rechnet, verliert knapp
+    // ein Drittel – an jeder Ecke im Markt.
+    const ecke = element({
+      form: 'bakeoffEcke',
+      kategorie: 'backwaren',
+      breite: 44.25,
+      tiefe: 88.5,
+      felderUnten: [{ breite: 44.25, boeden: 4 }],
+    });
+    expect(frontfaktor(ecke)).toBeCloseTo(Math.SQRT2, 6);
+    const a = auslagenAnteil({
+      name: 'Brot',
+      laenge: 44.25,
+      element: ecke,
+      seite: 'unten',
+      von: 0,
+      bis: 44.25,
+    });
+    expect(a.tatsaechlich).toBeCloseTo(44.25 * 4 * Math.SQRT2, 4);
+  });
+
+  it('lässt jedes gerade Möbel unangetastet', () => {
+    // Sonst verschöbe sich jede bestehende Zahl.
+    expect(frontfaktor(element({}))).toBe(1);
+    expect(frontfaktor(element({ form: 'tkTruhe', kategorie: 'tiefkuehlung' }))).toBe(1);
   });
 });

@@ -1,3 +1,5 @@
+import type { Projekt } from '../typen/modell';
+
 /**
  * Wie viele Paletten auf eine Aktionsfläche gehen.
  *
@@ -90,5 +92,69 @@ export function palettenplaetze(breite: number, laenge: number): Palettenplaetze
     ganz: bestesRaster(breite, laenge, 120, 80),
     halb: bestesRaster(breite, laenge, 80, 60),
     viertel: bestesRaster(breite, laenge, 60, 40),
+  };
+}
+
+/**
+ * Die Aktionsflächen des ganzen Marktes.
+ *
+ * **Zwei Zahlen, weil zwei Fragen gestellt werden.**
+ *
+ *  - Die **Umrechnung** teilt die Quadratmeter durch die Palettenfläche. Sie
+ *    beantwortet „wie viele Aktionsplätze hat dieser Markt" und ist die
+ *    Zahl, mit der man über einen Markt spricht.
+ *  - Die **Packung** rechnet Fläche für Fläche aus, was wirklich hinpasst.
+ *    Sie ist kleiner, sobald ein Zuschnitt nicht aufgeht – und sie ist die
+ *    Zahl, nach der man bestellt.
+ *
+ * Beide stehen nebeneinander, weil die Lücke dazwischen selbst eine Aussage
+ * ist: Sie sagt, wie viel Fläche der Zuschnitt verschenkt.
+ *
+ * Ausgewählt wird über die **Form** und nicht über die Kategorie: Nur
+ * `aktionsflaeche` sind die Zonen, während in derselben Kategorie auch
+ * Paletten, Drehständer und Displays stehen – Möbel, die *auf* der Fläche
+ * stehen und sie nicht ausmachen.
+ */
+export interface Aktionsflaechen {
+  anzahl: number;
+  /** Quadratmeter. */
+  qm: number;
+  umrechnung: Palettenplaetze;
+  packung: Palettenplaetze;
+}
+
+export function aktionsflaechen(projekt: Projekt): Aktionsflaechen {
+  const sichtbar = new Set(
+    (projekt.ebenen ?? []).filter((e) => e.sichtbar !== false).map((e) => e.id),
+  );
+
+  let anzahl = 0;
+  let qcm = 0;
+  const packung: Palettenplaetze = { ganz: 0, halb: 0, viertel: 0 };
+
+  for (const el of projekt.elemente ?? []) {
+    if (el.form !== 'aktionsflaeche') continue;
+    if (el.ebeneId && !sichtbar.has(el.ebeneId)) continue;
+    anzahl++;
+    qcm += el.breite * el.tiefe;
+    const p = palettenplaetze(el.breite, el.tiefe);
+    packung.ganz += p.ganz;
+    packung.halb += p.halb;
+    packung.viertel += p.viertel;
+  }
+
+  const qm = qcm / 10000;
+  const teile = (g: (typeof PALETTENGROESSEN)[number]) =>
+    Math.floor(qcm / (g.lang * g.kurz));
+
+  return {
+    anzahl,
+    qm: Math.round(qm * 10) / 10,
+    umrechnung: {
+      ganz: teile(PALETTENGROESSEN[0]),
+      halb: teile(PALETTENGROESSEN[1]),
+      viertel: teile(PALETTENGROESSEN[2]),
+    },
+    packung,
   };
 }
