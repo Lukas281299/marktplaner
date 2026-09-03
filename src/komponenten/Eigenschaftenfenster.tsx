@@ -77,6 +77,7 @@ import {
 } from './Symbole';
 import { Spaltenschalter, Spaltenstreifen } from './Spaltengriffe';
 import { Warengruppenmeter } from './Warengruppenmeter';
+import { Warengruppenwahl } from './Warengruppenwahl';
 
 const FORMEN: { wert: Grundform; text: string }[] = [
   { wert: 'rechteck', text: 'Rechteck' },
@@ -1191,6 +1192,14 @@ function Warengruppenband({
                 }}
                 onChange={(e) => aendere(i, { text: e.target.value })}
               />
+              {/* Getippt wird weiter – das Menü ist die Abkürzung für
+                  alle, die den Namen nicht auswendig wissen. */}
+              <Warengruppenwahl
+                waehle={(name) => {
+                  usePlanStore.getState().schnappschuss();
+                  aendere(i, { text: name });
+                }}
+              />
               <button
                 className="knopf knopf-nur-symbol"
                 title="Diese Beschriftung entfernen"
@@ -1202,6 +1211,22 @@ function Warengruppenband({
                 ×
               </button>
             </div>
+
+            {/* Was im Einzelnen dort liegt. Steht nicht im Plan und zählt
+                in keiner Meterzahl mit – siehe `Warengruppenabschnitt`. */}
+            <input
+              type="text"
+              style={{ width: '100%', fontSize: 11 }}
+              value={abschnitt.notiz ?? ''}
+              placeholder="Teilsortimente (nur als Notiz)"
+              title={
+                'Was hier im Einzelnen liegt, etwa „Bohnen, gemahlen, Pads". ' +
+                'Steht nicht im Plan und zählt in keiner Meterzahl mit – über ' +
+                'die Suche ist es zu finden.'
+              }
+              onFocus={() => usePlanStore.getState().schnappschuss()}
+              onChange={(e) => aendere(i, { notiz: e.target.value || undefined })}
+            />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span className="kategorie-anzahl">von</span>

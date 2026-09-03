@@ -761,6 +761,19 @@ p .wg-punkt {
 }
 
 /*
+ * Das Auswahlmenü neben einem Warengruppen-Eingabefeld.
+ *
+ * So schmal wie der Pfeil darin. Es steht neben einem Textfeld, das die
+ * eigentliche Arbeit tut – breiter machte es sich wichtiger, als es ist.
+ */
+.wg-wahl {
+  flex: none;
+  width: 26px;
+  padding-left: 2px;
+  padding-right: 0;
+}
+
+/*
  * „→ Kuchen" hinter einem zugeordneten Namen.
  *
  * Leise und klein: Es ist keine zweite Warengruppe, sondern eine Bemerkung

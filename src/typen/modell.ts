@@ -372,6 +372,19 @@ export interface Warengruppenabschnitt {
    * ihre Strecke passt – siehe `logik/warengruppe.ts`.
    */
   schrift?: number;
+
+  /**
+   * Was hier im Einzelnen liegt – eine Notiz zur Strecke.
+   *
+   * Unter dem Möbel steht „Kaffee", aber es liegen dort Bohnen, gemahlener
+   * und Pads. Diese Aufteilung gehört zur Planung; sie im Plan mitzudrucken
+   * machte ihn unlesbar, und sie mitzurechnen ergäbe die Meter doppelt.
+   *
+   * **Steht deshalb nicht im Plan und zählt in keiner Meterzahl mit.** Sie
+   * ist eine Erinnerung für den, der die Planung wieder aufmacht – und über
+   * die Suche zu finden.
+   */
+  notiz?: string;
 }
 
 /** Ein tatsächlich auf dem Plan platziertes Element. */

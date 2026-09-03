@@ -100,20 +100,29 @@ interface Feld {
 }
 
 function felderVon(element: PlanElement): Feld[] {
-  const abschnitte = [
-    ...(element.warengruppenUnten ?? []),
-    ...(element.warengruppenOben ?? []),
-  ].map((a) => a.text);
-  const feldnotizen = (element.feldnotizen ?? []).flatMap((f) =>
-    [f.oben, f.unten].filter((t): t is string => !!t?.trim()),
-  );
+  const abschnitte = [...(element.warengruppenUnten ?? []), ...(element.warengruppenOben ?? [])];
+
+  // Die Notizen stehen am Feld. `feldnotizen` ist der alte Ort – eine
+  // geöffnete Planung hat sie längst umgezogen, und wer nur dort suchte,
+  // fand ab Fassung 9 nichts mehr.
+  const feldnotizen = [
+    ...(element.felderUnten ?? []),
+    ...(element.felderOben ?? []),
+    ...(element.feldnotizen ?? []).flatMap((f) => [{ notiz: f.oben }, { notiz: f.unten }]),
+  ]
+    .map((f) => f.notiz)
+    .filter((t): t is string => !!t?.trim());
 
   return [
     { name: 'Beschriftung', wert: element.beschriftung, gewicht: 0, titelfeld: true },
     { name: 'Name', wert: element.name, gewicht: 0, titelfeld: true },
     { name: 'Warengruppe', wert: element.warengruppe, gewicht: 4 },
     // Was auf den Feldern steht, ist das Sortiment – danach sucht man oft.
-    ...abschnitte.map((t) => ({ name: 'Sortiment', wert: t, gewicht: 4 })),
+    ...abschnitte.map((a) => ({ name: 'Sortiment', wert: a.text, gewicht: 4 })),
+    // Die Teilsortimente einer Strecke stehen nicht im Plan – umso mehr muss
+    // die Suche sie finden, sonst weiß nur noch der Bescheid, der es
+    // eingetippt hat.
+    ...abschnitte.map((a) => ({ name: 'Teilsortiment', wert: a.notiz, gewicht: 6 })),
     ...feldnotizen.map((t) => ({ name: 'Feldnotiz', wert: t, gewicht: 6 })),
     { name: 'Notiz', wert: element.notiz, gewicht: 8 },
     { name: 'Hersteller', wert: element.hersteller, gewicht: 10 },

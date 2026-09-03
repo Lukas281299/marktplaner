@@ -200,6 +200,45 @@ describe('suchtreffer', () => {
     expect(suchtreffer(p, 'Kaffee')[0].titel).toBe('Kaffeegondel');
   });
 
+  it('findet eine Notiz, die am Feld steht', () => {
+    // Sie stand einmal in `feldnotizen` am Element und zog dann ans Feld.
+    // Wer nur am alten Ort suchte, fand seit Fassung 9 nichts mehr.
+    const p = projekt({
+      elemente: [
+        element({
+          beschriftung: 'Zug 12',
+          felderUnten: [{ breite: 100, notiz: 'Aktionspalette' }],
+        }),
+      ],
+    });
+    const treffer = suchtreffer(p, 'Aktionspalette');
+    expect(treffer).toHaveLength(1);
+    expect(treffer[0].titel).toBe('Zug 12');
+  });
+
+  it('findet eine Notiz auch am alten Ort', () => {
+    // Eine Planung, die noch nicht durch die Umwandlung gelaufen ist.
+    const p = projekt({
+      elemente: [
+        element({ beschriftung: 'Zug 13', feldnotizen: [{ unten: 'Kartoffelkiste' }] }),
+      ],
+    });
+    expect(suchtreffer(p, 'Kartoffelkiste')).toHaveLength(1);
+  });
+
+  it('findet die Teilsortimente einer Strecke', () => {
+    // Sie stehen bewusst nicht im Plan – umso mehr muss die Suche sie finden.
+    const p = projekt({
+      elemente: [
+        element({
+          beschriftung: 'Zug 14',
+          warengruppenUnten: [{ von: 0, bis: 100, text: 'Kaffee', notiz: 'Bohnen, Pads' }],
+        }),
+      ],
+    });
+    expect(suchtreffer(p, 'Pads')).toHaveLength(1);
+  });
+
   it('gibt nicht mehr zurück als verlangt', () => {
     const p = projekt({
       elemente: Array.from({ length: 80 }, (_, i) =>
