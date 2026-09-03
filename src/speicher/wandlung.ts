@@ -194,9 +194,33 @@ export function wandleProjekt(roh: unknown): Projekt {
       .map(ausPaletteWirdUnterbau)
       // Fassung 19: aus der Notiz „5+" wird eine Zahl.
       .map(bodenzahlAusNotiz)
+      // Fassung 20: die CHEP-Palette war 20 cm zu tief.
+      .map(chepAufEuromass)
       // Fassung 17: ganz zuletzt, wenn Felder, Maße und Seiten stehen.
       .map(ziehBezeichnungNach),
   });
+}
+
+/**
+ * Fassung 20: Die CHEP-Palette war 20 cm zu tief.
+ *
+ * Sie stand mit 1200 x 1000 in der Bibliothek – das ist die amerikanische
+ * Größe. Im Markt ist eine CHEP genauso groß wie eine Europalette, 1200 x
+ * 800, und danach richtet sich, ob sie in eine Regalzeile passt und wie
+ * breit die Gasse davor bleibt. Zwanzig Zentimeter sind an einer Aktionsfläche
+ * der Unterschied zwischen „geht" und „geht nicht".
+ *
+ * **Angefasst wird nur, was noch genau das alte Maß trägt** und aus genau
+ * diesem Bibliothekseintrag kommt. Wer eine Palette selbst auf ein anderes
+ * Maß gezogen hat, hat sich dabei etwas gedacht.
+ *
+ * Die Palette schrumpft nach hinten und nach vorn gleichmäßig – sie sitzt
+ * auf ihrem Mittelpunkt, und der bleibt, wo er ist.
+ */
+function chepAufEuromass(element: PlanElement): PlanElement {
+  if (element.vorlageId !== 'palette-chep') return element;
+  if (element.breite !== 120 || element.tiefe !== 100) return element;
+  return { ...element, tiefe: 80 };
 }
 
 /**

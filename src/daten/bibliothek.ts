@@ -1363,7 +1363,7 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'palette-halb-längs', name: 'Halbe Palette längs · 0,60 x 0,80 m', kategorie: 'aktion', breite: 60, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten' },
   { id: 'palette-viertel-quer', name: 'Viertelpalette quer · 0,60 x 0,40 m', kategorie: 'aktion', breite: 60, tiefe: 40, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: '1/4 CHEP' },
   { id: 'palette-viertel-längs', name: 'Viertelpalette längs · 0,40 x 0,60 m', kategorie: 'aktion', breite: 40, tiefe: 60, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten' },
-  { id: 'palette-chep', name: 'CHEP ganz · 1,20 x 1,00 m', kategorie: 'aktion', breite: 120, tiefe: 100, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten' },
+  { id: 'palette-chep', name: 'CHEP ganz · 1,20 x 0,80 m', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: 'Genauso groß wie eine Europalette' },
   { id: 'palette-frei', name: 'Palette frei', kategorie: 'aktion', breite: 120, tiefe: 80, hoehe: 100, form: 'palette', farbe: PALETTE_GELB, gruppe: 'Paletten', hinweis: 'Maße frei einstellbar' },
 
   // ---- Drehständer

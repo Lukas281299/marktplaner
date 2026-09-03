@@ -19,7 +19,8 @@ import {
 describe('Maße', () => {
   it('legt die Norm fest, nicht der Planer', () => {
     expect(UNTERBAUTEN.euro).toMatchObject({ lang: 120, kurz: 80 });
-    expect(UNTERBAUTEN.chep).toMatchObject({ lang: 120, kurz: 100 });
+    // Genauso groß wie eine Europalette – so kommt sie in den Markt.
+    expect(UNTERBAUTEN.chep).toMatchObject({ lang: 120, kurz: 80 });
     expect(UNTERBAUTEN.halb).toMatchObject({ lang: 80, kurz: 60 });
     expect(UNTERBAUTEN.viertel).toMatchObject({ lang: 60, kurz: 40 });
     // Der Bierkasten mit 20 x 0,5 l – dasselbe Maß wie vor den Gestellen.

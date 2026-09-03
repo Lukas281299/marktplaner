@@ -30,7 +30,10 @@ export const UNTERBAUTEN: Record<
   { lang: number; kurz: number; name: string; frei?: boolean }
 > = {
   euro: { lang: 120, kurz: 80, name: 'Europalette' },
-  chep: { lang: 120, kurz: 100, name: 'CHEP' },
+  // Die CHEP-Palette ist im Markt genauso groß wie eine Europalette –
+  // 1200 x 800. Hier stand einmal 1200 x 1000; das ist die amerikanische
+  // Größe und stimmte für keinen Platz, an dem sie wirklich steht.
+  chep: { lang: 120, kurz: 80, name: 'CHEP' },
   halb: { lang: 80, kurz: 60, name: 'Halbe (Düsseldorfer)' },
   viertel: { lang: 60, kurz: 40, name: 'Viertel' },
   kiste: { lang: KISTE.laenge, kurz: KISTE.breite, name: 'Getränkekiste' },

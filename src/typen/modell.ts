@@ -1079,4 +1079,4 @@ export interface Projekt {
  * Auswahl von Möbeln, statt sie an ein einzelnes Feld zu hängen. Ein neues
  * Feld ohne Umwandlung: Was nicht dasteht, gibt es nicht.
  */
-export const SCHEMA_VERSION = 19;
+export const SCHEMA_VERSION = 20;

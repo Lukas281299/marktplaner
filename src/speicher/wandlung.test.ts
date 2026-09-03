@@ -724,6 +724,57 @@ describe('Fassung 19 · Aus „5+" in der Notiz wird eine Zahl', () => {
   });
 });
 
+describe('Fassung 20 · Die CHEP-Palette bekommt ihr richtiges Maß', () => {
+  const mitPalette = (zusatz: Record<string, unknown>) =>
+    alteFassung({
+      version: 19,
+      waende: [],
+      oeffnungen: [],
+      elemente: [
+        {
+          id: 'p1',
+          vorlageId: 'palette-chep',
+          ebeneId: 'einrichtung',
+          name: 'CHEP',
+          beschriftung: 'CHEP',
+          kategorie: 'aktion',
+          form: 'palette',
+          x: 500,
+          y: 500,
+          breite: 120,
+          tiefe: 100,
+          hoehe: 100,
+          drehung: 0,
+          farbe: '#e8c86a',
+          gesperrt: false,
+          reihenfolge: 1,
+          beschriftungSichtbar: true,
+          schriftgroesse: 12,
+          ...zusatz,
+        },
+      ],
+    });
+
+  it('zieht sie auf Euromaß', () => {
+    const neu = wandleProjekt(mitPalette({}));
+    expect(neu.elemente[0].tiefe).toBe(80);
+    // Der Mittelpunkt bleibt, wo er war – sonst rutschte die Palette im Plan.
+    expect(neu.elemente[0].x).toBe(500);
+    expect(neu.elemente[0].y).toBe(500);
+  });
+
+  it('lässt eine selbst gezogene Palette in Ruhe', () => {
+    // Wer sie auf ein anderes Maß gezogen hat, hat sich dabei etwas gedacht.
+    expect(wandleProjekt(mitPalette({ tiefe: 110 })).elemente[0].tiefe).toBe(110);
+    expect(wandleProjekt(mitPalette({ breite: 100 })).elemente[0].tiefe).toBe(100);
+  });
+
+  it('fasst keine andere Palette an', () => {
+    const neu = wandleProjekt(mitPalette({ vorlageId: 'palette-frei' }));
+    expect(neu.elemente[0].tiefe).toBe(100);
+  });
+});
+
 describe('Die Ebene „Laufwege" fällt weg', () => {
   it('nimmt sie aus einer vorhandenen Planung heraus', () => {
     // Sie stand in jedem Projekt, ohne dass ein Werkzeug darauf zeichnen
