@@ -173,3 +173,80 @@ describe('Die Obst- und Gemüsezahlen', () => {
     expect(obstgemuesezahlen(projekt([molkerei]), LISTE).vorhanden).toBe(false);
   });
 });
+
+describe('Über Grenzen hinweg', () => {
+  const PFAD = 'Obst & Gemüse › Äpfel › Elstar';
+
+  it('legt dieselbe Warengruppe von mehreren Möbeln in eine Zeile', () => {
+    // Vier Meter Elstar auf zwei Zügen sind vier Meter Elstar. Zusammengelegt
+    // wird über den Pfad, nicht über das Möbel.
+    const a = mit('Elstar', PFAD, { id: 'a', breite: 100 });
+    const b = mit('Elstar', PFAD, { id: 'b', breite: 100 });
+    const { baum } = meterauswertung(projekt([a, b]), LISTE);
+    const sortiment = baum[0].kinder[0].kinder[0];
+    expect(sortiment.name).toBe('Elstar');
+    expect(sortiment.laufend).toBe(2);
+    expect(sortiment.strecken).toBe(2);
+  });
+
+  it('rechnet eine Strecke über Feldgrenzen mit verschiedenen Böden', () => {
+    // Der Fall, der von Hand nie aufgeht: Eine Warengruppe läuft über drei
+    // Felder, und die tragen fünf, sechs und vier Böden.
+    const zug = element({
+      id: 'zug',
+      breite: 300,
+      felderUnten: [
+        { breite: 100, boeden: 5 },
+        { breite: 100, boeden: 6 },
+        { breite: 100, boeden: 4 },
+      ],
+      warengruppenUnten: [{ von: 0, bis: 300, text: 'Elstar', pfad: PFAD }],
+    });
+    const { gesamt } = meterauswertung(projekt([zug]), LISTE);
+    expect(gesamt.laufend).toBe(3);
+    // 1·5 + 1·6 + 1·4 – und nicht 3 × irgendein Mittelwert.
+    expect(gesamt.tatsaechlich).toBe(15);
+  });
+
+  it('rechnet auch eine Strecke mitten durch ein Feld richtig', () => {
+    // Die Grenze zwischen zwei Sortimenten darf mitten durch ein Feld laufen.
+    const zug = element({
+      id: 'zug',
+      breite: 200,
+      felderUnten: [
+        { breite: 100, boeden: 5 },
+        { breite: 100, boeden: 10 },
+      ],
+      warengruppenUnten: [
+        { von: 0, bis: 150, text: 'Elstar', pfad: PFAD },
+        { von: 150, bis: 200, text: 'Boskoop', pfad: 'Obst & Gemüse › Äpfel › Boskoop' },
+      ],
+    });
+    const { baum } = meterauswertung(projekt([zug]), LISTE);
+    const kinder = baum[0].kinder[0].kinder;
+    const elstar = kinder.find((k) => k.name === 'Elstar')!;
+    const boskoop = kinder.find((k) => k.name === 'Boskoop')!;
+    // Elstar: 1,00 m mit 5 Böden + 0,50 m mit 10 = 5 + 5 = 10 tm.
+    expect(elstar.laufend).toBe(1.5);
+    expect(elstar.tatsaechlich).toBe(10);
+    // Boskoop: 0,50 m mit 10 Böden = 5 tm.
+    expect(boskoop.laufend).toBe(0.5);
+    expect(boskoop.tatsaechlich).toBe(5);
+  });
+
+  it('zählt beide Seiten einer Gondel getrennt und legt sie zusammen', () => {
+    const gondel = element({
+      id: 'g',
+      breite: 100,
+      beidseitig: true,
+      felderUnten: [{ breite: 100, boeden: 5 }],
+      felderOben: [{ breite: 100, boeden: 5 }],
+      warengruppenUnten: [{ von: 0, bis: 100, text: 'Elstar', pfad: PFAD }],
+      warengruppenOben: [{ von: 0, bis: 100, text: 'Elstar', pfad: PFAD }],
+    });
+    const { gesamt } = meterauswertung(projekt([gondel]), LISTE);
+    // Ein Meter Gondel, beidseitig beschriftet: zwei laufende Meter.
+    expect(gesamt.laufend).toBe(2);
+    expect(gesamt.tatsaechlich).toBe(10);
+  });
+});

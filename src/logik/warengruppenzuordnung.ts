@@ -71,6 +71,7 @@ export function mitZugeordnetenFeldern(
   elemente: PlanElement[],
   markierung: Feldbezug[],
   name: string,
+  pfad?: string,
 ): PlanElement[] {
   const text = name.trim();
   if (!text || markierung.length === 0) return elemente;
@@ -80,15 +81,24 @@ export function mitZugeordnetenFeldern(
     const gleiche = abschnitte.find((a) => nah(a.von, von) && nah(a.bis, bis));
     const schon = namenIm(gleiche?.text);
     const klein = text.toLocaleLowerCase('de-DE');
-    const zusammen = schon.some((n) => n.toLocaleLowerCase('de-DE') === klein)
-      ? gleiche!.text
-      : [...schon, text].join(TRENNER);
+    const schonDrin = schon.some((n) => n.toLocaleLowerCase('de-DE') === klein);
+    const zusammen = schonDrin ? gleiche!.text : [...schon, text].join(TRENNER);
+
+    // Der Pfad macht den Namen eindeutig – „Kuchen" steht in der Liste
+    // mehrfach. Er kommt mit, solange auf der Strecke **ein** Name steht.
+    //
+    // Kommt ein zweiter dazu („Eier, Butter"), fällt er weg: Zwei Sortimente
+    // auf einer Strecke haben keinen gemeinsamen Platz in der Liste, und
+    // einen davon zu behalten hieße raten. Die Strecke steht dann in der
+    // Auswertung unter ihrem Text – sichtbar, aber nicht eingeordnet.
+    const eigener = schon.length === 0 || (schonDrin && schon.length === 1);
 
     return mitAbschnitt(abschnitte, gesamt, {
       ...(gleiche ?? {}),
       von,
       bis,
       text: zusammen,
+      pfad: eigener ? (pfad ?? gleiche?.pfad) : undefined,
     });
   });
 }

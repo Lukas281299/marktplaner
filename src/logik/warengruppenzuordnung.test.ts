@@ -196,3 +196,44 @@ describe('Wo ein Meter liegt', () => {
     expect(feldlage(gondel(), 'unten', 9)).toBeNull();
   });
 });
+
+describe('Der Pfad kommt mit dem Pinsel mit', () => {
+  const PFAD = 'Lebensmittel & Tabak (TroSo) › Feinbackwaren › Kuchen';
+
+  it('schreibt ihn an die Strecke', () => {
+    // Der Name allein ist nicht eindeutig – „Kuchen" steht in der Liste
+    // fünfmal. Wer aus der Liste links aufnimmt, trifft genau einen.
+    const [el] = mitZugeordnetenFeldern([gondel()], [f(0), f(1)], 'Kuchen', PFAD);
+    expect(el.warengruppenUnten).toEqual([
+      { von: 0, bis: 200, text: 'Kuchen', pfad: PFAD },
+    ]);
+  });
+
+  it('behält ihn, wenn derselbe Name noch einmal darauf landet', () => {
+    const einmal = mitZugeordnetenFeldern([gondel()], [f(0)], 'Kuchen', PFAD);
+    const zweimal = mitZugeordnetenFeldern(einmal, [f(0)], 'Kuchen', PFAD);
+    expect(zweimal[0].warengruppenUnten?.[0].pfad).toBe(PFAD);
+  });
+
+  it('lässt ihn fallen, wenn ein zweiter Name dazukommt', () => {
+    // „Kuchen, Waffeln" auf einer Strecke haben keinen gemeinsamen Platz in
+    // der Liste. Einen der beiden zu behalten hieße raten.
+    const erst = mitZugeordnetenFeldern([gondel()], [f(0)], 'Kuchen', PFAD);
+    const dann = mitZugeordnetenFeldern(erst, [f(0)], 'Waffeln', 'Anderswo › X › Waffeln');
+    expect(dann[0].warengruppenUnten?.[0].text).toBe('Kuchen, Waffeln');
+    expect(dann[0].warengruppenUnten?.[0].pfad).toBeUndefined();
+  });
+
+  it('läuft über Feldgrenzen hinweg als eine Strecke', () => {
+    // Vier Meter Eier tragen einen Namen mit einer Klammer darüber – nicht
+    // viermal denselben, und die Feldgrenzen darunter stören nicht.
+    const [el] = mitZugeordnetenFeldern(
+      [gondel()],
+      [f(1), f(2), f(3)],
+      'Eier',
+      'Lebensmittel & Tabak (TroSo) › Eier › Eier',
+    );
+    expect(el.warengruppenUnten).toHaveLength(1);
+    expect(el.warengruppenUnten?.[0]).toMatchObject({ von: 100, bis: 400, text: 'Eier' });
+  });
+});

@@ -901,6 +901,15 @@ p .wg-punkt {
   border-style: dashed;
 }
 
+/* Der volle Pfad unter dem aufgenommenen Namen – bei „Kuchen" ist erst
+   daran zu sehen, welches der fünf gemeint ist. */
+.pinselpfad {
+  display: block;
+  font-size: 10px;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+
 .wg-zuordnung {
   flex: none;
   max-width: 45%;

@@ -73,8 +73,17 @@ export function Warengruppenfenster() {
           : 'Offen — anklicken für „steht im Markt"';
 
   const pflegen = (liste: typeof sortiment) => usePlanStore.getState().pflegeSortiment(liste);
-  const nimm = (name: string) =>
-    usePlanStore.getState().setzeWarengruppenPinsel(pinsel === name ? null : name);
+  /**
+   * Einen Namen aufnehmen – mit seinem Platz in der Liste.
+   *
+   * Der Pfad kommt mit, weil der Name allein nicht eindeutig ist: „Kuchen"
+   * steht in dieser Liste fünfmal. Wer hier klickt, meint genau diesen
+   * Eintrag, und genau der landet später im Plan.
+   */
+  const nimm = (name: string, pfad: string) =>
+    usePlanStore
+      .getState()
+      .setzeWarengruppenPinsel(pinsel?.pfad === pfad ? null : { name, pfad });
 
   /**
    * „Zählt zu" – eine Warengruppe schlägt ihre Meter einer anderen zu.
@@ -201,7 +210,10 @@ export function Warengruppenfenster() {
         {pinsel ? (
           <div className="pinsel">
             <span>
-              <strong>{pinsel}</strong> — Meter anklicken, dann <strong>Enter</strong>
+              <strong>{pinsel.name}</strong> — Meter anklicken, dann <strong>Enter</strong>
+              {/* Der volle Pfad darunter: Bei „Kuchen" ist erst daran zu
+                  sehen, welches der fünf gemeint ist. */}
+              <span className="pinselpfad">{pinsel.pfad}</span>
             </span>
             <button
               className="knopf knopf-nur-symbol"
@@ -297,8 +309,8 @@ export function Warengruppenfenster() {
                           onClick={() => schalte(eigen, gStand.wert)}
                         />
                         <button
-                          className={`wg-name${pinsel === gruppe.name ? ' aktiv' : ''}`}
-                          onClick={() => nimm(gruppe.name)}
+                          className={`wg-name${pinsel?.pfad === eigen ? ' aktiv' : ''}`}
+                          onClick={() => nimm(gruppe.name, eigen)}
                           title="Aufnehmen — dann im Plan die Meter anklicken und Enter drücken"
                         >
                           {gruppe.name}
@@ -365,8 +377,8 @@ export function Warengruppenfenster() {
                             onClick={() => schalte(pfad, wert)}
                           />
                           <button
-                            className={`wg-name${pinsel === name ? ' aktiv' : ''}`}
-                            onClick={() => nimm(name)}
+                            className={`wg-name${pinsel?.pfad === pfad ? ' aktiv' : ''}`}
+                            onClick={() => nimm(name, pfad)}
                             title="Aufnehmen — dann im Plan die Meter anklicken und Enter drücken"
                           >
                             {name}

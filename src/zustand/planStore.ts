@@ -338,7 +338,14 @@ export interface PlanStore {
    * getroffene Feld, statt das Möbel auszuwählen. Ein Pinsel eben: einmal
    * aufnehmen, dann so viele Meter bestreichen, wie man will.
    */
-  warengruppenPinsel: string | null;
+  /**
+   * Der aufgenommene Name samt seinem Platz in der Sortimentsliste.
+   *
+   * Der Pfad kommt mit, weil der Name allein nicht eindeutig ist: „Kuchen"
+   * steht in der Liste fünfmal. Wer aus der Liste links aufnimmt, soll genau
+   * das treffen, was er angeklickt hat.
+   */
+  warengruppenPinsel: { name: string; pfad: string } | null;
   /**
    * Die Meter, die gerade markiert sind.
    *
@@ -449,7 +456,7 @@ export interface PlanStore {
   /** Nimmt einen Namen in die Liste auf – tut nichts, wenn er schon drinsteht. */
   nimmSortimentAuf(name: string): void;
   /** Nimmt eine Warengruppe zum Zuordnen auf – oder legt sie wieder weg. */
-  setzeWarengruppenPinsel(name: string | null): void;
+  setzeWarengruppenPinsel(pinsel: { name: string; pfad: string } | null): void;
   /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
   setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
   /** Öffnet oder schließt die Suche über der Zeichenfläche. */
@@ -921,10 +928,14 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     void speichereSortiment(liste);
   },
 
-  setzeWarengruppenPinsel(name) {
+  setzeWarengruppenPinsel(pinsel) {
     // Beim Weglegen verschwindet auch die Markierung: Sie gehört zum
     // Zuordnen und hat ohne Namen keinen Sinn.
-    set(name ? { warengruppenPinsel: name } : { warengruppenPinsel: null, warengruppenMarkierung: [] });
+    set(
+      pinsel
+        ? { warengruppenPinsel: pinsel }
+        : { warengruppenPinsel: null, warengruppenMarkierung: [] },
+    );
   },
 
   markiereFeld(elementId, punkt) {
@@ -950,9 +961,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   ordneMarkierungZu() {
-    const text = get().warengruppenPinsel;
+    const pinsel = get().warengruppenPinsel;
     const markierung = get().warengruppenMarkierung;
-    if (!text || markierung.length === 0) return false;
+    if (!pinsel || markierung.length === 0) return false;
+    const text = pinsel.name;
 
     // Kein eigener Schnappschuss: `aendere` legt ihn schon an. Zwei Einträge
     // hießen, dass der zweite Strg+Z nichts täte.
@@ -960,7 +972,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       ...p,
       // Geschrieben wird in dieselben Felder, die man in der Gondelübersicht
       // von Hand füllt: Es gibt nur eine Sorte Beschriftung.
-      elemente: mitZugeordnetenFeldern(p.elemente, markierung, text),
+      elemente: mitZugeordnetenFeldern(p.elemente, markierung, text, pinsel.pfad),
       // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
       // ein Teil eines anderen – anders als beim früheren Textabgleich.
       // Ein zugeordneter Name gilt mit ab: Wer „Kuchen" malt, hat auch die
