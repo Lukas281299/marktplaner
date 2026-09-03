@@ -68,6 +68,17 @@ export type Grundform =
   | 'kuehlStufen'
   | 'palette'
   | 'drehstaender'
+  // Blumen und Pflanzen. Alle acht teilen eine Bildsprache – runde Löcher im
+  // Topfraster –, damit die Abteilung im Plan als eine zu erkennen ist; das
+  // Gerüst darum herum unterscheidet sie voneinander.
+  | 'blumenregal'
+  | 'blumensaeule'
+  | 'blumeninsel'
+  | 'blumendisplay'
+  | 'blumentrog'
+  | 'blumentreppe'
+  | 'blumenwanne'
+  | 'blumenwagen'
 
   | 'getraenkegestell'
   | 'leergutRuecknahme'

@@ -1118,6 +1118,83 @@ function zeichneUnterbau(
   }
 }
 
+/**
+ * Der übliche Abstand von Topf zu Topf in einer Blumenabteilung, in cm.
+ *
+ * Ein Topf mit Untersetzer misst gute 25 cm, dicht an dicht gestellt. Aus
+ * dem Maß ergibt sich, wie viele Töpfe auf ein Möbel gehen – und genau das
+ * zeigt das Symbol dann auch. Eine kleine Wanne bekommt vier Kreise, der
+ * Blumenwagen fünfzehn; der Unterschied ist im Plan sofort zu sehen und ist
+ * keine Erfindung, sondern das, was wirklich daraufsteht.
+ */
+const TOPF_RASTER = 28;
+
+/**
+ * Runde Löcher im Topfraster – das Erkennungszeichen der Blumenabteilung.
+ *
+ * Die Löcher entstehen wie bei der Blende durch die **Gegenrichtung**: Der
+ * Umriss läuft im Uhrzeigersinn, die Kreise dagegen, und die Füllregel der
+ * Leinwand hebt sie auf. So bleibt das Grün ein Rahmen und die Töpfe stehen
+ * sichtbar darin, statt in einer vollen Fläche zu verschwinden.
+ *
+ * Warum überhaupt: Zwölf von dreizehn Möbeln dieser Abteilung waren schlichte
+ * Rechtecke – im Plan nicht von einem Regal, einem Podest oder einer
+ * Aktionsfläche zu unterscheiden. Töpfe hat sonst niemand.
+ */
+function toepfe(
+  ctx: Konva.Context,
+  x: number,
+  y: number,
+  breite: number,
+  tiefe: number,
+  raster = TOPF_RASTER,
+) {
+  if (breite <= 0 || tiefe <= 0) return;
+  const spalten = Math.max(1, Math.round(breite / raster));
+  const reihen = Math.max(1, Math.round(tiefe / raster));
+  const schrittX = breite / spalten;
+  const schrittY = tiefe / reihen;
+  const r = Math.min(schrittX, schrittY) * 0.33;
+  // Unter einem Zentimeter Halbmesser wird aus dem Raster ein grauer Brei.
+  if (r < 1) return;
+
+  for (let i = 0; i < spalten; i++) {
+    for (let j = 0; j < reihen; j++) {
+      const cx = x + schrittX * (i + 0.5);
+      const cy = y + schrittY * (j + 0.5);
+      ctx.moveTo(cx + r, cy);
+      ctx.arc(cx, cy, r, 0, Math.PI * 2, true);
+    }
+  }
+}
+
+/**
+ * Vier Rollen an den Ecken – das Zeichen für „fahrbar".
+ *
+ * Als kurze Striche quer zur Fahrtrichtung und nicht als Kreise: Ein Kreis
+ * in derselben Richtung wie der Umriss würde mitgefüllt und wäre unsichtbar,
+ * ein Kreis in Gegenrichtung wäre ein weiteres Loch und mit den Töpfen zu
+ * verwechseln.
+ *
+ * Nur der Blumenwagen bekommt sie. Fahrbar ist in dieser Abteilung fast
+ * alles – als Unterscheidungsmerkmal taugt es deshalb nicht, und vier
+ * zusätzliche Striche auf jedem Möbel machen den Plan nur unruhig. Am Wagen
+ * dagegen ist das Fahren der Zweck.
+ */
+function rollen(ctx: Konva.Context, b: number, t: number) {
+  const laenge = Math.min(b, t) * 0.1;
+  if (laenge < 1) return;
+  // Deutlich innerhalb der Ecke: Auf dem Umriss verschmölzen die Striche mit
+  // ihm und sähen aus wie ein Zeichenfehler.
+  const rand = Math.min(b, t) * 0.16;
+  for (const x of [rand, b - rand]) {
+    for (const y of [rand, t - rand]) {
+      ctx.moveTo(x - laenge / 2, y);
+      ctx.lineTo(x + laenge / 2, y);
+    }
+  }
+}
+
 export function zeichneForm(
   ctx: Konva.Context,
   form: Grundform,
@@ -1395,6 +1472,157 @@ export function zeichneForm(
         ctx.lineTo(b, t * anteil);
       }
       break;
+
+    // ------------------------------------------------------ Blumen und Pflanzen
+    //
+    // Acht Möbel, eine Bildsprache: Töpfe im Raster. Was sie unterscheidet,
+    // ist das Gerüst darum – eine Rückwand, ein runder Fuß, eine Mittelwanne,
+    // Stufen, Rollen. So sieht man auf einen Blick, dass es die
+    // Blumenabteilung ist, und beim zweiten, welches Möbel dort steht.
+    case 'blumenregal': {
+      // Pflanzregal: steht an der Wand. Die Holzrückwand als Band hinten ist
+      // sein Kennzeichen – daran hängt, ob man es frei stellen kann.
+      ctx.rect(0, 0, b, t);
+      // Die Holzrückwand: ein Band, kein Haarstrich. Sie ist der Grund,
+      // warum das Regal an die Wand gehört und nicht frei stehen kann –
+      // deshalb soll man sie auch bei kleinem Maßstab noch sehen.
+      const wand = Math.min(t * 0.16, 7);
+      ctx.moveTo(0, wand);
+      ctx.lineTo(b, wand);
+      toepfe(ctx, 0, wand, b, t - wand);
+      break;
+    }
+
+    case 'blumensaeule': {
+      // Schnittblumen-Säule: rund, mit Eimern in Ringen darum. Drei Eimer
+      // statt eines Rasters – so viele Ringe hat sie, und die stehen im
+      // Dreieck um das Rohr.
+      const rx = b / 2;
+      const ry = t / 2;
+      ctx.ellipse(rx, ry, rx, ry, 0, 0, Math.PI * 2);
+      const bahn = Math.min(rx, ry) * 0.52;
+      const eimer = Math.min(rx, ry) * 0.3;
+      if (eimer >= 1) {
+        for (let i = 0; i < 3; i++) {
+          const winkel = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+          const cx = rx + Math.cos(winkel) * bahn;
+          const cy = ry + Math.sin(winkel) * bahn;
+          ctx.moveTo(cx + eimer, cy);
+          ctx.arc(cx, cy, eimer, 0, Math.PI * 2, true);
+        }
+      }
+      break;
+    }
+
+    case 'blumeninsel': {
+      // Blumeninsel: ein Würfel, den man von allen vier Seiten bedient. Die
+      // große Mittelwanne ist das Kennzeichen; ringsum stehen die Töpfe.
+      ctx.rect(0, 0, b, t);
+      // Die Wanne misst 63 × 63 bei 143 Kantenlänge – knapp die Hälfte.
+      const wanne = 0.44;
+      const wx = (b * (1 - wanne)) / 2;
+      const wy = (t * (1 - wanne)) / 2;
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx, wy + t * wanne);
+      ctx.lineTo(wx + b * wanne, wy + t * wanne);
+      ctx.lineTo(wx + b * wanne, wy);
+      ctx.closePath();
+      // Töpfe nur auf dem Rand ringsum, nicht in der Wanne.
+      toepfe(ctx, 0, 0, b, wy);
+      toepfe(ctx, 0, wy + t * wanne, b, t - wy - t * wanne);
+      toepfe(ctx, 0, wy, wx, t * wanne);
+      toepfe(ctx, wx + b * wanne, wy, b - wx - b * wanne, t * wanne);
+      break;
+    }
+
+    case 'blumendisplay': {
+      // Blumendisplay an der Kasse: klein, mit Schildrahmen oben. Das Schild
+      // ist der Grund, warum es dort steht.
+      ctx.rect(0, 0, b, t);
+      const schild = Math.min(t * 0.2, 8);
+      ctx.moveTo(b * 0.2, schild);
+      ctx.lineTo(b * 0.8, schild);
+      ctx.moveTo(b * 0.2, 0);
+      ctx.lineTo(b * 0.2, schild);
+      ctx.moveTo(b * 0.8, 0);
+      ctx.lineTo(b * 0.8, schild);
+      toepfe(ctx, 0, schild, b, t - schild);
+      break;
+    }
+
+    case 'blumentrog': {
+      // Topfblumen-Präsenter: drei Wannen nebeneinander.
+      //
+      // Die Töpfe stehen **je Wanne**, nicht über die Trennwände hinweg –
+      // sonst säße ein Topf halb in der einen und halb in der anderen, und
+      // das Bild widerspräche dem Möbel.
+      ctx.rect(0, 0, b, t);
+      for (let i = 1; i < 3; i++) {
+        ctx.moveTo((b * i) / 3, 0);
+        ctx.lineTo((b * i) / 3, t);
+      }
+      for (let i = 0; i < 3; i++) toepfe(ctx, (b * i) / 3, 0, b / 3, t);
+      break;
+    }
+
+    case 'blumentreppe': {
+      // Blumentreppe: gestufte Wannen, von hinten nach vorn.
+      //
+      // Wie viele Stufen, sagt die Tiefe: Eine Wanne ist gut 33 cm tief, und
+      // danach ist die Treppe benannt – zweistufig 66, dreistufig 100. Das
+      // aus dem Maß zu lesen ist ehrlicher, als eine Zahl danebenzuschreiben,
+      // die zur Tiefe nicht passen kann.
+      ctx.rect(0, 0, b, t);
+      const stufen = Math.max(2, Math.min(4, Math.round(t / 33.3)));
+      for (let i = 1; i < stufen; i++) {
+        ctx.moveTo(0, (t * i) / stufen);
+        ctx.lineTo(b, (t * i) / stufen);
+      }
+      for (let i = 0; i < stufen; i++) {
+        toepfe(ctx, 0, (t * i) / stufen, b, t / stufen);
+      }
+      break;
+    }
+
+    case 'blumenwanne': {
+      // Bewässerungswanne: nichts als eine Wanne. Der umlaufende Wannenrand
+      // ist alles, was sie vom Rechteck unterscheidet – und mehr ist sie
+      // auch nicht.
+      //
+      // Als **geschlossener** Zug in derselben Richtung wie der Umriss: Vier
+      // einzelne Striche ließen die Ecken offen, und das sieht nach einem
+      // Zeichenfehler aus statt nach einem Rand. Gleiche Richtung heißt,
+      // dass er die Fläche nicht durchbricht – nur die Töpfe tun das.
+      ctx.rect(0, 0, b, t);
+      const rand = Math.min(b, t) * 0.11;
+      ctx.moveTo(rand, rand);
+      ctx.lineTo(b - rand, rand);
+      ctx.lineTo(b - rand, t - rand);
+      ctx.lineTo(rand, t - rand);
+      ctx.closePath();
+      toepfe(ctx, rand, rand, b - 2 * rand, t - 2 * rand);
+      break;
+    }
+
+    case 'blumenwagen': {
+      // Blumenwagen: vier Böden übereinander, fahrbar.
+      //
+      // Von oben sieht man **nur den obersten Boden** – deshalb eine einzige
+      // Topfreihe und nicht drei. Drei Reihen sähen aus wie die dreistufige
+      // Treppe, wären aber falsch: Bei der Treppe stehen die Töpfe wirklich
+      // nebeneinander, beim Wagen übereinander. Die Rollen an den Ecken
+      // sagen, dass er nicht steht, sondern gefahren wird; sie liegen
+      // außerhalb der Topfreihe, sonst säße ein Strich in einem Kreis.
+      ctx.rect(0, 0, b, t);
+      const boden = t * 0.34;
+      ctx.moveTo(0, boden);
+      ctx.lineTo(b, boden);
+      ctx.moveTo(0, t - boden);
+      ctx.lineTo(b, t - boden);
+      toepfe(ctx, 0, boden, b, t - 2 * boden);
+      rollen(ctx, b, t);
+      break;
+    }
 
     case 'palette': {
       // Palette von oben: die Bretter des Oberdecks. Sie laufen quer zur

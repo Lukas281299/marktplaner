@@ -94,6 +94,97 @@ describe('Symbole zeichnen', () => {
     });
   }
 
+  // ------------------------------------------------------ Blumen und Pflanzen
+  //
+  // Die Abteilung hat eine eigene Bildsprache: runde Löcher im Topfraster.
+  // Hier steht, was sie aussagen soll – dass die Zahl der Töpfe zur Größe des
+  // Möbels passt und dass sich die Möbel voneinander unterscheiden. Ohne das
+  // wäre es nur Verzierung, und Verzierung darf man später beliebig ändern.
+
+  /** Wie viele Topflöcher eine Form zieht. */
+  const toepfeIn = (form: Grundform, b: number, t: number) => {
+    const { ctx, aufrufe } = mitschreiber();
+    zeichneForm(ctx, form, b, t);
+    return aufrufe.filter((a) => a === 'arc').length;
+  };
+
+  it('zeichnet in eine große Wanne mehr Töpfe als in eine kleine', () => {
+    // Die große Wanne ist doppelt so breit wie die kleine (126 zu 63) und
+    // fasst deshalb doppelt so viele Töpfe. Wäre die Zahl fest, sagte das
+    // Symbol über das Möbel nichts aus.
+    expect(toepfeIn('blumenwanne', 126, 55.3)).toBe(2 * toepfeIn('blumenwanne', 63, 55.3));
+  });
+
+  it('gibt der Blumentreppe eine Stufe je 33 cm Tiefe', () => {
+    // Zweistufig ist 66,6 tief, dreistufig 100 – daran sind sie im Plan zu
+    // unterscheiden, und deshalb wird die Stufenzahl aus der Tiefe gelesen
+    // statt danebengeschrieben.
+    const kanten = (t: number) => {
+      const { ctx, aufrufe } = mitschreiber();
+      zeichneForm(ctx, 'blumentreppe', 100, t);
+      return aufrufe.filter((a) => a === 'lineTo').length;
+    };
+    expect(kanten(66.6)).toBe(1);
+    expect(kanten(100)).toBe(2);
+  });
+
+  it('zeigt am Blumenwagen nur den obersten Boden', () => {
+    // Von oben sieht man an einem Wagen eine Topfreihe, nicht drei – sonst
+    // sähe er aus wie die dreistufige Treppe, bei der die Töpfe wirklich
+    // nebeneinanderstehen.
+    expect(toepfeIn('blumenwagen', 149, 82.6)).toBeLessThan(
+      toepfeIn('blumentreppe', 149, 82.6),
+    );
+  });
+
+  it('gibt jedem Blumenmöbel Töpfe – daran erkennt man die Abteilung', () => {
+    const blumen: Grundform[] = [
+      'blumenregal',
+      'blumensaeule',
+      'blumeninsel',
+      'blumendisplay',
+      'blumentrog',
+      'blumentreppe',
+      'blumenwanne',
+      'blumenwagen',
+    ];
+    for (const form of blumen) {
+      expect(toepfeIn(form, 120, 80), form).toBeGreaterThan(0);
+    }
+    // Und sonst niemand: Ein Kreis ist rund, aber kein Topfraster.
+    expect(toepfeIn('rechteck', 120, 80)).toBe(0);
+    expect(toepfeIn('regal', 120, 80)).toBe(0);
+  });
+
+  it('setzt die Töpfe eines Trogs in seine Wannen, nicht auf die Trennwände', () => {
+    // Bei drei Wannen nebeneinander muss die Topfzahl durch drei teilbar
+    // sein – sonst sitzt ein Topf halb in der einen und halb in der anderen.
+    expect(toepfeIn('blumentrog', 91, 78) % 3).toBe(0);
+  });
+
+  it('gibt der Blumeninsel einen freien Kern für die Mittelwanne', () => {
+    // Die Wanne misst 63 × 63 bei 143 Kantenlänge. Stünden dort Töpfe, wäre
+    // das Möbel falsch gezeichnet: In der Wanne steht die Ware lose.
+    const { ctx, punkte, aufrufe } = mitschreiber();
+    zeichneForm(ctx, 'blumeninsel', 143, 143);
+    const mitte = 143 / 2;
+    // Kein Topfmittelpunkt liegt im mittleren Drittel.
+    const kreise: number[][] = [];
+    let i = 0;
+    for (const aufruf of aufrufe) {
+      if (aufruf === 'rect') i += 4;
+      else if (aufruf === 'arc') {
+        kreise.push([punkte[i], punkte[i + 1]]);
+        i += 6;
+      } else if (aufruf === 'moveTo' || aufruf === 'lineTo') i += 2;
+    }
+    expect(kreise.length).toBeGreaterThan(0);
+    const imKern = kreise.filter(
+      ([x, y]) => Math.abs(x - mitte) < 143 * 0.2 && Math.abs(y - mitte) < 143 * 0.2,
+    );
+    expect(imKern).toEqual([]);
+  });
+
   it('gibt der Treppe so viele Kanten, wie Stufen hineinpassen', () => {
     // 300 cm Lauf bei 28 cm Auftritt sind elf Stufen, also zehn Kanten
     // dazwischen. Dazu kommen Umriss und Pfeil.
