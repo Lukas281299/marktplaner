@@ -312,6 +312,41 @@ describe('Die Auslagen einer Strecke', () => {
   });
 });
 
+describe('Abteilungen ohne tatsächliche Meter', () => {
+  const strecke2 = (el: PlanElement, pfad?: string) => ({
+    name: 'x',
+    pfad,
+    laenge: 100,
+    element: el,
+    seite: 'unten' as const,
+    von: 0,
+    bis: 100,
+  });
+
+  it('entscheidet an der Abteilung und nicht am Möbel', () => {
+    // Ein Regalmöbel in der Gastronomie ist trotzdem keines, an dem man
+    // Böden zählt – und ein Blumentrog kann überall stehen.
+    const regal = element({ breite: 100, felderUnten: [{ breite: 100 }] });
+    const a = auslagenAnteil(strecke2(regal, 'Centeria › Restaurant'));
+    expect(a.ohneMassstab).toBe(100);
+    expect(a.ohne).toBe(0);
+  });
+
+  it('mahnt in einer normalen Abteilung weiter an', () => {
+    const regal = element({ breite: 100, felderUnten: [{ breite: 100 }] });
+    const a = auslagenAnteil(strecke2(regal, 'Molkereiprodukte › Käse SB › Feta'));
+    expect(a.ohne).toBe(100);
+    expect(a.ohneMassstab).toBe(0);
+  });
+
+  it('nimmt ohne Pfad die Möbelkategorie', () => {
+    // Alte Planungen und frei getippte Namen: Beim Blumenmöbel greift die
+    // Kategorie, weil dort eigene Möbel stehen.
+    const trog = element({ form: 'blumentrog', kategorie: 'blumen', breite: 100 });
+    expect(auslagenAnteil(strecke2(trog)).ohneMassstab).toBe(100);
+  });
+});
+
 describe('Blumen zählen nur laufend', () => {
   it('mahnt keine Bodenzahl an', () => {
     // „Hier gibt es kaum klassische Böden, hier reichen mir fürs erste nur

@@ -1,5 +1,6 @@
 import { felderVon } from './regalseiten';
 import { KISTE, kistenseiten } from './getraenkekisten';
+import { ersteStufe } from './sortiment';
 import type { Auslagenanteil, Streckenmeter } from './warengruppenmeter';
 import type { PlanElement, Regalfeld } from '../typen/modell';
 
@@ -155,18 +156,35 @@ export function moebelauslagen(
 }
 
 /**
- * Möbel, für die es **bewusst** keine zweite Zahl gibt.
+ * Abteilungen, in denen es **bewusst** keine tatsächlichen Meter gibt.
  *
  * Blumen und Pflanzen haben kaum klassische Böden: ein Trog, eine Treppe,
- * ein Wagen. Dort sind die laufenden Meter die ganze Aussage.
+ * ein Wagen. Die Gastronomie hat gar keine Ware im Regal. Dort sind die
+ * laufenden Meter die ganze Aussage.
+ *
+ * Erkannt am **Namen der Abteilung** in der Sortimentsliste, wie schon bei
+ * Obst und Gemüse (siehe `logik/meterbaum.ts`). Wer eine Abteilung umbenennt
+ * oder eine weitere ohne Regale hat, ändert diese eine Zeile.
+ */
+export const NUR_LAUFENDE_METER = /blumen|pflanzen|centeria|gastronomie|restaurant/i;
+
+/**
+ * Trägt diese Strecke **bewusst** keine zweite Zahl?
  *
  * Das ist etwas anderes als eine fehlende Zahl. Zählte man diese Meter unter
  * „Bodenzahl fehlt", mahnte die Auswertung dauerhaft etwas an, das niemand
  * nachtragen will – und die eine Zeile, an der wirklich etwas fehlt, ginge
  * darin unter.
+ *
+ * **Entschieden wird an der Abteilung**, nicht am Möbel: Ein Blumentrog kann
+ * überall stehen, und ein Regalmöbel in der Gastronomie ist trotzdem keines,
+ * an dem man Böden zählt. Trägt die Strecke keinen Pfad – frei getippt oder
+ * aus einer älteren Planung –, entscheidet ersatzweise die Möbelkategorie;
+ * die trifft den Blumenfall, weil dort eigene Möbel stehen.
  */
-export function ohneAuslagenbegriff(element: PlanElement): boolean {
-  return element.kategorie === 'blumen';
+export function ohneAuslagenbegriff(strecke: Streckenmeter): boolean {
+  if (strecke.pfad) return NUR_LAUFENDE_METER.test(ersteStufe(strecke.pfad));
+  return strecke.element.kategorie === 'blumen';
 }
 
 /**
@@ -224,7 +242,7 @@ export function auslagenAnteil(strecke: Streckenmeter): Auslagenanteil {
   // die Mahnung, sondern in „zählt nur laufend". **Ausgestiegen wird hier
   // aber nicht**: Steht am Feld doch eine Bodenzahl, gilt die – das ist die
   // Leitregel dieser Datei, und ein Pflanzregal mit drei Böden hat eben drei.
-  const stumm = ohneAuslagenbegriff(strecke.element);
+  const stumm = ohneAuslagenbegriff(strecke);
 
   let tatsaechlich = 0;
   let ohne = 0;

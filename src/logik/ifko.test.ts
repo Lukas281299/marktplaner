@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ifkoJeStufe, ifkoVorschlag } from './ifko';
+import { auflageFuer, ifkoJeStufe, ifkoVorschlag, nutzbreite } from './ifko';
 import type { PlanElement } from '../typen/modell';
 
 /**
@@ -35,44 +35,44 @@ function moebel(teil: Partial<PlanElement>): PlanElement {
 }
 
 describe('Kisten auf einer Auflage', () => {
-  it('gibt die gemessene Tabelle wieder', () => {
-    expect(ifkoJeStufe(100, 40)).toBeCloseTo(5 / 3, 6);
-    expect(ifkoJeStufe(100, 60)).toBe(3);
-    expect(ifkoJeStufe(100, 80)).toBeCloseTo(10 / 3, 6);
-    expect(ifkoJeStufe(100, 120)).toBe(5);
+  it('folgt der Lage, die zur Tiefe passt', () => {
+    // 400 quer, 600 längs, 800 zwei quer, 1200 zwei längs.
+    expect(auflageFuer(40)).toEqual({ tiefe: 40, lage: 'quer', reihen: 1 });
+    expect(auflageFuer(60)).toEqual({ tiefe: 60, lage: 'laengs', reihen: 1 });
+    expect(auflageFuer(80)).toEqual({ tiefe: 80, lage: 'quer', reihen: 2 });
+    expect(auflageFuer(120)).toEqual({ tiefe: 120, lage: 'laengs', reihen: 2 });
+  });
+
+  it('zieht beim 1,25-m-Feld die Grifflücke ab', () => {
+    // Fünf Zentimeter zum Anfassen – auf 1,20 m geht dann alles glatt auf,
+    // ohne Rest und ohne Rundung. Genau Lukas' gemessene Zahlen.
+    expect(nutzbreite(125)).toBe(120);
     expect(ifkoJeStufe(125, 40)).toBe(2);
     expect(ifkoJeStufe(125, 60)).toBe(3);
     expect(ifkoJeStufe(125, 80)).toBe(4);
     expect(ifkoJeStufe(125, 120)).toBe(6);
   });
 
-  it('rechnet eine andere Breite hoch', () => {
-    // Quer nebeneinander stehen die Kisten einfach weiter.
-    expect(ifkoJeStufe(250, 120)).toBeCloseTo(12, 6);
-    expect(ifkoJeStufe(50, 60)).toBeCloseTo(1.5, 6);
+  it('lässt das 1,00-m-Feld ganz', () => {
+    // Dort bleibt nichts übrig, also gibt es auch keine Lücke.
+    expect(nutzbreite(100)).toBe(100);
+    expect(ifkoJeStufe(100, 40)).toBeCloseTo(5 / 3, 6);
+    expect(ifkoJeStufe(100, 80)).toBeCloseTo(10 / 3, 6);
+    expect(ifkoJeStufe(100, 120)).toBe(5);
+    // T600: gerechnet 2,5, gemessen hatte Lukas 3. Die halbe Kiste kommt
+    // erst zustande, wenn die Auflage über die Feldgrenze weiterläuft.
+    expect(ifkoJeStufe(100, 60)).toBe(2.5);
   });
 
-  it('folgt der Regel, die in der Tabelle steckt', () => {
-    // Die Kisten liegen längs: 60 cm zum Gang, 40 cm in die Tiefe. Eine
-    // Auflage trägt damit Tiefe/40 Reihen, jede mit Breite/60 Kisten.
-    // Beim 1,00-m-Feld geht das für T400, T800 und T1200 genau auf.
-    for (const tiefe of [40, 80, 120]) {
-      expect(ifkoJeStufe(100, tiefe)).toBeCloseTo((tiefe / 40) * (100 / 60), 6);
-    }
-    // Beim 1,25-m-Feld passen zwei ganze Kisten je Reihe – 1,60 je Meter.
-    for (const tiefe of [40, 60, 80, 120]) {
-      expect(ifkoJeStufe(125, tiefe)).toBeCloseTo(Math.max(1, tiefe / 40) * 2, 6);
-    }
+  it('rechnet jede Breite über dasselbe Raster', () => {
+    // Ein 2,00-m-Feld sind zwei Achsmaße A1000 in einem Möbel – keine Lücke.
+    expect(ifkoJeStufe(200, 120)).toBe(10);
+    // Und was nicht ins 20er-Raster passt, ist Grifflücke.
+    expect(nutzbreite(62.5)).toBe(60);
+    expect(ifkoJeStufe(62.5, 60)).toBe(1.5);
   });
 
-  it('lässt das eine Feld stehen, das aus der Regel fällt', () => {
-    // 1,00 m mit T600 wären anderthalb Reihen; die halbe wird aufgefüllt.
-    // Gemessen ist 3, gerechnet wären es 2,5 – die Messung gewinnt.
-    expect(ifkoJeStufe(100, 60)).toBe(3);
-  });
-
-  it('nimmt bei der Tiefe den nächsten gemessenen Fall', () => {
-    // Die Tiefe entscheidet über Reihen, und eine halbe Reihe gibt es nicht.
+  it('nimmt bei der Tiefe die nächste Bauform', () => {
     expect(ifkoJeStufe(100, 75)).toBe(ifkoJeStufe(100, 80));
     expect(ifkoJeStufe(100, 45)).toBe(ifkoJeStufe(100, 40));
     expect(ifkoJeStufe(100, 200)).toBe(ifkoJeStufe(100, 120));

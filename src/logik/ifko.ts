@@ -9,28 +9,34 @@ import type { PlanElement } from '../typen/modell';
  * Möbeltyp – hier steht der **Vorschlag**, damit man sie nicht für zwanzig
  * Vitable-Varianten einzeln abzählen muss.
  *
- * **Die Zahlen sind gemessen, nicht gerechnet.** Sie kommen aus dem Markt und
- * nicht aus der Geometrie: Eine ifko misst 600 × 400 mm, aber wie viele auf
- * eine Auflage gehen, entscheidet auch, wie weit man sie überstehen lässt.
- * Deshalb steht hier eine Tabelle und keine Formel.
+ * **Die Tiefe der Auflage entscheidet, wie die Kiste liegt.** Eine ifko misst
+ * 600 × 400 mm, und je nach Auflagentiefe passt sie nur in einer Lage:
+ *
+ * ```
+ *   T400    eine Reihe  quer     – die kurze Seite nach hinten, 60 cm zum Gang
+ *   T600    eine Reihe  längs    – die lange Seite nach hinten, 40 cm zum Gang
+ *   T800    zwei Reihen quer
+ *   T1200   zwei Reihen längs
+ * ```
+ *
+ * Daraus folgt alles: Wie viele Kisten nebeneinander stehen, ist die Breite
+ * geteilt durch das, was von der Kiste zum Gang zeigt – 60 cm quer, 40 cm
+ * längs. Mal der Zahl der Reihen dahinter.
+ *
+ * Gemessen hat Lukas das an zwei Feldbreiten, und die Rechnung trifft seine
+ * Zahlen:
  *
  * ```
  *              T400     T600     T800    T1200
- *   Feld 1,00   1 2/3      3      3 1/3      5
- *   Feld 1,25       2      3          4      6
+ *   Feld 1,00   1 2/3     2,5     3 1/3      5     gemessen: 1 2/3 · 3 · 3 1/3 · 5
+ *   Feld 1,25    2,08    3,13      4,17    6,25    gemessen: 2 · 3 · 4 · 6
  * ```
  *
- * **Eine Regel steckt trotzdem darin**, und sie erklärt beide Zeilen: Die
- * Kisten liegen **längs** – die lange Seite von 60 cm zeigt zum Gang, die
- * kurze von 40 cm in die Tiefe. Damit trägt eine Auflage `Tiefe ÷ 40` Reihen,
- * und in jede Reihe passen `Breite ÷ 60` Kisten. Beim 1,25-m-Feld sind das
- * genau zwei ganze je Reihe (1,60 je Meter), beim 1,00-m-Feld 1 2/3. Nur das
- * T600-Feld mit 1,00 m fällt heraus: Dort ergäbe die Rechnung anderthalb
- * Reihen, und die halbe wird aufgefüllt.
- *
- * **Andersherum gelegt sieht alles anders aus**, und darum bleibt die Tabelle
- * die Quelle: Wer die Kisten quer stellt, bekommt 2,5 statt 1,67 auf den
- * laufenden Meter je Reihe, dafür weniger Reihen in dieselbe Tiefe.
+ * **Gerechnet wird durchgehend und nicht Feld für Feld.** Eine Auflage läuft
+ * über die ganze Länge des Möbels, und die Kisten laufen mit – sie hören
+ * nicht an einer Feldgrenze auf. Deshalb stehen bei 1,25 m gebrochene Werte,
+ * wo im einzelnen Feld nur ganze Kisten Platz hätten: Über vier Felder
+ * ergeben vier mal 6,25 genau 25 ganze Kisten.
  *
  * Ein gestuftes Möbel hat mehrere Auflagen verschiedener Tiefe; gezählt wird
  * Stufe für Stufe und zusammengelegt. Eine Gondel trägt ihre Stufen auf
@@ -41,59 +47,96 @@ import type { PlanElement } from '../typen/modell';
 export const IFKO = { lang: 60, kurz: 40 } as const;
 
 /**
- * Kisten je laufendem Meter **einer** Auflagenreihe, nach Lage der Kiste.
+ * Wie die Kiste liegt.
+ *
+ * `quer` heißt: die **lange** Seite von 60 cm zeigt zum Gang, die kurze von
+ * 40 cm geht in die Tiefe. `laengs` ist das Gegenteil.
+ *
+ * (Umgekehrt benannt als bei den Getränkekisten in `getraenkekisten.ts` –
+ * dort heißt `laengs`, dass die lange Seite parallel zum Gestell liegt. Beide
+ * Male ist es die Sprache der Abteilung, und die ist nun einmal verschieden.)
+ */
+export type Kistenlage = 'quer' | 'laengs';
+
+/** Was von der Kiste zum Gang zeigt, in cm. */
+const ZUM_GANG: Record<Kistenlage, number> = {
+  quer: IFKO.lang,
+  laengs: IFKO.kurz,
+};
+
+/**
+ * Kisten je laufendem Meter **einer** Reihe, nach Lage der Kiste.
  *
  * Zwei Zahlen und nicht eine – das ist der Punkt. Wie viele Kisten einem
- * Meter entsprechen, hängt daran, wie sie liegen: `laengs` heißt, die lange
- * Seite von 60 cm zeigt zum Gang, `quer` ist das Gegenteil. Dazu kommt die
- * Tiefe, die über die Zahl der Reihen entscheidet.
+ * Meter entsprechen, hängt daran, wie sie liegen, und dazu kommt die Tiefe
+ * mit ihren Reihen.
  *
  * **Deshalb gibt es keinen einzelnen Umrechnungskurs zwischen Kisten und
  * Metern.** Wer eine Abteilung in Kisten zählt und eine andere in Metern,
  * darf die beiden Spalten nicht addieren – die Auswertung führt sie getrennt.
  */
 export const KISTEN_JE_METER = {
-  laengs: 100 / IFKO.lang,
-  quer: 100 / IFKO.kurz,
+  quer: 100 / ZUM_GANG.quer,
+  laengs: 100 / ZUM_GANG.laengs,
 } as const;
 
-/** Die Feldbreiten, für die gemessen wurde, in cm. */
-const BREITEN = [100, 125];
-
-/** Die Auflagentiefen, für die gemessen wurde, in cm. */
-const TIEFEN = [40, 60, 80, 120];
-
-/** Kisten je Auflage: `TABELLE[breite][tiefe]`. */
-const TABELLE: Record<number, Record<number, number>> = {
-  100: { 40: 5 / 3, 60: 3, 80: 10 / 3, 120: 5 },
-  125: { 40: 2, 60: 3, 80: 4, 120: 6 },
-};
+/**
+ * Wie eine Auflage bestückt wird, nach ihrer Tiefe.
+ *
+ * Die vier Tiefen des Vitable-Systems, und für jede genau eine sinnvolle
+ * Bestückung: In 40 cm passt die Kiste nur quer, in 60 cm nur längs, 80 cm
+ * fasst zwei quer hintereinander, 120 cm zwei längs.
+ */
+export const AUFLAGEN: { tiefe: number; lage: Kistenlage; reihen: number }[] = [
+  { tiefe: 40, lage: 'quer', reihen: 1 },
+  { tiefe: 60, lage: 'laengs', reihen: 1 },
+  { tiefe: 80, lage: 'quer', reihen: 2 },
+  { tiefe: 120, lage: 'laengs', reihen: 2 },
+];
 
 /**
- * Der Wert aus der Liste, der einer Zahl am nächsten kommt.
+ * Die Bestückung, die zu einer Auflagentiefe passt.
  *
- * Bei genau gleichem Abstand gewinnt der **kleinere**: Eine Kiste zu wenig
- * steht in der Ecke, eine zu viel wird bestellt und passt nicht.
+ * Für eine Tiefe, die nicht im System steht, gilt die nächstgelegene. Bei
+ * genau gleichem Abstand gewinnt die **flachere**: Eine Kiste zu wenig steht
+ * in der Ecke, eine zu viel wird bestellt und passt nicht.
  */
-function naechste(werte: number[], wert: number): number {
-  const sortiert = [...werte].sort((a, b) => a - b);
-  return sortiert.reduce((a, b) => (Math.abs(b - wert) < Math.abs(a - wert) ? b : a));
+export function auflageFuer(stufentiefe: number) {
+  return AUFLAGEN.reduce((a, b) =>
+    Math.abs(b.tiefe - stufentiefe) < Math.abs(a.tiefe - stufentiefe) ? b : a,
+  );
 }
 
 /**
- * Kisten auf **einer** Auflage.
+ * Das Raster, in dem die Kisten aufgehen – der größte gemeinsame Teiler von
+ * 60 und 40 cm.
+ */
+const RASTER = 20;
+
+/**
+ * Die Breite, auf der wirklich Kisten stehen – abzüglich der Grifflücke.
  *
- * Für eine Breite oder Tiefe, die nicht in der Tabelle steht, gilt der
- * nächstgelegene gemessene Fall – bei der Breite zusätzlich hochgerechnet,
- * denn quer nebeneinander stehen die Kisten einfach weiter. Die Tiefe wird
- * nicht hochgerechnet: Sie entscheidet über **Reihen**, und eine halbe Reihe
- * gibt es nicht.
+ * **Ein 1,25-m-Feld trägt Kisten auf 1,20 m**; die fünf Zentimeter daneben
+ * sind die Lücke zum Anfassen. Mit dieser einen Regel geht Lukas' gemessene
+ * Tabelle glatt auf: 120 ÷ 60 sind zwei Kisten quer, 120 ÷ 40 sind drei
+ * längs – ohne Rest und ohne Rundung.
+ *
+ * Beim 1,00-m-Feld bleibt nichts übrig, dort ist auch keine Lücke.
+ */
+export function nutzbreite(feldbreite: number): number {
+  return Math.floor(feldbreite / RASTER) * RASTER;
+}
+
+/**
+ * Kisten auf **einer** Auflage eines Feldes.
+ *
+ * Nutzbreite geteilt durch das, was von der Kiste zum Gang zeigt, mal der
+ * Zahl der Reihen dahinter.
  */
 export function ifkoJeStufe(feldbreite: number, stufentiefe: number): number {
   if (!(feldbreite > 0) || !(stufentiefe > 0)) return 0;
-  const breite = naechste(BREITEN, feldbreite);
-  const tiefe = naechste(TIEFEN, stufentiefe);
-  return TABELLE[breite][tiefe] * (feldbreite / breite);
+  const auflage = auflageFuer(stufentiefe);
+  return (auflage.reihen * nutzbreite(feldbreite)) / ZUM_GANG[auflage.lage];
 }
 
 /**
@@ -117,21 +160,32 @@ export function ifkoVorschlag(element: PlanElement): number | undefined {
   if (!(element.breite > 0)) return undefined;
   const seiten = element.beidseitig ? 2 : 1;
 
+  // **Feld für Feld**, nicht über die ganze Breite: Jedes Feld hat seine
+  // eigene Grifflücke. Ein Möbel aus vier 1,25-m-Einheiten trägt Kisten auf
+  // 4 × 1,20 m und nicht auf 5,00 m.
+  const felder = felderVon(element, 'unten');
+
   const stufen = element.stufen;
   if (stufen && stufen.length > 0) {
-    const eineSeite = stufen.reduce((summe, tiefe) => summe + ifkoJeStufe(element.breite, tiefe), 0);
+    const eineSeite = felder.reduce(
+      (summe, feld) =>
+        summe + stufen.reduce((teil, tiefe) => teil + ifkoJeStufe(feld.breite, tiefe), 0),
+      0,
+    );
     return Math.round(eineSeite * seiten);
   }
 
   // Sonst über die Böden: Sie liegen alle gleich tief, und wie tief, weiß das
   // Möbel selbst – `bodentiefeMm` zieht die tote Zone hinter der Ware ab.
   const tiefe = bodentiefeMm(element) / 10;
-  const jeBoden = ifkoJeStufe(element.breite, tiefe);
-  if (jeBoden <= 0) return undefined;
-
   const boeden = boedenSchnitt(element);
   if (boeden === undefined) return undefined;
-  return Math.round(jeBoden * boeden * seiten);
+  const eineSeite = felder.reduce(
+    (summe, feld) => summe + ifkoJeStufe(feld.breite, tiefe) * boeden,
+    0,
+  );
+  if (eineSeite <= 0) return undefined;
+  return Math.round(eineSeite * seiten);
 }
 
 /**
