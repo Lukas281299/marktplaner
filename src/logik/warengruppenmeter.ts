@@ -1,4 +1,5 @@
 import { geordnet } from './warengruppe';
+import { letzteStufe } from './sortiment';
 import { felderVon, seitenbreite, seitenVon } from './regalseiten';
 import type { Grundform, PlanElement, Projekt, Warengruppenabschnitt } from '../typen/modell';
 
@@ -34,6 +35,12 @@ import type { Grundform, PlanElement, Projekt, Warengruppenabschnitt } from '../
 export interface Streckenmeter {
   /** Der Name, wie er im Plan steht. */
   name: string;
+  /**
+   * Wohin die Strecke gehört – der Pfad in der Sortimentsliste.
+   *
+   * Fehlt er, gilt der Name. Siehe `Warengruppenabschnitt.pfad`.
+   */
+  pfad?: string;
   /** Länge in cm. */
   laenge: number;
   /** Das Möbel, zu dem die Strecke gehört. */
@@ -179,7 +186,15 @@ export function strecken(projekt: Projekt): Streckenmeter[] {
       for (const a of geordnet(abschnitte, breite)) {
         const name = a.text.trim();
         if (!name) continue;
-        aus.push({ name, laenge: a.bis - a.von, element, seite, von: a.von, bis: a.bis });
+        aus.push({
+          name,
+          pfad: a.pfad,
+          laenge: a.bis - a.von,
+          element,
+          seite,
+          von: a.von,
+          bis: a.bis,
+        });
       }
     }
   }
@@ -252,7 +267,15 @@ export type Auslagenzahl = (strecke: Streckenmeter) => Auslagenanteil | undefine
 
 /** Eine Zeile der Auswertung. */
 export interface Warengruppenzeile {
+  /** Der Name, unter dem die Zeile steht – bei einem Pfad dessen letzte Stufe. */
   name: string;
+  /**
+   * Der Pfad, wenn die Strecken einen tragen.
+   *
+   * Er macht die Zeile eindeutig: „Kuchen" unter Backwaren und „Kuchen" unter
+   * Lebensmittel › Feinbackwaren sind zwei Zeilen, keine gemeinsame.
+   */
+  pfad?: string;
   /** Laufende Meter. */
   laufend: number;
   /**
@@ -279,6 +302,17 @@ export interface Warengruppenzeile {
   nurLaufend: number;
   /** Wie viele Möbelseiten zu dieser Zeile beitragen. */
   strecken: number;
+}
+
+/**
+ * Der Name, unter dem eine Strecke in der Tabelle steht.
+ *
+ * Bei einem Pfad seine letzte Stufe und nicht der Text im Plan: Im Plan mag
+ * „Marmorkuchen Aktion" stehen, in der Auswertung zählt es zu „Kuchen".
+ * Sonst stünden für dasselbe Sortiment beliebig viele Zeilen da.
+ */
+function anzeigename(strecke: Streckenmeter): string {
+  return strecke.pfad ? letzteStufe(strecke.pfad) : strecke.name;
 }
 
 /** Der Name, unter dem Meter ohne Beschriftung erscheinen. */
@@ -312,17 +346,26 @@ export function warengruppenmeter(
 ): Warengruppenzeile[] {
   const zeilen = new Map<string, Warengruppenzeile>();
 
-  const nimm = (name: string) => {
-    const vorhanden = zeilen.get(name);
+  /**
+   * Der Schlüssel einer Zeile.
+   *
+   * Der Pfad, wenn es einen gibt – sonst der Name. Damit landen zwei
+   * gleichnamige Sortimente aus verschiedenen Abteilungen in zwei Zeilen, und
+   * ein frei getippter Name verhält sich wie bisher.
+   */
+  const nimm = (name: string, pfad?: string) => {
+    const schluessel = pfad ?? name;
+    const vorhanden = zeilen.get(schluessel);
     if (vorhanden) return vorhanden;
     const neu: Warengruppenzeile = {
       name,
+      pfad,
       laufend: 0,
       ohneAuslagen: 0,
       nurLaufend: 0,
       strecken: 0,
     };
-    zeilen.set(name, neu);
+    zeilen.set(schluessel, neu);
     return neu;
   };
 
@@ -331,7 +374,11 @@ export function warengruppenmeter(
     // gerechnet wird. Eine Kette wird dabei nicht verfolgt – eine Zuordnung
     // ist eine Aussage über zwei Namen, keine Vererbung.
     const ziel = optionen.zugeordnetZu?.(strecke.name)?.trim() || strecke.name;
-    const zeile = nimm(ziel);
+    // Ein zugeordneter Name bringt seine Meter woandershin – dann gilt auch
+    // dessen Pfad nicht mehr, sondern der des Ziels, den die Auswertung nicht
+    // kennt. Deshalb läuft eine Zuordnung über den Namen.
+    const zeile =
+      ziel === strecke.name ? nimm(anzeigename(strecke), strecke.pfad) : nimm(ziel);
     zeile.laufend += strecke.laenge;
     zeile.strecken++;
 
@@ -415,7 +462,7 @@ export function metersumme(zeilen: Warengruppenzeile[]): {
  * Sortimentsliste.
  */
 export function namenImPlan(projekt: Projekt): Set<string> {
-  return new Set(strecken(projekt).map((s) => s.name));
+  return new Set(strecken(projekt).map((s) => (s.pfad ? letzteStufe(s.pfad) : s.name)));
 }
 
 /** Nur zum Prüfen: die rohen Abschnitte einer Seite, schon beschnitten. */

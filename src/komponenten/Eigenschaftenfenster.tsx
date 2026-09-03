@@ -1,11 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { NOTIZ_ZEILEN } from '../logik/feldnotiz';
 import { KATEGORIEN, findeKategorie } from '../daten/kategorien';
 import { RAUMARTEN, raumart } from '../daten/raumarten';
 import { alleNamen } from '../daten/warengruppen';
 import {
   berechneFlaechen,
-  gruenekisten,
   raumflaeche,
 } from '../logik/flaechen';
 import { laeuftRueckwaerts } from '../logik/beschriftung';
@@ -29,6 +28,7 @@ import { ifkoVorschlag } from '../logik/ifko';
 import { bodentiefeMm } from '../logik/feldnotiz';
 import { aktionsflaechen, palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
 import { getraenkezahlen } from '../logik/getraenkezahlen';
+import { obstgemuesezahlen } from '../logik/meterbaum';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -82,6 +82,7 @@ import { Spaltenschalter, Spaltenstreifen } from './Spaltengriffe';
 import { Moebeluebersicht } from './Moebeluebersicht';
 import { Warengruppenmeter } from './Warengruppenmeter';
 import { Warengruppenwahl } from './Warengruppenwahl';
+import { eindeutigerPfad, mehrdeutigeNamen } from '../logik/sortiment';
 
 const FORMEN: { wert: Grundform; text: string }[] = [
   { wert: 'rechteck', text: 'Rechteck' },
@@ -1100,6 +1101,87 @@ function Seitenaufteilung({
 }
 
 /**
+ * Wohin eine Strecke in der Sortimentsliste gehört.
+ *
+ * **Anzeige und Zuordnung sind zweierlei.** Im Plan steht, was man
+ * hinschreibt – „Marmorkuchen Aktion", wenn das die Strecke besser
+ * beschreibt. Wohin die Meter zählen, sagt der Pfad darunter. Beides zu
+ * haben ist der Normalfall: Man schreibt hin, was dort liegt, und ordnet es
+ * einem Sortiment zu.
+ *
+ * Und der Pfad macht den Namen eindeutig: „Kuchen" steht in der Liste
+ * zweimal – unter Backwaren und unter Lebensmittel › Feinbackwaren. Ohne
+ * Pfad liefe beides in eine Zeile.
+ *
+ * Die Zeile steht nur da, wenn es etwas zu sagen gibt: ein gesetzter Pfad
+ * oder ein Name, den die Liste doppelt kennt.
+ */
+function Sortimentszuordnung({
+  abschnitt,
+  aendern,
+  beiStart,
+}: {
+  abschnitt: Warengruppenabschnitt;
+  aendern: (werte: Partial<Warengruppenabschnitt>) => void;
+  beiStart: () => void;
+}) {
+  const sortiment = usePlanStore((s) => s.sortiment);
+  const mehrdeutig = useMemo(() => mehrdeutigeNamen(sortiment), [sortiment]);
+  const text = abschnitt.text.trim();
+
+  // Ein getippter Name, den die Liste genau einmal kennt, lässt sich mit
+  // einem Klick festmachen – das ist der häufige Fall und spart das Menü.
+  const vorschlag =
+    !abschnitt.pfad && text ? eindeutigerPfad(sortiment, text) : undefined;
+  const doppelt = !abschnitt.pfad && text && mehrdeutig.has(text.toLocaleLowerCase('de-DE'));
+
+  if (!abschnitt.pfad && !vorschlag && !doppelt) return null;
+
+  if (abschnitt.pfad) {
+    return (
+      <div className="wg-pfadzeile" title="Wohin die Meter dieser Strecke zählen">
+        <span className="wg-pfadtext">↳ {abschnitt.pfad}</span>
+        <button
+          className="wg-werkzeug"
+          title="Zuordnung lösen — die Meter laufen dann über den Namen im Plan"
+          onClick={() => {
+            beiStart();
+            aendern({ pfad: undefined });
+          }}
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+
+  if (doppelt) {
+    return (
+      <div className="wg-pfadzeile warnung">
+        <span className="wg-pfadtext">
+          „{text}" steht in der Liste mehrfach — bitte über ▾ wählen
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wg-pfadzeile">
+      <button
+        className="knopf-flach"
+        title={`Diese Strecke „${vorschlag}" zuordnen`}
+        onClick={() => {
+          beiStart();
+          aendern({ pfad: vorschlag });
+        }}
+      >
+        ↳ {vorschlag} zuordnen
+      </button>
+    </div>
+  );
+}
+
+/**
  * Die Teilsortimente einer Warengruppenstrecke – Meter für Meter.
  *
  * Unter dem Möbel steht „Trockenobst" über drei Meter. Auf dem ersten liegt
@@ -1332,9 +1414,9 @@ function Warengruppenband({
               {/* Getippt wird weiter – das Menü ist die Abkürzung für
                   alle, die den Namen nicht auswendig wissen. */}
               <Warengruppenwahl
-                waehle={(name) => {
+                waehle={(name, pfad) => {
                   usePlanStore.getState().schnappschuss();
-                  aendere(i, { text: name });
+                  aendere(i, { text: name, pfad });
                 }}
               />
               <button
@@ -1348,6 +1430,12 @@ function Warengruppenband({
                 ×
               </button>
             </div>
+
+            <Sortimentszuordnung
+              abschnitt={abschnitt}
+              aendern={(werte) => aendere(i, werte)}
+              beiStart={() => usePlanStore.getState().schnappschuss()}
+            />
 
             <Teilsortimente
               abschnitt={abschnitt}
@@ -1772,12 +1860,30 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
     (s) => s.projekt.elemente.filter((el) => el.vorlageId === element.vorlageId).length,
   );
 
+  /** Für alle Möbel dieser Art – der Regelfall. */
   const setze = (werte: { auslagen?: number; ifkoKisten?: number }) => {
     usePlanStore.getState().schnappschuss();
     usePlanStore.getState().setzeMoebelkennzahl(element.vorlageId, {
       auslagen: element.auslagen,
       ifkoKisten: element.ifkoKisten,
       ...gemerkt,
+      ...werte,
+    });
+  };
+
+  /**
+   * Nur für dieses eine Stück.
+   *
+   * Für den Sonderfall: ein halbrundes Kopfstück, eine Ecke, ein frei
+   * gezogenes Möbel. Danach ist das Stück gegen Änderungen an der Typvorgabe
+   * geschützt – sonst wischte die nächste Eingabe am Typ die Handarbeit still
+   * wieder weg.
+   */
+  const setzeEigen = (werte: { auslagen?: number; ifkoKisten?: number }) => {
+    usePlanStore.getState().schnappschuss();
+    usePlanStore.getState().setzeElementkennzahl(element.id, {
+      auslagen: element.auslagen,
+      ifkoKisten: element.ifkoKisten,
       ...werte,
     });
   };
@@ -1836,7 +1942,9 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
               value={element.auslagen ?? ''}
               placeholder="—"
               title="Wie viele Böden dieser Möbeltyp trägt. Steht im Plan oben links in der Ecke."
-              onChange={(e) => setze({ auslagen: zahl(e.target.value) })}
+              onChange={(e) =>
+                (element.kennzahlEigen ? setzeEigen : setze)({ auslagen: zahl(e.target.value) })
+              }
             />
           </div>
         )}
@@ -1848,8 +1956,14 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
             step="1"
             value={element.ifkoKisten ?? ''}
             placeholder="—"
-            title="Wie viele grüne Kisten auf diesen Möbeltyp gehen. Die Flächenübersicht zählt sie zusammen."
-            onChange={(e) => setze({ ifkoKisten: zahl(e.target.value) })}
+            title={
+              element.kennzahlEigen
+                ? 'Gilt nur für dieses Möbel – die Typvorgabe überschreibt es nicht mehr.'
+                : 'Wie viele grüne Kisten auf diesen Möbeltyp gehen. Gilt für alle Möbel dieser Art.'
+            }
+            onChange={(e) =>
+              (element.kennzahlEigen ? setzeEigen : setze)({ ifkoKisten: zahl(e.target.value) })
+            }
           />
         </div>
       </div>
@@ -1879,8 +1993,52 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
         </p>
       )}
 
+      {/*
+        Zwei Ebenen, und man muss sehen, auf welcher man gerade schreibt. Die
+        Typvorgabe spart Arbeit; die Ausnahme ist für halbrunde Köpfe, Ecken
+        und frei gezogene Möbel, bei denen sie nicht stimmt.
+      */}
+      <div className="kennzahl" style={{ borderBottom: 'none', paddingTop: 6 }}>
+        <span>
+          {element.kennzahlEigen ? (
+            <strong>Nur dieses Möbel</strong>
+          ) : (
+            <>Alle Möbel dieser Art</>
+          )}
+        </span>
+        {element.kennzahlEigen ? (
+          <button
+            className="knopf-flach"
+            title="Die eigene Zahl zurücknehmen – das Möbel folgt wieder seinem Typ"
+            onClick={() => {
+              usePlanStore.getState().schnappschuss();
+              usePlanStore.getState().loeseElementkennzahl(element.id);
+            }}
+          >
+            wieder wie der Typ
+          </button>
+        ) : (
+          <button
+            className="knopf-flach"
+            title="Nur an diesem Stück ändern – etwa an einem halbrunden Kopf oder einer Ecke"
+            onClick={() => setzeEigen({})}
+          >
+            nur dieses Möbel
+          </button>
+        )}
+      </div>
+
       <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
-        Gilt für <strong>alle {gleiche === 1 ? 'Möbel dieser Art' : `${gleiche} Möbel dieser Art`}</strong>
+        {element.kennzahlEigen ? (
+          <>
+            Diese Zahlen gelten <strong>nur für dieses Stück</strong> — für halbrunde Köpfe, Ecken
+            und frei gezogene Möbel, bei denen die Vorgabe nicht stimmt. Eine Änderung an der
+            Typvorgabe fasst es nicht mehr an.
+          </>
+        ) : (
+          <>
+            Gilt für{' '}
+            <strong>{gleiche === 1 ? 'alle Möbel dieser Art' : `alle ${gleiche} Möbel dieser Art`}</strong>
         {' '}— einmal eintragen, auch für die nächsten.{' '}
         {auslagenAmMoebel ? (
           <>
@@ -1894,8 +2052,10 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
             kommt.
           </>
         )}{' '}
-        Die Kisten laufen in der Warengruppentabelle grün neben dem Namen mit und werden in der
-        Übersicht zusammengezählt.
+            Die Kisten laufen in der Warengruppentabelle grün neben dem Namen mit und werden in
+            der Übersicht zusammengezählt.
+          </>
+        )}
       </p>
     </div>
   );
@@ -2841,9 +3001,13 @@ function ProjektEigenschaften() {
    */
   const eigeneWaende = projekt.waende.length >= 5;
   const raumsumme = flaechen.raeume.reduce((summe, r) => summe + r.flaeche, 0);
-  const kisten = gruenekisten(projekt);
+  // Über den Haken abonniert und nicht per getState geholt: Die Zahlen
+  // hängen an der Sortimentsliste, und wer eine neue lädt, soll sie sofort
+  // sehen und nicht erst nach dem nächsten Klick im Plan.
+  const sortiment = usePlanStore((s) => s.sortiment);
   const getraenke = getraenkezahlen(projekt);
   const aktion = aktionsflaechen(projekt);
+  const obstgemuese = obstgemuesezahlen(projekt, sortiment);
 
   const umriss = projekt.grundflaeche.umriss;
   const rechteckig = istRechteck(umriss);
@@ -3339,21 +3503,51 @@ function ProjektEigenschaften() {
         {/* Und woraus der Markt besteht – die Stückliste. */}
         <Moebeluebersicht projekt={projekt} />
 
-        {/* Obst und Gemüse zählt anders als der Rest: nicht in Metern,
-            sondern in Kisten. Die Zahl steht nur da, wenn sie jemand
-            eingetragen hat – eine Null wäre eine Behauptung. */}
-        {kisten.moebel > 0 && (
+        {/*
+          Obst und Gemüse besteht aus zweierlei: Die Tische zählen in grünen
+          Kisten, die Kühlmöbel für Salate, Beeren und Pilze in Metern. Beides
+          lässt sich nicht in eine Zahl bringen – es gibt keinen einzelnen
+          Umrechnungskurs zwischen Kisten und Metern, er hängt an der Lage der
+          Kiste und an der Tiefe der Auflage. Also stehen sie nebeneinander.
+
+          Zugeordnet wird über die **Warengruppe**, nicht über die
+          Möbelkategorie: Ein Kartoffelregal gehört hierher, ein Kühlregal an
+          der Molkerei nicht.
+        */}
+        {obstgemuese.vorhanden && (
           <>
             <div className="kennzahl">
-              <span>Grüne Kisten (O&amp;G)</span>
-              <span className="kennzahl-wert">{kisten.kisten}</span>
-            </div>
-            <div className="kennzahl">
-              <span>Auslagen (O&amp;G)</span>
+              <span>
+                <strong>Obst &amp; Gemüse</strong>
+              </span>
               <span className="kennzahl-wert">
-                {kisten.auslagen} auf {kisten.moebel} Möbeln
+                {obstgemuese.laufend.toLocaleString('de-DE', { minimumFractionDigits: 2 })} lfm
               </span>
             </div>
+            <div className="kennzahl">
+              <span>Davon grüne Kisten</span>
+              <span className="kennzahl-wert">{obstgemuese.kisten} iK</span>
+            </div>
+            {obstgemuese.kuehlungLaufend > 0 && (
+              <div className="kennzahl">
+                <span>Davon Kühlung</span>
+                <span className="kennzahl-wert">
+                  {obstgemuese.kuehlungLaufend.toLocaleString('de-DE', {
+                    minimumFractionDigits: 2,
+                  })}{' '}
+                  lfm ·{' '}
+                  {obstgemuese.kuehlungTatsaechlich.toLocaleString('de-DE', {
+                    minimumFractionDigits: 2,
+                  })}{' '}
+                  tm
+                </span>
+              </div>
+            )}
+            <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+              Die Kisten und die Kühlmeter lassen sich nicht zusammenzählen — wie viele Kisten
+              einem Meter entsprechen, hängt daran, wie sie liegen und wie tief die Auflage ist.
+              Deshalb stehen sie nebeneinander.
+            </p>
           </>
         )}
 

@@ -68,9 +68,59 @@ export function standVon(
 }
 
 /** Der Name eines Pfades – die letzte Stufe. */
-function letzteStufe(pfad: string): string {
+export function letzteStufe(pfad: string): string {
   const teile = pfad.split(' › ');
   return teile[teile.length - 1] ?? pfad;
+}
+
+/** Die Abteilung eines Pfades – die erste Stufe. */
+export function ersteStufe(pfad: string): string {
+  return pfad.split(' › ')[0] ?? pfad;
+}
+
+/**
+ * Der Pfad zu einem Namen, wenn er in der Liste **eindeutig** ist.
+ *
+ * Steht der Name zweimal – „Kuchen" unter Backwaren und unter Lebensmittel –,
+ * kommt `undefined` heraus. Dann darf niemand raten: Beide Bedeutungen sind
+ * gleich richtig, und die falsche zu wählen verschöbe Meter zwischen zwei
+ * Abteilungen, ohne dass es auffiele.
+ */
+export function eindeutigerPfad(liste: Sortimentsliste, name: string): string | undefined {
+  const gesucht = schluessel(name);
+  const treffer: string[] = [];
+  for (const abteilung of liste.abteilungen) {
+    for (const gruppe of abteilung.warengruppen) {
+      if (schluessel(gruppe.name) === gesucht) treffer.push(pfadVon(abteilung.name, gruppe.name));
+      for (const sortiment of gruppe.sortimente) {
+        if (schluessel(sortiment) === gesucht) {
+          treffer.push(pfadVon(abteilung.name, gruppe.name, sortiment));
+        }
+      }
+    }
+  }
+  return treffer.length === 1 ? treffer[0] : undefined;
+}
+
+/**
+ * Alle Namen, die in der Liste **mehrfach** vorkommen.
+ *
+ * Für den Hinweis am Eingabefeld: Wer „Kuchen" tippt, soll erfahren, dass
+ * es den Namen zweimal gibt, und ihn aus dem Menü wählen.
+ */
+export function mehrdeutigeNamen(liste: Sortimentsliste): Set<string> {
+  const gezaehlt = new Map<string, number>();
+  const zaehle = (name: string) => {
+    const k = schluessel(name);
+    gezaehlt.set(k, (gezaehlt.get(k) ?? 0) + 1);
+  };
+  for (const abteilung of liste.abteilungen) {
+    for (const gruppe of abteilung.warengruppen) {
+      zaehle(gruppe.name);
+      gruppe.sortimente.forEach(zaehle);
+    }
+  }
+  return new Set([...gezaehlt.entries()].filter(([, n]) => n > 1).map(([k]) => k));
 }
 
 /**

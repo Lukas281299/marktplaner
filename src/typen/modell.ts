@@ -386,6 +386,27 @@ export interface Warengruppenabschnitt {
   bis: number;
   text: string;
   /**
+   * Wohin diese Strecke in der Sortimentsliste gehört – der volle Pfad.
+   *
+   * `Lebensmittel › Feinbackwaren › Kuchen`, also Abteilung, Warengruppe und
+   * Sortiment mit demselben Trennzeichen wie `Projekt.sortimentsstand`.
+   *
+   * **Der Name allein reicht nicht.** „Kuchen" steht in der Liste zweimal:
+   * einmal unter Backwaren, einmal unter Lebensmittel › Feinbackwaren. Wer
+   * nur den Namen speichert, wirft beim Auswerten zusammen, was im Markt an
+   * zwei Enden liegt.
+   *
+   * **Und er trennt Anzeige von Zuordnung.** Im Plan steht, was `text` sagt –
+   * „Marmorkuchen Aktion", wenn es das treffender beschreibt. Wohin die Meter
+   * zählen, sagt der Pfad. Beides zu haben ist der Normalfall beim Planen:
+   * Man schreibt hin, was dort liegt, und ordnet es einem Sortiment zu.
+   *
+   * Fehlt der Pfad, gilt der Name – so wie in jeder Planung, die vor dieser
+   * Fassung entstanden ist, und so wie bei jedem frei getippten Namen.
+   */
+  pfad?: string;
+
+  /**
    * Schrifthöhe in cm, falls sie von Hand eingestellt wurde.
    *
    * Ohne Angabe nimmt der Plan seine übliche Größe. Zu breit wird die
@@ -667,6 +688,22 @@ export interface PlanElement {
    * trägt es einmal ein und liest die Summe danach ab.
    */
   ifkoKisten?: number;
+
+  /**
+   * Sind `auslagen` und `ifkoKisten` an **diesem** Stück von Hand gesetzt?
+   *
+   * Die Zahlen gehören sonst zum Möbel**typ**: Ein Vitable-Tisch A1250 fasst
+   * immer dasselbe, und wer es einmal einträgt, trägt es für alle ein. Das
+   * ist der Regelfall und spart die Arbeit.
+   *
+   * Manchmal stimmt es aber nicht: ein halbrundes Kopfstück, ein frei
+   * gezogenes Möbel, eine Ecke, in der zwei Kisten weniger stehen. Dann wird
+   * die Zahl an diesem Stück geändert, und **diese Marke schützt sie**: Wer
+   * danach die Typvorgabe ändert, überschreibt alle anderen, aber nicht
+   * dieses. Ohne die Marke hätte jede Änderung am Typ die Handarbeit still
+   * weggewischt.
+   */
+  kennzahlEigen?: boolean;
 
   /**
    * Die Kisten vor einem Getränkegestell.

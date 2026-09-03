@@ -46,7 +46,12 @@ function lageAm(knopf: HTMLElement | null): { left: number; top: number; maxHeig
   };
 }
 
-export function Warengruppenwahl({ waehle }: { waehle: (name: string) => void }) {
+export function Warengruppenwahl({
+  waehle,
+}: {
+  /** Bekommt den Namen und den vollen Pfad – der macht ihn eindeutig. */
+  waehle: (name: string, pfad: string) => void;
+}) {
   const sortiment = usePlanStore((s) => s.sortiment);
   const stand = usePlanStore((s) => s.projekt.sortimentsstand);
   const zuordnungen = usePlanStore((s) => s.projekt.zuordnungen);
@@ -87,8 +92,8 @@ export function Warengruppenwahl({ waehle }: { waehle: (name: string) => void })
 
   if (sortiment.abteilungen.length === 0) return null;
 
-  const nimm = (name: string) => {
-    waehle(name);
+  const nimm = (name: string, pfad: string) => {
+    waehle(name, pfad);
     setOffen(false);
     setSuche('');
   };
@@ -149,7 +154,7 @@ export function Warengruppenwahl({ waehle }: { waehle: (name: string) => void })
                             <button
                               type="button"
                               className="wg-menue-name"
-                              onClick={() => nimm(gruppe.name)}
+                              onClick={() => nimm(gruppe.name, pfadVon(abteilung.name, gruppe.name))}
                             >
                               <span className={`wg-punkt ${g.wert}`} />
                               {gruppe.name}
@@ -159,7 +164,7 @@ export function Warengruppenwahl({ waehle }: { waehle: (name: string) => void })
                                 type="button"
                                 className="wg-menue-name wg-tief"
                                 key={name}
-                                onClick={() => nimm(name)}
+                                onClick={() => nimm(name, pfadVon(abteilung.name, gruppe.name, name))}
                               >
                                 <span
                                   className={`wg-punkt ${standVon(

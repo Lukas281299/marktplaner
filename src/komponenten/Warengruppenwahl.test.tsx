@@ -78,7 +78,8 @@ describe('Warengruppen wählen', () => {
     render(<Warengruppenwahl waehle={waehle} />);
     await oeffne();
     await userEvent.click(screen.getByText('Croissants'));
-    expect(waehle).toHaveBeenCalledWith('Croissants');
+    // Der Pfad kommt mit – er macht den Namen eindeutig.
+    expect(waehle).toHaveBeenCalledWith('Croissants', 'Backwaren › Bake Off › Croissants');
     expect(screen.queryByPlaceholderText('Suchen …')).toBeNull();
   });
 

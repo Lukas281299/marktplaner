@@ -521,6 +521,18 @@ export interface PlanStore {
    * einmal ein und übersieht die zwölf, die schon stehen.
    */
   setzeMoebelkennzahl(vorlageId: string, werte: Moebelkennzahl): void;
+
+  /**
+   * Legt fest, was **dieses eine** Möbel fasst.
+   *
+   * Für den Sonderfall: ein halbrundes Kopfstück, eine Ecke, ein frei
+   * gezogenes Möbel. Die Zahl bleibt danach stehen, auch wenn jemand die
+   * Typvorgabe ändert.
+   */
+  setzeElementkennzahl(elementId: string, werte: Moebelkennzahl): void;
+
+  /** Nimmt die eigene Zahl zurück – das Möbel folgt wieder seinem Typ. */
+  loeseElementkennzahl(elementId: string): void;
   /** Markiert eine Vorlage als Favorit oder nimmt die Markierung zurück. */
   schalteFavorit(vorlageId: string): void;
   benenneProjektUm(name: string): void;
@@ -814,14 +826,43 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set({ moebelkennzahlen: neu });
     void speichereKennzahlen(neu);
 
-    // Und an jedem Stück dieser Vorlage im Plan nachziehen.
+    // Und an jedem Stück dieser Vorlage im Plan nachziehen – außer an denen,
+    // die von Hand eine eigene Zahl bekommen haben. Ein halbrundes Kopfstück
+    // oder eine Ecke mit zwei Kisten weniger soll nicht stillschweigend
+    // wieder auf die Typvorgabe zurückspringen.
     aendere(set, get, (p) => ({
       ...p,
       elemente: p.elemente.map((el) =>
-        el.vorlageId === vorlageId
+        el.vorlageId === vorlageId && !el.kennzahlEigen
           ? { ...el, auslagen: werte.auslagen, ifkoKisten: werte.ifkoKisten }
           : el,
       ),
+    }));
+  },
+
+  setzeElementkennzahl(elementId, werte) {
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: p.elemente.map((el) =>
+        el.id === elementId ? { ...el, ...werte, kennzahlEigen: true } : el,
+      ),
+    }));
+  },
+
+  loeseElementkennzahl(elementId) {
+    const kennzahlen = get().moebelkennzahlen;
+    aendere(set, get, (p) => ({
+      ...p,
+      elemente: p.elemente.map((el) => {
+        if (el.id !== elementId) return el;
+        const vorgabe = kennzahlen[el.vorlageId];
+        return {
+          ...el,
+          auslagen: vorgabe?.auslagen,
+          ifkoKisten: vorgabe?.ifkoKisten,
+          kennzahlEigen: undefined,
+        };
+      }),
     }));
   },
 
