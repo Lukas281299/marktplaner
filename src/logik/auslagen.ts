@@ -1,4 +1,5 @@
 import { felderVon } from './regalseiten';
+import { kistenseiten } from './getraenkekisten';
 import type { Auslagenanteil, Streckenmeter } from './warengruppenmeter';
 import type { PlanElement, Regalfeld } from '../typen/modell';
 
@@ -68,8 +69,26 @@ const TK_KOMBI_HOCH = 220;
  * Katalog folgt. Alles, was der Planer entscheidet, steht am Feld und geht
  * dieser Zahl vor.
  */
-export function moebelauslagen(element: PlanElement): number | undefined {
+export function moebelauslagen(
+  element: PlanElement,
+  seite: 'unten' | 'oben' = 'unten',
+): number | undefined {
   const hoehe = element.hoehe ?? 0;
+
+  // Die Getränkeabteilung zählt in Kistenreihen und nicht in Böden: Jede
+  // Reihe vor dem Gestell ist eine Lage Ware über die ganze Länge, also
+  // genau das, was bei einem Regal ein Boden ist.
+  //
+  // Die Seite zur Gasse zeichnet das Symbol **oben** – siehe
+  // `zeichneGetraenkegestell`, wo `vorne` bis zur Gestellkante nach oben
+  // wächst. Deshalb liegt sie hier an „oben" und nicht an „unten", anders
+  // als bei einem Regal. Steht auf beiden Seiten dasselbe – der Regelfall –,
+  // macht die Zuordnung ohnehin keinen Unterschied.
+  if (element.form === 'getraenkegestell') {
+    const { vorne, hinten } = kistenseiten(element.kisten);
+    const dran = seite === 'oben' ? vorne : hinten;
+    return dran ? dran.reihen : 0;
+  }
 
   switch (element.form) {
     // Tiefkühlung. Truhe stufenlos, Schrank in Böden, Kombi beides
@@ -140,7 +159,7 @@ export function feldauslagen(feld: Regalfeld, vorgabe?: number): number | undefi
  * die ganze Strecke zu verlieren.
  */
 export function auslagenAnteil(strecke: Streckenmeter): Auslagenanteil {
-  const vorgabe = moebelauslagen(strecke.element);
+  const vorgabe = moebelauslagen(strecke.element, strecke.seite);
   const felder = felderVon(strecke.element, strecke.seite);
 
   let tatsaechlich = 0;

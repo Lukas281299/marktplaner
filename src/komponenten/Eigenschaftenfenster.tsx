@@ -78,6 +78,7 @@ import {
   SymbolSchloss,
 } from './Symbole';
 import { Spaltenschalter, Spaltenstreifen } from './Spaltengriffe';
+import { Moebeluebersicht } from './Moebeluebersicht';
 import { Warengruppenmeter } from './Warengruppenmeter';
 import { Warengruppenwahl } from './Warengruppenwahl';
 
@@ -3085,6 +3086,9 @@ function ProjektEigenschaften() {
         {/* Dieselbe Zahl, aufgeschlüsselt: Wie viel Platz bekommt welches
             Sortiment? Zugeklappt kostet sie eine Zeile. */}
         <Warengruppenmeter projekt={projekt} />
+
+        {/* Und daneben, woraus der Markt besteht – die Stückliste. */}
+        <Moebeluebersicht projekt={projekt} />
 
         {/* Obst und Gemüse zählt anders als der Rest: nicht in Metern,
             sondern in Kisten. Die Zahl steht nur da, wenn sie jemand

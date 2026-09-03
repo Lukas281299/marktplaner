@@ -280,6 +280,31 @@ describe('Summen', () => {
     expect(summe.tatsaechlich).toBe(15);
   });
 
+  it('lässt weg, was gar keine Ware trägt', () => {
+    // Eine Säule ist 40 cm breit, eine Kundenführung zwei Meter lang.
+    // Zählte man sie mit, stünden sie unter „ohne Warengruppe" und sähen aus
+    // wie vergessene Regalmeter.
+    const regal = element({ id: 'a', warengruppenUnten: [{ von: 0, bis: 250, text: 'Kaffee' }] });
+    const saeule = element({ id: 'b', kategorie: 'ausstattung', form: 'saeule', breite: 40 });
+    const fuehrung = element({ id: 'c', kategorie: 'kassen', form: 'kundenfuehrung', breite: 200 });
+    const summe = metersumme(warengruppenmeter(projekt([regal, saeule, fuehrung])));
+    expect(summe.laufend).toBe(2.5);
+    expect(summe.ohneWarengruppe).toBe(0);
+  });
+
+  it('lässt die Kassengondel aber mitzählen', () => {
+    // Auf der liegt Ware, und genau darum geht es.
+    const gondel = element({
+      id: 'a',
+      kategorie: 'kassen',
+      form: 'kassengondel',
+      breite: 100,
+      felderUnten: [{ breite: 100 }],
+      warengruppenUnten: [{ von: 0, bis: 100, text: 'Süßwaren' }],
+    });
+    expect(metersumme(warengruppenmeter(projekt([gondel]))).laufend).toBe(1);
+  });
+
   it('stimmt mit den laufenden Metern des ganzen Marktes überein', () => {
     // Die Probe aufs Exempel: Die Summe der Tabelle – beschriftet plus
     // unbeschriftet – muss die Regalmeter ergeben, die heute schon

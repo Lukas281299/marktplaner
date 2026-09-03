@@ -1,6 +1,6 @@
 import { geordnet } from './warengruppe';
 import { felderVon, seitenbreite, seitenVon } from './regalseiten';
-import type { PlanElement, Projekt, Warengruppenabschnitt } from '../typen/modell';
+import type { Grundform, PlanElement, Projekt, Warengruppenabschnitt } from '../typen/modell';
 
 /**
  * Die Meter je Warengruppe.
@@ -54,6 +54,57 @@ export interface Streckenmeter {
 }
 
 /**
+ * Trägt dieses Element überhaupt Ware?
+ *
+ * Nur was Ware trägt, gehört in eine Meterauswertung. Eine Säule ist 40 cm
+ * breit, eine Kundenführung zwei Meter lang – zählte man sie mit, stünden
+ * sie unter „ohne Warengruppe" und sähen aus wie vergessene Regalmeter.
+ *
+ * **Ausgeschlossen wird die Ausstattung** (Bau, Technik, Türen, Möblierung)
+ * und in den übrigen Abteilungen alles, was Anlage ist und kein Möbel: die
+ * Kassenzeile selbst, Eingangsanlagen, Kundenführungen, Leergutrücknahmen,
+ * Blenden, Textfelder, Linien und Pfeile. Die Kassengondel bleibt – auf der
+ * liegt Ware, und genau darum geht es.
+ *
+ * Die Liste steht bewusst so herum: Ein neues Möbel zählt von selbst mit,
+ * und wenn es das nicht soll, fällt das beim ersten Blick in die Tabelle
+ * auf. Andersherum verschwände es stillschweigend.
+ */
+const OHNE_WARE: ReadonlySet<Grundform> = new Set<Grundform>([
+  // Kassenzone und Eingang – die Zeile selbst trägt keine Ware.
+  'kasse',
+  'kasseExpress',
+  'kasseSitz',
+  'kasseDoppel',
+  'sbKasse',
+  'packrutsche',
+  'ausgangsanlage',
+  'schiebetueranlage',
+  'kundenfuehrung',
+  'egateEinzel',
+  'egateDoppel',
+  'wagenbox',
+  'automat',
+  'zugang',
+  'foerderband',
+  // Leergut ist Rücklauf und kein Sortiment.
+  'leergutRuecknahme',
+  'leergutEinweg',
+  'dpgBehaelter',
+  // Ausbau und Anmerkungen.
+  'holzblende',
+  'holzblendeU',
+  'textfeld',
+  'linie',
+  'pfeil',
+]);
+
+export function traegtWare(element: PlanElement): boolean {
+  if (element.kategorie === 'ausstattung') return false;
+  return !OHNE_WARE.has(element.form);
+}
+
+/**
  * Alle beschrifteten Strecken eines Plans, Möbel für Möbel.
  *
  * Eine beidseitige Gondel liefert von selbst zwei Strecken – je Seite eine
@@ -67,6 +118,7 @@ export function strecken(projekt: Projekt): Streckenmeter[] {
 
   for (const element of projekt.elemente ?? []) {
     if (element.ebeneId && !sichtbar.has(element.ebeneId)) continue;
+    if (!traegtWare(element)) continue;
 
     for (const seite of seitenVon(element)) {
       const felder = felderVon(element, seite);
@@ -230,6 +282,7 @@ export function warengruppenmeter(
   let offen = 0;
   for (const element of projekt.elemente ?? []) {
     if (element.ebeneId && !sichtbar.has(element.ebeneId)) continue;
+    if (!traegtWare(element)) continue;
     offen += unbeschriftet(element);
   }
   if (offen > 0.5) {

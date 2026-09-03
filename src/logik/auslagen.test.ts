@@ -120,6 +120,46 @@ describe('Was ein Möbel mitbringt', () => {
     expect(moebelauslagen(el)).toBe(3);
   });
 
+  it('zählt beim Getränkegestell die Kistenreihen', () => {
+    // Jede Reihe vor dem Gestell ist eine Lage Ware über die ganze Länge –
+    // genau das, was bei einem Regal ein Boden ist.
+    const gestell = element({
+      form: 'getraenkegestell',
+      kategorie: 'getraenke',
+      beidseitig: true,
+      kisten: { lage: 'laengs', reihen: 2 },
+    });
+    expect(moebelauslagen(gestell, 'unten')).toBe(2);
+    expect(moebelauslagen(gestell, 'oben')).toBe(2);
+  });
+
+  it('nimmt je Seite die Reihen dieser Seite', () => {
+    const gestell = element({
+      form: 'getraenkegestell',
+      kategorie: 'getraenke',
+      beidseitig: true,
+      kisten: { lage: 'laengs', reihen: 3, rueckseite: { lage: 'quer', reihen: 1 } },
+    });
+    // Zur Gasse hin drei Reihen, zur Wand hin eine – zusammen vier.
+    const beide = [
+      moebelauslagen(gestell, 'unten')!,
+      moebelauslagen(gestell, 'oben')!,
+    ].sort();
+    expect(beide).toEqual([1, 3]);
+  });
+
+  it('gibt einem einseitigen Gestell hinten nichts', () => {
+    const gestell = element({
+      form: 'getraenkegestell',
+      kategorie: 'getraenke',
+      beidseitig: true,
+      kisten: { lage: 'laengs', reihen: 2, einseitig: true },
+    });
+    // An der Wand steht nichts dahinter, und null ist hier eine Aussage.
+    expect(moebelauslagen(gestell, 'unten')).toBe(0);
+    expect(moebelauslagen(gestell, 'oben')).toBe(2);
+  });
+
   it('sagt beim Regal nichts – dort entscheidet der Planer', () => {
     expect(moebelauslagen(element())).toBeUndefined();
   });

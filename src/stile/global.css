@@ -1367,6 +1367,12 @@ details.erklaerung[open] > summary {
   font-weight: 600;
 }
 
+/* Die Stückliste hat eine schmalere Zahlenspalte: „5 Stück" braucht nicht
+   so viel Platz wie „123,45". */
+.meterzeile.moebelzeile {
+  grid-template-columns: 1fr 3em 5em;
+}
+
 /* Die Meter ohne Namen sind kein Sortiment – sie stehen leiser da, damit sie
    nicht wie eine Warengruppe aussehen. */
 .meterzeile.namenlos {
