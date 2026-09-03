@@ -761,6 +761,27 @@ p .wg-punkt {
 }
 
 /*
+ * Ein Knopf mitten im Fließtext eines Hinweises.
+ *
+ * Er soll wie ein Wort im Satz sitzen und nicht wie ein Schalter daneben –
+ * der Hinweis sagt etwas, und der Knopf ist die Antwort darauf.
+ */
+.knopf-flach {
+  border: 1px solid var(--rand-stark);
+  background: var(--flaeche);
+  font: inherit;
+  color: var(--blau);
+  cursor: pointer;
+  padding: 1px 6px;
+  border-radius: var(--rundung);
+  white-space: nowrap;
+}
+
+.knopf-flach:hover {
+  background: var(--blau-hell);
+}
+
+/*
  * Das Auswahlmenü neben einem Warengruppen-Eingabefeld.
  *
  * So schmal wie der Pfeil darin. Es steht neben einem Textfeld, das die

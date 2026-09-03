@@ -26,6 +26,8 @@ import { felderVon, seitenEinzeln, seitenTrennbar, type Seite } from '../logik/r
 import { geordnet, GRUPPE_GROESSEN, GRUPPE_NORMAL } from '../logik/warengruppe';
 import { gestelltiefe, kistenbelegung, kistenseiten, kistenzahl } from '../logik/getraenkekisten';
 import { warengruppenVon } from '../logik/warengruppenzuordnung';
+import { ifkoVorschlag } from '../logik/ifko';
+import { palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
 import { masslaenge } from '../logik/messen';
@@ -1597,6 +1599,44 @@ function Foerderbandfelder({ element, einheit }: { element: PlanElement; einheit
  * passen, weiß der Planer, und eine gerechnete Zahl wäre eine erfundene.
  * Zusammengezählt wird sie in der Flächenübersicht.
  */
+/**
+ * Wie viele Paletten auf diese Aktionsfläche gehen.
+ *
+ * Die Fläche sagt bisher nur, wie groß sie ist. Beim Planen ist aber die
+ * Frage, was daraufkommt – und sechs Quadratmeter sind darauf keine Antwort.
+ *
+ * Gerechnet wird, was **wirklich hinpasst**, nicht Fläche geteilt durch
+ * Palettenfläche: Auf 3,00 × 1,00 m gehen zwei Europaletten und nicht drei.
+ * Siehe `logik/palettenplatz.ts`.
+ */
+function Aktionspaletten({ element }: { element: PlanElement }) {
+  const plaetze = palettenplaetze(element.breite, element.tiefe);
+  if (plaetze.viertel === 0) return null;
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Was daraufgeht</div>
+      {PALETTENGROESSEN.map((groesse) => (
+        <div className="kennzahl" key={groesse.kennung}>
+          <span>
+            {groesse.name}
+            <span className="kategorie-anzahl">
+              {' '}
+              · {(groesse.lang / 100).toFixed(2).replace('.', ',')} ×{' '}
+              {(groesse.kurz / 100).toFixed(2).replace('.', ',')} m
+            </span>
+          </span>
+          <span className="kennzahl-wert">{plaetze[groesse.kennung]}</span>
+        </div>
+      ))}
+      <p className="hinweis" style={{ marginTop: 4, marginBottom: 0 }}>
+        Jede Zeile für sich — so viele ganze <em>oder</em> so viele halbe. Gerechnet ist ein
+        gerader Aufbau ohne Gasse davor; ineinandergedreht geht ab und zu eine mehr.
+      </p>
+    </div>
+  );
+}
+
 function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
   // Die Zahlen gehören zum Möbel**typ**, nicht zum einzelnen Stück: Ein
   // Vitable-Tisch A1250 trägt immer dieselbe Zahl Auslagen. Gespeichert wird
@@ -1621,6 +1661,21 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
     const n = Math.max(0, Math.round(Number(wert)));
     return Number.isFinite(n) && n > 0 ? n : undefined;
   };
+
+  /**
+   * Was aus den Stufen des Möbels folgt – ein Vorschlag, kein Eintrag.
+   *
+   * Zwanzig Vitable-Varianten von Hand abzuzählen ist eine halbe Stunde, in
+   * der man sich verzählt. Übernommen wird er auf Knopfdruck: Die Zahl
+   * gehört dem Planer, und was er einträgt, gilt.
+   */
+  const vorschlagKisten = ifkoVorschlag(element);
+  const vorschlagAuslagen = element.stufen?.length
+    ? element.stufen.length * (element.beidseitig ? 2 : 1)
+    : undefined;
+  const offen =
+    (vorschlagKisten !== undefined && element.ifkoKisten === undefined) ||
+    (vorschlagAuslagen !== undefined && element.auslagen === undefined);
 
   return (
     <div className="gruppe">
@@ -1651,6 +1706,29 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
           />
         </div>
       </div>
+      {/* Das Möbel weiß, wie es gestuft ist – dann muss niemand zählen.
+          Angeboten und nicht eingetragen: Die Zahl gehört dem Planer. */}
+      {offen && (
+        <p className="hinweis" style={{ marginTop: 2, marginBottom: 4 }}>
+          Nach den Stufen dieses Möbels ({element.stufen?.map((t) => `T${t * 10}`).join(' + ')}
+          {element.beidseitig ? ', beidseitig' : ''}):{' '}
+          <strong>{vorschlagAuslagen ?? '—'} Auslagen</strong> und{' '}
+          <strong>{vorschlagKisten ?? '—'} Kisten</strong>.{' '}
+          <button
+            className="knopf-flach"
+            onClick={() =>
+              // Was schon dasteht, bleibt stehen – gefüllt wird nur die Lücke.
+              setze({
+                auslagen: element.auslagen ?? vorschlagAuslagen,
+                ifkoKisten: element.ifkoKisten ?? vorschlagKisten,
+              })
+            }
+          >
+            Übernehmen
+          </button>
+        </p>
+      )}
+
       <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
         Gilt für <strong>alle {gleiche === 1 ? 'Möbel dieser Art' : `${gleiche} Möbel dieser Art`}</strong>
         {' '}— einmal eintragen, auch für die nächsten. Im Plan steht oben links{' '}
@@ -2401,6 +2479,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
 
       {ausgewaehlte.length === 1 && erstes.kategorie === 'obstgemuese' && (
         <ObstGemueseKennzahlen element={erstes} />
+      )}
+
+      {ausgewaehlte.length === 1 && erstes.form === 'aktionsflaeche' && (
+        <Aktionspaletten element={erstes} />
       )}
 
       {/* ------------------------------------------------------ Darstellung */}
