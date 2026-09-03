@@ -996,6 +996,26 @@ export interface Projekt {
    * Markt fängt wieder bei null an.
    */
   sortimentsstand?: Record<string, 'gruen' | 'grau'>;
+
+  /**
+   * Welche Warengruppe für die Rechnung zu welcher anderen zählt.
+   *
+   * Wer vier Meter „Kuchen" einzeichnet, obwohl dort auch Waffeln liegen,
+   * ordnet Waffeln dem Kuchen zu. Die Meter laufen dann über Kuchen, und in
+   * der Auswertung sieht es nicht so aus, als sei Waffeln vergessen worden.
+   *
+   * Der Schlüssel ist der Name in Kleinschreibung, der Wert der Zielname,
+   * wie er geschrieben wird. Verglichen wird über den Namen und nicht über
+   * den Pfad: Im Plan steht ein Name und keine Abteilung davor.
+   *
+   * **Einer Kette wird nicht gefolgt.** Eine Zuordnung ist eine Aussage über
+   * zwei Namen, keine Vererbung – und eine versehentliche Ringzuordnung
+   * liefe sonst endlos.
+   *
+   * Gehört wie der Haken zur Planung und nicht zur Liste: Im Nachbarmarkt
+   * liegen die Waffeln vielleicht bei den Keksen.
+   */
+  zuordnungen?: Record<string, string>;
   /** Freistehende Innenwände, die keinen ganzen Raum abtrennen. */
   waende: Wand[];
   /** Türen, Durchgänge und Tore. */

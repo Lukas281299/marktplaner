@@ -16,6 +16,7 @@ import {
   umbenannteAbteilung,
   umbenannteWarengruppe,
   umbenanntesSortiment,
+  zuordnungVon,
   umfang,
   vereinigt,
   type Standwert,
@@ -43,6 +44,7 @@ import { Spaltenschalter } from './Spaltengriffe';
 export function Warengruppenfenster() {
   const sortiment = usePlanStore((s) => s.sortiment);
   const stand = usePlanStore((s) => s.projekt.sortimentsstand);
+  const zuordnungen = usePlanStore((s) => s.projekt.zuordnungen);
   const pinsel = usePlanStore((s) => s.warengruppenPinsel);
 
   const offeneAbteilungen = usePlanStore((s) => s.offeneAbteilungen);
@@ -70,6 +72,42 @@ export function Warengruppenfenster() {
   const pflegen = (liste: typeof sortiment) => usePlanStore.getState().pflegeSortiment(liste);
   const nimm = (name: string) =>
     usePlanStore.getState().setzeWarengruppenPinsel(pinsel === name ? null : name);
+
+  /**
+   * „Zählt zu" – eine Warengruppe schlägt ihre Meter einer anderen zu.
+   *
+   * Wer vier Meter „Kuchen" einzeichnet, obwohl dort auch Waffeln liegen,
+   * ordnet Waffeln dem Kuchen zu. Die Meter laufen dann über Kuchen, und in
+   * der Auswertung sieht es nicht so aus, als sei Waffeln vergessen worden.
+   *
+   * Eine Entscheidung über **diesen** Markt und nicht über die Liste –
+   * deshalb steht sie in der Planung, wie der Haken davor auch.
+   */
+  const ordneZu = (name: string) => {
+    const jetzt = zuordnungVon(zuordnungen, name) ?? '';
+    const antwort = window.prompt(
+      `Zu welcher Warengruppe zählen die Meter von „${name}"?\n\n` +
+        'Leer lassen hebt die Zuordnung wieder auf.',
+      jetzt,
+    );
+    if (antwort === null) return;
+    usePlanStore.getState().setzeZuordnung(name, antwort.trim() || null);
+  };
+
+  /** Die Marke „→ Kuchen" hinter einem zugeordneten Namen. */
+  const zuordnungsmarke = (name: string) => {
+    const ziel = zuordnungVon(zuordnungen, name);
+    if (!ziel) return null;
+    return (
+      <button
+        className="wg-zuordnung"
+        title={`Die Meter zählen zu „${ziel}" — anklicken zum Ändern`}
+        onClick={() => ordneZu(name)}
+      >
+        → {ziel}
+      </button>
+    );
+  };
 
   /** Fragt nach einem Namen. Leer oder abgebrochen heißt: nichts tun. */
   const frage = (text: string, vorgabe = '') => {
@@ -248,8 +286,16 @@ export function Warengruppenfenster() {
                         >
                           {gruppe.name}
                         </button>
+                        {zuordnungsmarke(gruppe.name)}
                         {pflege && (
                           <>
+                            <button
+                              className="wg-werkzeug"
+                              title={`Die Meter von „${gruppe.name}" einer anderen Warengruppe zuschlagen`}
+                              onClick={() => ordneZu(gruppe.name)}
+                            >
+                              →
+                            </button>
                             <button
                               className="wg-werkzeug"
                               title="Warengruppe umbenennen"
@@ -308,8 +354,16 @@ export function Warengruppenfenster() {
                           >
                             {name}
                           </button>
+                          {zuordnungsmarke(name)}
                           {pflege && (
                             <>
+                              <button
+                                className="wg-werkzeug"
+                                title={`Die Meter von „${name}" einer anderen Warengruppe zuschlagen`}
+                                onClick={() => ordneZu(name)}
+                              >
+                                →
+                              </button>
                               <button
                                 className="wg-werkzeug"
                                 title="Sortiment umbenennen"

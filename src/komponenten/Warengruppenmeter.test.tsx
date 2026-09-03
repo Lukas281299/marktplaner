@@ -103,6 +103,21 @@ describe('Meter je Warengruppe', () => {
     expect(within(zeile as HTMLElement).getByText('1,25')).toBeTruthy();
   });
 
+  it('bringt zugeordnete Meter zur Zielwarengruppe', async () => {
+    // Wer vier Meter „Kuchen" einzeichnet, obwohl dort auch Waffeln liegen,
+    // ordnet Waffeln dem Kuchen zu – dann steht in der Tabelle eine Zeile
+    // „Kuchen" mit allen Metern und keine halbe „Waffeln".
+    const kuchen = zug({ id: 'a', warengruppenUnten: [{ von: 0, bis: 250, text: 'Kuchen' }] });
+    const waffeln = zug({ id: 'b', warengruppenUnten: [{ von: 0, bis: 250, text: 'Waffeln' }] });
+    const plan = { ...projekt([kuchen, waffeln]), zuordnungen: { waffeln: 'Kuchen' } };
+
+    render(<Warengruppenmeter projekt={plan} />);
+    await userEvent.click(screen.getByText('Meter je Warengruppe'));
+    expect(screen.queryByText('Waffeln')).toBeNull();
+    const zeile = screen.getByText('Kuchen').closest('.meterzeile')!;
+    expect(within(zeile as HTMLElement).getByText('5,00')).toBeTruthy();
+  });
+
   it('ordnet nach den Abteilungen der Sortimentsliste', async () => {
     usePlanStore.setState({
       sortiment: {

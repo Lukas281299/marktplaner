@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { auslagenAnteil } from '../logik/auslagen';
-import { abteilungVon } from '../logik/sortiment';
+import { abteilungVon, zuordnungVon } from '../logik/sortiment';
 import {
   metersumme,
   OHNE_WARENGRUPPE,
@@ -45,8 +45,19 @@ interface Abteilungsblock {
 export function Warengruppenmeter({ projekt }: { projekt: Projekt }) {
   const sortiment = usePlanStore((s) => s.sortiment);
 
+  /**
+   * Zugeordnete Namen bringen ihre Meter dorthin, wo gerechnet wird.
+   *
+   * Wer vier Meter „Kuchen" einzeichnet, obwohl dort auch Waffeln liegen,
+   * ordnet Waffeln dem Kuchen zu – dann steht in der Tabelle eine Zeile
+   * „Kuchen" mit allen Metern und keine halbe „Waffeln".
+   */
   const zeilen = useMemo(
-    () => warengruppenmeter(projekt, { auslagen: auslagenAnteil }),
+    () =>
+      warengruppenmeter(projekt, {
+        auslagen: auslagenAnteil,
+        zugeordnetZu: (name) => zuordnungVon(projekt.zuordnungen, name),
+      }),
     [projekt],
   );
   const summe = useMemo(() => metersumme(zeilen), [zeilen]);

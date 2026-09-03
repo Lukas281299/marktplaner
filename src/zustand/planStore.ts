@@ -40,6 +40,7 @@ import {
   mitStand,
   pfadeUnter,
   type Standwert,
+  mitZuordnung,
 } from '../logik/sortiment';
 import {
   mitWarengruppen,
@@ -460,6 +461,8 @@ export interface PlanStore {
    * Der Zustand gehört zur Planung: Die Liste sagt, was es gibt, der Haken
    * sagt, was in **diesem** Markt daraus geworden ist.
    */
+  /** Ordnet eine Warengruppe einer anderen zu – `null` hebt es auf. */
+  setzeZuordnung(name: string, ziel: string | null): void;
   setzeSortimentsstand(pfad: string, wert: Standwert): void;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
@@ -499,6 +502,8 @@ export interface PlanStore {
    * Der Zustand gehört zur Planung: Die Liste sagt, was es gibt, der Haken
    * sagt, was in **diesem** Markt daraus geworden ist.
    */
+  /** Ordnet eine Warengruppe einer anderen zu – `null` hebt es auf. */
+  setzeZuordnung(name: string, ziel: string | null): void;
   setzeSortimentsstand(pfad: string, wert: Standwert): void;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
@@ -858,6 +863,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         ? offen.filter((n) => n !== name)
         : [...offen, name],
     });
+  },
+
+  setzeZuordnung(name, ziel) {
+    aendere(set, get, (p) => ({ ...p, zuordnungen: mitZuordnung(p.zuordnungen, name, ziel) }));
   },
 
   setzeSortimentsstand(pfad, wert) {

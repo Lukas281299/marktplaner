@@ -760,6 +760,34 @@ p .wg-punkt {
   font-weight: 600;
 }
 
+/*
+ * „→ Kuchen" hinter einem zugeordneten Namen.
+ *
+ * Leise und klein: Es ist keine zweite Warengruppe, sondern eine Bemerkung
+ * zu der davor. Anklickbar bleibt es, damit man die Zuordnung ändern kann,
+ * ohne erst in die Pflege zu wechseln.
+ */
+.wg-zuordnung {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 10.5px;
+  color: var(--text-schwach);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--rundung);
+}
+
+.wg-zuordnung:hover {
+  background: var(--flaeche-3);
+  color: var(--text);
+}
+
 .wg-werkzeug {
   flex: none;
   border: none;

@@ -260,6 +260,40 @@ export function kenntNamen(liste: Sortimentsliste, name: string): boolean {
 }
 
 /**
+ * Wem ein Name für die Rechnung zugeschlagen ist – oder `undefined`.
+ *
+ * Siehe `Projekt.zuordnungen`. Ein Name, der auf sich selbst zeigt, gilt als
+ * nicht zugeordnet: Das ist keine Aussage, sondern ein Versehen.
+ */
+export function zuordnungVon(
+  zuordnungen: Record<string, string> | undefined,
+  name: string,
+): string | undefined {
+  const ziel = zuordnungen?.[schluessel(name)]?.trim();
+  if (!ziel || schluessel(ziel) === schluessel(name)) return undefined;
+  return ziel;
+}
+
+/**
+ * Setzt eine Zuordnung oder nimmt sie weg.
+ *
+ * Ein leeres Ziel löscht den Eintrag, statt einen leeren Namen zu hinterlassen
+ * – sonst stünde in der Datei eine Zuordnung auf nichts.
+ */
+export function mitZuordnung(
+  zuordnungen: Record<string, string> | undefined,
+  name: string,
+  ziel: string | null,
+): Record<string, string> | undefined {
+  const key = schluessel(name);
+  const rest = { ...(zuordnungen ?? {}) };
+  const sauber = ziel?.trim();
+  if (!sauber || schluessel(sauber) === key) delete rest[key];
+  else rest[key] = sauber;
+  return Object.keys(rest).length > 0 ? rest : undefined;
+}
+
+/**
  * In welcher Abteilung ein Name steht.
  *
  * Gesucht wird auf beiden Stufen: Unter einen Zug schreibt man mal die

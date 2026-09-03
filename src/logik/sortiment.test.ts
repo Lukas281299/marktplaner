@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   abteilungsstand,
+  abteilungVon,
   gefiltert,
   gruppenstand,
   kenntNamen,
   leseSortimentsliste,
   mitAbteilung,
   mitAufgenommenem,
+  mitZuordnung,
   mitSortiment,
   mitWarengruppe,
   ohneAbteilung,
+  zuordnungVon,
   ohneSortiment,
   mitAbgehaktemNamen,
   mitStand,
@@ -390,5 +393,49 @@ describe('Eine überarbeitete Liste ergänzen', () => {
       sortimente: 0,
     });
     expect(vereinigt(liste, liste).liste).toEqual(liste);
+  });
+});
+
+describe('Zuordnung: welche Warengruppe zu welcher zählt', () => {
+  it('gibt das Ziel zurück, unabhängig von der Schreibweise', () => {
+    const z = { waffeln: 'Kuchen' };
+    expect(zuordnungVon(z, 'Waffeln')).toBe('Kuchen');
+    expect(zuordnungVon(z, '  WAFFELN ')).toBe('Kuchen');
+    expect(zuordnungVon(z, 'Kekse')).toBeUndefined();
+    expect(zuordnungVon(undefined, 'Waffeln')).toBeUndefined();
+  });
+
+  it('nimmt eine Zuordnung auf sich selbst nicht ernst', () => {
+    // Das ist keine Aussage, sondern ein Versehen – und im Rechenweg wäre es
+    // eine Schleife.
+    expect(zuordnungVon({ waffeln: 'Waffeln' }, 'Waffeln')).toBeUndefined();
+    expect(mitZuordnung(undefined, 'Waffeln', 'waffeln')).toBeUndefined();
+  });
+
+  it('setzt und löscht', () => {
+    const eins = mitZuordnung(undefined, 'Waffeln', 'Kuchen');
+    expect(eins).toEqual({ waffeln: 'Kuchen' });
+    const zwei = mitZuordnung(eins, 'Kekse', 'Kuchen');
+    expect(zwei).toEqual({ waffeln: 'Kuchen', kekse: 'Kuchen' });
+    expect(mitZuordnung(zwei, 'Kekse', null)).toEqual({ waffeln: 'Kuchen' });
+    // Die letzte Zuordnung weg heißt: gar kein Eintrag mehr, nicht ein
+    // leeres Objekt in jeder gespeicherten Datei.
+    expect(mitZuordnung(eins, 'Waffeln', '  ')).toBeUndefined();
+  });
+});
+
+describe('Abteilung eines Namens', () => {
+  const liste = {
+    abteilungen: [
+      { name: 'Backwaren', warengruppen: [{ name: 'Bake Off', sortimente: ['Croissants'] }] },
+    ],
+  };
+
+  it('findet ihn auf beiden Stufen', () => {
+    // Unter einen Zug schreibt man mal die Warengruppe und mal ein einzelnes
+    // Sortiment – beide gehören zur gleichen Abteilung.
+    expect(abteilungVon(liste, 'Bake Off')).toBe('Backwaren');
+    expect(abteilungVon(liste, 'croissants')).toBe('Backwaren');
+    expect(abteilungVon(liste, 'Kaffee')).toBeUndefined();
   });
 });
