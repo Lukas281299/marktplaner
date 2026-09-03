@@ -15,6 +15,7 @@ import { PlanImportDialog } from './PlanImportDialog';
 import { ExportDialog } from './ExportDialog';
 import { SyncDialog } from './SyncDialog';
 import { AssistentKnopf } from './Assistentenfenster';
+import { Aktionsgruppe, Werkzeuggruppe } from './Werkzeuggruppe';
 import {
   SymbolAbgleich,
   SymbolAneinander,
@@ -209,37 +210,53 @@ export function Werkzeugleiste() {
 
           <span className="trenner" />
 
-          <button
-            className="knopf"
-            onClick={() => void exportiereAlsJson(projekt)}
-            title="Projekt als JSON-Datei sichern – enthält alle Daten"
-          >
-            <SymbolExport /> <span className="knopf-text">JSON</span>
-          </button>
-          <button className="knopf" onClick={dateiAuswaehlen} title="Projektdateien einlesen – auch mehrere auf einmal">
-            <SymbolImport /> <span className="knopf-text">Import</span>
-          </button>
-          <button
-            className="knopf"
-            onClick={() => setDialog('planImport')}
-            title="Einen bestehenden Marktplan aus einem PDF einlesen"
-          >
-            <SymbolImport /> <span className="knopf-text">Plan</span>
-          </button>
-          <button
-            className="knopf"
-            onClick={() => exportierePng(projekt, store().ansicht)}
-            title="Plan als PNG-Bild speichern"
-          >
-            <SymbolBild /> <span className="knopf-text">Bild</span>
-          </button>
-          <button
-            className="knopf"
-            onClick={() => setDialog('ausgeben')}
-            title="Plan als PDF zum Drucken oder als SVG für eine andere Webanwendung"
-          >
-            <SymbolExport /> <span className="knopf-text">Ausgeben</span>
-          </button>
+          {/* Fünf Knöpfe hießen JSON, Import, Plan, Bild und Ausgeben – aus
+              den Namen ging nicht hervor, welcher was tut, und gebraucht wird
+              immer nur einer. Unter zwei Menüs steht dabei, was man bekommt. */}
+          <Aktionsgruppe
+            gruppe="Einlesen"
+            symbol={<SymbolImport />}
+            titel="Eine Planung oder einen fremden Plan einlesen"
+            eintraege={[
+              {
+                text: 'Projektdatei',
+                titel: 'Gesicherte Planungen einlesen – auch mehrere auf einmal',
+                symbol: <SymbolImport />,
+                tun: dateiAuswaehlen,
+              },
+              {
+                text: 'Marktplan aus PDF',
+                titel: 'Einen bestehenden Plan als Vorlage einlesen und nachbauen',
+                symbol: <SymbolImport />,
+                tun: () => setDialog('planImport'),
+              },
+            ]}
+          />
+          <Aktionsgruppe
+            gruppe="Ausgeben"
+            symbol={<SymbolExport />}
+            titel="Den Plan als Datei ausgeben"
+            eintraege={[
+              {
+                text: 'PDF oder SVG',
+                titel: 'Zum Drucken oder für eine andere Anwendung – mit Maßstab',
+                symbol: <SymbolExport />,
+                tun: () => setDialog('ausgeben'),
+              },
+              {
+                text: 'Bild (PNG)',
+                titel: 'Ein Abbild des Plans, so wie er gerade auf dem Schirm steht',
+                symbol: <SymbolBild />,
+                tun: () => exportierePng(projekt, store().ansicht),
+              },
+              {
+                text: 'Projektdatei (JSON)',
+                titel: 'Die vollständigen Daten – zum Weitergeben oder Wiedereinlesen',
+                symbol: <SymbolExport />,
+                tun: () => void exportiereAlsJson(projekt),
+              },
+            ]}
+          />
 
           <span className="trenner" />
 
@@ -377,12 +394,6 @@ export function Werkzeugleiste() {
           <button className="knopf knopf-nur-symbol" onClick={() => zoomen(1.25)} title="Vergrößern">
             <SymbolZoomPlus />
           </button>
-
-          <span className="trenner" />
-
-          <span className="hinweis" style={{ whiteSpace: 'nowrap' }}>
-            Leertaste + Ziehen verschiebt die Ansicht · Umschalt + Klick wählt mehrere aus
-          </span>
         </div>
 
         {/* ------------------------------------------- Zeile 3: Grundriss */}
@@ -420,83 +431,78 @@ export function Werkzeugleiste() {
           >
             <SymbolZeiger /> <span className="knopf-text">Bearbeiten</span>
           </button>
-          <button
-            className={`knopf${werkzeug === 'umriss' ? ' aktiv' : ''}`}
-            onClick={() => store().setzeWerkzeug(werkzeug === 'umriss' ? 'auswahl' : 'umriss')}
-            title="Ecken des Grundrisses ziehen, einfügen und entfernen"
-          >
-            <SymbolUmriss /> <span className="knopf-text">Umriss</span>
-          </button>
-
-          <button
-            className={`knopf${werkzeug === 'grundrissZeichnen' ? ' aktiv' : ''}`}
-            onClick={() =>
-              store().setzeWerkzeug(werkzeug === 'grundrissZeichnen' ? 'auswahl' : 'grundrissZeichnen')
-            }
-            title="Einen Grundriss frei zeichnen: Ecken setzen, ziehen ergibt einen Bogen"
-          >
-            <SymbolUmriss /> <span className="knopf-text">Frei</span>
-          </button>
-          <button
-            className={`knopf${werkzeug === 'flaecheAnfuegen' ? ' aktiv' : ''}`}
-            onClick={() =>
-              store().setzeWerkzeug(werkzeug === 'flaecheAnfuegen' ? 'auswahl' : 'flaecheAnfuegen')
-            }
-            title="Ein Rechteck aufziehen und zur Grundfläche hinzufügen – so entstehen zusammengesetzte Formen"
-          >
-            <SymbolFlaechePlus /> <span className="knopf-text">Anfügen</span>
-          </button>
-          <button
-            className={`knopf${werkzeug === 'flaecheAbziehen' ? ' aktiv' : ''}`}
-            onClick={() =>
-              store().setzeWerkzeug(werkzeug === 'flaecheAbziehen' ? 'auswahl' : 'flaecheAbziehen')
-            }
-            title="Ein Rechteck aus der Grundfläche herausschneiden"
-          >
-            <SymbolFlaecheMinus /> <span className="knopf-text">Abziehen</span>
-          </button>
+          {/* Vierzehn Werkzeuge nebeneinander brachen die Zeile um, und
+              zwischen „Umriss“, „Frei“, „Anfügen“ und „Abziehen“ musste man
+              jedes Mal neu suchen. Verwandtes liegt jetzt unter einem Knopf –
+              der zeigt, was man zuletzt genommen hat, der Pfeil den Rest. */}
+          <Werkzeuggruppe
+            gruppe="Gebäude"
+            eintraege={[
+              {
+                werkzeug: 'umriss',
+                text: 'Umriss',
+                symbol: <SymbolUmriss />,
+                titel: 'Ecken des Grundrisses ziehen, einfügen und entfernen',
+              },
+              {
+                werkzeug: 'grundrissZeichnen',
+                text: 'Frei zeichnen',
+                symbol: <SymbolUmriss />,
+                titel: 'Einen Grundriss neu aufziehen: Ecken setzen, ziehen ergibt einen Bogen',
+              },
+              {
+                werkzeug: 'flaecheAnfuegen',
+                text: 'Anfügen',
+                symbol: <SymbolFlaechePlus />,
+                titel: 'Ein Rechteck aufziehen und zur Grundfläche hinzufügen',
+              },
+              {
+                werkzeug: 'flaecheAbziehen',
+                text: 'Abziehen',
+                symbol: <SymbolFlaecheMinus />,
+                titel: 'Ein Rechteck aus der Grundfläche herausschneiden',
+              },
+            ]}
+          />
 
           <span className="trenner" />
 
-          <button
-            className={`knopf${werkzeug === 'raum' ? ' aktiv' : ''}`}
-            onClick={() => store().setzeWerkzeug(werkzeug === 'raum' ? 'auswahl' : 'raum')}
-            title="Einen rechteckigen Raum abtrennen: Lager, Kühlraum, Sozialraum …"
-          >
-            <SymbolRaum /> <span className="knopf-text">Raum</span>
-          </button>
-          <button
-            className={`knopf${werkzeug === 'raumZeichnen' ? ' aktiv' : ''}`}
-            onClick={() =>
-              store().setzeWerkzeug(werkzeug === 'raumZeichnen' ? 'auswahl' : 'raumZeichnen')
-            }
-            title="Einen Raum frei umfahren: Ecke für Ecke klicken, zum Schließen auf die erste"
-          >
-            <SymbolUmriss /> <span className="knopf-text">Raum frei</span>
-          </button>
-          <button
-            className={`knopf${werkzeug === 'wand' ? ' aktiv' : ''}`}
-            onClick={() => store().setzeWerkzeug(werkzeug === 'wand' ? 'auswahl' : 'wand')}
-            title="Wände ziehen – als Strich oder als Rechteck. Sie rasten an vorhandene Wände und Gebäudeecken ein."
-          >
-            <SymbolWand /> <span className="knopf-text">Wände</span>
-          </button>
-          <button
-            className={`knopf${werkzeug === 'wandZeichnen' ? ' aktiv' : ''}`}
-            onClick={() =>
-              store().setzeWerkzeug(werkzeug === 'wandZeichnen' ? 'auswahl' : 'wandZeichnen')
-            }
-            title="Eine Wand als Fläche umfahren – Ecke für Ecke wie bei einem Raum. Länge und Dicke ergeben sich aus dem Umriss, deshalb sind auch trapezförmige Zwickel möglich."
-          >
-            <SymbolUmriss /> <span className="knopf-text">Wandfläche</span>
-          </button>
-          <button
-            className={`knopf${werkzeug === 'foerderband' ? ' aktiv' : ''}`}
-            onClick={() => store().setzeWerkzeug(werkzeug === 'foerderband' ? 'auswahl' : 'foerderband')}
-            title="Ein Förderband frei führen: Knick für Knick klicken, Enter beendet"
-          >
-            <SymbolFoerderband /> <span className="knopf-text">Förderband</span>
-          </button>
+          <Werkzeuggruppe
+            gruppe="Raum"
+            eintraege={[
+              {
+                werkzeug: 'raum',
+                text: 'Raum',
+                symbol: <SymbolRaum />,
+                titel: 'Einen rechteckigen Raum abtrennen: Lager, Kühlraum, Sozialraum …',
+              },
+              {
+                werkzeug: 'raumZeichnen',
+                text: 'Raum frei',
+                symbol: <SymbolUmriss />,
+                titel: 'Einen Raum frei umfahren: Ecke für Ecke klicken, zum Schließen auf die erste',
+              },
+            ]}
+          />
+          <Werkzeuggruppe
+            gruppe="Wand"
+            eintraege={[
+              {
+                werkzeug: 'wand',
+                text: 'Wände',
+                symbol: <SymbolWand />,
+                titel:
+                  'Wände ziehen – als Strich oder als Rechteck. Sie rasten an vorhandene Wände und Gebäudeecken ein.',
+              },
+              {
+                werkzeug: 'wandZeichnen',
+                text: 'Wandfläche',
+                symbol: <SymbolUmriss />,
+                titel:
+                  'Eine Wand als Fläche umfahren – Länge und Dicke ergeben sich aus dem Umriss, deshalb sind auch trapezförmige Zwickel möglich.',
+              },
+            ]}
+          />
           <button
             className={`knopf${werkzeug === 'oeffnung' ? ' aktiv' : ''}`}
             onClick={() => store().setzeWerkzeug(werkzeug === 'oeffnung' ? 'auswahl' : 'oeffnung')}
@@ -504,6 +510,9 @@ export function Werkzeugleiste() {
           >
             <SymbolTuer /> <span className="knopf-text">Öffnung</span>
           </button>
+
+          <span className="trenner" />
+
           <button
             className={`knopf${werkzeug === 'verkaufsflaeche' ? ' aktiv' : ''}`}
             onClick={() =>
@@ -512,6 +521,13 @@ export function Werkzeugleiste() {
             title="Verkaufsfläche markieren: Ecken setzen, ziehen ergibt einen Bogen, Klick auf den Anfang schließt. Mehrere Teilflächen möglich."
           >
             <SymbolVerkaufsflaeche /> <span className="knopf-text">VK-Fläche</span>
+          </button>
+          <button
+            className={`knopf${werkzeug === 'foerderband' ? ' aktiv' : ''}`}
+            onClick={() => store().setzeWerkzeug(werkzeug === 'foerderband' ? 'auswahl' : 'foerderband')}
+            title="Ein Förderband frei führen: Knick für Knick klicken, Enter beendet"
+          >
+            <SymbolFoerderband /> <span className="knopf-text">Förderband</span>
           </button>
 
           <span className="trenner" />

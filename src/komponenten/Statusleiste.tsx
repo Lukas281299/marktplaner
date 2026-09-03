@@ -31,7 +31,13 @@ export function Statusleiste() {
         <span>
           {anzahl} {anzahl === 1 ? 'Element' : 'Elemente'}
         </span>
-        <span>{auswahl > 0 ? `${auswahl} ausgewählt` : 'nichts ausgewählt'}</span>
+        {/* Solange nichts ausgewählt ist, steht hier, wie man mehreres
+            auswählt. Der Hinweis stand vorher dauerhaft in der Werkzeugleiste
+            und kostete dort eine ganze Zeile – hier kostet er nichts und
+            steht genau dann da, wenn er zutrifft. */}
+        <span>
+          {auswahl > 0 ? `${auswahl} ausgewählt` : 'nichts ausgewählt · Umschalt + Klick wählt mehrere'}
+        </span>
         <span>Zoom: {Math.round(zoom * 100)} %</span>
         {syncZustand !== 'aus' && (
           <span

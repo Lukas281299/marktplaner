@@ -416,6 +416,144 @@ body {
   padding: 6px;
 }
 
+/* ======================================================= Werkzeuggruppen */
+
+/*
+ * Mehrere verwandte Werkzeuge unter einem Knopf: links das zuletzt
+ * benutzte, rechts ein Pfeil auf den Rest. Beide Teile sehen zusammen wie
+ * ein Knopf aus, damit man sie als eine Sache liest.
+ */
+.werkzeuggruppe {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.knopf-gruppe {
+  padding-right: 2px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.knopf-gruppenpfeil {
+  padding: 4px 4px 4px 2px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-schwach);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.knopf-gruppenpfeil.aktiv {
+  color: var(--blau-dunkel);
+}
+
+/* Beim Überfahren leuchtet die ganze Gruppe – sie gehört zusammen. */
+.werkzeuggruppe:hover .knopf:not(.aktiv) {
+  background: var(--flaeche-3);
+}
+
+.gruppenpfeil {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-schwach);
+}
+
+/*
+ * Das aufgeklappte Menü hängt am Fenster, nicht an der Leiste: Die trägt
+ * `overflow-y: auto`, und darin wäre das Menü an der Unterkante
+ * abgeschnitten. Die Lage rechnet die Komponente aus dem Knopf aus.
+ */
+.werkzeugmenue {
+  position: fixed;
+  z-index: 60;
+  width: 250px;
+  padding: 4px;
+  background: var(--flaeche);
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  box-shadow: 0 8px 24px rgba(20, 30, 45, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.werkzeugmenue-titel {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-schwach);
+  padding: 3px 8px 5px;
+}
+
+.werkzeugmenue-zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--rundung);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.werkzeugmenue-zeile:hover {
+  background: var(--flaeche-3);
+}
+
+.werkzeugmenue-zeile.aktiv {
+  background: var(--blau-hell);
+  border-color: #bcd9f0;
+  color: var(--blau-dunkel);
+}
+
+.werkzeugmenue-symbol {
+  display: flex;
+  padding-top: 1px;
+  color: var(--text-schwach);
+}
+
+.werkzeugmenue-zeile.aktiv .werkzeugmenue-symbol {
+  color: var(--blau-dunkel);
+}
+
+.werkzeugmenue-symbol svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.werkzeugmenue-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.werkzeugmenue-text strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Der Nebensatz erklärt, was das Werkzeug tut – dafür war in der Leiste
+   kein Platz, und ein Tooltip liest niemand, der noch sucht. */
+.werkzeugmenue-text span {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-schwach);
+}
+
+.werkzeugmenue-zeile.aktiv .werkzeugmenue-text span {
+  color: var(--blau-dunkel);
+  opacity: 0.8;
+}
+
 /* =========================================================== Bibliothek */
 
 /*
