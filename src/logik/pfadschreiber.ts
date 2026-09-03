@@ -16,10 +16,12 @@
  * Damit gibt es weiterhin **eine** Quelle für jedes Symbol. Ein neues Möbel
  * erscheint in der Vektorausgabe von selbst, ohne dass jemand daran denkt.
  *
- * Ein Bogen wird in SVG als `A` geschrieben. Ein voller Kreis geht damit
- * nicht in einem Zug – ein Bogen von 360° hat Anfangs- und Endpunkt an
- * derselben Stelle, und SVG zeichnet dann gar nichts. Deshalb werden volle
- * Umläufe in zwei Hälften zerlegt.
+ * **Bögen werden zu Bézierkurven.** SVG kennt zwar einen eigenen Bogenbefehl,
+ * PDF aber nicht – dort gibt es nur Strecken und kubische Kurven. Damit beide
+ * Ausgaben denselben Pfad benutzen können und nicht zwei Fassungen entstehen,
+ * wird jeder Bogen schon hier in Kurvenstücke von höchstens 90° zerlegt. Der
+ * Fehler dieser Näherung liegt bei einem Zehntausendstel des Halbmessers; bei
+ * einem Regal von zwei Metern sind das zwei Hundertstel Millimeter.
  */
 
 /**
@@ -51,6 +53,25 @@ function aufEllipse(
   const x = rx * Math.cos(winkel);
   const y = ry * Math.sin(winkel);
   return [cx + x * cos - y * sin, cy + x * sin + y * cos];
+}
+
+/**
+ * Die Richtung, in die eine gedrehte Ellipse an dieser Stelle läuft.
+ *
+ * Gebraucht für die Griffe der Bézierkurven: Eine Kurve bildet einen Bogen
+ * nur dann sauber nach, wenn ihre Griffe genau auf den Tangenten liegen.
+ */
+function tangente(
+  rx: number,
+  ry: number,
+  drehung: number,
+  winkel: number,
+): [number, number] {
+  const cos = Math.cos(drehung);
+  const sin = Math.sin(drehung);
+  const dx = -rx * Math.sin(winkel);
+  const dy = ry * Math.cos(winkel);
+  return [dx * cos - dy * sin, dx * sin + dy * cos];
 }
 
 export class Pfadschreiber {
@@ -98,6 +119,27 @@ export class Pfadschreiber {
     if (this.begonnen) this.teile.push('Z');
   }
 
+  /** Eine Strecke, ohne den Ursprungsersatz von `lineTo`. */
+  private strecke(x: number, y: number): void {
+    this.teile.push(`L ${z(x)} ${z(y)}`);
+    this.x = x;
+    this.y = y;
+  }
+
+  /** Eine kubische Kurve – die einzige Krümmung, die auch PDF kennt. */
+  private kurve(
+    g1x: number,
+    g1y: number,
+    g2x: number,
+    g2y: number,
+    x: number,
+    y: number,
+  ): void {
+    this.teile.push(`C ${z(g1x)} ${z(g1y)} ${z(g2x)} ${z(g2y)} ${z(x)} ${z(y)}`);
+    this.x = x;
+    this.y = y;
+  }
+
   arc(
     cx: number,
     cy: number,
@@ -140,24 +182,26 @@ export class Pfadschreiber {
     // Die Leinwand zieht eine Linie zum Bogenanfang, wenn schon ein Pfad
     // läuft. Ohne das hinge jeder Kreis frei in der Luft, und aus einer
     // durchgezogenen Kontur würden lauter Bruchstücke.
-    if (this.begonnen) this.teile.push(`L ${z(startX)} ${z(startY)}`);
+    if (this.begonnen) this.strecke(startX, startY);
     else this.moveTo(startX, startY);
 
-    const grad = (drehung * 180) / Math.PI;
-    const richtung = spanne >= 0 ? 1 : 0;
+    // In Stücken von höchstens 90°: Darüber wird die Näherung durch eine
+    // kubische Kurve sichtbar ungenau.
+    const stuecke = Math.max(1, Math.ceil(Math.abs(spanne) / (Math.PI / 2)));
+    const schritt = spanne / stuecke;
+    // Der Griffabstand einer Kurve, die einen Bogen von `schritt` nachbildet.
+    const griff = (4 / 3) * Math.tan(schritt / 4);
 
-    // In Halbkreisen: Ein Bogen von genau 360° hätte Anfang und Ende am
-    // selben Punkt, und SVG zeichnete nichts. Ein voller Umlauf wird so zu
-    // genau zwei Hälften; bei genau 180° ist der Bogen eindeutig, weil die
-    // Laufrichtung ihn bestimmt.
-    const stuecke = Math.max(1, Math.ceil(Math.abs(spanne) / Math.PI));
-    for (let i = 1; i <= stuecke; i++) {
-      const winkel = von + (spanne * i) / stuecke;
-      const [px, py] = aufEllipse(cx, cy, rx, ry, drehung, winkel);
-      const gross = Math.abs(spanne / stuecke) > Math.PI ? 1 : 0;
-      this.teile.push(`A ${z(rx)} ${z(ry)} ${z(grad)} ${gross} ${richtung} ${z(px)} ${z(py)}`);
-      this.x = px;
-      this.y = py;
+    let winkel = von;
+    for (let i = 0; i < stuecke; i++) {
+      const naechster = winkel + schritt;
+      const [x1, y1] = aufEllipse(cx, cy, rx, ry, drehung, winkel);
+      const [x2, y2] = aufEllipse(cx, cy, rx, ry, drehung, naechster);
+      // Die Ableitung der Ellipse an beiden Enden gibt die Richtung der Griffe.
+      const [ax, ay] = tangente(rx, ry, drehung, winkel);
+      const [bx, by] = tangente(rx, ry, drehung, naechster);
+      this.kurve(x1 + ax * griff, y1 + ay * griff, x2 - bx * griff, y2 - by * griff, x2, y2);
+      winkel = naechster;
     }
     this.begonnen = true;
   }
@@ -208,10 +252,21 @@ export class Pfadschreiber {
     const kreuz = (x1 - x0) * (y2 - y1) - (y1 - y0) * (x2 - x1);
     const richtung = kreuz > 0 ? 1 : 0;
 
-    this.teile.push(`L ${z(t1[0])} ${z(t1[1])}`);
-    this.teile.push(`A ${z(r)} ${z(r)} 0 0 ${richtung} ${z(t2[0])} ${z(t2[1])}`);
-    this.x = t2[0];
-    this.y = t2[1];
+    this.strecke(t1[0], t1[1]);
+    // Der Mittelpunkt des Berührkreises liegt auf der Winkelhalbierenden.
+    const mx = (t1[0] + t2[0]) / 2 - x1;
+    const my = (t1[1] + t2[1]) / 2 - y1;
+    const laenge = Math.hypot(mx, my) || 1;
+    const zurMitte = r / Math.sin(winkel / 2);
+    const cx = x1 + (mx / laenge) * zurMitte;
+    const cy = y1 + (my / laenge) * zurMitte;
+    const vonWinkel = Math.atan2(t1[1] - cy, t1[0] - cx);
+    let bisWinkel = Math.atan2(t2[1] - cy, t2[0] - cx);
+    // Über den kurzen Weg – der Bogen einer abgerundeten Ecke ist immer der
+    // kleinere der beiden.
+    if (richtung === 1 && bisWinkel < vonWinkel) bisWinkel += Math.PI * 2;
+    if (richtung === 0 && bisWinkel > vonWinkel) bisWinkel -= Math.PI * 2;
+    this.ellipse(cx, cy, r, r, 0, vonWinkel, bisWinkel, richtung === 0);
   }
 
   /** Fängt einen neuen Pfad an – das Bisherige bleibt stehen. */

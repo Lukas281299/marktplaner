@@ -248,3 +248,102 @@ export async function bauePdf(auftrag: PdfAuftrag): Promise<Blob> {
 
   return s.abschluss(6, 1);
 }
+
+
+/**
+ * Ein PDF aus Vektorbefehlen statt aus einem Bild.
+ *
+ * Das ist der Unterschied, um den es geht: Bisher steckte im PDF ein
+ * Rasterbild – so scharf wie der Bildschirm im Augenblick des Exports und
+ * keinen Punkt schärfer. Auf A1 sah man das sofort. Jetzt stehen Linien im
+ * PDF, und die sind bei jeder Vergrößerung scharf.
+ *
+ * Der Aufbau ist derselbe kleine wie beim Bildexport, nur ohne Bild und
+ * dafür mit zwei Zusätzen: den Durchsichtigkeitsstufen (in PDF ein eigener
+ * Zustand, keine Eigenschaft der Farbe) und einer Schrift mit
+ * WinAnsi-Kodierung, damit Umlaute ankommen.
+ */
+export interface PdfVektorauftrag {
+  /** Die fertigen Zeichenbefehle, in Punkten. */
+  inhalt: string;
+  /** Blattmaße in Millimetern, schon im richtigen Format. */
+  breiteMm: number;
+  hoeheMm: number;
+  /** Die Durchsichtigkeitsstufen, die im Inhalt als /GS0, /GS1 … vorkommen. */
+  deckkraft: number[];
+  titel?: string;
+}
+
+/**
+ * Text so kodieren, wie das PDF ihn erwartet: **ein Byte je Zeichen**.
+ *
+ * Die Schrift ist mit `/WinAnsiEncoding` angemeldet – dort ist „ß" das Byte
+ * 0xDF und „ü" das Byte 0xFC. `TextEncoder` schreibt dagegen UTF-8, also zwei
+ * Bytes, und der Leser zeigt daraufhin zwei Zeichen an: Aus „Maßstab" wurde
+ * „MaÃŸstab". Das ist im gerenderten PDF sofort aufgefallen.
+ *
+ * WinAnsi und Latin-1 stimmen im hier gebrauchten Bereich überein; die paar
+ * Sonderzeichen zwischen 0x80 und 0x9F stehen in der Tabelle.
+ */
+const WINANSI_SONDER: Record<number, number> = {
+  0x20ac: 0x80, 0x201a: 0x82, 0x0192: 0x83, 0x201e: 0x84, 0x2026: 0x85,
+  0x2020: 0x86, 0x2021: 0x87, 0x02c6: 0x88, 0x2030: 0x89, 0x0160: 0x8a,
+  0x2039: 0x8b, 0x0152: 0x8c, 0x017d: 0x8e, 0x2018: 0x91, 0x2019: 0x92,
+  0x201c: 0x93, 0x201d: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
+  0x02dc: 0x98, 0x2122: 0x99, 0x0161: 0x9a, 0x203a: 0x9b, 0x0153: 0x9c,
+  0x017e: 0x9e, 0x0178: 0x9f,
+};
+
+export function winAnsiBytes(text: string): Uint8Array {
+  const bytes = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code < 0x100) bytes[i] = code;
+    else if (WINANSI_SONDER[code] !== undefined) bytes[i] = WINANSI_SONDER[code];
+    // Alles, was WinAnsi nicht kennt, wird ein Fragezeichen. Ein falsches
+    // Zeichen ist besser als ein verschobener Rest der Zeile.
+    else bytes[i] = 0x3f;
+  }
+  return bytes;
+}
+
+export function bauePdfVektor(auftrag: PdfVektorauftrag): Blob {
+  const breite = (auftrag.breiteMm / 10) * PUNKTE_JE_CM;
+  const hoehe = (auftrag.hoeheMm / 10) * PUNKTE_JE_CM;
+  const inhalt = winAnsiBytes(auftrag.inhalt);
+
+  // Jede Durchsichtigkeitsstufe wird ein eigenes kleines Objekt. `ca` gilt
+  // fürs Füllen, `CA` fürs Strichen – beide gleich, sonst sähe ein blasser
+  // Raum mit kräftigem Rand seltsam aus.
+  const ersteStufe = 7;
+  const stufen = auftrag.deckkraft.map((wert, i) => ({
+    name: `GS${i}`,
+    nummer: ersteStufe + i,
+    wert,
+  }));
+  const gsEintraege = stufen.map((g) => `/${g.name} ${g.nummer} 0 R`).join(' ');
+
+  const s = new Schreiber();
+  s.text('%PDF-1.4\n');
+  s.roh(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]));
+
+  s.objekt(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  s.objekt(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  s.objekt(
+    3,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${breite.toFixed(2)} ${hoehe.toFixed(2)}] ` +
+      `/Resources << /Font << /Helv 6 0 R >>` +
+      (stufen.length > 0 ? ` /ExtGState << ${gsEintraege} >>` : '') +
+      ` >> /Contents 4 0 R >>`,
+  );
+  s.stromObjekt(4, '', inhalt);
+  // Objekt 5 bleibt frei – so bleibt die Nummerierung dieselbe wie beim
+  // Bildexport, und beide Wege lassen sich nebeneinander lesen.
+  s.objekt(5, '<< >>');
+  s.objekt(6, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  for (const g of stufen) {
+    s.objekt(g.nummer, `<< /Type /ExtGState /ca ${g.wert} /CA ${g.wert} >>`);
+  }
+
+  return s.abschluss(6 + stufen.length, 1);
+}

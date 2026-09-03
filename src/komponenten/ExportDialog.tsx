@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { nimmPlanAuf } from '../logik/planAufnahme';
-import { bauePdf, PAPIERE, type Papier } from '../logik/pdf';
+import { bauePdf, bauePdfVektor, PAPIERE, type Papier } from '../logik/pdf';
+import { MASSSTAEBE, passtAufsBlatt, pdfInhalt } from '../logik/planblatt';
+import { planAlsVektor } from '../logik/planvektor';
 import { baueBeispielseite, baueWebSvg } from '../logik/webExport';
 import { berechneFlaechen } from '../logik/flaechen';
 import { dateinameAus, ladeDateiHerunter } from '../speicher/projektArchiv';
@@ -26,7 +28,8 @@ const GUETEN = [
 export function ExportDialog({ schliessen }: { schliessen: () => void }) {
   const projekt = usePlanStore((s) => s.projekt);
 
-  const [art, setArt] = useState<'pdf' | 'web'>('pdf');
+  const [art, setArt] = useState<'vektor' | 'pdf' | 'web'>('vektor');
+  const [massstab, setMassstab] = useState<number>(100);
   const [papier, setPapier] = useState<Papier>(PAPIERE[1]);
   const [quer, setQuer] = useState(true);
   const [guete, setGuete] = useState(GUETEN[1]);
@@ -37,10 +40,43 @@ export function ExportDialog({ schliessen }: { schliessen: () => void }) {
 
   const uebersicht = berechneFlaechen(projekt);
 
+  const blattmasse = {
+    breiteMm: quer ? papier.hoehe : papier.breite,
+    hoeheMm: quer ? papier.breite : papier.hoehe,
+    randMm: 10,
+  };
+  // Nur für die Vorschau im Dialog – die Ausgabe rechnet noch einmal neu.
+  const probe = passtAufsBlatt(planAlsVektor(projekt), blattmasse, massstab);
+
   const ausgeben = async () => {
     setLaeuft(true);
     setMeldung('Der Plan wird gezeichnet …');
     try {
+      if (art === 'vektor') {
+        const name = dateinameAus(projekt.name);
+        const { inhalt, deckkraft } = pdfInhalt({
+          projekt,
+          blatt: blattmasse,
+          massstab,
+          schriftfeld: {
+            markt: projekt.name,
+            zusatz:
+              `Verkaufsfläche ${(uebersicht.verkaufsflaeche / 10000).toFixed(0)} m² · ` +
+              `${projekt.elemente.length} Möbel`,
+            datum: new Date().toLocaleDateString('de-DE'),
+          },
+        });
+        const blatt = bauePdfVektor({
+          inhalt,
+          breiteMm: blattmasse.breiteMm,
+          hoeheMm: blattmasse.hoeheMm,
+          deckkraft,
+        });
+        ladeDateiHerunter(blatt, `${name}.pdf`);
+        setMeldung(`Fertig: ${name}.pdf (${Math.round(blatt.size / 1024)} kB, Maßstab 1:${massstab})`);
+        return;
+      }
+
       const aufnahme = await nimmPlanAuf(guete.kante);
       if (!aufnahme) {
         setMeldung('Der Plan ließ sich nicht aufnehmen. Ist ein Grundriss angelegt?');
@@ -111,17 +147,23 @@ export function ExportDialog({ schliessen }: { schliessen: () => void }) {
             Schließen
           </button>
           <button className="knopf knopf-haupt" onClick={() => void ausgeben()} disabled={laeuft}>
-            {laeuft ? 'Einen Moment …' : art === 'pdf' ? 'PDF speichern' : 'SVG speichern'}
+            {laeuft ? 'Einen Moment …' : art === 'web' ? 'SVG speichern' : 'PDF speichern'}
           </button>
         </>
       }
     >
       <div className="knopfreihe" style={{ marginBottom: 'var(--abstand-3)' }}>
         <button
+          className={`knopf${art === 'vektor' ? ' aktiv' : ''}`}
+          onClick={() => setArt('vektor')}
+        >
+          PDF – maßstäblich
+        </button>
+        <button
           className={`knopf${art === 'pdf' ? ' aktiv' : ''}`}
           onClick={() => setArt('pdf')}
         >
-          PDF – zum Drucken
+          PDF – als Bild
         </button>
         <button
           className={`knopf${art === 'web' ? ' aktiv' : ''}`}
@@ -131,7 +173,69 @@ export function ExportDialog({ schliessen }: { schliessen: () => void }) {
         </button>
       </div>
 
-      {art === 'pdf' ? (
+      {art === 'vektor' ? (
+        <>
+          <div className="feld-zeile">
+            <div className="feld">
+              <label>Maßstab</label>
+              <select value={massstab} onChange={(e) => setMassstab(Number(e.target.value))}>
+                {MASSSTAEBE.map((m) => (
+                  <option key={m} value={m}>
+                    1:{m}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="feld">
+              <label>Papier</label>
+              <select
+                value={papier.name}
+                onChange={(e) =>
+                  setPapier(PAPIERE.find((p) => p.name === e.target.value) ?? PAPIERE[1])
+                }
+              >
+                {PAPIERE.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    {p.name} ({p.breite} × {p.hoehe} mm)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="feld">
+              <label>Ausrichtung</label>
+              <select value={quer ? 'quer' : 'hoch'} onChange={(e) => setQuer(e.target.value === 'quer')}>
+                <option value="quer">Querformat</option>
+                <option value="hoch">Hochformat</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Ob es passt, steht **vor** dem Ausgeben da. Sonst probiert man
+              Maßstab und Format so lange durch, bis es zufällig hinkommt. */}
+          {probe.passt ? (
+            <p className="hinweis" style={{ marginTop: 0 }}>
+              Passt: Der Plan braucht {probe.brauchtBreiteMm.toFixed(0)} × {probe.brauchtHoeheMm.toFixed(0)} mm
+              auf {papier.name} {quer ? 'quer' : 'hoch'}.
+            </p>
+          ) : (
+            <p className="hinweis" style={{ marginTop: 0, color: 'var(--hilfslinie)' }}>
+              Passt nicht: Der Plan bräuchte {probe.brauchtBreiteMm.toFixed(0)} ×{' '}
+              {probe.brauchtHoeheMm.toFixed(0)} mm.{' '}
+              {probe.empfehlung
+                ? `Mit 1:${probe.empfehlung} geht es, oder nimm ein größeres Blatt.`
+                : 'Nimm ein größeres Blatt.'}
+            </p>
+          )}
+
+          <p className="hinweis">
+            <strong>Echte Linien statt eines Bildes.</strong> Der Plan bleibt bei jeder
+            Vergrößerung scharf, die Datei ist klein, und der Maßstab steht im Schriftfeld –
+            man kann auf dem Ausdruck mit dem Lineal nachmessen. Dazu Legende und
+            Maßstabsbalken; der Balken gilt auch dann noch, wenn ein Kopierer den Plan
+            heimlich verkleinert hat.
+          </p>
+        </>
+      ) : art === 'pdf' ? (
         <>
           <div className="feld-zeile">
             <div className="feld">
@@ -196,27 +300,34 @@ export function ExportDialog({ schliessen }: { schliessen: () => void }) {
         </>
       )}
 
-      <div className="feld-zeile" style={{ marginTop: 'var(--abstand-3)' }}>
-        <div className="feld">
-          <label>Auflösung</label>
-          <select
-            value={guete.name}
-            onChange={(e) => setGuete(GUETEN.find((g) => g.name === e.target.value) ?? GUETEN[1])}
-          >
-            {GUETEN.map((g) => (
-              <option key={g.name} value={g.name}>
-                {g.name} – {g.hinweis}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Auflösung und Aufnahme betreffen nur die Wege, die ein Bild vom
+          Bildschirm abnehmen. Der maßstäbliche Plan wird gerechnet, nicht
+          fotografiert – dort gäbe es keine Auflösung einzustellen. */}
+      {art !== 'vektor' && (
+        <>
+          <div className="feld-zeile" style={{ marginTop: 'var(--abstand-3)' }}>
+            <div className="feld">
+              <label>Auflösung</label>
+              <select
+                value={guete.name}
+                onChange={(e) => setGuete(GUETEN.find((g) => g.name === e.target.value) ?? GUETEN[1])}
+              >
+                {GUETEN.map((g) => (
+                  <option key={g.name} value={g.name}>
+                    {g.name} – {g.hinweis}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      <p className="hinweis">
-        Beim Ausgeben zoomt der Plan kurz auf Normalgröße und springt danach zurück. Das muss sein:
-        Beschriftungen werden nur gezeichnet, wenn sie auch lesbar wären — herausgezoomt käme ein
-        Plan ohne Warengruppen heraus.
-      </p>
+          <p className="hinweis">
+            Beim Ausgeben zoomt der Plan kurz auf Normalgröße und springt danach zurück. Das muss
+            sein: Beschriftungen werden nur gezeichnet, wenn sie auch lesbar wären — herausgezoomt
+            käme ein Plan ohne Warengruppen heraus.
+          </p>
+        </>
+      )}
     </Dialog>
   );
 }

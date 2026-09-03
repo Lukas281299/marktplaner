@@ -15,7 +15,7 @@ import type { Grundform } from '../typen/modell';
 
 /** Zerlegt einen Pfad in seine Befehle. */
 function befehle(d: string): string[] {
-  return d.match(/[MLAZ]/g) ?? [];
+  return d.match(/[MLCZ]/g) ?? [];
 }
 
 /** Alle Zahlen eines Pfades. */
@@ -45,12 +45,13 @@ describe('Pfadschreiber', () => {
     expect(s.d).toBe('M 0 0 L 30 40');
   });
 
-  it('zerlegt einen vollen Kreis in zwei Bögen', () => {
-    // Ein Bogen über 360 Grad hat Anfang und Ende am selben Punkt. SVG
-    // zeichnet dann gar nichts – der Kreis wäre spurlos verschwunden.
+  it('zerlegt einen vollen Kreis in vier Viertel', () => {
+    // Ein Bogen wird als Bézierkurve geschrieben, damit PDF und SVG denselben
+    // Pfad benutzen können. Über 90 Grad hinaus wird die Näherung sichtbar
+    // ungenau – ein voller Kreis sind also vier Stücke.
     const s = new Pfadschreiber();
     s.arc(50, 50, 10, 0, Math.PI * 2);
-    expect(befehle(s.d).filter((b) => b === 'A')).toHaveLength(2);
+    expect(befehle(s.d).filter((b) => b === 'C')).toHaveLength(4);
   });
 
   it('fängt einen Kreis ohne Ausdehnung ab', () => {
@@ -68,10 +69,10 @@ describe('Pfadschreiber', () => {
     mit.arc(50, 50, 10, 0, Math.PI * 2, false);
     const gegen = new Pfadschreiber();
     gegen.arc(50, 50, 10, 0, Math.PI * 2, true);
-    // Das Kennzeichen im SVG-Bogen ist die vierte Zahl vor dem Zielpunkt.
-    expect(mit.d).toContain('0 1 ');
-    expect(gegen.d).toContain('0 0 ');
     expect(mit.d).not.toBe(gegen.d);
+    // Beide laufen einmal herum, nur andersherum: gleich viele Stücke,
+    // verschiedene Zwischenpunkte.
+    expect(befehle(mit.d)).toEqual(befehle(gegen.d));
   });
 
   it('lässt einen Kreis gegen den Uhrzeigersinn nicht verschwinden', () => {
@@ -82,10 +83,10 @@ describe('Pfadschreiber', () => {
     // Leinwand.
     const s = new Pfadschreiber();
     s.arc(50, 50, 10, 0, Math.PI * 2, true);
-    const boegen = befehle(s.d).filter((b) => b === 'A');
-    expect(boegen).toHaveLength(2);
-    // Gegenrichtung heißt Kennzeichen 0, sonst wäre es kein Loch.
-    expect(s.d).toContain(' 0 0 ');
+    expect(befehle(s.d).filter((b) => b === 'C')).toHaveLength(4);
+    // Und wirklich einmal herum: Der oberste Punkt der Ellipse muss dabei
+    // vorkommen, sonst wäre es nur ein Stück davon.
+    expect(s.d).toContain('50 40');
   });
 
   it('rundet eine rechtwinklige Ecke wirklich ab', () => {
@@ -96,14 +97,14 @@ describe('Pfadschreiber', () => {
     const s = new Pfadschreiber();
     s.moveTo(260, 10);
     s.arcTo(260, 140, 130, 140, 130);
-    expect(s.d).toContain('A 130 130');
+    expect(befehle(s.d)).toContain('C');
   });
 
   it('rundet eine Ecke ab, statt sie spitz zu lassen', () => {
     const s = new Pfadschreiber();
     s.moveTo(0, 50);
     s.arcTo(0, 0, 50, 0, 10);
-    expect(s.d).toContain('A 10 10');
+    expect(befehle(s.d)).toContain('C');
   });
 
   it('macht aus einer Ecke ohne Platz für den Bogen eine spitze Ecke', () => {
@@ -111,7 +112,7 @@ describe('Pfadschreiber', () => {
     const s = new Pfadschreiber();
     s.moveTo(0, 5);
     s.arcTo(0, 0, 5, 0, 99);
-    expect(s.d).not.toContain('A');
+    expect(befehle(s.d)).not.toContain('C');
   });
 
   it('erzeugt nur endliche Zahlen', () => {
