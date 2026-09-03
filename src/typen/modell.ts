@@ -944,6 +944,17 @@ export interface Hintergrund {
 export interface Projekt {
   id: string;
   name: string;
+  /**
+   * Der Ordner, in dem diese Planung liegt – oder nichts.
+   *
+   * Eine Ebene, kein Baum: Ein Markt bekommt einen Ordner, und darin liegen
+   * seine Planungen – Bestand, Umbau, Variante. Verschachtelte Ordner würden
+   * das Suchen nicht kürzer machen, sondern nur das Anlegen länger.
+   *
+   * Fehlt der Ordner, steht die Planung unter „Ohne Ordner". Das ist keine
+   * Notlösung, sondern der Normalfall für alles, was man schnell anlegt.
+   */
+  ordner?: string;
   /** Schemaversion, damit spätere Versionen alte Dateien umwandeln können. */
   version: number;
   erstelltAm: number;

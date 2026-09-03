@@ -55,6 +55,7 @@ export async function listeProjekte(): Promise<ProjektInfo[]> {
     .map((p) => ({
       id: p.id,
       name: p.name,
+      ordner: p.ordner,
       erstelltAm: p.erstelltAm,
       geaendertAm: p.geaendertAm,
       anzahlElemente: p.elemente.length,
@@ -96,6 +97,39 @@ export async function benenneProjektUm(id: string, name: string): Promise<Projek
   const neu = { ...projekt, name: name.trim() || projekt.name };
   await speichereProjekt(neu);
   return neu;
+}
+
+/**
+ * Verschiebt eine Planung in einen Ordner – oder wieder heraus.
+ *
+ * Der Ordner ist nur ein Name am Projekt; es wird nichts umkopiert. Deshalb
+ * geht auch das Umbenennen eines Ordners einfach dadurch, dass man alle
+ * Planungen darin auf den neuen Namen setzt.
+ *
+ * `geaendertAm` wird **nicht** angefasst: Wohin eine Planung einsortiert ist,
+ * ist keine Änderung an der Planung. Sonst stünde sie nach dem Aufräumen in
+ * der Liste ganz oben, als hätte jemand daran gearbeitet.
+ */
+export async function verschiebeProjekt(
+  id: string,
+  ordner: string | undefined,
+): Promise<Projekt | undefined> {
+  const datenbank = await db();
+  const projekt = await datenbank.get('projekte', id);
+  if (!projekt) return undefined;
+  const sauber = ordner?.trim();
+  const neu = { ...projekt, ordner: sauber ? sauber : undefined };
+  await datenbank.put('projekte', neu);
+  return neu;
+}
+
+/** Alle Ordner, in denen wirklich etwas liegt – nach Namen sortiert. */
+export async function listeOrdner(): Promise<string[]> {
+  const alle = await listeProjekte();
+  const namen = new Set(
+    alle.map((p) => p.ordner?.trim()).filter((o): o is string => Boolean(o)),
+  );
+  return [...namen].sort((a, b) => a.localeCompare(b, 'de'));
 }
 
 export async function kopiereProjekt(id: string): Promise<Projekt | undefined> {

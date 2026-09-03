@@ -23,6 +23,8 @@ import type { BibliothekEintrag } from '../typen/modell';
 export interface Verzeichniseintrag {
   id: string;
   name: string;
+  /** In welchem Ordner sie liegt – siehe `Projekt.ordner`. */
+  ordner?: string;
   erstelltAm: number;
   geaendertAm: number;
   anzahlElemente: number;
