@@ -192,9 +192,57 @@ export function wandleProjekt(roh: unknown): Projekt {
       .map(aufsMeterband)
       // Fassung 18: aus der Palette wird der Unterbau.
       .map(ausPaletteWirdUnterbau)
+      // Fassung 19: aus der Notiz „5+" wird eine Zahl.
+      .map(bodenzahlAusNotiz)
       // Fassung 17: ganz zuletzt, wenn Felder, Maße und Seiten stehen.
       .map(ziehBezeichnungNach),
   });
+}
+
+/**
+ * Fassung 19: Die Bodenzahl zieht aus der Notiz in ein eigenes Feld.
+ *
+ * Bis hierher stand sie als „5+" in der ersten Zeile von `Regalfeld.notiz`,
+ * zusammen mit allem anderen, was man sich dort notiert. Lesen ließ sich das,
+ * rechnen nicht: Für die Meter je Warengruppe muss das Programm wissen, wie
+ * viele Auslagen ein Feld trägt, und ein Text sagt es ihm nicht.
+ *
+ * **Umgeschrieben wird nur eine Zeile, die aus nichts als der Zahl besteht** –
+ * „5", „5+", „10+". Alles andere bleibt unangetastet im Text stehen: „5+/6+"
+ * meint zwei Seiten, „5+ 1K" meint Böden und Körbe in einer Zeile. Wer daraus
+ * eine Zahl machte, entschiede an Stelle des Planers. Solche Felder bekommen
+ * keine Zahl, zeichnen sich wie bisher und lassen sich mit einem Handgriff
+ * nachtragen.
+ *
+ * Am Bild ändert der Schritt nichts: Was vorher die erste Textzeile war, setzt
+ * `feldzeilen` jetzt aus der Zahl wieder davor.
+ */
+const NUR_BODENZAHL = /^(\d{1,2})\s*\+?$/;
+
+function bodenzahlAusNotiz(element: PlanElement): PlanElement {
+  const wandle = (felder?: Regalfeld[]): Regalfeld[] | undefined => {
+    if (!felder) return felder;
+    let geaendert = false;
+    const neu = felder.map((feld) => {
+      // Wer schon eine Zahl trägt, wird nicht angefasst – sonst äße der Schritt
+      // beim nächsten Laden auch noch die erste echte Notizzeile auf.
+      if (!feld || feld.boeden !== undefined || !feld.notiz) return feld;
+      const zeilen = feld.notiz.split('\n');
+      const treffer = zeilen[0]?.trim().match(NUR_BODENZAHL);
+      if (!treffer) return feld;
+      const zahl = Number(treffer[1]);
+      if (!Number.isFinite(zahl) || zahl <= 0) return feld;
+      geaendert = true;
+      const rest = zeilen.slice(1).join('\n').trim();
+      return { ...feld, boeden: zahl, notiz: rest || undefined };
+    });
+    return geaendert ? neu : felder;
+  };
+
+  const unten = wandle(element.felderUnten);
+  const oben = wandle(element.felderOben);
+  if (unten === element.felderUnten && oben === element.felderOben) return element;
+  return { ...element, felderUnten: unten, felderOben: oben };
 }
 
 /**
@@ -507,7 +555,8 @@ function ergaenzeEbenen(vorhanden: unknown): Ebene[] {
   const alte = new Map(mitgebracht.map((e) => [e.id, e]));
   const standard = STANDARD_EBENEN.map((e) => alte.get(e.id) ?? { ...e });
   const bekannt = new Set(STANDARD_EBENEN.map((e) => e.id));
-  // Fassung 19: Die Ebene „Laufwege" fliegt raus.
+  // Die Ebene „Laufwege" fliegt raus – bei jedem Laden, ohne eigene
+  // Fassungsnummer: Es geht nichts verloren, was jemand eingezeichnet hätte.
   //
   // Sie stand in jedem Projekt, aber es gab kein Werkzeug, das darauf
   // zeichnet – im ganzen Programm kam sie nur an der Stelle vor, an der sie

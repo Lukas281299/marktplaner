@@ -6,7 +6,7 @@ import { KASSE_BAND, KASSE_FEST, KASSE_KOPF, KASSE_PLATZ } from '../../logik/kas
 import { achsmassZeichen } from '../../logik/achsmass';
 import { laeuftRueckwaerts, lesbar } from '../../logik/beschriftung';
 import { feldliste } from '../../logik/feldaufteilung';
-import { masszeilen, notizZeilen } from '../../logik/feldnotiz';
+import { feldzeilen, masszeilen } from '../../logik/feldnotiz';
 import { formatiereFlaeche } from '../../logik/masse';
 import {
   felderVon,
@@ -351,7 +351,7 @@ export function zeichneFeldnotizen(
       // Wo kein Regal steht, steht auch keine Notiz.
       if (platz.feld.leer) continue;
 
-      const zeilenLinks = kennzahlen ?? notizZeilen(platz.feld.notiz);
+      const zeilenLinks = kennzahlen ?? feldzeilen(platz.feld);
 
       // Gewendet wird um die Mitte des Felds: Die Notiz bleibt dadurch in
       // ihrem Feld und steht auf dem Bildschirm wieder links oben.

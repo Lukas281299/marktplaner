@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bodentiefeMm, masszeilen, notizZeilen } from './feldnotiz';
+import { bodentiefeMm, feldzeilen, masszeilen, notizZeilen } from './feldnotiz';
 
 /**
  * Prüfungen für die Notizen in den Regalfeldern.
@@ -9,6 +9,36 @@ import { bodentiefeMm, masszeilen, notizZeilen } from './feldnotiz';
  * die Notizen beim Umbauen wandern, prüft `regalseiten.test.ts`: Dort liegen
  * sie am Feld.
  */
+
+describe('Zeilen im Feld', () => {
+  it('setzt die Bodenzahl vor die Notiz', () => {
+    expect(feldzeilen({ boeden: 5, notiz: '1K' })).toEqual(['5+', '1K']);
+  });
+
+  it('schreibt dasselbe wie früher der Text', () => {
+    // Die Zusage der Umstellung: Am Bild ändert sich nichts. Links oben im
+    // Feld steht weiter „5+", nur kommt es jetzt aus einer Zahl.
+    expect(feldzeilen({ boeden: 5, notiz: '1K' })).toEqual(notizZeilen('5+\n1K'));
+  });
+
+  it('lässt die Zahl weg, wenn keine da ist', () => {
+    expect(feldzeilen({ notiz: '1K' })).toEqual(['1K']);
+    expect(feldzeilen({ boeden: 0, notiz: '1K' })).toEqual(['1K']);
+    expect(feldzeilen({})).toEqual([]);
+  });
+
+  it('zeichnet auch mit Zahl höchstens drei Zeilen', () => {
+    // Sonst schöbe die Zahl die dritte Notizzeile aus dem Feld heraus und
+    // niemand sähe, dass da noch etwas steht.
+    expect(feldzeilen({ boeden: 5, notiz: 'a\nb\nc' })).toEqual(['5+', 'a', 'b']);
+  });
+
+  it('rundet eine krumme Zahl', () => {
+    // Eingetippt wird sie ganzzahlig; käme aus einer alten Datei etwas
+    // anderes, stünde sonst „4.5+" im Feld.
+    expect(feldzeilen({ boeden: 4.5 })).toEqual(['5+']);
+  });
+});
 
 describe('Zeilen einer Notiz', () => {
   it('trennt an Zeilenumbrüchen', () => {

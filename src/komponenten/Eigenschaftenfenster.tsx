@@ -1938,6 +1938,36 @@ function Feldeingaben({
           position: 'relative',
         }}
       >
+        {/*
+          Die Bodenzahl steht in einem eigenen Feld und nicht mehr in der
+          Notiz.
+
+          Im Plan sieht es aus wie vorher – die Zahl erscheint weiter als
+          „5+" in der ersten Zeile. Aber nur als Zahl lässt sich damit
+          rechnen: Die Meter je Warengruppe brauchen die Auslagen, und ein
+          Text, in dem auch „1K" und „Aktion" stehen können, gibt sie nicht
+          her.
+        */}
+        <input
+          type="number"
+          min={0}
+          max={99}
+          step={1}
+          style={{ width: 46, fontSize: 12, textAlign: 'right' }}
+          value={eintrag.boeden ?? ''}
+          disabled={Boolean(eintrag.leer)}
+          placeholder="—"
+          title={
+            'Wie viele Böden dieses Feld trägt. Steht im Plan als „5+" links ' +
+            'oben im Feld und zählt in den tatsächlichen Metern. Was unter ' +
+            'den Böden steht, zählt eigenständig als eine weitere Auslage.'
+          }
+          onFocus={() => usePlanStore.getState().schnappschuss()}
+          onChange={(e) => {
+            const zahl = Math.round(Number(e.target.value));
+            setze({ boeden: Number.isFinite(zahl) && zahl > 0 ? zahl : undefined });
+          }}
+        />
         <textarea
           // So hoch, wie die Notiz Zeilen hat – nicht höher. Ein Zug aus
           // sechs Feldern hatte sonst allein hier ein halbes Fenster.
@@ -1955,13 +1985,14 @@ function Feldeingaben({
               ? 'frei'
               : mehrere
                 ? seite === 'oben'
-                  ? 'Rückseite — 5+ / 1K'
-                  : 'Vorderseite — 5+ / 1K'
-                : '5+\n1K'
+                  ? 'Rückseite — Notiz'
+                  : 'Vorderseite — Notiz'
+                : '1K\nAktion'
           }
           title={
-            'Erste Zeile: Zahl der Böden. Darunter bis zu zwei weitere Zeilen, ' +
-            'etwa 1K für Körbe. Höhe und Tiefe stehen automatisch rechts im Feld.'
+            'Was sonst noch in diesem Feld steht – bis zu zwei Zeilen, etwa ' +
+            '1K für Körbe. Die Bodenzahl steht im Feld davor, Höhe und Tiefe ' +
+            'schreibt der Plan von selbst rechts hinein.'
           }
           onFocus={() => usePlanStore.getState().schnappschuss()}
           onChange={(e) => setze({ notiz: e.target.value || undefined })}

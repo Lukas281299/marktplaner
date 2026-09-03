@@ -1,4 +1,4 @@
-import type { Grundform, PlanElement } from '../typen/modell';
+import type { Grundform, PlanElement, Regalfeld } from '../typen/modell';
 
 /**
  * Was in einem Regalfeld steht.
@@ -37,6 +37,23 @@ export function notizZeilen(text: string | undefined): string[] {
     .map((zeile) => zeile.trim())
     .filter(Boolean)
     .slice(0, NOTIZ_ZEILEN);
+}
+
+/**
+ * Die Zeilen, die links oben im Feld stehen.
+ *
+ * Erst die Bodenzahl, dann die eigenen Notizzeilen – genau die Reihenfolge,
+ * die vorher von Hand getippt wurde. Am Bild ändert sich dadurch nichts; die
+ * erste Zeile kommt nur nicht mehr aus dem Text, sondern aus einer Zahl, mit
+ * der sich rechnen lässt.
+ *
+ * Solange ein Feld noch keine Zahl trägt, gilt der Text unverändert. Alte
+ * Planungen zeichnen sich dadurch wie bisher, auch bevor sie umgestellt sind.
+ */
+export function feldzeilen(feld: Pick<Regalfeld, 'boeden' | 'notiz'>): string[] {
+  const eigene = notizZeilen(feld.notiz);
+  if (!feld.boeden || feld.boeden <= 0) return eigene;
+  return [`${Math.round(feld.boeden)}+`, ...eigene].slice(0, NOTIZ_ZEILEN);
 }
 
 /** Die Bodentiefen, die es im wire-tech-System gibt, in cm. */

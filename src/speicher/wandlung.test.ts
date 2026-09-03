@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WT_GRAU } from '../daten/bibliothek';
+import { feldzeilen, notizZeilen } from '../logik/feldnotiz';
 import { flaeche, rahmen } from '../logik/polygon';
 import { STANDARD_EBENEN } from '../daten/standardProjekt';
 import { SCHEMA_VERSION } from '../typen/modell';
@@ -311,8 +312,12 @@ describe('Fassung 9: jede Gondelseite mit eigener Feldeinteilung', () => {
       felder: [100, 100],
       feldnotizen: [{ unten: '5+' }, { oben: '4+', unten: '1K' }],
     });
-    expect(el.felderUnten?.map((f) => f.notiz)).toEqual(['5+', '1K']);
-    expect(el.felderOben?.map((f) => f.notiz)).toEqual([undefined, '4+']);
+    // Die reinen Bodenzahlen zieht Fassung 19 weiter in `boeden` – im Feld
+    // steht danach dasselbe, nur nicht mehr als Text.
+    expect(el.felderUnten?.map((f) => f.boeden)).toEqual([5, undefined]);
+    expect(el.felderUnten?.map((f) => f.notiz)).toEqual([undefined, '1K']);
+    expect(el.felderOben?.map((f) => f.boeden)).toEqual([undefined, 4]);
+    expect(el.felderOben?.map((f) => f.notiz)).toEqual([undefined, undefined]);
   });
 
   it('wandelt nicht zweimal', () => {
@@ -630,7 +635,96 @@ describe('Fassung 18 · Aus der Palette wird der Unterbau', () => {
   });
 });
 
-describe('Fassung 19 · Die Ebene „Laufwege" fällt weg', () => {
+describe('Fassung 19 · Aus „5+" in der Notiz wird eine Zahl', () => {
+  const mitNotizen = (...notizen: (string | undefined)[]) =>
+    alteFassung({
+      version: 18,
+      waende: [],
+      oeffnungen: [],
+      elemente: [
+        {
+          id: 'el1',
+          vorlageId: 'wt100',
+          ebeneId: 'einrichtung',
+          name: 'Wandregal',
+          beschriftung: 'Wandregal',
+          kategorie: 'regale',
+          form: 'wt100',
+          x: 500,
+          y: 500,
+          breite: 100 * notizen.length,
+          tiefe: 70,
+          hoehe: 220,
+          drehung: 0,
+          farbe: WT_GRAU,
+          gesperrt: false,
+          reihenfolge: 1,
+          beschriftungSichtbar: true,
+          schriftgroesse: 12,
+          felderUnten: notizen.map((notiz) => ({ breite: 100, notiz })),
+        },
+      ],
+    });
+
+  const felder = (...notizen: (string | undefined)[]) =>
+    wandleProjekt(mitNotizen(...notizen)).elemente[0].felderUnten!;
+
+  it('nimmt die Zahl heraus und lässt den Rest stehen', () => {
+    const [feld] = felder('5+\n1K');
+    expect(feld.boeden).toBe(5);
+    expect(feld.notiz).toBe('1K');
+  });
+
+  it('versteht die Zahl auch ohne Pluszeichen und zweistellig', () => {
+    expect(felder('5')[0].boeden).toBe(5);
+    expect(felder('10+')[0].boeden).toBe(10);
+  });
+
+  it('räumt die Notiz ganz weg, wenn nur die Zahl darin stand', () => {
+    const [feld] = felder('6+');
+    expect(feld.boeden).toBe(6);
+    // Ein leerer Text wäre eine Notiz, die es nicht gibt – die Eingabe zeigte
+    // dann einen Cursor in einem Feld, in dem nichts steht.
+    expect(feld.notiz).toBeUndefined();
+  });
+
+  it('lässt alles stehen, was mehr als eine Zahl ist', () => {
+    // „5+/6+" meint zwei Seiten, „5+ 1K" meint Böden und Körbe in einer
+    // Zeile. Wer daraus eine Zahl machte, entschiede an Stelle des Planers.
+    for (const text of ['5+/6+', '5+ 1K', '1K', 'Aktion', '5+ ?']) {
+      const [feld] = felder(text);
+      expect(feld.boeden, text).toBeUndefined();
+      expect(feld.notiz, text).toBe(text);
+    }
+  });
+
+  it('greift nur in die erste Zeile', () => {
+    const [feld] = felder('1K\n5+');
+    expect(feld.boeden).toBeUndefined();
+    expect(feld.notiz).toBe('1K\n5+');
+  });
+
+  it('wandelt nicht zweimal', () => {
+    // Sonst äße der zweite Durchgang die erste echte Notizzeile mit auf.
+    const einmal = wandleProjekt(mitNotizen('5+\n1K'));
+    const zweimal = wandleProjekt(einmal as unknown as Record<string, unknown>);
+    const feld = zweimal.elemente[0].felderUnten![0];
+    expect(feld.boeden).toBe(5);
+    expect(feld.notiz).toBe('1K');
+  });
+
+  it('zeichnet danach dieselben Zeilen wie vorher', () => {
+    // Die eigentliche Zusage: Am Bild ändert sich nichts. Was vorher die
+    // erste Textzeile war, setzt `feldzeilen` aus der Zahl wieder davor.
+    for (const text of ['5+\n1K', '10+', '1K\nAktion', '5+/6+']) {
+      const vorher = notizZeilen(text);
+      const nachher = feldzeilen(felder(text)[0]);
+      expect(nachher, text).toEqual(vorher);
+    }
+  });
+});
+
+describe('Die Ebene „Laufwege" fällt weg', () => {
   it('nimmt sie aus einer vorhandenen Planung heraus', () => {
     // Sie stand in jedem Projekt, ohne dass ein Werkzeug darauf zeichnen
     // konnte – eine Zeile in der Liste, die nichts konnte.

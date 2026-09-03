@@ -261,6 +261,25 @@ export interface Regalfeld {
    * hängt.
    */
   leer?: boolean;
+  /**
+   * Wie viele Böden dieses Feld trägt.
+   *
+   * **Eine Zahl und keine Notiz.** Bis hierher stand die Bodenzahl als „5+"
+   * in der ersten Zeile von `notiz`, zusammen mit allem anderen, was man sich
+   * dort notiert. Das ließ sich lesen, aber nicht rechnen: Für die Meter je
+   * Warengruppe muss das Programm wissen, wie viele Auslagen ein Feld hat,
+   * und ein Text sagt es ihm nicht.
+   *
+   * Im Plan ändert sich dadurch nichts – die Zahl erscheint weiter als „5+"
+   * in der ersten Zeile des Feldes, nur kommt sie jetzt von hier statt aus
+   * dem Text.
+   *
+   * Gezählt werden die Auslagen, auf denen Ware liegt. Steht unter dem Feld
+   * eine Palette oder eine Kiste, zählt die als eine weitere Auslage – die
+   * kommt aus `unterbau` und muss hier nicht mitgezählt werden.
+   */
+  boeden?: number;
+
   /** Bis zu drei Zeilen, die im Feld stehen – siehe `logik/feldnotiz.ts`. */
   notiz?: string;
 
@@ -1060,4 +1079,4 @@ export interface Projekt {
  * Auswahl von Möbeln, statt sie an ein einzelnes Feld zu hängen. Ein neues
  * Feld ohne Umwandlung: Was nicht dasteht, gibt es nicht.
  */
-export const SCHEMA_VERSION = 18;
+export const SCHEMA_VERSION = 19;
