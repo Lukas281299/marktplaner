@@ -1253,6 +1253,85 @@ details.erklaerung[open] > summary {
   font-weight: 600;
 }
 
+/* ================================================= Meter je Warengruppe */
+
+/* Zugeklappt eine Zeile wie jede Kennzahl, aufgeklappt eine Tabelle. Die
+   Übersicht ist lang genug; was nicht jeder ständig braucht, soll nicht
+   dauerhaft Platz kosten. */
+.warengruppenmeter > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--abstand-2);
+  padding: 3px 0;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px dotted var(--rand);
+}
+
+.warengruppenmeter[open] > summary {
+  border-bottom: 1px solid var(--rand);
+  margin-bottom: 4px;
+}
+
+.metertabelle {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Drei Spalten: Name, laufende Meter, tatsächliche Meter. Die Zahlen stehen
+   rechtsbündig untereinander – nur so lassen sie sich vergleichen. */
+.meterzeile {
+  display: grid;
+  grid-template-columns: 1fr 4.2em 4.6em;
+  gap: var(--abstand-2);
+  padding: 2px 0;
+}
+
+.meterzeile > span:not(:first-child) {
+  text-align: right;
+}
+
+.meterzeile.kopf {
+  color: var(--text-schwach);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--rand);
+}
+
+.meterzeile.summe {
+  border-top: 1px solid var(--rand);
+  margin-top: 3px;
+  padding-top: 4px;
+  font-weight: 600;
+}
+
+/* Die Meter ohne Namen sind kein Sortiment – sie stehen leiser da, damit sie
+   nicht wie eine Warengruppe aussehen. */
+.meterzeile.namenlos {
+  color: var(--text-schwach);
+  font-style: italic;
+}
+
+.meterabteilung {
+  margin-top: 6px;
+  color: var(--text-schwach);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.meterluecke {
+  color: #b4690e;
+  font-size: 10px;
+}
+
+.meterhinweis {
+  margin-top: 6px;
+  color: var(--text-schwach);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 /* ============================================================ Statusleiste */
 
 .statusleiste {

@@ -40,6 +40,17 @@ export interface Streckenmeter {
   element: PlanElement;
   /** Welche Seite – bei einer Gondel gibt es zwei. */
   seite: 'unten' | 'oben';
+  /**
+   * Anfang der Strecke in cm, gemessen ab dem Anfang dieser Möbelseite.
+   *
+   * Dieselbe Achse, in der auch die Felder liegen. Wer die Auslagen Feld für
+   * Feld gewichten will, braucht die Stelle und nicht nur die Länge: Ein Zug
+   * trägt vorn fünf und hinten sechs Böden, und eine Warengruppe läuft über
+   * beide.
+   */
+  von: number;
+  /** Ende der Strecke, ebenso gemessen. */
+  bis: number;
 }
 
 /**
@@ -66,7 +77,7 @@ export function strecken(projekt: Projekt): Streckenmeter[] {
       for (const a of geordnet(abschnitte, breite)) {
         const name = a.text.trim();
         if (!name) continue;
-        aus.push({ name, laenge: a.bis - a.von, element, seite });
+        aus.push({ name, laenge: a.bis - a.von, element, seite, von: a.von, bis: a.bis });
       }
     }
   }
@@ -106,8 +117,27 @@ export function unbeschriftet(element: PlanElement): number {
   return offen;
 }
 
-/** Wie viele Auslagen ein Möbel je laufendem Meter trägt. */
-export type Auslagenzahl = (element: PlanElement, seite: 'unten' | 'oben') => number | undefined;
+/** Was eine Strecke an tatsächlichen Metern trägt. */
+export interface Auslagenanteil {
+  /** Tatsächliche Meter dieser Strecke, in cm. */
+  tatsaechlich: number;
+  /**
+   * Länge in cm, für die keine Auslagenzahl bekannt ist.
+   *
+   * Nicht dasselbe wie null Auslagen: Ein leeres Feld trägt nachweislich
+   * nichts, ein Möbel ohne eingetragene Bodenzahl trägt etwas Unbekanntes.
+   */
+  ohne: number;
+}
+
+/**
+ * Wie viele Auslagen eine Strecke trägt.
+ *
+ * Nimmt die ganze Strecke und nicht nur das Möbel: Eine Warengruppe deckt
+ * selten das ganze Möbel ab, und die Felder darunter können sich
+ * unterscheiden. Siehe `logik/auslagen.ts`.
+ */
+export type Auslagenzahl = (strecke: Streckenmeter) => Auslagenanteil | undefined;
 
 /** Eine Zeile der Auswertung. */
 export interface Warengruppenzeile {
@@ -181,11 +211,16 @@ export function warengruppenmeter(
     zeile.laufend += strecke.laenge;
     zeile.strecken++;
 
-    const auslagen = optionen.auslagen?.(strecke.element, strecke.seite);
-    if (auslagen === undefined || !Number.isFinite(auslagen)) {
+    const anteil = optionen.auslagen?.(strecke);
+    if (!anteil) {
       zeile.ohneAuslagen += strecke.laenge;
     } else {
-      zeile.tatsaechlich = (zeile.tatsaechlich ?? 0) + strecke.laenge * auslagen;
+      // Eine Zahl bekommt die Zeile, sobald auch nur ein Stück der Strecke
+      // bekannt ist – und daneben steht, wie viel davon noch offen war.
+      if (anteil.ohne < strecke.laenge - 0.005) {
+        zeile.tatsaechlich = (zeile.tatsaechlich ?? 0) + anteil.tatsaechlich;
+      }
+      zeile.ohneAuslagen += anteil.ohne;
     }
   }
 

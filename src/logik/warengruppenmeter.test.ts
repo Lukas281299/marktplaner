@@ -6,6 +6,7 @@ import {
   strecken,
   unbeschriftet,
   warengruppenmeter,
+  type Streckenmeter,
 } from './warengruppenmeter';
 import { berechneRegalmeter } from './flaechen';
 import type { PlanElement, Projekt } from '../typen/modell';
@@ -185,7 +186,7 @@ describe('Zeilen der Auswertung', () => {
   it('rechnet tatsächliche Meter aus den Auslagen', () => {
     // Ein Meter Regal mit fünf Böden sind fünf tatsächliche Meter.
     const el = element({ warengruppenUnten: [{ von: 0, bis: 250, text: 'Kaffee' }] });
-    const zeilen = warengruppenmeter(projekt([el]), { auslagen: () => 5 });
+    const zeilen = warengruppenmeter(projekt([el]), { auslagen: fest(5) });
     const kaffee = zeilen.find((z) => z.name === 'Kaffee')!;
     expect(kaffee.laufend).toBe(2.5);
     expect(kaffee.tatsaechlich).toBe(12.5);
@@ -205,7 +206,7 @@ describe('Zeilen der Auswertung', () => {
     const gut = element({ id: 'a', warengruppenUnten: [{ von: 0, bis: 250, text: 'Kaffee' }] });
     const offen = element({ id: 'b', warengruppenUnten: [{ von: 0, bis: 125, text: 'Kaffee' }] });
     const zeilen = warengruppenmeter(projekt([gut, offen]), {
-      auslagen: (el) => (el.id === 'a' ? 4 : undefined),
+      auslagen: (s) => (s.element.id === 'a' ? fest(4)(s) : undefined),
     });
     const kaffee = zeilen.find((z) => z.name === 'Kaffee')!;
     expect(kaffee.laufend).toBe(3.75);
@@ -262,11 +263,16 @@ describe('Zuordnung einer Warengruppe zu einer anderen', () => {
   });
 });
 
+/** Eine feste Auslagenzahl für die ganze Strecke – nur zum Prüfen. */
+function fest(zahl: number) {
+  return (s: Streckenmeter) => ({ tatsaechlich: s.laenge * zahl, ohne: 0 });
+}
+
 describe('Summen', () => {
   it('zählt zusammen, was in der Tabelle steht', () => {
     const a = element({ id: 'a', warengruppenUnten: [{ von: 0, bis: 250, text: 'Kaffee' }] });
     const b = element({ id: 'b', warengruppenUnten: [{ von: 0, bis: 125, text: 'Tee' }] });
-    const zeilen = warengruppenmeter(projekt([a, b]), { auslagen: () => 4 });
+    const zeilen = warengruppenmeter(projekt([a, b]), { auslagen: fest(4) });
     const summe = metersumme(zeilen);
     // 2,50 + 1,25 beschriftet, dazu 1,25 unbeschriftet auf dem zweiten Möbel.
     expect(summe.laufend).toBe(5);

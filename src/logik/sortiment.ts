@@ -260,6 +260,25 @@ export function kenntNamen(liste: Sortimentsliste, name: string): boolean {
 }
 
 /**
+ * In welcher Abteilung ein Name steht.
+ *
+ * Gesucht wird auf beiden Stufen: Unter einen Zug schreibt man mal die
+ * Warengruppe und mal ein einzelnes Sortiment, und beide gehören zur
+ * gleichen Abteilung. Steht der Name nirgends, kommt `undefined` heraus –
+ * dann ist er von Hand geschrieben und noch nicht eingeordnet.
+ */
+export function abteilungVon(liste: Sortimentsliste, name: string): string | undefined {
+  const gesucht = schluessel(name);
+  for (const abteilung of liste.abteilungen) {
+    for (const gruppe of abteilung.warengruppen) {
+      if (schluessel(gruppe.name) === gesucht) return abteilung.name;
+      if (gruppe.sortimente.some((s) => schluessel(s) === gesucht)) return abteilung.name;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Nimmt einen Namen in die Liste auf.
  *
  * Ohne Angabe landet er unter „Eigene". Wer ihn später richtig einordnen

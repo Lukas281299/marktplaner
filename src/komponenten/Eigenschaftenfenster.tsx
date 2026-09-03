@@ -76,6 +76,7 @@ import {
   SymbolSchloss,
 } from './Symbole';
 import { Spaltenschalter, Spaltenstreifen } from './Spaltengriffe';
+import { Warengruppenmeter } from './Warengruppenmeter';
 
 const FORMEN: { wert: Grundform; text: string }[] = [
   { wert: 'rechteck', text: 'Rechteck' },
@@ -1964,8 +1965,13 @@ function Feldeingaben({
           }
           onFocus={() => usePlanStore.getState().schnappschuss()}
           onChange={(e) => {
-            const zahl = Math.round(Number(e.target.value));
-            setze({ boeden: Number.isFinite(zahl) && zahl > 0 ? zahl : undefined });
+            // Leer heißt „nicht eingetragen", eine Null heißt „keine Böden" –
+            // etwa dort, wo nur eine Palette steht. Beides muss man sagen
+            // können, sonst fehlt der Auswertung die Hälfte der Wahrheit.
+            const roh = e.target.value.trim();
+            const zahl = Math.round(Number(roh));
+            const gueltig = roh !== '' && Number.isFinite(zahl) && zahl >= 0;
+            setze({ boeden: gueltig ? Math.min(99, zahl) : undefined });
           }}
         />
         <textarea
@@ -2968,6 +2974,10 @@ function ProjektEigenschaften() {
             {regalmeter.toLocaleString('de-DE', { maximumFractionDigits: 1 })} lfm
           </span>
         </div>
+
+        {/* Dieselbe Zahl, aufgeschlüsselt: Wie viel Platz bekommt welches
+            Sortiment? Zugeklappt kostet sie eine Zeile. */}
+        <Warengruppenmeter projekt={projekt} />
 
         {/* Obst und Gemüse zählt anders als der Rest: nicht in Metern,
             sondern in Kisten. Die Zahl steht nur da, wenn sie jemand
