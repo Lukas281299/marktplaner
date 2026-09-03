@@ -42,6 +42,7 @@ import {
   SymbolImport,
   SymbolKopieren,
   SymbolLoeschen,
+  SymbolLupe,
   SymbolMagnet,
   SymbolNeu,
   SymbolOeffnen,
@@ -70,6 +71,7 @@ export function Werkzeugleiste() {
   const syncZustand = useSyncStore((s) => s.zustand);
   const werkzeug = usePlanStore((s) => s.werkzeug);
   const linkerReiter = usePlanStore((s) => s.linkerReiter);
+  const sucheOffen = usePlanStore((s) => s.sucheOffen);
   /** Steckt in der Auswahl mindestens ein Regal, das zu einer Gruppe gehört? */
   const auswahlHatGruppe = usePlanStore((s) =>
     s.projekt.elemente.some((el) => s.auswahl.includes(el.id) && el.gruppeId),
@@ -393,6 +395,18 @@ export function Werkzeugleiste() {
           </button>
           <button className="knopf knopf-nur-symbol" onClick={() => zoomen(1.25)} title="Vergrößern">
             <SymbolZoomPlus />
+          </button>
+
+          <span className="trenner" />
+
+          {/* Der Knopf steht neben dem Zoom, weil beides dasselbe Ziel hat:
+              die richtige Stelle des Plans vor Augen zu bekommen. */}
+          <button
+            className={`knopf${sucheOffen ? ' aktiv' : ''}`}
+            onClick={() => store().setzeSucheOffen(!sucheOffen)}
+            title="Etwas im Plan suchen – Name, Warengruppe, Sortiment oder Notiz (Strg+F)"
+          >
+            <SymbolLupe /> <span className="knopf-text">Suchen</span>
           </button>
         </div>
 

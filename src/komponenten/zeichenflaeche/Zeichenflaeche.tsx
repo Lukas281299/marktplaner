@@ -6,6 +6,7 @@ import { Group, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva'
 import { TEXTFELD_VORLAGE, findeVorlage } from '../../daten/bibliothek';
 import { bogenPunkte, entdoppele, taugtAlsUmriss } from '../../logik/bogen';
 import { buehneSteuerung } from '../../logik/buehne';
+import { Plansuche } from '../Plansuche';
 import {
   berechneAbstaende,
   bestimmeEinrastung,
@@ -364,11 +365,35 @@ export function Zeichenflaeche() {
     });
   }, [groesse, setzeAnsicht]);
 
-  // Werkzeugleiste und Bild-Export brauchen Zugriff auf diese Funktionen.
+  /**
+   * Einen Punkt des Plans in die Mitte holen – für die Suche.
+   *
+   * Der Zoom wird nur **angehoben**, nie gesenkt: Wer weit herausgezoomt hat,
+   * um den ganzen Markt zu überblicken, will nicht bei jedem Treffer
+   * hineingerissen werden. Umgekehrt nützt ein Treffer nichts, den man bei
+   * 8 % Zoom nicht erkennt.
+   */
+  const zeigeAuf = useCallback(
+    (punkt: { x: number; y: number }, mindestZoom = 0.45) => {
+      if (groesse.breite < 200 || groesse.hoehe < 200) return;
+      const jetzt = usePlanStore.getState().ansicht.zoom;
+      const zoom = Math.min(ZOOM_MAX, Math.max(jetzt, mindestZoom));
+      setzeAnsicht({
+        zoom,
+        x: groesse.breite / 2 - punkt.x * zoom,
+        y: groesse.hoehe / 2 - punkt.y * zoom,
+      });
+    },
+    [groesse, setzeAnsicht],
+  );
+
+  // Werkzeugleiste, Bild-Export und Suche brauchen Zugriff auf diese
+  // Funktionen.
   useEffect(() => {
     buehneSteuerung.buehne = buehneRef.current;
     buehneSteuerung.einpassen = einpassen;
-  }, [einpassen]);
+    buehneSteuerung.zeigeAuf = zeigeAuf;
+  }, [einpassen, zeigeAuf]);
 
   // Beim Öffnen eines anderen Projekts die Ansicht neu ausrichten.
   // Das geschieht erst, wenn die Zeichenfläche eine brauchbare Größe hat.
@@ -1850,6 +1875,8 @@ export function Zeichenflaeche() {
           {meldung}
         </div>
       )}
+
+      <Plansuche />
 
       <div className="zoom-leiste">
         <button

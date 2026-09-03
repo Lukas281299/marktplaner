@@ -356,6 +356,13 @@ export interface PlanStore {
    */
   linkerReiter: 'bibliothek' | 'warengruppen';
   /**
+   * Ist die Suche über der Zeichenfläche offen?
+   *
+   * Gehört nicht zur Planung, sondern zur Sitzung: Nach dem Neuladen fängt
+   * man ohne offene Suche an, und das ist richtig so.
+   */
+  sucheOffen: boolean;
+  /**
    * Ist die Projektleiste rechts aufgeklappt?
    *
    * Sie ist gut dreihundert Punkte breit, und beim Zeichnen eines großen
@@ -443,6 +450,8 @@ export interface PlanStore {
   setzeWarengruppenPinsel(name: string | null): void;
   /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
   setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
+  /** Öffnet oder schließt die Suche über der Zeichenfläche. */
+  setzeSucheOffen(offen: boolean): void;
   /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
   schalteAbteilung(name: string): void;
   /**
@@ -758,6 +767,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   warengruppenPinsel: null,
   warengruppenMarkierung: [],
   linkerReiter: 'bibliothek',
+  sucheOffen: false,
   linkeSpalteOffen: true,
   rechteSpalteOffen: true,
   spaltenbreite: { links: SPALTE_STANDARD.links, rechts: SPALTE_STANDARD.rechts },
@@ -835,6 +845,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // Beim Wegschalten den Pinsel weglegen: Ein Klick auf ein Regal soll
     // nicht Wochen später noch eine Warengruppe schreiben.
     set(reiter === 'warengruppen' ? { linkerReiter: reiter } : { linkerReiter: reiter, warengruppenPinsel: null });
+  },
+
+  setzeSucheOffen(offen) {
+    set({ sucheOffen: offen });
   },
 
   schalteAbteilung(name) {

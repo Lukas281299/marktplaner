@@ -50,6 +50,12 @@ export function useTastatur(): void {
             e.preventDefault();
             store.wiederholen();
             return;
+          case 'f':
+            // Strg+F sucht im Plan, nicht im Browser: Der Browser fände nur,
+            // was als Text im Fenster steht – und der Plan ist eine Leinwand.
+            e.preventDefault();
+            store.setzeSucheOffen(true);
+            return;
           case 'c':
             e.preventDefault();
             store.kopiereAuswahl();

@@ -257,6 +257,14 @@ export const SymbolMagnet = () => (
   </Zeichnung>
 );
 
+/** Die schlichte Lupe der Plansuche - dieselbe Form wie beim Zoom, ohne Zeichen darin. */
+export const SymbolLupe = () => (
+  <Zeichnung>
+    <circle cx="11" cy="11" r="7" />
+    <path d="M16.2 16.2 21 21" />
+  </Zeichnung>
+);
+
 export const SymbolZoomPlus = () => (
   <Zeichnung>
     <circle cx="11" cy="11" r="7" />
