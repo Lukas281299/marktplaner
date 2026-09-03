@@ -194,9 +194,18 @@ export function textZuPdf(t: Vektortext, schriftname = 'Helv'): string {
   const cos = Math.cos(w);
   const sin = Math.sin(w);
   const breite = textbreite(t.text, t.groesse);
-  // Waagerecht mittig, senkrecht auf die Mitte der Versalhöhe.
-  const dx = t.anker === 'anfang' ? 0 : -breite / 2;
-  const dy = -t.groesse * 0.36;
+
+  // Waagerecht: links, mittig oder rechts vom Punkt.
+  const dx = t.rechtsbuendig ? -breite : t.anker === 'anfang' ? 0 : -breite / 2;
+  // Senkrecht: PDF setzt auf die Grundlinie. Die Zeichnung meint je nach
+  // Stelle die Oberkante der Zeile oder ihre Mitte – wer das gleichsetzt,
+  // schiebt jede Feldbeschriftung um eine halbe Zeile.
+  const dy =
+    t.grundlinie === 'top'
+      ? -t.groesse * 0.72
+      : t.grundlinie === 'alphabetic'
+        ? 0
+        : -t.groesse * 0.36;
 
   const [r, g, b] = pdfFarbe(t.farbe ?? '#26313d') ?? [0.15, 0.19, 0.24];
   // Die Matrix dreht **und** spiegelt y zurück: a b c d e f Tm.
@@ -206,7 +215,7 @@ export function textZuPdf(t: Vektortext, schriftname = 'Helv'): string {
   const d = -cos;
   const e = t.x + dx * cos - dy * sin;
   const f = t.y + dx * sin + dy * cos;
-  return [
+  const text = [
     'BT',
     `${n(r)} ${n(g)} ${n(b)} rg`,
     `/${schriftname} ${n(t.groesse)} Tf`,
@@ -214,6 +223,12 @@ export function textZuPdf(t: Vektortext, schriftname = 'Helv'): string {
     `(${pdfZeichenkette(t.text)}) Tj`,
     'ET',
   ].join('\n');
+
+  // Steht das Möbel woanders oder schief, gilt seine Umformung auch für die
+  // Beschriftung. Sie kommt als eigener Zustand davor, damit die Textmatrix
+  // unverändert bleibt.
+  const umformung = umformungZuPdf(t.umformung);
+  return umformung ? ['q', umformung, text, 'Q'].join('\n') : text;
 }
 
 /**

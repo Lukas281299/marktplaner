@@ -1,10 +1,5 @@
-import {
-  einheitenNaehte,
-  zeichneAchsmass,
-  zeichneForm,
-  zeichneFuehrungsrohr,
-} from '../komponenten/zeichenflaeche/ElementSymbol';
-import { felderVon } from './regalseiten';
+import { zeichneElement } from '../komponenten/zeichenflaeche/ElementSymbol';
+import { Leinwandmitschreiber, type Zeichenschritt } from './leinwandmitschreiber';
 import { Pfadschreiber } from './pfadschreiber';
 import { kanten, kantenVersatz, rahmen } from './polygon';
 import { formatiereLaenge } from './masse';
@@ -69,6 +64,19 @@ export interface Vektortext {
   farbe?: string;
   /** Waagerechte Ausrichtung um den Punkt herum. */
   anker?: 'mitte' | 'anfang';
+  /** Rechtsbündig – der Punkt ist dann das Ende der Zeile. */
+  rechtsbuendig?: boolean;
+  /**
+   * Woran die Höhe hängt.
+   *
+   * Die Zeichnung setzt ihre Feldnotizen mit `textBaseline: 'top'` – der
+   * Punkt ist dann die **Oberkante** der Zeile, nicht ihre Mitte. Wer das
+   * übergeht, schiebt jede Feldbeschriftung um eine halbe Zeile nach oben.
+   */
+  grundlinie?: 'top' | 'middle' | 'alphabetic';
+  fett?: boolean;
+  /** Dieselbe Umformung wie an den Formen des Möbels. */
+  umformung?: string;
 }
 
 export interface Planvektor {
@@ -131,48 +139,31 @@ function gesamtrahmen(punkte: Punkt[]): Rahmen {
 }
 
 /**
- * Der Pfad eines Möbels, in seinem eigenen Koordinatensystem.
+ * Alles, was ein Möbel zeichnet – Schritt für Schritt mitgeschrieben.
  *
- * Der Ursprung liegt in der linken oberen Ecke, so wie `zeichneForm` es
- * erwartet. Gedreht und verschoben wird erst beim Ausgeben – dort steht die
- * Umformung als eine Angabe am Pfad, statt in jeder Koordinate.
+ * Nicht nur der Umriss: Auch die Paletten unter den Böden, die Schwenkbögen
+ * der Türen, der Ausschwenkweg der Eingangsbügel, die hellen Stufenkanten und
+ * die Beschriftung der einzelnen Felder. Sie alle entstehen in eigenen
+ * Durchgängen mit eigenen Farben, und genau die nimmt der
+ * `Leinwandmitschreiber` auf.
+ *
+ * Der Ersatzzoom ist der Kniff: Die Zeichnung entscheidet an ihm zweierlei –
+ * wie dick ein Strich wird (`1 / zoom`) und ob eine Beschriftung überhaupt
+ * noch lesbar wäre (`planHoehe * zoom >= 5`). Für die Ausgabe zählt nur das
+ * zweite; die Strichbreiten werden hinterher aus dem Verhältnis
+ * zurückgerechnet. Deshalb steht hier der Wert, der zum **Druck** passt.
  */
-export function moebelpfad(el: PlanElement): string {
-  const s = new Pfadschreiber();
-  const ctx = s as never;
+export function moebelschritte(el: PlanElement, ersatzzoom: number): Zeichenschritt[] {
+  const mit = new Leinwandmitschreiber({
+    zoom: ersatzzoom,
+    // Ein Textfeld hat keinen Umriss – im Plan steht dort nur der Text.
+    fuellung: el.form === 'textfeld' ? undefined : el.farbe,
+    linie: el.form === 'textfeld' ? undefined : MOEBELLINIE,
+  });
+  const ctx = mit as never;
 
-  // Ein frei umfahrenes Möbel bringt sein Polygon selbst mit.
-  if (el.form === 'umriss' && el.polygon && el.polygon.length >= 3) {
-    s.moveTo(el.polygon[0].x + el.breite / 2, el.polygon[0].y + el.tiefe / 2);
-    for (const p of el.polygon.slice(1)) s.lineTo(p.x + el.breite / 2, p.y + el.tiefe / 2);
-    s.closePath();
-  }
-
-  zeichneForm(
-    ctx,
-    el.form,
-    el.breite,
-    el.tiefe,
-    Boolean(el.beidseitig),
-    el.achsmass ?? 0,
-    felderVon(el, 'unten'),
-    Boolean(el.gespiegelt),
-    el.beidseitig ? felderVon(el, 'oben') : undefined,
-    el.kisten,
-  );
-
-  // Was auf dem Bildschirm im selben Zug mitgezeichnet wird, gehört auch
-  // hierher: die Naht zwischen zwei Einheiten, das Achsmaßzeichen in jedem
-  // Feld und das Führungsrohr. Ohne sie sähe ein Regalzug im PDF aus wie ein
-  // durchgehender Kasten, und man könnte die Felder nicht mehr zählen.
-  for (const x of einheitenNaehte(el, el.breite)) {
-    s.moveTo(x, 0);
-    s.lineTo(x, el.tiefe);
-  }
-  zeichneAchsmass(ctx, el, el.breite, el.tiefe);
-  zeichneFuehrungsrohr(ctx, el, el.breite, el.tiefe);
-
-  return s.d;
+  zeichneElement(ctx, el, el.breite, el.tiefe, ersatzzoom, () => mit.fillStrokeShape());
+  return mit.schritte;
 }
 
 /** Die Umformung, die ein Möbel an seinen Platz im Markt bringt. */
@@ -193,6 +184,13 @@ const MOEBELLINIE = 'rgba(30,40,52,0.55)';
 
 export interface Vektoroptionen {
   einheit?: Massinheit;
+  /**
+   * Der Ersatzzoom für die Möbelzeichnung – siehe `moebelschritte`.
+   *
+   * Er entscheidet, welche Beschriftungen mitkommen. Der Vorgabewert
+   * entspricht ungefähr 1:100 auf Papier.
+   */
+  ersatzzoom?: number;
   /** Ob die Maße an den Gebäudekanten mitgeschrieben werden. */
   gebaeudemasse?: boolean;
   /** Ob die Beschriftungen der Möbel mitkommen. */
@@ -208,6 +206,7 @@ export interface Vektoroptionen {
  */
 export function planAlsVektor(projekt: Projekt, optionen: Vektoroptionen = {}): Planvektor {
   const einheit = optionen.einheit ?? projekt.einstellungen?.anzeigeEinheit ?? 'm';
+  const ersatzzoom = optionen.ersatzzoom ?? 0.33;
   const formen: Vektorform[] = [];
   const texte: Vektortext[] = [];
   const punkte: Punkt[] = [];
@@ -316,14 +315,33 @@ export function planAlsVektor(projekt: Projekt, optionen: Vektoroptionen = {}): 
     if (el.ebeneId && !sichtbar.has(el.ebeneId)) continue;
     punkte.push(...elementecken(el));
 
-    const d = moebelpfad(el);
-    if (d) {
+    // Jeder Schritt des Möbels wird eine eigene Form oder ein eigener Text.
+    // Die Umformung steht an allen dieselbe: Das Möbel wird einmal in seinem
+    // eigenen System gezeichnet und dann als Ganzes an seinen Platz gesetzt.
+    const umformung = moebelumformung(el);
+    for (const schritt of moebelschritte(el, ersatzzoom)) {
+      if (schritt.art === 'text') {
+        texte.push({
+          text: schritt.text ?? '',
+          x: schritt.x ?? 0,
+          y: schritt.y ?? 0,
+          groesse: schritt.schrift ?? 20,
+          farbe: schritt.farbe,
+          anker: schritt.ausrichtung === 'center' ? 'mitte' : 'anfang',
+          drehung: schritt.drehung,
+          grundlinie: schritt.grundlinie,
+          rechtsbuendig: schritt.ausrichtung === 'right',
+          fett: schritt.fett,
+          umformung,
+        });
+        continue;
+      }
       formen.push({
-        d,
-        fuellung: el.form === 'textfeld' ? undefined : el.farbe,
-        linie: el.form === 'textfeld' ? undefined : MOEBELLINIE,
-        strichMm: 0.25,
-        umformung: moebelumformung(el),
+        d: schritt.d ?? '',
+        fuellung: schritt.art === 'flaeche' ? schritt.farbe : undefined,
+        linie: schritt.art === 'strich' ? schritt.farbe : undefined,
+        strichMm: schritt.art === 'strich' ? 0.25 * (schritt.breitenfaktor ?? 1) : undefined,
+        umformung,
       });
     }
 

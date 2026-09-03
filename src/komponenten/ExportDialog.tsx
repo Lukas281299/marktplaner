@@ -232,7 +232,8 @@ export function ExportDialog({ schliessen }: { schliessen: () => void }) {
             Vergrößerung scharf, die Datei ist klein, und der Maßstab steht im Schriftfeld –
             man kann auf dem Ausdruck mit dem Lineal nachmessen. Dazu Legende und
             Maßstabsbalken; der Balken gilt auch dann noch, wenn ein Kopierer den Plan
-            heimlich verkleinert hat.
+            heimlich verkleinert hat. Gezeichnet wird alles, was auch auf dem Bildschirm
+            steht: Paletten unter den Böden, Türbögen, Feldbeschriftungen.
           </p>
         </>
       ) : art === 'pdf' ? (

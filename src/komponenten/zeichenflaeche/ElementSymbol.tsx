@@ -2749,153 +2749,176 @@ export function ElementSymbol({
       hitStrokeWidth={griffZugabe(element, zoom)}
       shadowForStrokeEnabled={false}
       perfectDrawEnabled={false}
-      sceneFunc={(ctx, shape) => {
-        const b = shape.width();
-        const t = shape.height();
-
-        const unterbau =
-          element.felderUnten || element.felderOben ? unterbauflaechen(element, b, t) : [];
-
-        // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
-        //    Linienfarbe des Elements.
-        ctx.beginPath();
-        if (element.form === 'foerderband' && element.verlauf && element.verlauf.length >= 2) {
-          zeichneFoerderband(ctx, element.verlauf, element.bandbreite ?? 40, b, t, element.eckradius ?? 0);
-        } else if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
-          // Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der
-          // linken oberen Ecke, deshalb die halbe Größe dazu.
-          const p0 = element.polygon[0];
-          ctx.moveTo(p0.x + b / 2, p0.y + t / 2);
-          for (const p of element.polygon.slice(1)) ctx.lineTo(p.x + b / 2, p.y + t / 2);
-          ctx.closePath();
-        }
-        zeichneForm(
-          ctx,
-          element.form,
-          b,
-          t,
-          Boolean(element.beidseitig),
-          element.achsmass ?? 0,
-          felderVon(element, 'unten'),
-          Boolean(element.gespiegelt),
-          element.beidseitig ? felderVon(element, 'oben') : undefined,
-          element.kisten,
-          gestellstuetzen(element, b),
-        );
-        // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
-        // die ganze Tiefe – so wie beim Regalzug.
-        for (const x of einheitenNaehte(element, b)) {
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, t);
-        }
-        zeichneAchsmass(ctx, element, b, t);
-        zeichneFuehrungsrohr(ctx, element, b, t);
-        ctx.fillStrokeShape(shape);
-
-        // 1b. Die Paletten – erst jetzt, nach der Möbelfüllung.
-        //
-        //     Vorher lagen sie davor und wurden von `fillStrokeShape`
-        //     zugedeckt: Der Hauptpfad enthält den Möbelumriss, und der
-        //     wird mit der Möbelfarbe gefüllt. Sichtbar war dann nur noch
-        //     Grau.
-        //
-        //     Erst die blasse Fläche, dann ihre Linien darüber – so liegt
-        //     die Palette im Regal und nicht als Deckel darauf.
-        if (unterbau.length > 0) {
-          ctx.save();
-          ctx.setAttr('lineWidth', 1 / zoom);
-          // Je Art ein eigener Durchgang: Palette, Kiste und Kühlmöbel haben
-          // verschiedene Farben, und eine Leinwand kennt nur eine auf einmal.
-          for (const art of new Set(unterbau.map((f) => f.art))) {
-            const gleiche = unterbau.filter((f) => f.art === art);
-            const farbe = UNTERBAUFARBEN[art];
-            ctx.beginPath();
-            for (const f of gleiche) ctx.rect(f.x, f.y, f.breite, f.tiefe);
-            ctx.setAttr('fillStyle', farbe.flaeche);
-            ctx.fill();
-
-            ctx.setAttr('strokeStyle', farbe.linie);
-            ctx.beginPath();
-            zeichneUnterbau(ctx, gleiche, element.beidseitig ? t / 2 : t);
-            ctx.stroke();
-          }
-          ctx.restore();
-        }
-
-        // 1c. Der Schwenkweg der eGate-Bügel – als Linie, nicht als Fläche.
-        //     Er zeigt, wie weit der Bügel in den Markt ausschwenkt, so wie
-        //     der Anschlagbogen an einer Tür.
-        if (element.form === 'egateEinzel' || element.form === 'egateDoppel') {
-          ctx.save();
-          ctx.setAttr('strokeStyle', 'rgba(45, 55, 68, 0.45)');
-          ctx.setAttr('lineWidth', 1 / zoom);
-          ctx.beginPath();
-          for (const arm of egateBuegel(element.form, b)) {
-            const drehX = arm.richtung > 0 ? arm.x : arm.x + arm.laenge;
-            const drehY = SAEULE_T / 2;
-            ctx.moveTo(drehX, drehY);
-            ctx.lineTo(drehX, drehY + arm.laenge);
-            ctx.moveTo(drehX + arm.richtung * arm.laenge, drehY);
-            ctx.arc(
-              drehX,
-              drehY,
-              arm.laenge,
-              arm.richtung > 0 ? 0 : Math.PI,
-              Math.PI / 2,
-              arm.richtung < 0,
-            );
-          }
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // 2. Die hellen Stufenkanten darüber. Sie brauchen eine eigene Farbe
-        //    und deshalb einen zweiten Durchgang.
-        const hell = helleLinien(element, b, t);
-        if (hell.length > 0) {
-          ctx.save();
-          ctx.setAttr('strokeStyle', '#ffffff');
-          ctx.setAttr('lineWidth', 1.6 / zoom);
-          ctx.beginPath();
-          for (const [x1, y1, x2, y2] of hell) {
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-          }
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // 3. Türbögen, Stühle und Schwenkflügel – siehe `zeichneStriche`.
-        if (MIT_STRICHEN.has(element.form)) {
-          ctx.save();
-          ctx.setAttr('strokeStyle', 'rgba(30,40,52,0.65)');
-          ctx.setAttr('lineWidth', 1.1 / zoom);
-          ctx.beginPath();
-          zeichneStriche(ctx, element.form, b, t);
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // 4. Die Notizen in den Feldern. Text gehört nicht in den Pfad –
-        //    der wird gefüllt, und aus jedem Buchstaben würde ein Klecks.
-        ctx.save();
-        if (element.form === 'aktionsflaeche') {
-          // Eine Zone hat keine Felder. Sie trägt ihre eigenen Angaben.
-          zeichneFlaechenangaben(ctx, element, b, t, zoom);
-        } else if (element.form === 'textfeld') {
-          zeichneTextfeld(ctx, element, b, t, zoom);
-        } else {
-          zeichneFeldnotizen(ctx, element, b, t, zoom);
-          zeichneWarengruppen(ctx, element, b, t, zoom);
-        }
-        ctx.restore();
-      }}
+      sceneFunc={(ctx, shape) =>
+        zeichneElement(ctx, element, shape.width(), shape.height(), zoom, () =>
+          ctx.fillStrokeShape(shape),
+        )
+      }
       onMouseDown={(e) => beiMausTaste(e, element.id)}
       onDragStart={(e) => beiZiehStart(e, element.id)}
       onDragMove={(e) => beiZiehen(e, element.id)}
       onDragEnd={beiZiehEnde}
     />
   );
+}
+
+/**
+ * Alles, was ein Möbel auf die Leinwand bringt – in einer Funktion.
+ *
+ * Herausgezogen aus der Zeichenkomponente, damit die Vektorausgabe
+ * **dieselbe** Zeichnung mitschreiben kann statt eine zweite zu pflegen. Der
+ * Bildschirm ruft sie mit einer Konva-Leinwand auf, PDF und SVG mit einem
+ * `Leinwandmitschreiber`; beide sehen genau dieselben Aufrufe.
+ *
+ * `abschluss` ist der Punkt, an dem der Hauptpfad gefüllt und gestrichen
+ * wird. Auf dem Bildschirm ist das `ctx.fillStrokeShape(shape)`; Konva holt
+ * sich Farbe und Strichbreite dabei vom Element und nicht aus dem
+ * Zeichenzustand, und deshalb muss der Aufrufer diesen Schritt beisteuern.
+ */
+export function zeichneElement(
+  ctx: Konva.Context,
+  element: PlanElement,
+  b: number,
+  t: number,
+  zoom: number,
+  abschluss: () => void,
+) {
+    const unterbau =
+      element.felderUnten || element.felderOben ? unterbauflaechen(element, b, t) : [];
+
+    // 1. Umriss und Achsmaß-Zeichen in einem Zug – beides in der
+    //    Linienfarbe des Elements.
+    ctx.beginPath();
+    if (element.form === 'foerderband' && element.verlauf && element.verlauf.length >= 2) {
+      zeichneFoerderband(ctx, element.verlauf, element.bandbreite ?? 40, b, t, element.eckradius ?? 0);
+    } else if (element.form === 'umriss' && element.polygon && element.polygon.length >= 3) {
+      // Die Punkte liegen relativ zum Mittelpunkt; gezeichnet wird ab der
+      // linken oberen Ecke, deshalb die halbe Größe dazu.
+      const p0 = element.polygon[0];
+      ctx.moveTo(p0.x + b / 2, p0.y + t / 2);
+      for (const p of element.polygon.slice(1)) ctx.lineTo(p.x + b / 2, p.y + t / 2);
+      ctx.closePath();
+    }
+    zeichneForm(
+      ctx,
+      element.form,
+      b,
+      t,
+      Boolean(element.beidseitig),
+      element.achsmass ?? 0,
+      felderVon(element, 'unten'),
+      Boolean(element.gespiegelt),
+      element.beidseitig ? felderVon(element, 'oben') : undefined,
+      element.kisten,
+      gestellstuetzen(element, b),
+    );
+    // Wo zwei Einheiten aneinanderstoßen, kommt eine Trennlinie über
+    // die ganze Tiefe – so wie beim Regalzug.
+    for (const x of einheitenNaehte(element, b)) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, t);
+    }
+    zeichneAchsmass(ctx, element, b, t);
+    zeichneFuehrungsrohr(ctx, element, b, t);
+    abschluss();
+
+    // 1b. Die Paletten – erst jetzt, nach der Möbelfüllung.
+    //
+    //     Vorher lagen sie davor und wurden von `fillStrokeShape`
+    //     zugedeckt: Der Hauptpfad enthält den Möbelumriss, und der
+    //     wird mit der Möbelfarbe gefüllt. Sichtbar war dann nur noch
+    //     Grau.
+    //
+    //     Erst die blasse Fläche, dann ihre Linien darüber – so liegt
+    //     die Palette im Regal und nicht als Deckel darauf.
+    if (unterbau.length > 0) {
+      ctx.save();
+      ctx.setAttr('lineWidth', 1 / zoom);
+      // Je Art ein eigener Durchgang: Palette, Kiste und Kühlmöbel haben
+      // verschiedene Farben, und eine Leinwand kennt nur eine auf einmal.
+      for (const art of new Set(unterbau.map((f) => f.art))) {
+        const gleiche = unterbau.filter((f) => f.art === art);
+        const farbe = UNTERBAUFARBEN[art];
+        ctx.beginPath();
+        for (const f of gleiche) ctx.rect(f.x, f.y, f.breite, f.tiefe);
+        ctx.setAttr('fillStyle', farbe.flaeche);
+        ctx.fill();
+
+        ctx.setAttr('strokeStyle', farbe.linie);
+        ctx.beginPath();
+        zeichneUnterbau(ctx, gleiche, element.beidseitig ? t / 2 : t);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 1c. Der Schwenkweg der eGate-Bügel – als Linie, nicht als Fläche.
+    //     Er zeigt, wie weit der Bügel in den Markt ausschwenkt, so wie
+    //     der Anschlagbogen an einer Tür.
+    if (element.form === 'egateEinzel' || element.form === 'egateDoppel') {
+      ctx.save();
+      ctx.setAttr('strokeStyle', 'rgba(45, 55, 68, 0.45)');
+      ctx.setAttr('lineWidth', 1 / zoom);
+      ctx.beginPath();
+      for (const arm of egateBuegel(element.form, b)) {
+        const drehX = arm.richtung > 0 ? arm.x : arm.x + arm.laenge;
+        const drehY = SAEULE_T / 2;
+        ctx.moveTo(drehX, drehY);
+        ctx.lineTo(drehX, drehY + arm.laenge);
+        ctx.moveTo(drehX + arm.richtung * arm.laenge, drehY);
+        ctx.arc(
+          drehX,
+          drehY,
+          arm.laenge,
+          arm.richtung > 0 ? 0 : Math.PI,
+          Math.PI / 2,
+          arm.richtung < 0,
+        );
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 2. Die hellen Stufenkanten darüber. Sie brauchen eine eigene Farbe
+    //    und deshalb einen zweiten Durchgang.
+    const hell = helleLinien(element, b, t);
+    if (hell.length > 0) {
+      ctx.save();
+      ctx.setAttr('strokeStyle', '#ffffff');
+      ctx.setAttr('lineWidth', 1.6 / zoom);
+      ctx.beginPath();
+      for (const [x1, y1, x2, y2] of hell) {
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 3. Türbögen, Stühle und Schwenkflügel – siehe `zeichneStriche`.
+    if (MIT_STRICHEN.has(element.form)) {
+      ctx.save();
+      ctx.setAttr('strokeStyle', 'rgba(30,40,52,0.65)');
+      ctx.setAttr('lineWidth', 1.1 / zoom);
+      ctx.beginPath();
+      zeichneStriche(ctx, element.form, b, t);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 4. Die Notizen in den Feldern. Text gehört nicht in den Pfad –
+    //    der wird gefüllt, und aus jedem Buchstaben würde ein Klecks.
+    ctx.save();
+    if (element.form === 'aktionsflaeche') {
+      // Eine Zone hat keine Felder. Sie trägt ihre eigenen Angaben.
+      zeichneFlaechenangaben(ctx, element, b, t, zoom);
+    } else if (element.form === 'textfeld') {
+      zeichneTextfeld(ctx, element, b, t, zoom);
+    } else {
+      zeichneFeldnotizen(ctx, element, b, t, zoom);
+      zeichneWarengruppen(ctx, element, b, t, zoom);
+    }
+    ctx.restore();
 }
 
 /**

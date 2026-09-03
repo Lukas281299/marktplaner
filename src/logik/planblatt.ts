@@ -183,12 +183,32 @@ function formZuSvg(f: Vektorform, massstab: number): string {
 }
 
 function textZuSvg(t: Vektortext): string {
-  const anker = t.anker === 'anfang' ? 'start' : 'middle';
-  const drehung = t.drehung ? ` transform="rotate(${r(t.drehung)} ${r(t.x)} ${r(t.y)})"` : '';
-  return (
-    `<text x="${r(t.x)}" y="${r(t.y)}" font-size="${r(t.groesse)}" fill="${t.farbe ?? '#26313d'}" ` +
-    `text-anchor="${anker}" dominant-baseline="central"${drehung}>${schuetze(t.text)}</text>`
-  );
+  const anker = t.rechtsbuendig ? 'end' : t.anker === 'anfang' ? 'start' : 'middle';
+  // Die Zeichnung setzt ihre Feldnotizen an der **Oberkante** der Zeile
+  // (`textBaseline: 'top'`). Wer das übergeht, schiebt jede Feldbeschriftung
+  // um eine halbe Zeile nach oben und aus ihrem Feld heraus.
+  const grundlinie =
+    t.grundlinie === 'top'
+      ? 'text-before-edge'
+      : t.grundlinie === 'alphabetic'
+        ? 'alphabetic'
+        : 'central';
+  const teile: string[] = [
+    `x="${r(t.x)}"`,
+    `y="${r(t.y)}"`,
+    `font-size="${r(t.groesse)}"`,
+    `fill="${t.farbe ?? '#26313d'}"`,
+    `text-anchor="${anker}"`,
+    `dominant-baseline="${grundlinie}"`,
+  ];
+  if (t.fett) teile.push('font-weight="600"');
+  // Erst an den Platz des Möbels, dann drehen: Die Umformung des Möbels gilt
+  // für seine Beschriftungen genauso wie für seine Linien.
+  const umformungen = [t.umformung, t.drehung ? `rotate(${r(t.drehung)} ${r(t.x)} ${r(t.y)})` : '']
+    .filter(Boolean)
+    .join(' ');
+  if (umformungen) teile.push(`transform="${umformungen}"`);
+  return `<text ${teile.join(' ')}>${schuetze(t.text)}</text>`;
 }
 
 /**
