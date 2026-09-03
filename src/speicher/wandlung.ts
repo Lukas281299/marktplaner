@@ -56,8 +56,91 @@ interface AlterRaum {
 const ERSATZ_BREITE = 4000;
 const ERSATZ_LAENGE = 2500;
 
+/**
+ * Alles, was nicht wirklich eine Liste ist, wird zur leeren Liste.
+ *
+ * Steht in einer Datei `raeume: 42`, dann wirft der nächste `.map` – und
+ * zwar beim **Öffnen**. Wer dann nicht weiterkommt, kommt auch an seine
+ * anderen Planungen nicht mehr heran, denn sie liegen nur im Browser.
+ */
+function liste<T>(wert: unknown): T[] {
+  return Array.isArray(wert) ? (wert as T[]) : [];
+}
+
+/**
+ * Dasselbe, aber ohne Einträge, die keine Objekte sind.
+ *
+ * Ein `null` mitten in `elemente` sieht harmlos aus und legt beim Öffnen
+ * alles lahm: Jede Wandlungsstufe greift auf Felder zu, die es dort nicht
+ * gibt. Solche Einträge tragen ohnehin keine Planung – sie fliegen raus.
+ */
+function objektliste<T>(wert: unknown): T[] {
+  return liste(wert).filter((e): e is T => typeof e === 'object' && e !== null);
+}
+
+/** Ein Text, oder der Ersatz – nie `undefined`. */
+function text(wert: unknown, ersatz: string): string {
+  return typeof wert === 'string' && wert.trim() !== '' ? wert : ersatz;
+}
+
+/**
+ * Nur Punkte mit zwei endlichen Zahlen.
+ *
+ * Eine einzige NaN-Koordinate im Umriss macht die **ganze** Grundfläche
+ * unsichtbar: Die Umgrenzung wird NaN, das Einpassen rechnet ins Leere, und
+ * der Plan bleibt weiß. Vor einem stillen Totalausfall ist ein fehlender
+ * Eckpunkt das kleinere Übel – ihn sieht man wenigstens.
+ */
+function punkte(wert: unknown): { x: number; y: number }[] {
+  return objektliste<{ x: unknown; y: unknown }>(wert)
+    .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
+    .map((p) => ({ x: p.x as number, y: p.y as number }));
+}
+
+/**
+ * Der Mindestbestand, den jede Planung nach dem Einlesen hat.
+ *
+ * Egal wie beschädigt die Datei war: Danach sind alle Listen Listen, die
+ * Kennung und der Name sind Texte, und der Satz Ebenen ist vollständig. Erst
+ * damit darf sie in den Datenspeicher – alles Weitere im Programm verlässt
+ * sich darauf, ohne noch einmal nachzusehen.
+ */
+function grundbestand(projekt: Partial<Projekt> | null | undefined): Projekt {
+  const p = (projekt ?? {}) as Partial<Projekt>;
+  const grund = p.grundflaeche as { umriss?: unknown; wandstaerke?: unknown } | undefined;
+  return {
+    ...(p as Projekt),
+    // Ohne Kennung ließe sich die Planung nicht speichern; ohne Namen stünde
+    // in der Liste eine leere Zeile.
+    id: text(p.id, neueId()),
+    name: text(p.name, 'Wiederhergestellte Planung'),
+    grundflaeche: {
+      ...(grund as object),
+      umriss: punkte(grund?.umriss),
+      wandstaerke: Number.isFinite(grund?.wandstaerke) ? (grund?.wandstaerke as number) : 30,
+    },
+    elemente: objektliste(p.elemente),
+    raeume: objektliste(p.raeume),
+    waende: objektliste(p.waende),
+    oeffnungen: objektliste(p.oeffnungen),
+    gruppen: objektliste(p.gruppen),
+    masslinien: objektliste(p.masslinien),
+    verkaufsflaechen: objektliste(p.verkaufsflaechen),
+    ebenen: ergaenzeEbenen(objektliste(p.ebenen)),
+  };
+}
+
 export function wandleProjekt(roh: unknown): Projekt {
-  const projekt = roh as Projekt & { grundflaeche?: AlteGrundflaeche; raeume?: unknown[] };
+  // Was hier hereinkommt, kommt aus einer Datei, aus dem Abgleich oder aus
+  // der Datenbank – also von außen. Alles, was kein Objekt ist, wird als
+  // leere Planung behandelt: Ein Text, eine Zahl oder eine Liste ist keine
+  // Planung, und ein Absturz beim Öffnen wäre die schlechteste Antwort
+  // darauf, denn dann kommt man an die übrigen Planungen auch nicht heran.
+  const eingang =
+    typeof roh === 'object' && roh !== null && !Array.isArray(roh)
+      ? (roh as Projekt & { grundflaeche?: AlteGrundflaeche; raeume?: unknown[] })
+      : ({} as Projekt & { grundflaeche?: AlteGrundflaeche; raeume?: unknown[] });
+  const projekt = eingang;
   const version = typeof projekt?.version === 'number' ? projekt.version : 1;
   if (version >= SCHEMA_VERSION) {
     // Auch eine aktuelle Datei kann Ebenen mitbringen, die es nicht gibt –
@@ -65,14 +148,17 @@ export function wandleProjekt(roh: unknown): Projekt {
     // unbekannten Ebene liegt, wird nirgends gezeichnet: Wände, Räume und
     // Regale verschwinden, und niemand sieht, woran es liegt. Deshalb wird
     // der Satz Ebenen **immer** vervollständigt, nicht nur beim Umwandeln.
-    return { ...(projekt as Projekt), ebenen: ergaenzeEbenen(projekt?.ebenen) };
+    // Auch hier durch den Grundbestand: Eine Datei mit der richtigen
+    // Versionsnummer kann trotzdem beschädigt sein, und dann rutschte sie
+    // ungeprüft durch.
+    return grundbestand(projekt as Projekt);
   }
 
-  return {
+  return grundbestand({
     ...(projekt as Projekt),
     version: SCHEMA_VERSION,
     grundflaeche: wandleGrundflaeche(projekt?.grundflaeche),
-    raeume: (projekt?.raeume ?? []).map(wandleRaum).map(ohneRaumwand),
+    raeume: objektliste<Raum>(projekt?.raeume).map(wandleRaum).map(ohneRaumwand),
     // Fassung 3: Beides gab es vorher nicht, es kann also nur leer sein.
     // Trotzdem über `??`, damit ein späterer Schritt hier nichts überschreibt.
     waende: projekt?.waende ?? [],
@@ -92,7 +178,7 @@ export function wandleProjekt(roh: unknown): Projekt {
     elemente: loeseBaenderAuf(
       (projekt as { warengruppenbaender?: AltesBand[] }).warengruppenbaender,
       mitAusgerichtetenKoepfen(
-      (projekt?.elemente ?? [])
+      objektliste<PlanElement>(projekt?.elemente)
         .map(wandleElement)
         .map(vereinheitlicheRegalfarbe)
         .map(teileSeitenAuf)
@@ -108,7 +194,7 @@ export function wandleProjekt(roh: unknown): Projekt {
       .map(ausPaletteWirdUnterbau)
       // Fassung 17: ganz zuletzt, wenn Felder, Maße und Seiten stehen.
       .map(ziehBezeichnungNach),
-  };
+  });
 }
 
 /**
@@ -413,8 +499,12 @@ function vereinheitlicheRegalfarbe(element: PlanElement): PlanElement {
  * hatte, bekommt sie nicht durchs Öffnen wieder eingeblendet. Eigene Ebenen,
  * die es im Programm nicht gibt, bleiben am Ende stehen statt wegzufallen.
  */
-function ergaenzeEbenen(vorhanden: Ebene[] | undefined): Ebene[] {
-  const alte = new Map((vorhanden ?? []).map((e) => [e.id, e]));
+function ergaenzeEbenen(vorhanden: unknown): Ebene[] {
+  // Steht in der Datei etwas anderes als eine Liste, gilt: keine Ebenen
+  // mitgebracht. Der Standardsatz wird ohnehin gleich ergänzt, und ein
+  // Fehler an dieser Stelle verhinderte das Öffnen der ganzen Planung.
+  const mitgebracht = objektliste<Ebene>(vorhanden).filter((e) => typeof e.id === 'string');
+  const alte = new Map(mitgebracht.map((e) => [e.id, e]));
   const standard = STANDARD_EBENEN.map((e) => alte.get(e.id) ?? { ...e });
   const bekannt = new Set(STANDARD_EBENEN.map((e) => e.id));
   // Fassung 19: Die Ebene „Laufwege" fliegt raus.
@@ -426,7 +516,7 @@ function ergaenzeEbenen(vorhanden: Ebene[] | undefined): Ebene[] {
   //
   // Eigene Ebenen bleiben, auch eine selbst angelegte namens „Laufwege" –
   // deshalb wird nur die mit genau dieser Kennung entfernt.
-  const eigene = (vorhanden ?? []).filter((e) => !bekannt.has(e.id) && e.id !== 'laufwege');
+  const eigene = mitgebracht.filter((e) => !bekannt.has(e.id) && e.id !== 'laufwege');
   return [...standard, ...eigene];
 }
 
@@ -446,7 +536,10 @@ function wandleElement(roh: unknown): PlanElement {
 
 /** Aus Breite × Länge wird ein Rechteck an der linken oberen Ecke. */
 function wandleGrundflaeche(alt: AlteGrundflaeche | undefined) {
-  if (alt && Array.isArray((alt as { umriss?: unknown }).umriss)) {
+  // Ein Umriss mit mindestens drei brauchbaren Punkten bleibt, wie er ist.
+  // Weniger ist keine Fläche – dann lieber das Ersatzrechteck als ein
+  // Gebäude, das sich nicht zeichnen lässt und den Plan weiß stehen lässt.
+  if (alt && punkte((alt as { umriss?: unknown }).umriss).length >= 3) {
     return alt as unknown as Projekt['grundflaeche'];
   }
   const breite = zahl(alt?.breite, ERSATZ_BREITE);

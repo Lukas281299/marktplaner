@@ -49,8 +49,13 @@ export function Plansuche() {
 
   // Den hervorgehobenen Treffer im Blick behalten, auch wenn man sich mit
   // den Pfeiltasten aus dem sichtbaren Teil der Liste bewegt.
+  //
+  // `scrollIntoView` wird vorsichtig aufgerufen: Es ist reine Bequemlichkeit,
+  // und wo es fehlt, darf nicht die halbe Suche mit ausfallen. Genau das ist
+  // beim ersten Oberflächentest passiert – die Liste zeichnete sich, aber
+  // Pfeiltasten und Enter warfen einen Fehler.
   useEffect(() => {
-    listeRef.current?.children[aktiv]?.scrollIntoView({ block: 'nearest' });
+    listeRef.current?.children[aktiv]?.scrollIntoView?.({ block: 'nearest' });
   }, [aktiv]);
 
   if (!offen) return null;

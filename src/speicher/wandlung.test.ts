@@ -217,7 +217,16 @@ describe('neue Fassung', () => {
     // Inhaltlich gleich, nicht dasselbe Objekt: Der Satz Ebenen wird auch
     // hier durchgesehen, damit eine Datei mit erfundenen Kennungen nicht
     // die halbe Planung unsichtbar macht.
-    expect(wandleProjekt(aktuell)).toEqual(aktuell);
+    const gewandelt = wandleProjekt(aktuell);
+    for (const [schluessel, wert] of Object.entries(aktuell)) {
+      expect(gewandelt[schluessel as keyof typeof gewandelt], schluessel).toEqual(wert);
+    }
+    // Was die Datei nicht mitbrachte, wird als leere Liste ergänzt statt
+    // wegzulassen: Eine fehlende Liste wirft beim ersten `.map`, und zwar
+    // irgendwo tief in der Anwendung statt hier beim Öffnen.
+    for (const liste of ['waende', 'oeffnungen', 'gruppen', 'masslinien', 'verkaufsflaechen']) {
+      expect(Array.isArray(gewandelt[liste as keyof typeof gewandelt]), liste).toBe(true);
+    }
   });
 
   it('wandelt nicht zweimal', () => {

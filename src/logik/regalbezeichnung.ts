@@ -210,8 +210,13 @@ export function bezeichnungFuer(element: PlanElement): string | undefined {
  * hat, behält sie.
  */
 export function nachgezogeneBezeichnung(element: PlanElement): string | undefined {
-  if (element.beschriftungAutomatisch === false) return undefined;
-  const bisher = element.beschriftung || element.name;
+  if (element?.beschriftungAutomatisch === false) return undefined;
+  // Beides kann fehlen: In einer beschädigten Datei steht statt eines Möbels
+  // schon einmal eine Zahl oder ein Text. Dann gibt es nichts nachzuziehen –
+  // aber es darf auch nichts fliegen, sonst lässt sich die Planung gar nicht
+  // mehr öffnen.
+  const bisher = element?.beschriftung || element?.name;
+  if (typeof bisher !== 'string') return undefined;
   if (!zerlegeName(bisher).hatGroesse) return undefined;
   const neu = bezeichnungFuer(element);
   return neu && neu !== element.beschriftung ? neu : undefined;
