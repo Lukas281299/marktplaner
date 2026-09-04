@@ -181,10 +181,11 @@ describe('Meter je Warengruppe', () => {
     expect(within(zeile as HTMLElement).getByText('1,25')).toBeTruthy();
   });
 
-  it('bringt zugeordnete Meter zur Zielwarengruppe', async () => {
+  it('bringt zugeordnete Meter in eine gemeinsame Zeile', async () => {
     // Wer vier Meter „Kuchen" einzeichnet, obwohl dort auch Waffeln liegen,
-    // ordnet Waffeln dem Kuchen zu – dann steht in der Tabelle eine Zeile
-    // „Kuchen" mit allen Metern und keine halbe „Waffeln".
+    // ordnet Waffeln dem Kuchen zu – dann steht in der Tabelle **eine** Zeile
+    // „Kuchen, Waffeln" mit allen Metern und keine halbe „Waffeln".
+    usePlanStore.setState({ sortiment: LISTE });
     const kuchen = zug({ id: 'a', warengruppenUnten: [{ von: 0, bis: 250, text: 'Kuchen' }] });
     const waffeln = zug({ id: 'b', warengruppenUnten: [{ von: 0, bis: 250, text: 'Waffeln' }] });
     const plan = { ...projekt([kuchen, waffeln]), zuordnungen: { waffeln: 'Kuchen' } };
@@ -192,7 +193,22 @@ describe('Meter je Warengruppe', () => {
     render(<Warengruppenmeter projekt={plan} />);
     await klappeAuf();
     expect(screen.queryByText('Waffeln')).toBeNull();
-    const zeile = screen.getByText('Kuchen').closest('.meterzeile')!;
+    expect(screen.queryByText('Kuchen')).toBeNull();
+    const zeile = screen.getByText('Kuchen, Waffeln').closest('.meterzeile')!;
     expect(within(zeile as HTMLElement).getByText('5,00')).toBeTruthy();
+  });
+
+  it('fasst zwei gemeinsam beschriftete Sortimente zusammen', async () => {
+    // Drei Meter tragen beides, und wie es sich verteilt, weiß niemand.
+    // Dann steht es als ein Posten da – und die Meter zählen einmal.
+    usePlanStore.setState({ sortiment: LISTE });
+    const el = zug({
+      id: 'c',
+      warengruppenUnten: [{ von: 0, bis: 250, text: 'Kuchen, Waffeln' }],
+    });
+    render(<Warengruppenmeter projekt={projekt([el])} />);
+    await klappeAuf();
+    const zeile = screen.getByText('Kuchen, Waffeln').closest('.meterzeile')!;
+    expect(within(zeile as HTMLElement).getByText('2,50')).toBeTruthy();
   });
 });

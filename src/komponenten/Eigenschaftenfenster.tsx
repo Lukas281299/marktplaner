@@ -28,6 +28,7 @@ import { ifkoVorschlag } from '../logik/ifko';
 import { bodentiefeMm } from '../logik/feldnotiz';
 import { aktionsflaechen, palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
 import { getraenkezahlen } from '../logik/getraenkezahlen';
+import { teileBeschriftung } from '../logik/sortimentsbund';
 import {
   zeigtBeidseitig,
   zeigtBodenmasse,
@@ -1137,11 +1138,44 @@ function Sortimentszuordnung({
   const mehrdeutig = useMemo(() => mehrdeutigeNamen(sortiment), [sortiment]);
   const text = abschnitt.text.trim();
 
+  // Stehen hier zwei Sortimente gemeinsam, ist das eine Aussage und kein
+  // Versehen – dann soll das Fenster zeigen, dass es beide gelesen hat.
+  const namen = useMemo(() => teileBeschriftung(sortiment, text), [sortiment, text]);
+  const gemeinsam = namen.length > 1;
+
   // Ein getippter Name, den die Liste genau einmal kennt, lässt sich mit
   // einem Klick festmachen – das ist der häufige Fall und spart das Menü.
   const vorschlag =
-    !abschnitt.pfad && text ? eindeutigerPfad(sortiment, text) : undefined;
-  const doppelt = !abschnitt.pfad && text && mehrdeutig.has(text.toLocaleLowerCase('de-DE'));
+    !abschnitt.pfad && text && !gemeinsam ? eindeutigerPfad(sortiment, text) : undefined;
+  const doppelt =
+    !abschnitt.pfad && text && !gemeinsam && mehrdeutig.has(text.toLocaleLowerCase('de-DE'));
+
+  if (gemeinsam) {
+    return (
+      <>
+        <div className="wg-pfadzeile" title="Beide zählen gemeinsam – die Meter einmal">
+          <span className="wg-pfadtext">
+            ↳ {namen.length} Sortimente gemeinsam: {namen.join(' · ')}
+          </span>
+        </div>
+        {abschnitt.pfad && (
+          <div className="wg-pfadzeile" title="Wohin die Meter dieser Strecke zählen">
+            <span className="wg-pfadtext">↳ {abschnitt.pfad}</span>
+            <button
+              className="wg-werkzeug"
+              title="Zuordnung lösen — die Meter laufen dann über die Namen im Plan"
+              onClick={() => {
+                beiStart();
+                aendern({ pfad: undefined });
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </>
+    );
+  }
 
   if (!abschnitt.pfad && !vorschlag && !doppelt) return null;
 

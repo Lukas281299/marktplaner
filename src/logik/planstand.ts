@@ -1,5 +1,5 @@
 import { strecken } from './warengruppenmeter';
-import { eindeutigerPfad } from './sortiment';
+import { pfadeDerStrecke } from './sortimentsbund';
 import type { Sortimentsliste } from '../daten/warengruppen';
 import type { Projekt } from '../typen/modell';
 
@@ -20,12 +20,15 @@ import type { Projekt } from '../typen/modell';
  * **Gezählt wird über den Pfad**, nicht über den Namen. Ein frei getippter
  * Name ohne Pfad zählt nur, wenn die Liste ihn eindeutig kennt — bei „Kuchen"
  * tut sie das nicht, und fünf Haken für einen Meter wären falsch.
+ *
+ * Stehen **zwei Sortimente gemeinsam** an einer Strecke — „Nüsse,
+ * Trockenobst" —, werden beide abgehakt: Beide stehen im Markt, und die Liste
+ * soll das sagen (siehe `logik/sortimentsbund.ts`).
  */
 export function pfadeImPlan(projekt: Projekt, liste: Sortimentsliste): Set<string> {
   const pfade = new Set<string>();
   for (const strecke of strecken(projekt)) {
-    const pfad = strecke.pfad ?? eindeutigerPfad(liste, strecke.name);
-    if (pfad) pfade.add(pfad);
+    for (const pfad of pfadeDerStrecke(liste, strecke)) pfade.add(pfad);
   }
   return pfade;
 }

@@ -5,11 +5,11 @@ import {
   ersteStufe,
   letzteStufe,
   pfadVon,
-  zuordnungVon,
 } from './sortiment';
 import { metersumme, OHNE_WARENGRUPPE, strecken, warengruppenmeter } from './warengruppenmeter';
 import type { Sortimentsliste } from '../daten/warengruppen';
 import type { Projekt } from '../typen/modell';
+import { buende, bundFuer, zieleDerStrecke } from './sortimentsbund';
 import type { Warengruppenzeile } from './warengruppenmeter';
 
 /**
@@ -151,6 +151,10 @@ export function meterbaum(
 
   for (const zeile of zeilen) {
     const stufen = stufenVon(zeile, liste);
+    // Die unterste Stufe heißt, wie die Zeile heißt. Bei einem Bund steht
+    // dort „Kuchen, Waffeln" und nicht nur der Name, über dessen Pfad er
+    // eingeordnet wurde.
+    if (stufen.length > 0) stufen[stufen.length - 1] = zeile.name;
     const kisten = kistenJeZeile.get(zeile.pfad ?? zeile.name) ?? 0;
 
     let ebene = wurzeln;
@@ -191,9 +195,26 @@ export function meterauswertung(
   projekt: Projekt,
   liste: Sortimentsliste,
 ): { baum: Meterknoten[]; gesamt: Metergesamt } {
+  // Zwei Sortimente auf einer Strecke laufen in eine Zeile – ob sie
+  // gemeinsam beschriftet oder einander zugeordnet sind.
+  const bund = buende(projekt, liste);
+
+  /**
+   * In welche Zeile eine Strecke zählt.
+   *
+   * Erst, wohin sie für sich gehört (`zieleDerStrecke` wägt Text und Pfad
+   * gegeneinander ab), dann, ob dieser Name mit anderen einen Bund bildet.
+   */
+  const zielDerStrecke = (strecke: { name: string; pfad?: string }) => {
+    const ziele = zieleDerStrecke(liste, strecke);
+    const erste = ziele[0] ?? { name: strecke.name, pfad: strecke.pfad };
+    const treffer = bundFuer(bund, liste, erste.name);
+    return treffer ? { name: treffer.beschriftung, pfad: treffer.pfad } : erste;
+  };
+
   const zeilen = warengruppenmeter(projekt, {
     auslagen: auslagenAnteil,
-    zugeordnetZu: (name) => zuordnungVon(projekt.zuordnungen, name),
+    zielFuer: (strecke) => zielDerStrecke(strecke),
   });
 
   // Die Kisten je Zeile: getrennt gerechnet, weil die Meterlogik für den
@@ -202,9 +223,10 @@ export function meterauswertung(
   for (const strecke of strecken(projekt)) {
     const zahl = kistenAnteil(strecke);
     if (zahl <= 0) continue;
-    const name = strecke.pfad ? letzteStufe(strecke.pfad) : strecke.name;
-    const ziel = zuordnungVon(projekt.zuordnungen, name);
-    const schluessel = ziel ?? strecke.pfad ?? strecke.name;
+    // Derselbe Schlüssel wie bei der Meterzeile, sonst behielte die Zeile
+    // ihre Meter und verlöre ihre Kisten.
+    const ziel = zielDerStrecke(strecke);
+    const schluessel = ziel.pfad ?? ziel.name;
     kistenJeZeile.set(schluessel, (kistenJeZeile.get(schluessel) ?? 0) + zahl);
   }
 

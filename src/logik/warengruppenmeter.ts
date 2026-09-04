@@ -329,14 +329,17 @@ export interface Meteroptionen {
    */
   auslagen?: Auslagenzahl;
   /**
-   * Wohin ein Name für die Rechnung gehört, wenn er einem anderen zugeordnet
-   * ist.
+   * In welche Zeile eine Strecke zählt – Name und Pfad.
    *
-   * Wer vier Meter „Kuchen" einzeichnet, obwohl dort auch Waffeln liegen,
-   * ordnet Waffeln dem Kuchen zu. Dann laufen die Meter über Kuchen, und in
-   * der Liste sieht es nicht so aus, als sei Waffeln vergessen worden.
+   * Gefragt wird nach der **Strecke** und nicht nach ihrem Namen, weil die
+   * Antwort mehr braucht als den Namen: die Sortimentsliste, den gespeicherten
+   * Pfad und die Frage, ob dort zwei Sortimente gemeinsam stehen. Das alles
+   * gehört nicht hierher – hier wird gerechnet, nicht eingeordnet. Siehe
+   * `logik/sortimentsbund.ts` und `logik/meterbaum.ts`.
+   *
+   * Ohne Angabe zählt die Strecke unter ihrem eigenen Namen und Pfad.
    */
-  zugeordnetZu?: (name: string) => string | undefined;
+  zielFuer?: (strecke: Streckenmeter) => { name: string; pfad?: string } | undefined;
 }
 
 /** Fasst gleiche Namen zusammen und rechnet beide Spalten. */
@@ -380,11 +383,10 @@ export function warengruppenmeter(
     // mitnehmen. Über den Plantext gesucht, ginge sie ins Leere, während die
     // Kisten (`logik/meterbaum.ts`) dem Ziel folgten: Die Zeile behielte
     // ihre Meter und verlöre ihre Kisten.
-    const eigener = anzeigename(strecke);
-    const ziel = optionen.zugeordnetZu?.(eigener)?.trim() || eigener;
-    // Beim Umleiten fällt der Pfad weg: Er gehört zum Namen, den man verlässt,
-    // und den des Ziels kennt die Auswertung nicht.
-    const zeile = ziel === eigener ? nimm(eigener, strecke.pfad) : nimm(ziel);
+    const ziel = optionen.zielFuer?.(strecke);
+    const zeile = ziel
+      ? nimm(ziel.name, ziel.pfad)
+      : nimm(anzeigename(strecke), strecke.pfad);
     zeile.laufend += strecke.laenge;
     zeile.strecken++;
 

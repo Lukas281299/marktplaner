@@ -267,6 +267,9 @@ describe('Was der Durchgang gefunden hat', () => {
     // Im Plan steht „Marmorkuchen Aktion", gezählt wird es als Kuchen. Wer
     // Kuchen den Torten zuordnet, muss diese Strecke mitnehmen – sonst
     // bleiben die Meter stehen und die Kisten wandern allein weiter.
+    //
+    // Die Zeile heißt danach nach beiden Namen: Zugeordnet heißt nicht
+    // ersetzt, sondern zusammengelegt.
     const el = mit('Marmorkuchen Aktion', 'Backwaren › Bake Off › Kuchen', {
       kategorie: 'obstgemuese',
       ifkoKisten: 4,
@@ -280,8 +283,11 @@ describe('Was der Durchgang gefunden hat', () => {
       (k.kinder as (typeof k)[]).forEach(geh);
     };
     baum.forEach(geh);
-    expect(namen).toContain('Torten');
+    expect(namen).toContain('Torten, Kuchen');
     expect(namen).not.toContain('Kuchen');
+    // Und sie hängt dort, wo die Meter liegen, statt unter „Noch nicht
+    // eingeordnet": Torten steht in keiner Liste, Kuchen schon.
+    expect(namen).toContain('Bake Off');
     // Und die Kisten sind mitgekommen, statt unterwegs zu verschwinden.
     expect(gesamt.kisten).toBe(4);
   });
