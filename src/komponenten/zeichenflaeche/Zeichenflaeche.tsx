@@ -1143,6 +1143,17 @@ export function Zeichenflaeche() {
     // Meter, statt ein Möbel auszuwählen. Eine Gondel ist ein einziges
     // Element mit sechs Feldern – über die Auswahl käme man an den einzelnen
     // Meter nie heran.
+    // Läuft dagegen eine Zuordnung, nimmt der Klick das Ziel aus dem Plan:
+    // die Warengruppe, die an dieser Stelle schon steht. Vier Meter „Kuchen"
+    // anzuklicken ist schneller und sicherer, als den Namen abzutippen.
+    if (store.zuordnungslauf) {
+      const punkt = planPunkt(e.evt.clientX, e.evt.clientY);
+      if (!store.zuordneAusPlan(id, punkt)) {
+        melde('Hier steht keine andere Warengruppe, der man die Meter zuschlagen könnte');
+      }
+      return;
+    }
+
     if (store.warengruppenPinsel) {
       const punkt = planPunkt(e.evt.clientX, e.evt.clientY);
       if (!store.markiereFeld(id, punkt)) melde('Hier gibt es keinen Meter zum Beschriften');

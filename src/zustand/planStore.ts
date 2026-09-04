@@ -53,6 +53,7 @@ import {
 import { geordnet, mitVerschobenerKante } from '../logik/warengruppe';
 import { mitUmbenanntemPfad } from '../logik/pfadumbenennung';
 import { feldUnterPunkt } from '../logik/feldtreffer';
+import { warengruppeUnterPunkt } from '../logik/warengruppentreffer';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -347,6 +348,16 @@ export interface PlanStore {
    * das treffen, was er angeklickt hat.
    */
   warengruppenPinsel: { name: string; pfad: string } | null;
+
+  /**
+   * Der Name, für den gerade ein Ziel gesucht wird – „zählt zu".
+   *
+   * Solange er steht, ist das Programm im Zuordnen: Ein Klick auf einen
+   * Namen in der Liste oder auf einen beschrifteten Meter im Plan setzt das
+   * Ziel. Vorher fragte ein Eingabefeld nach dem Namen – abgetippt, und ein
+   * Tippfehler blieb unsichtbar.
+   */
+  zuordnungslauf: string | null;
   /**
    * Die Meter, die gerade markiert sind.
    *
@@ -464,14 +475,23 @@ export interface PlanStore {
   setzeSucheOffen(offen: boolean): void;
   /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
   schalteAbteilung(name: string): void;
+  /** Beginnt das Zuordnen – `null` bricht ab. */
+  starteZuordnung(name: string | null): void;
+  /**
+   * Nimmt das Ziel aus dem Plan: die Warengruppe unter diesem Punkt.
+   *
+   * `false` heißt, dort stand nichts – dann bleibt der Lauf offen, statt
+   * eine Zuordnung auf nichts zu setzen.
+   */
+  zuordneAusPlan(elementId: string, punkt: Punkt): boolean;
+  /** Ordnet eine Warengruppe einer anderen zu – `null` hebt es auf. */
+  setzeZuordnung(name: string, ziel: string | null): void;
   /**
    * Hakt einen Eintrag der Sortimentsliste ab – mit allem darunter.
    *
    * Der Zustand gehört zur Planung: Die Liste sagt, was es gibt, der Haken
    * sagt, was in **diesem** Markt daraus geworden ist.
    */
-  /** Ordnet eine Warengruppe einer anderen zu – `null` hebt es auf. */
-  setzeZuordnung(name: string, ziel: string | null): void;
   setzeSortimentsstand(pfad: string, wert: Standwert): void;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
@@ -510,30 +530,6 @@ export interface PlanStore {
    * hineinzuklicken und den Text dort von Hand zu löschen.
    */
   loescheMarkierteWarengruppen(): boolean;
-  /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
-  setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
-  /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
-  schalteAbteilung(name: string): void;
-  /**
-   * Hakt einen Eintrag der Sortimentsliste ab – mit allem darunter.
-   *
-   * Der Zustand gehört zur Planung: Die Liste sagt, was es gibt, der Haken
-   * sagt, was in **diesem** Markt daraus geworden ist.
-   */
-  /** Ordnet eine Warengruppe einer anderen zu – `null` hebt es auf. */
-  setzeZuordnung(name: string, ziel: string | null): void;
-  setzeSortimentsstand(pfad: string, wert: Standwert): void;
-  /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
-  pflegeSortiment(liste: Sortimentsliste): void;
-
-  /**
-   * Benennt einen Eintrag der Sortimentsliste um – samt der Planung.
-   *
-   * `alt` und `neu` sind volle Pfade. Ohne das Nachziehen zeigten die
-   * Pfade an den Warengruppenstrecken und die grünen Haken auf einen
-   * Namen, den die Liste nicht mehr kennt.
-   */
-  benenneSortimentUm(liste: Sortimentsliste, alt: string, neu: string): void;
   setzeFavoriten(ids: string[]): void;
 
   /** Übernimmt die am Gerät gemerkten Kennzahlen beim Start. */
@@ -809,6 +805,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   moebelkennzahlen: {},
   sortiment: STANDARD_SORTIMENT,
   warengruppenPinsel: null,
+  zuordnungslauf: null,
   warengruppenMarkierung: [],
   linkerReiter: 'bibliothek',
   sucheOffen: false,
@@ -931,6 +928,28 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
         ? offen.filter((n) => n !== name)
         : [...offen, name],
     });
+  },
+
+  starteZuordnung(name) {
+    // Das Aufnehmen und das Zuordnen schließen sich aus: Beide warten auf
+    // einen Klick, und zwei Erwartungen an denselben Klick sind eine zu viel.
+    set({ zuordnungslauf: name, warengruppenPinsel: null, warengruppenMarkierung: [] });
+  },
+
+  zuordneAusPlan(elementId, punkt) {
+    const quelle = get().zuordnungslauf;
+    if (!quelle) return false;
+    const element = get().projekt.elemente.find((el) => el.id === elementId);
+    if (!element) return false;
+    const treffer = warengruppeUnterPunkt(element, punkt);
+    if (!treffer) return false;
+    // Auf sich selbst zuzuordnen wäre keine Aussage, sondern ein Versehen.
+    if (treffer.name.trim().toLocaleLowerCase('de-DE') === quelle.trim().toLocaleLowerCase('de-DE')) {
+      return false;
+    }
+    get().setzeZuordnung(quelle, treffer.name);
+    set({ zuordnungslauf: null });
+    return true;
   },
 
   setzeZuordnung(name, ziel) {

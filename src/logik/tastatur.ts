@@ -134,7 +134,8 @@ export function useTastatur(): void {
           // meisten im Weg ist.
           // Erst die Markierung, dann der Name: Wer sich vertan hat, will
           // meist nur neu markieren und nicht von vorn anfangen.
-          if (store.warengruppenMarkierung.length > 0) store.hebeMarkierungAuf();
+          if (store.zuordnungslauf) store.starteZuordnung(null);
+          else if (store.warengruppenMarkierung.length > 0) store.hebeMarkierungAuf();
           else if (store.warengruppenPinsel) store.setzeWarengruppenPinsel(null);
           else if (store.werkzeug !== 'auswahl') store.setzeWerkzeug('auswahl');
           else store.hebeAuswahlAuf();

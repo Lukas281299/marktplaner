@@ -600,6 +600,15 @@ body {
   color: var(--blau-dunkel);
 }
 
+/* Das Zuordnen bekommt eine eigene Farbe: Es wartet auf denselben Klick
+   wie der Pinsel, meint damit aber etwas anderes. Gleich aussehen dürfen die
+   beiden deshalb nicht. */
+.pinsel.zuordnen {
+  background: #fdf3e2;
+  border-color: #e8cf9f;
+  color: #7a5410;
+}
+
 .pinsel span {
   flex: 1;
   min-width: 0;
@@ -1458,27 +1467,63 @@ details.erklaerung[open] > summary {
  */
 .teilsortimente > summary {
   display: flex;
-  justify-content: space-between;
-  gap: var(--abstand-2);
+  align-items: center;
+  gap: 5px;
   cursor: pointer;
   user-select: none;
-  font-size: 11px;
-  color: var(--text-schwach);
-  padding: 1px 0;
+  font-size: 11.5px;
+  color: var(--text);
+  padding: 3px 6px;
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  background: var(--flaeche-2);
+}
+
+.teilsortimente > summary::-webkit-details-marker,
+.teilsortimente > summary::marker {
+  display: none;
+  content: '';
 }
 
 .teilsortimente > summary:hover {
-  color: var(--text);
+  background: var(--flaeche-3);
+  border-color: var(--rand-stark);
 }
 
-.teilsortimente[open] > summary {
-  margin-bottom: 2px;
+/* Der Pfeil dreht sich beim Aufklappen – daran sieht man, dass die Zeile
+   eine Klappe ist und keine Überschrift. */
+.teil-pfeil {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 4px solid var(--text-schwach);
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  transition: transform 0.12s;
 }
 
-.teilsortimente .kategorie-anzahl {
+.teilsortimente[open] > summary .teil-pfeil {
+  transform: rotate(90deg);
+}
+
+.teil-titel {
+  flex: none;
+  font-weight: 600;
+}
+
+.teil-inhalt {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: right;
+  color: var(--text-schwach);
+  font-size: 10.5px;
+}
+
+.teilsortimente[open] > summary {
+  margin-bottom: 4px;
 }
 
 /* ================================================= Meter je Warengruppe */

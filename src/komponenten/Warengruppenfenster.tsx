@@ -3,7 +3,6 @@ import {
   abteilungsstand,
   gefiltert,
   gruppenstand,
-  kenntNamen,
   leseSortimentsliste,
   mitAbteilung,
   mitSortiment,
@@ -46,6 +45,7 @@ export function Warengruppenfenster() {
   const sortiment = usePlanStore((s) => s.sortiment);
   const stand = usePlanStore((s) => s.projekt.sortimentsstand);
   const zuordnungen = usePlanStore((s) => s.projekt.zuordnungen);
+  const zuordnungslauf = usePlanStore((s) => s.zuordnungslauf);
   const pinsel = usePlanStore((s) => s.warengruppenPinsel);
 
   const offeneAbteilungen = usePlanStore((s) => s.offeneAbteilungen);
@@ -90,10 +90,18 @@ export function Warengruppenfenster() {
    * steht in dieser Liste fünfmal. Wer hier klickt, meint genau diesen
    * Eintrag, und genau der landet später im Plan.
    */
-  const nimm = (name: string, pfad: string) =>
+  const nimm = (name: string, pfad: string) => {
+    // Läuft gerade eine Zuordnung, ist dieser Klick die Antwort darauf:
+    // „Waffeln zählt zu **diesem** hier."
+    if (zuordnungslauf) {
+      if (zuordnungslauf !== name) usePlanStore.getState().setzeZuordnung(zuordnungslauf, name);
+      usePlanStore.getState().starteZuordnung(null);
+      return;
+    }
     usePlanStore
       .getState()
       .setzeWarengruppenPinsel(pinsel?.pfad === pfad ? null : { name, pfad });
+  };
 
   /**
    * „Zählt zu" – eine Warengruppe schlägt ihre Meter einer anderen zu.
@@ -106,28 +114,16 @@ export function Warengruppenfenster() {
    * deshalb steht sie in der Planung, wie der Haken davor auch.
    */
   const ordneZu = (name: string) => {
-    const jetzt = zuordnungVon(zuordnungen, name) ?? '';
-    const antwort = window.prompt(
-      `Zu welcher Warengruppe zählen die Meter von „${name}"?\n\n` +
-        'Leer lassen hebt die Zuordnung wieder auf.',
-      jetzt,
-    );
-    if (antwort === null) return;
-    const ziel = antwort.trim();
-    // Ein Tippfehler im Ziel wäre unsichtbar: Die Meter liefen auf einen
-    // Namen, den es nicht gibt, und die Zeile sähe aus wie eine eigene
-    // Warengruppe. Deshalb einmal nachfragen, aber nicht verbieten – manche
-    // Namen legt man erst später an.
-    if (ziel && !kenntNamen(sortiment, ziel)) {
-      const weiter = window.confirm(
-        `„${ziel}" steht nicht in der Sortimentsliste.
-
-` +
-          'Trotzdem zuordnen? Die Meter laufen dann auf diesen Namen.',
-      );
-      if (!weiter) return;
+    // Steht schon eine Zuordnung, nimmt der Klick sie weg – das ist der
+    // zweite Handgriff, den man an dieser Stelle braucht.
+    if (zuordnungVon(zuordnungen, name)) {
+      usePlanStore.getState().setzeZuordnung(name, null);
+      return;
     }
-    usePlanStore.getState().setzeZuordnung(name, ziel || null);
+    // Sonst beginnt der Lauf: Das Ziel wird geklickt, nicht getippt. Ein
+    // abgetippter Name kann sich vertippen, und der Fehler bliebe unsichtbar –
+    // die Meter liefen auf einen Namen, den es nicht gibt.
+    usePlanStore.getState().starteZuordnung(name);
   };
 
   /** Die Marke „→ Kuchen" hinter einem zugeordneten Namen. */
@@ -216,6 +212,25 @@ export function Warengruppenfenster() {
           value={suche}
           onChange={(e) => setSuche(e.target.value)}
         />
+
+        {zuordnungslauf && (
+          <div className="pinsel zuordnen">
+            <span>
+              <strong>{zuordnungslauf}</strong> zählt zu …
+              <span className="pinselpfad">
+                Ziel unten in der Liste anklicken — oder im Plan einen Meter, auf dem es schon
+                steht.
+              </span>
+            </span>
+            <button
+              className="knopf knopf-nur-symbol"
+              title="Abbrechen (Esc)"
+              onClick={() => usePlanStore.getState().starteZuordnung(null)}
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {pinsel ? (
           <div className="pinsel">
@@ -336,7 +351,11 @@ export function Warengruppenfenster() {
                           <>
                             <button
                               className="wg-werkzeug"
-                              title={`Die Meter von „${gruppe.name}" einer anderen Warengruppe zuschlagen`}
+                              title={
+                                zuordnungVon(zuordnungen, gruppe.name)
+                                  ? `Die Zuordnung von „${gruppe.name}" lösen`
+                                  : `Die Meter von „${gruppe.name}" einer anderen Warengruppe zuschlagen`
+                              }
                               onClick={() => ordneZu(gruppe.name)}
                             >
                               →
@@ -411,7 +430,11 @@ export function Warengruppenfenster() {
                             <>
                               <button
                                 className="wg-werkzeug"
-                                title={`Die Meter von „${name}" einer anderen Warengruppe zuschlagen`}
+                                title={
+                                  zuordnungVon(zuordnungen, name)
+                                    ? `Die Zuordnung von „${name}" lösen`
+                                    : `Die Meter von „${name}" einer anderen Warengruppe zuschlagen`
+                                }
                                 onClick={() => ordneZu(name)}
                               >
                                 →
