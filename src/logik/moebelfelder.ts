@@ -45,19 +45,51 @@ const OHNE_BOEDEN: ReadonlySet<Grundform> = new Set<Grundform>([
 export function zeigtBodenmasse(element: PlanElement): boolean {
   if (element.korpustiefe !== undefined || element.grundboden !== undefined) return true;
   if (!traegtWare(element)) return false;
+  // Ein Trog, eine Treppe, eine Bewässerungswanne: Bei Blumen und Pflanzen
+  // gibt es kaum klassische Böden, und die Abteilung zählt ohnehin nur
+  // laufende Meter (siehe `logik/auslagen.ts`, NUR_LAUFENDE_METER).
+  if (element.kategorie === 'blumen') return false;
   return !OHNE_BOEDEN.has(element.form);
 }
 
 /**
+ * Möbel, die keine zweite Seite haben können.
+ *
+ * Der Schalter verdoppelt die Meter. Das setzt voraus, dass es zwei Seiten
+ * gibt, die getrennt bestückt werden – und genau das trifft hier nicht zu:
+ *
+ *  - Eine **Palette** und ein **Drehständer** stehen frei im Gang. Man kommt
+ *    von überall heran, aber es ist eine Fläche und nicht zwei.
+ *  - Eine **Truhe** gibt es ein- und beidseitig als eigenes Katalogmöbel, mit
+ *    verschiedener Tiefe (112 gegen 212 cm). Der Schalter hätte die Meter
+ *    verdoppelt, ohne die Tiefe anzufassen – aus einer Single Island wäre
+ *    eine Double Island geworden, die im Plan nur halb so tief steht.
+ */
+const OHNE_ZWEITE_SEITE: ReadonlySet<Grundform> = new Set<Grundform>([
+  'palette',
+  'drehstaender',
+  'tkTruhe',
+]);
+
+/** Dasselbe, wo die Form allein es nicht sagt: Die Schütte ist ein Trog. */
+const OHNE_ZWEITE_SEITE_VORLAGEN: ReadonlySet<string> = new Set(['schuette']);
+
+/**
  * Zeigt dieses Möbel den Schalter „beidseitig bestückt"?
  *
- * Eine Kasse hat keine zweite Seite, eine Säule auch nicht. Bei allem, was
- * Ware trägt, bleibt der Schalter dagegen stehen: Ob jemand zwei Kühlmöbel
- * Rücken an Rücken als **ein** Möbel plant, ist seine Entscheidung und nicht
- * die des Katalogs.
+ * Eine Kasse hat keine zweite Seite, eine Säule auch nicht, und eine Palette
+ * ebenso wenig. Bei allem übrigen, was Ware trägt, bleibt der Schalter
+ * stehen: Ob jemand zwei Kühlmöbel Rücken an Rücken als **ein** Möbel plant,
+ * ist seine Entscheidung und nicht die des Katalogs.
+ *
+ * Steht der Schalter schon auf an, bleibt er sichtbar – sonst käme man an
+ * eine beidseitige Truhe aus einer älteren Planung nicht mehr heran.
  */
 export function zeigtBeidseitig(element: PlanElement): boolean {
-  return Boolean(element.beidseitig) || traegtWare(element);
+  if (element.beidseitig) return true;
+  if (!traegtWare(element)) return false;
+  if (OHNE_ZWEITE_SEITE_VORLAGEN.has(element.vorlageId)) return false;
+  return !OHNE_ZWEITE_SEITE.has(element.form);
 }
 
 /**
@@ -119,4 +151,35 @@ export function zeigtKisten(element: PlanElement): boolean {
   if (element.kategorie === 'obstgemuese') return true;
   if (element.stufen && element.stufen.length > 0) return true;
   return stehtBeimObst(element);
+}
+
+/**
+ * Zonen und Anmerkungen – kein Möbel.
+ *
+ * Eine Aktionsfläche ist ein Stück Boden, ein Textfeld eine Anmerkung im
+ * Plan. Beide haben Breite und Tiefe, aber keine Höhe und keinen Hersteller.
+ */
+const ZONEN: ReadonlySet<Grundform> = new Set<Grundform>(['aktionsflaeche', 'textfeld']);
+
+/**
+ * Zeigt dieses Element das Feld „Höhe"?
+ *
+ * Die Höhe wird im Grundriss nicht gezeichnet; sie steht da, damit man beim
+ * Bestellen nachsehen kann. Eine Zone hat keine.
+ */
+export function zeigtHoehe(element: PlanElement): boolean {
+  if (element.hoehe !== undefined && element.hoehe > 0) return true;
+  return !ZONEN.has(element.form);
+}
+
+/**
+ * Zeigt dieses Element das Feld „Hersteller / Modell"?
+ *
+ * Dieselbe Frage: Eine Aktionsfläche und ein Textfeld stehen in keinem
+ * Katalog. Die **Notiz** daneben bleibt in jedem Fall – ein Satz dazu ist
+ * überall nützlich.
+ */
+export function zeigtHersteller(element: PlanElement): boolean {
+  if (element.hersteller) return true;
+  return !ZONEN.has(element.form);
 }

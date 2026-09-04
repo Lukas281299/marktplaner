@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { zeigtBeidseitig, zeigtBodenmasse, zeigtKisten, zeigtWarengruppen } from './moebelfelder';
+import {
+  zeigtBeidseitig,
+  zeigtBodenmasse,
+  zeigtHersteller,
+  zeigtHoehe,
+  zeigtKisten,
+  zeigtWarengruppen,
+} from './moebelfelder';
 import type { PlanElement } from '../typen/modell';
 
 /**
@@ -57,6 +64,13 @@ describe('Bodenmaße', () => {
     expect(zeigtBodenmasse(moebel({ form: 'getraenkegestell' }))).toBe(false);
   });
 
+  it('stehen nicht an einem Blumenmöbel', () => {
+    // Ein Trog, eine Treppe, eine Wanne – und die Abteilung zählt ohnehin
+    // nur laufende Meter.
+    expect(zeigtBodenmasse(moebel({ kategorie: 'blumen', form: 'blumentrog' }))).toBe(false);
+    expect(zeigtBodenmasse(moebel({ kategorie: 'blumen', form: 'blumentreppe' }))).toBe(false);
+  });
+
   it('bleiben stehen, wo schon ein Maß eingetragen ist', () => {
     // Sonst käme an die Zahl niemand mehr heran.
     expect(zeigtBodenmasse(kasse({ grundboden: 60 }))).toBe(true);
@@ -65,9 +79,26 @@ describe('Bodenmaße', () => {
 });
 
 describe('Beidseitig bestückt', () => {
-  it('steht an allem, was Ware trägt', () => {
+  it('steht an allem, was Ware trägt und zwei Seiten haben kann', () => {
     expect(zeigtBeidseitig(moebel())).toBe(true);
-    expect(zeigtBeidseitig(moebel({ form: 'tkTruhe' }))).toBe(true);
+    expect(zeigtBeidseitig(moebel({ kategorie: 'kuehlung', form: 'kuehlOffen' }))).toBe(true);
+  });
+
+  it('steht nicht an einer Palette, einem Drehständer, einer Schütte', () => {
+    // Sie stehen frei im Gang: eine Fläche, nicht zwei Seiten.
+    expect(zeigtBeidseitig(moebel({ form: 'palette' }))).toBe(false);
+    expect(zeigtBeidseitig(moebel({ form: 'drehstaender' }))).toBe(false);
+    expect(zeigtBeidseitig(moebel({ form: 'abgerundet', vorlageId: 'schuette' }))).toBe(false);
+  });
+
+  it('steht nicht an einer einseitigen Truhe', () => {
+    // Ein- und beidseitig sind eigene Katalogmöbel mit verschiedener Tiefe.
+    // Der Schalter hätte die Meter verdoppelt, ohne die Tiefe anzufassen.
+    expect(zeigtBeidseitig(moebel({ form: 'tkTruhe' }))).toBe(false);
+  });
+
+  it('steht an einer beidseitigen Truhe weiterhin', () => {
+    expect(zeigtBeidseitig(moebel({ form: 'tkTruhe', beidseitig: true }))).toBe(true);
   });
 
   it('steht nicht an einer Kasse', () => {
@@ -125,5 +156,27 @@ describe('Auslagen und grüne Kisten', () => {
 
   it('stehen nicht an einer Kasse', () => {
     expect(zeigtKisten(kasse())).toBe(false);
+  });
+});
+
+describe('Höhe und Hersteller', () => {
+  it('stehen am Möbel', () => {
+    expect(zeigtHoehe(moebel())).toBe(true);
+    expect(zeigtHersteller(moebel())).toBe(true);
+  });
+
+  it('stehen nicht an einer Aktionsfläche und nicht an einem Textfeld', () => {
+    // Ein Stück Boden und eine Anmerkung: keine Höhe, kein Katalog.
+    const flaeche = moebel({ kategorie: 'aktion', form: 'aktionsflaeche' });
+    const text = moebel({ kategorie: 'ausstattung', form: 'textfeld' });
+    expect(zeigtHoehe(flaeche)).toBe(false);
+    expect(zeigtHoehe(text)).toBe(false);
+    expect(zeigtHersteller(flaeche)).toBe(false);
+    expect(zeigtHersteller(text)).toBe(false);
+  });
+
+  it('bleiben stehen, wo schon etwas eingetragen ist', () => {
+    expect(zeigtHoehe(moebel({ form: 'aktionsflaeche', hoehe: 30 }))).toBe(true);
+    expect(zeigtHersteller(moebel({ form: 'textfeld', hersteller: 'Wanzl' }))).toBe(true);
   });
 });

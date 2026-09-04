@@ -31,6 +31,8 @@ import { getraenkezahlen } from '../logik/getraenkezahlen';
 import {
   zeigtBeidseitig,
   zeigtBodenmasse,
+  zeigtHersteller,
+  zeigtHoehe,
   zeigtKisten,
   zeigtWarengruppen,
 } from '../logik/moebelfelder';
@@ -2633,14 +2635,18 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
           />
         </div>
         <div className="feld-zeile">
-          <Massfeld
-            label="Höhe"
-            cm={erstes.hoehe ?? 0}
-            einheit={einheit}
-            beiStart={beiStart}
-            titel="Nur zur Information – wird im Grundriss nicht gezeichnet."
-            aendern={(hoehe) => setze({ hoehe })}
-          />
+          {/* Eine Aktionsfläche ist ein Stück Boden, ein Textfeld eine
+              Anmerkung – beide haben keine Höhe. */}
+          {zeigtHoehe(erstes) && (
+            <Massfeld
+              label="Höhe"
+              cm={erstes.hoehe ?? 0}
+              einheit={einheit}
+              beiStart={beiStart}
+              titel="Nur zur Information – wird im Grundriss nicht gezeichnet."
+              aendern={(hoehe) => setze({ hoehe })}
+            />
+          )}
           {/* Beide beschreiben, wie tief die Ware liegt – das setzt Böden
               voraus. An einer Kasse standen sie bisher auch. */}
           {zeigtBodenmasse(erstes) && (
@@ -2899,15 +2905,19 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
       {/* ----------------------------------------------------- Zusatzangaben */}
       <div className="gruppe">
         <div className="gruppe-titel">Zusatzangaben</div>
-        <div className="feld-zeile einspaltig">
-          <Textfeld
-            label="Hersteller / Modell"
-            wert={erstes.hersteller ?? ''}
-            platzhalter="optional"
-            beiStart={beiStart}
-            aendern={(hersteller) => setze({ hersteller })}
-          />
-        </div>
+        {/* Eine Zone steht in keinem Katalog. Die Notiz darunter bleibt –
+            ein Satz dazu ist überall nützlich. */}
+        {zeigtHersteller(erstes) && (
+          <div className="feld-zeile einspaltig">
+            <Textfeld
+              label="Hersteller / Modell"
+              wert={erstes.hersteller ?? ''}
+              platzhalter="optional"
+              beiStart={beiStart}
+              aendern={(hersteller) => setze({ hersteller })}
+            />
+          </div>
+        )}
         <div className="feld-zeile einspaltig">
           <Textbereich
             label="Notiz"
