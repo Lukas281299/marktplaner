@@ -28,6 +28,12 @@ import { ifkoVorschlag } from '../logik/ifko';
 import { bodentiefeMm } from '../logik/feldnotiz';
 import { aktionsflaechen, palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
 import { getraenkezahlen } from '../logik/getraenkezahlen';
+import {
+  zeigtBeidseitig,
+  zeigtBodenmasse,
+  zeigtKisten,
+  zeigtWarengruppen,
+} from '../logik/moebelfelder';
 import { obstgemuesezahlen } from '../logik/meterbaum';
 import { kannKopfgondel, kopfmasse, type Kopfseite } from '../logik/kopfgondel';
 import { ROHR_UEBERSTAND, SPIEGELBAR } from './zeichenflaeche/ElementSymbol';
@@ -1231,10 +1237,13 @@ function Teilsortimente({
   return (
     <details className="teilsortimente">
       <summary>
-        <span>Teilsortimente</span>
-        <span className="kategorie-anzahl">
+        {/* Der Pfeil zeigt, dass hier etwas aufgeht. Ohne ihn sah die Zeile
+            aus wie eine Überschrift, und niemand klickte darauf. */}
+        <span className="teil-pfeil" aria-hidden="true" />
+        <span className="teil-titel">Teilsortimente</span>
+        <span className="teil-inhalt">
           {teile.length === 0
-            ? 'keine'
+            ? 'anlegen'
             : teile
                 .map((t) => t.text.trim() || '—')
                 .join(' · ')
@@ -2632,22 +2641,32 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
             titel="Nur zur Information – wird im Grundriss nicht gezeichnet."
             aendern={(hoehe) => setze({ hoehe })}
           />
-          <Massfeld
-            label="Korpustiefe"
-            cm={erstes.korpustiefe ?? 0}
-            einheit={einheit}
-            beiStart={beiStart}
-            titel="Der Teil, der auf dem Boden steht. Kragt die Front darüber hinaus, ist die Tiefe größer. 0 = keine auskragende Front."
-            aendern={(korpustiefe) => setze({ korpustiefe: korpustiefe > 0 ? korpustiefe : undefined })}
-          />
-          <Massfeld
-            label="Unterster Boden"
-            cm={erstes.grundboden ?? 0}
-            einheit={einheit}
-            beiStart={beiStart}
-            titel="Tiefe des untersten Bodens – das Maß, nach dem man beim Planen als Erstes fragt. Tiefer als die Etagen darüber, flacher als das Gehäuse. 0 = nicht angegeben."
-            aendern={(grundboden) => setze({ grundboden: grundboden > 0 ? grundboden : undefined })}
-          />
+          {/* Beide beschreiben, wie tief die Ware liegt – das setzt Böden
+              voraus. An einer Kasse standen sie bisher auch. */}
+          {zeigtBodenmasse(erstes) && (
+            <>
+              <Massfeld
+                label="Korpustiefe"
+                cm={erstes.korpustiefe ?? 0}
+                einheit={einheit}
+                beiStart={beiStart}
+                titel="Der Teil, der auf dem Boden steht. Kragt die Front darüber hinaus, ist die Tiefe größer. 0 = keine auskragende Front."
+                aendern={(korpustiefe) =>
+                  setze({ korpustiefe: korpustiefe > 0 ? korpustiefe : undefined })
+                }
+              />
+              <Massfeld
+                label="Unterster Boden"
+                cm={erstes.grundboden ?? 0}
+                einheit={einheit}
+                beiStart={beiStart}
+                titel="Tiefe des untersten Bodens – das Maß, nach dem man beim Planen als Erstes fragt. Tiefer als die Etagen darüber, flacher als das Gehäuse. 0 = nicht angegeben."
+                aendern={(grundboden) =>
+                  setze({ grundboden: grundboden > 0 ? grundboden : undefined })
+                }
+              />
+            </>
+          )}
           <div className="feld">
             <label>Fläche</label>
             <div style={{ padding: '5px 0', fontWeight: 600 }}>
@@ -2664,17 +2683,23 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
 
         {/* Beidseitig gehört zu den Maßen und nicht zum Gruppieren: Der
             Schalter entscheidet, ob die Tiefe einem Möbel gehört oder zwei
-            Seiten – und gleich darüber steht, wie sie sich aufteilt. */}
-        <Schalter
-          label="Beidseitig bestückt (Gondel)"
-          wert={Boolean(erstes.beidseitig)}
-          aendern={(beidseitig) => setzeMitPunkt({ beidseitig })}
-        />
-        <p className="hinweis" style={{ marginTop: 4 }}>
-          Zählt bei den Regalmetern doppelt. Gemeint ist <strong>ein</strong> Möbel mit zwei
-          Seiten. Zwei Wandregale Rücken an Rücken sind zwei einseitige Möbel – die werden schon
-          von selbst zweimal gezählt.
-        </p>
+            Seiten – und gleich darüber steht, wie sie sich aufteilt.
+
+            An einer Kasse oder einer Säule gibt es nichts zu bestücken. */}
+        {zeigtBeidseitig(erstes) && (
+          <>
+            <Schalter
+              label="Beidseitig bestückt (Gondel)"
+              wert={Boolean(erstes.beidseitig)}
+              aendern={(beidseitig) => setzeMitPunkt({ beidseitig })}
+            />
+            <p className="hinweis" style={{ marginTop: 4 }}>
+              Zählt bei den Regalmetern doppelt. Gemeint ist <strong>ein</strong> Möbel mit zwei
+              Seiten. Zwei Wandregale Rücken an Rücken sind zwei einseitige Möbel – die werden
+              schon von selbst zweimal gezählt.
+            </p>
+          </>
+        )}
 
         {SPIEGELBAR.has(erstes.form) && (
           <>
@@ -2788,6 +2813,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         // Sie schreibt ihren Namen selbst in die Mitte, dazu ihre Zahlen in
         // die Ecken. Ihren Text stellt man unter „Beschriftung" ein.
         if (ziel.form === 'aktionsflaeche') return null;
+        // Und ebenso wenig, was gar keine Ware trägt: An einer Kassenzeile,
+        // einer Kundenführung oder einer Säule stand hier bisher ein
+        // Warengruppenband, dessen Meter in keiner Tabelle auftauchen.
+        if (!zeigtWarengruppen(ziel)) return null;
         return <Elementbeschriftung element={ziel} />;
       })()}
 
@@ -2804,14 +2833,13 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
       )}
 
       {/*
-        Auch am Regal und am Kühlmöbel: Das Kartoffelregal kommt aus der
-        Kategorie „Regale", steht aber in der Obstabteilung und trägt
-        Kisten. Die Abteilung entscheidet die Warengruppe, nicht der Katalog.
+        Auch am Regal und am Kühlmöbel – aber nur an denen, die beim Obst
+        stehen: Das Kartoffelregal kommt aus der Kategorie „Regale" und trägt
+        trotzdem Kisten. Die Abteilung entscheidet, nicht der Katalog.
       */}
-      {ausgewaehlte.length === 1 &&
-        (erstes.kategorie === 'obstgemuese' ||
-          erstes.kategorie === 'regale' ||
-          erstes.kategorie === 'kuehlung') && <ObstGemueseKennzahlen element={erstes} />}
+      {ausgewaehlte.length === 1 && zeigtKisten(erstes) && (
+        <ObstGemueseKennzahlen element={erstes} />
+      )}
 
       {ausgewaehlte.length === 1 && erstes.form === 'aktionsflaeche' && (
         <Aktionspaletten element={erstes} />
