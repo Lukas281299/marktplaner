@@ -53,12 +53,21 @@ export function schluesselVon(abteilung: string, gruppe: string): string {
   return pfadVon(abteilung, gruppe);
 }
 
-/** Der Zustand eines einzelnen Eintrags. */
+/**
+ * Der Zustand eines einzelnen Eintrags.
+ *
+ * `imPlan` sind die Pfade, die im Markt gezeichnet sind (siehe
+ * `logik/planstand.ts`). Sie schlagen alles andere: Was gezeichnet ist, steht
+ * im Markt — das ist keine Meinung, sondern eine Tatsache, und sie soll nicht
+ * von einem alten Klick überstimmt werden.
+ */
 export function standVon(
   stand: Sortimentsstand | undefined,
   pfad: string,
   zuordnungen?: Record<string, string>,
+  imPlan?: ReadonlySet<string>,
 ): Standwert {
+  if (imPlan?.has(pfad)) return 'gruen';
   const gesetzt = stand?.[pfad];
   if (gesetzt) return gesetzt;
   // Ein zugeordneter Name ist nicht offen. Seine Meter laufen woanders, und
@@ -174,10 +183,11 @@ function zaehle(
   stand: Sortimentsstand | undefined,
   pfade: string[],
   zuordnungen?: Record<string, string>,
+  imPlan?: ReadonlySet<string>,
 ): Standzahlen {
   const zahlen: Standzahlen = { gruen: 0, offen: 0, grau: 0 };
   for (const pfad of pfade) {
-    const wert = standVon(stand, pfad, zuordnungen);
+    const wert = standVon(stand, pfad, zuordnungen, imPlan);
     if (wert === 'gruen') zahlen.gruen++;
     else if (wert === 'grau' || wert === 'zugeordnet') zahlen.grau++;
     else zahlen.offen++;
@@ -198,10 +208,11 @@ export function gruppenstand(
   abteilung: string,
   gruppe: Sortimentsgruppeartig,
   zuordnungen?: Record<string, string>,
+  imPlan?: ReadonlySet<string>,
 ): { wert: Standwert; zahlen: Standzahlen } {
   const eigen = pfadVon(abteilung, gruppe.name);
   if (gruppe.sortimente.length === 0) {
-    const wert = standVon(stand, eigen, zuordnungen);
+    const wert = standVon(stand, eigen, zuordnungen, imPlan);
     return {
       wert,
       zahlen: {
@@ -216,6 +227,7 @@ export function gruppenstand(
     stand,
     gruppe.sortimente.map((n) => pfadVon(abteilung, gruppe.name, n)),
     zuordnungen,
+    imPlan,
   );
   return { wert: ausZahlen(zahlen), zahlen };
 }
@@ -225,9 +237,10 @@ export function abteilungsstand(
   stand: Sortimentsstand | undefined,
   abteilung: Sortimentsabteilung,
   zuordnungen?: Record<string, string>,
+  imPlan?: ReadonlySet<string>,
 ): { wert: Standwert; zahlen: Standzahlen } {
   if (abteilung.warengruppen.length === 0) {
-    const wert = standVon(stand, pfadVon(abteilung.name), zuordnungen);
+    const wert = standVon(stand, pfadVon(abteilung.name), zuordnungen, imPlan);
     return {
       wert,
       zahlen: {
@@ -240,7 +253,7 @@ export function abteilungsstand(
 
   const zahlen: Standzahlen = { gruen: 0, offen: 0, grau: 0 };
   for (const gruppe of abteilung.warengruppen) {
-    const wert = gruppenstand(stand, abteilung.name, gruppe, zuordnungen).wert;
+    const wert = gruppenstand(stand, abteilung.name, gruppe, zuordnungen, imPlan).wert;
     if (wert === 'gruen') zahlen.gruen++;
     else if (wert === 'grau' || wert === 'zugeordnet') zahlen.grau++;
     else zahlen.offen++;
@@ -259,58 +272,6 @@ function ausZahlen(zahlen: Standzahlen): Standwert {
   if (zahlen.offen > 0) return 'rot';
   if (zahlen.gruen > 0) return 'gruen';
   return 'grau';
-}
-
-/**
- * Hakt einen Namen ab, weil er gerade zugeordnet wurde.
- *
- * Anders als der frühere Textabgleich ist das eindeutig: Der Pinsel schreibt
- * genau diesen Namen, nicht einen, in dem er vorkommt. Grün werden alle
- * Einträge, die so heißen – ein Name kann in zwei Abteilungen stehen.
- */
-/**
- * Alle Namen, die einem Namen zugeschlagen sind – er selbst eingeschlossen.
- *
- * Wer „Kuchen" in den Plan malt, hakt damit auch „Waffeln" ab, wenn Waffeln
- * dem Kuchen zugeordnet sind. Sonst bliebe der zugeordnete Name in der Liste
- * rot, obwohl seine Meter im Plan stehen – genau das, was die Zuordnung
- * verhindern soll.
- */
-export function mitsamtZugeordneten(
-  name: string,
-  zuordnungen: Record<string, string> | undefined,
-): string[] {
-  const ziel = schluessel(name);
-  const namen = [name];
-  for (const [quelle, wohin] of Object.entries(zuordnungen ?? {})) {
-    if (schluessel(wohin) === ziel) namen.push(quelle);
-  }
-  return namen;
-}
-
-export function mitAbgehaktemNamen(
-  liste: Sortimentsliste,
-  stand: Sortimentsstand | undefined,
-  name: string,
-): Sortimentsstand {
-  const gesucht = schluessel(name);
-  const neu: Sortimentsstand = { ...(stand ?? {}) };
-
-  for (const abteilung of liste.abteilungen) {
-    for (const gruppe of abteilung.warengruppen) {
-      if (schluessel(gruppe.name) === gesucht) {
-        for (const pfad of pfadeUnter(liste, pfadVon(abteilung.name, gruppe.name))) {
-          neu[pfad] = 'gruen';
-        }
-      }
-      for (const sortiment of gruppe.sortimente) {
-        if (schluessel(sortiment) === gesucht) {
-          neu[pfadVon(abteilung.name, gruppe.name, sortiment)] = 'gruen';
-        }
-      }
-    }
-  }
-  return neu;
 }
 
 /** Setzt eine Menge von Pfaden auf einen Zustand. Rot heißt: nichts merken. */

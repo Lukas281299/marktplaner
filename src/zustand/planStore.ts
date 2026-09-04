@@ -35,8 +35,6 @@ import {
 } from '../speicher/projektArchiv';
 import { STANDARD_SORTIMENT, type Sortimentsliste } from '../daten/warengruppen';
 import {
-  mitAbgehaktemNamen,
-  mitsamtZugeordneten,
   mitAufgenommenem,
   mitStand,
   pfadeUnter,
@@ -54,6 +52,7 @@ import { geordnet, mitVerschobenerKante } from '../logik/warengruppe';
 import { mitUmbenanntemPfad } from '../logik/pfadumbenennung';
 import { feldUnterPunkt } from '../logik/feldtreffer';
 import { warengruppeUnterPunkt } from '../logik/warengruppentreffer';
+import { pfadeImPlan } from '../logik/planstand';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -957,7 +956,14 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   setzeSortimentsstand(pfad, wert) {
-    const pfade = pfadeUnter(get().sortiment, pfad);
+    // Was im Plan steht, bleibt außen vor: Sein Haken kommt aus der Planung
+    // und nicht aus diesem Klick. Ohne den Filter schriebe ein Klick auf die
+    // Abteilung „nicht vorgesehen" unter jeden gezeichneten Meter – unsichtbar,
+    // weil die Anzeige den Plan vorzieht, und wirksam, sobald der Meter
+    // irgendwann verschwindet.
+    const imPlan = pfadeImPlan(get().projekt, get().sortiment);
+    const pfade = pfadeUnter(get().sortiment, pfad).filter((p) => !imPlan.has(p));
+    if (pfade.length === 0) return;
     aendere(set, get, (p) => ({ ...p, sortimentsstand: mitStand(p.sortimentsstand, pfade, wert) }));
   },
 
@@ -1019,15 +1025,12 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       ...p,
       // Geschrieben wird in dieselben Felder, die man in der Gondelübersicht
       // von Hand füllt: Es gibt nur eine Sorte Beschriftung.
+      //
+      // Der grüne Haken wird hier **nicht** gesetzt. Er wird gelesen: aus dem
+      // Plan, jedes Mal neu (siehe `logik/planstand.ts`). Einmal gesetzt und
+      // dann stehen geblieben war er die halbe Wahrheit – wer die Warengruppe
+      // wieder vom Möbel nahm, sah sie links weiterhin als erledigt.
       elemente: mitZugeordnetenFeldern(p.elemente, markierung, text, pinsel.pfad),
-      // Zugeordnet heißt abgehakt: Hier ist der Name genau der Name und nicht
-      // ein Teil eines anderen – anders als beim früheren Textabgleich.
-      // Ein zugeordneter Name gilt mit ab: Wer „Kuchen" malt, hat auch die
-      // Waffeln untergebracht, wenn er sie dem Kuchen zugeschlagen hat.
-      sortimentsstand: mitsamtZugeordneten(text, p.zuordnungen).reduce(
-        (stand, name) => mitAbgehaktemNamen(get().sortiment, stand, name),
-        p.sortimentsstand,
-      ),
     }));
     // Die Markierung ist damit erledigt. Wer sie stehen ließe, schriebe beim
     // nächsten Enter versehentlich noch einmal dorthin.

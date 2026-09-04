@@ -9,13 +9,11 @@ import {
   mitAbteilung,
   mitAufgenommenem,
   mitZuordnung,
-  mitsamtZugeordneten,
   mitSortiment,
   mitWarengruppe,
   ohneAbteilung,
   zuordnungVon,
   ohneSortiment,
-  mitAbgehaktemNamen,
   mitStand,
   naechsterStand,
   ohneWarengruppe,
@@ -144,26 +142,6 @@ describe('Grün, rot und grau', () => {
     const ergebnis = abteilungsstand(stand, drogerie);
     expect(ergebnis.wert).toBe('rot');
     expect(ergebnis.zahlen).toEqual({ gruen: 1, offen: 1, grau: 0 });
-  });
-});
-
-describe('Zugeordnet heißt abgehakt', () => {
-  it('hakt genau den zugeordneten Namen ab', () => {
-    // Anders als der frühere Textabgleich: Der Pinsel schreibt genau diesen
-    // Namen, nicht einen, in dem er vorkommt.
-    const stand = mitAbgehaktemNamen(liste, {}, 'Windeln');
-    expect(stand[sPfad('Windeln')]).toBe('gruen');
-    expect(stand[sPfad('Babypflege')]).toBeUndefined();
-  });
-
-  it('hakt bei einer Warengruppe ihre Sortimente mit ab', () => {
-    const stand = mitAbgehaktemNamen(liste, {}, 'Babyartikel');
-    expect(stand[gPfad]).toBe('gruen');
-    expect(stand[sPfad('Windeln')]).toBe('gruen');
-  });
-
-  it('lässt einen Namen, den die Liste nicht kennt, ohne Wirkung', () => {
-    expect(mitAbgehaktemNamen(liste, {}, 'Grillkohle')).toEqual({});
   });
 });
 
@@ -474,10 +452,4 @@ describe('Die Liste kennt die Zuordnung', () => {
     expect(standVon(stand, pfadVon('Feinbackwaren', 'Süßes', 'Waffeln'), z)).toBe('gruen');
   });
 
-  it('nennt beim Abhaken die zugeordneten Namen mit', () => {
-    // Wer „Kuchen" in den Plan malt, hat auch die Waffeln untergebracht.
-    expect(mitsamtZugeordneten('Kuchen', z).sort()).toEqual(['Kuchen', 'waffeln']);
-    expect(mitsamtZugeordneten('Kekse', z)).toEqual(['Kekse']);
-    expect(mitsamtZugeordneten('Kuchen', undefined)).toEqual(['Kuchen']);
-  });
 });

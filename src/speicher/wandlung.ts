@@ -198,7 +198,37 @@ export function wandleProjekt(roh: unknown): Projekt {
       .map(chepAufEuromass)
       // Fassung 17: ganz zuletzt, wenn Felder, Maße und Seiten stehen.
       .map(ziehBezeichnungNach),
+    // Fassung 21: der grüne Haken wird gelesen, nicht gespeichert.
+    sortimentsstand: ohneGespeicherteHaken(projekt?.sortimentsstand),
   });
+}
+
+/**
+ * Fassung 21: Der grüne Haken wird aus dem Plan gelesen, nicht gespeichert.
+ *
+ * Er wurde beim Beschriften einmal gesetzt und blieb dann stehen. Wer die
+ * Warengruppe wieder vom Möbel nahm, sah sie links weiterhin als erledigt —
+ * die Liste sagte, dort stünde etwas, und man ging an der Lücke vorbei.
+ *
+ * Jetzt sagt der Plan, was grün ist (siehe `logik/planstand.ts`). Die
+ * gespeicherten grünen Haken müssen deshalb weg: Sie stammen fast alle aus
+ * dem alten Automatismus, und stehen zu bleiben hieße, den Fehler in jede
+ * bestehende Planung mitzunehmen.
+ *
+ * **Grau bleibt.** „In diesem Markt nicht vorgesehen" ist eine Entscheidung
+ * über etwas, das **nicht** im Plan steht — die kann kein Plan beantworten,
+ * und sie wäre unwiederbringlich.
+ *
+ * Verloren geht damit der seltene Fall: ein von Hand gesetztes Grün für Ware,
+ * die im Markt steht, aber nicht gezeichnet ist. Sie steht danach wieder auf
+ * offen und ist mit einem Klick zurückgeholt.
+ */
+function ohneGespeicherteHaken(
+  stand: Record<string, 'gruen' | 'grau'> | undefined,
+): Record<string, 'gruen' | 'grau'> | undefined {
+  if (!stand) return undefined;
+  const bleibt = Object.entries(stand).filter(([, wert]) => wert === 'grau');
+  return bleibt.length > 0 ? Object.fromEntries(bleibt) : undefined;
 }
 
 /**

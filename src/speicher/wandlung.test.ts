@@ -778,6 +778,37 @@ describe('Fassung 20 · Die CHEP-Palette bekommt ihr richtiges Maß', () => {
   });
 });
 
+describe('Fassung 21 · Der grüne Haken wird gelesen, nicht gespeichert', () => {
+  const mitStand = (stand: Record<string, string>) =>
+    alteFassung({ version: 20, waende: [], oeffnungen: [], elemente: [], sortimentsstand: stand });
+
+  it('wirft die gespeicherten grünen Haken weg', () => {
+    // Sie stammen aus dem alten Automatismus und blieben stehen, auch
+    // nachdem die Warengruppe längst vom Möbel genommen war.
+    const neu = wandleProjekt(mitStand({ 'Backwaren › Bake Off › Kuchen': 'gruen' }));
+    expect(neu.sortimentsstand).toBeUndefined();
+  });
+
+  it('lässt „nicht vorgesehen“ stehen', () => {
+    // Das ist eine Entscheidung über etwas, das nicht im Plan steht – die
+    // kann kein Plan beantworten, und sie wäre unwiederbringlich.
+    const neu = wandleProjekt(
+      mitStand({
+        'Backwaren › Bake Off › Kuchen': 'gruen',
+        'Backwaren › Bake Off › Brötchen': 'grau',
+      }),
+    );
+    expect(neu.sortimentsstand).toEqual({ 'Backwaren › Bake Off › Brötchen': 'grau' });
+  });
+
+  it('kommt mit einer Planung ohne Stand zurecht', () => {
+    const neu = wandleProjekt(
+      alteFassung({ version: 20, waende: [], oeffnungen: [], elemente: [] }),
+    );
+    expect(neu.sortimentsstand).toBeUndefined();
+  });
+});
+
 describe('Die Ebene „Laufwege" fällt weg', () => {
   it('nimmt sie aus einer vorhandenen Planung heraus', () => {
     // Sie stand in jedem Projekt, ohne dass ein Werkzeug darauf zeichnen

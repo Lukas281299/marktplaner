@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   abteilungsstand,
   gefiltert,
@@ -21,6 +21,7 @@ import {
   vereinigt,
   type Standwert,
 } from '../logik/sortiment';
+import { pfadeImPlan } from '../logik/planstand';
 import { usePlanStore } from '../zustand/planStore';
 import { Spaltenschalter } from './Spaltengriffe';
 
@@ -46,6 +47,21 @@ export function Warengruppenfenster() {
   const stand = usePlanStore((s) => s.projekt.sortimentsstand);
   const zuordnungen = usePlanStore((s) => s.projekt.zuordnungen);
   const zuordnungslauf = usePlanStore((s) => s.zuordnungslauf);
+  const elemente = usePlanStore((s) => s.projekt.elemente);
+  const ebenen = usePlanStore((s) => s.projekt.ebenen);
+  const projekt = usePlanStore((s) => s.projekt);
+
+  /**
+   * Was im Plan steht, ist grün – jedes Mal frisch gelesen.
+   *
+   * Über `elemente` und `ebenen` gemerkt und nicht über das ganze Projekt:
+   * Sonst liefe die Rechnung bei jedem Verschieben eines Möbels erneut.
+   */
+  const imPlan = useMemo(
+    () => pfadeImPlan(projekt, sortiment),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [elemente, ebenen, sortiment],
+  );
   const pinsel = usePlanStore((s) => s.warengruppenPinsel);
 
   const offeneAbteilungen = usePlanStore((s) => s.offeneAbteilungen);
@@ -59,15 +75,23 @@ export function Warengruppenfenster() {
   const zahlen = umfang(sortiment);
   const sucht = suche.trim() !== '';
 
-  /** Ein Klick auf den Punkt schaltet weiter: rot → grün → grau → rot. */
+  /**
+   * Ein Klick auf den Punkt schaltet weiter: rot → grün → grau → rot.
+   *
+   * Was im Plan steht, überspringt der Speicher dabei: Es ist gezeichnet, und
+   * daran ändert kein Klick in der Liste etwas. Auf einer Sammelzeile wirkt
+   * der Klick trotzdem – auf alles darunter, was **nicht** gezeichnet ist.
+   */
   const schalte = (pfad: string, jetzt: Standwert) =>
     usePlanStore.getState().setzeSortimentsstand(pfad, naechsterStand(jetzt));
 
-  const titel = (wert: Standwert) =>
-    wert === 'gruen'
-      ? 'Steht im Markt — anklicken für „nicht vorgesehen"'
-      : wert === 'grau'
-        ? 'In diesem Markt nicht vorgesehen — anklicken für „offen"'
+  const titel = (wert: Standwert, pfad?: string) =>
+    pfad && imPlan.has(pfad)
+      ? 'Steht im Plan — zum Ändern die Meter am Möbel ändern'
+      : wert === 'gruen'
+        ? 'Steht im Markt — anklicken für „nicht vorgesehen"'
+        : wert === 'grau'
+          ? 'In diesem Markt nicht vorgesehen — anklicken für „offen"'
         : wert === 'zugeordnet'
           ? 'Zählt zu einer anderen Warengruppe — gilt damit als untergebracht'
           : 'Offen — anklicken für „steht im Markt"';
@@ -235,7 +259,8 @@ export function Warengruppenfenster() {
         {pinsel ? (
           <div className="pinsel">
             <span>
-              <strong>{pinsel.name}</strong> — Meter anklicken, dann <strong>Enter</strong>
+              <strong>{pinsel.name}</strong> — Meter anklicken, dann <strong>Enter</strong>.{' '}
+              <strong>Entf</strong> nimmt sie wieder weg.
               {/* Der volle Pfad darunter: Bei „Kuchen" ist erst daran zu
                   sehen, welches der fünf gemeint ist. */}
               <span className="pinselpfad">{pinsel.pfad}</span>
@@ -250,8 +275,8 @@ export function Warengruppenfenster() {
           </div>
         ) : (
           <p className="hinweis" style={{ margin: '4px 2px' }}>
-            Namen anklicken, im Plan die Meter anklicken, <strong>Enter</strong>. Der Punkt
-            davor hakt ab:
+            Namen anklicken, im Plan die Meter anklicken, <strong>Enter</strong> schreibt,
+            <strong> Entf</strong> löscht. Der Punkt davor:
             <span className="wg-punkt rot" /> offen,
             <span className="wg-punkt gruen" /> steht,
             <span className="wg-punkt grau" /> nicht vorgesehen.
@@ -264,7 +289,7 @@ export function Warengruppenfenster() {
           // Zugeklappt ist der Anfang; beim Suchen geht alles auf, sonst
           // sähe man die Treffer nicht.
           const offen = sucht || offeneAbteilungen.includes(abteilung.name);
-          const zahl = abteilungsstand(stand, abteilung, zuordnungen);
+          const zahl = abteilungsstand(stand, abteilung, zuordnungen, imPlan);
           return (
             <div key={abteilung.name} className="wg-abteilung">
               <div className="wg-kopf">
@@ -281,7 +306,7 @@ export function Warengruppenfenster() {
                 </span>
                 <button
                   className={`wg-punkt ${zahl.wert}`}
-                  title={titel(zahl.wert)}
+                  title={titel(zahl.wert, pfadVon(abteilung.name))}
                   onClick={() => schalte(pfadVon(abteilung.name), zahl.wert)}
                 />
                 {pflege && (
@@ -330,13 +355,13 @@ export function Warengruppenfenster() {
               {offen &&
                 abteilung.warengruppen.map((gruppe) => {
                   const eigen = pfadVon(abteilung.name, gruppe.name);
-                  const gStand = gruppenstand(stand, abteilung.name, gruppe, zuordnungen);
+                  const gStand = gruppenstand(stand, abteilung.name, gruppe, zuordnungen, imPlan);
                   return (
                     <div key={gruppe.name}>
                       <div className="wg-zeile">
                         <button
                           className={`wg-punkt ${gStand.wert}`}
-                          title={titel(gStand.wert)}
+                          title={titel(gStand.wert, eigen)}
                           onClick={() => schalte(eigen, gStand.wert)}
                         />
                         <button
@@ -410,12 +435,12 @@ export function Warengruppenfenster() {
 
                       {gruppe.sortimente.map((name) => {
                         const pfad = pfadVon(abteilung.name, gruppe.name, name);
-                        const wert = standVon(stand, pfad, zuordnungen);
+                        const wert = standVon(stand, pfad, zuordnungen, imPlan);
                         return (
                         <div className="wg-zeile wg-tief" key={name}>
                           <button
                             className={`wg-punkt ${wert}`}
-                            title={titel(wert)}
+                            title={titel(wert, pfad)}
                             onClick={() => schalte(pfad, wert)}
                           />
                           <button

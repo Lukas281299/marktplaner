@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { gefiltert, gruppenstand, standVon, pfadVon } from '../logik/sortiment';
+import { pfadeImPlan } from '../logik/planstand';
 import { usePlanStore } from '../zustand/planStore';
 
 /**
@@ -54,6 +55,11 @@ export function Warengruppenwahl({
 }) {
   const sortiment = usePlanStore((s) => s.sortiment);
   const stand = usePlanStore((s) => s.projekt.sortimentsstand);
+  const projekt = usePlanStore((s) => s.projekt);
+  const elemente = usePlanStore((s) => s.projekt.elemente);
+  // Dieselbe Frage wie links: Was im Plan steht, ist grün.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const imPlan = useMemo(() => pfadeImPlan(projekt, sortiment), [elemente, sortiment]);
   const zuordnungen = usePlanStore((s) => s.projekt.zuordnungen);
   const offeneAbteilungen = usePlanStore((s) => s.offeneAbteilungen);
 
@@ -172,7 +178,7 @@ export function Warengruppenwahl({
 
                     {auf &&
                       abteilung.warengruppen.map((gruppe) => {
-                        const g = gruppenstand(stand, abteilung.name, gruppe, zuordnungen);
+                        const g = gruppenstand(stand, abteilung.name, gruppe, zuordnungen, imPlan);
                         return (
                           <div key={gruppe.name}>
                             <button
