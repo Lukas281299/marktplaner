@@ -12,13 +12,20 @@ import { bodentiefeMm, feldzeilen, masszeilen, notizZeilen } from './feldnotiz';
 
 describe('Zeilen im Feld', () => {
   it('setzt die Bodenzahl vor die Notiz', () => {
-    expect(feldzeilen({ boeden: 5, notiz: '1K' })).toEqual(['5+', '1K']);
+    expect(feldzeilen({ boeden: 5, notiz: '1K' })).toEqual(['5', '1K']);
   });
 
-  it('schreibt dasselbe wie früher der Text', () => {
-    // Die Zusage der Umstellung: Am Bild ändert sich nichts. Links oben im
-    // Feld steht weiter „5+", nur kommt es jetzt aus einer Zahl.
-    expect(feldzeilen({ boeden: 5, notiz: '1K' })).toEqual(notizZeilen('5+\n1K'));
+  it('schreibt die Zahl ohne Pluszeichen', () => {
+    // In den Wanzl-Plänen steht dort „5+". Das Plus erklärt aber keine
+    // Legende, und niemand im Markt liest daraus etwas – es war Schreibweise
+    // und keine Aussage.
+    expect(feldzeilen({ boeden: 5 })).toEqual(['5']);
+  });
+
+  it('lässt eine von Hand getippte Notiz unangetastet', () => {
+    // „5+/6+" meint zwei Seiten und ist eine eigene Notiz – keine Zahl, die
+    // dieses Feld gesetzt hätte. Solche Zeilen bleiben, wie sie getippt sind.
+    expect(feldzeilen({ notiz: '5+/6+' })).toEqual(['5+/6+']);
   });
 
   it('lässt die Zahl weg, wenn keine da ist', () => {
@@ -30,13 +37,13 @@ describe('Zeilen im Feld', () => {
   it('zeichnet auch mit Zahl höchstens drei Zeilen', () => {
     // Sonst schöbe die Zahl die dritte Notizzeile aus dem Feld heraus und
     // niemand sähe, dass da noch etwas steht.
-    expect(feldzeilen({ boeden: 5, notiz: 'a\nb\nc' })).toEqual(['5+', 'a', 'b']);
+    expect(feldzeilen({ boeden: 5, notiz: 'a\nb\nc' })).toEqual(['5', 'a', 'b']);
   });
 
   it('rundet eine krumme Zahl', () => {
     // Eingetippt wird sie ganzzahlig; käme aus einer alten Datei etwas
     // anderes, stünde sonst „4.5+" im Feld.
-    expect(feldzeilen({ boeden: 4.5 })).toEqual(['5+']);
+    expect(feldzeilen({ boeden: 4.5 })).toEqual(['5']);
   });
 });
 

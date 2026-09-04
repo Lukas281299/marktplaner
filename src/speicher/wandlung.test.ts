@@ -713,11 +713,11 @@ describe('Fassung 19 · Aus „5+" in der Notiz wird eine Zahl', () => {
     expect(feld.notiz).toBe('1K');
   });
 
-  it('zeichnet danach dieselben Zeilen wie vorher', () => {
-    // Die eigentliche Zusage: Am Bild ändert sich nichts. Was vorher die
-    // erste Textzeile war, setzt `feldzeilen` aus der Zahl wieder davor.
+  it('zeichnet danach dieselben Zeilen – nur ohne das Pluszeichen', () => {
+    // Die Zahl steht weiter an derselben Stelle, das Plus ist weg: Es
+    // erklärt keine Legende, und niemand liest daraus etwas.
     for (const text of ['5+\n1K', '10+', '1K\nAktion', '5+/6+']) {
-      const vorher = notizZeilen(text);
+      const vorher = notizZeilen(text).map((z) => z.replace(/^(\d{1,2})\+$/, '$1'));
       const nachher = feldzeilen(felder(text)[0]);
       expect(nachher, text).toEqual(vorher);
     }

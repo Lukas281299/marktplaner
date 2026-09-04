@@ -1959,7 +1959,7 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
             min="0"
             step="1"
             value={element.ifkoKisten ?? ''}
-            placeholder="—"
+            placeholder={String(vorschlagKisten ?? '—')}
             title={
               element.kennzahlEigen
                 ? 'Gilt nur für dieses Möbel – die Typvorgabe überschreibt es nicht mehr.'
@@ -2046,8 +2046,9 @@ function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
         {' '}— einmal eintragen, auch für die nächsten.{' '}
         {auslagenAmMoebel ? (
           <>
-            Im Plan steht oben links <strong>{element.auslagen ?? 0}+</strong> und darunter{' '}
-            <strong>{element.ifkoKisten ?? 0} iK</strong>.
+            Im Plan steht oben links <strong>{element.auslagen ?? vorschlagAuslagen ?? 0}</strong>{' '}
+            und darunter <strong>{element.ifkoKisten ?? vorschlagKisten ?? 0} iK</strong> — beides
+            rechnet sich aus dem Bau des Möbels, eintragen musst du es nur, wenn es abweicht.
           </>
         ) : (
           <>

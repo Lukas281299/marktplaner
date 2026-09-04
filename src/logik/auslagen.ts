@@ -1,5 +1,6 @@
 import { felderVon, seitenbreite } from './regalseiten';
 import { KISTE, kistenseiten } from './getraenkekisten';
+import { ifkoVorschlag } from './ifko';
 import { ersteStufe } from './sortiment';
 import type { Auslagenanteil, Streckenmeter } from './warengruppenmeter';
 import type { PlanElement, Regalfeld } from '../typen/modell';
@@ -188,19 +189,35 @@ export function ohneAuslagenbegriff(strecke: Streckenmeter): boolean {
 }
 
 /**
- * Wie viele grüne Kisten auf dieser Strecke stehen.
+ * Wie viele grüne Kisten ein Möbel trägt.
  *
- * Gilt für jedes Möbel, an dem eine Kistenzahl steht – auch für ein
- * Kartoffelregal, das aus der Kategorie „Regale" kommt und trotzdem in der
- * Obstabteilung steht. Die Abteilung entscheidet die Warengruppe, nicht der
- * Katalog.
+ * **Ein Obst- und Gemüsemöbel rechnet es sich selbst aus** – aus seinen
+ * Auflagen und deren Tiefen (siehe `logik/ifko.ts`). Von Hand eintragen muss
+ * das niemand; wer es trotzdem tut, dessen Zahl gilt. Genau dieselbe Zahl
+ * zeichnet das Symbol ins Möbel, damit Bild und Auswertung nicht zweierlei
+ * sagen.
+ *
+ * Bei allem anderen gilt nur, was eingetragen ist. Ein Kartoffelregal kommt
+ * aus der Kategorie „Regale" und steht trotzdem in der Obstabteilung – dort
+ * trägt der Planer die Zahl ein, sonst bekäme jedes Trockenregal im Markt
+ * eine Kistenzahl, die niemand wollte.
+ */
+export function kistenzahl(element: PlanElement): number {
+  if (element.ifkoKisten !== undefined) return element.ifkoKisten;
+  if (element.kategorie !== 'obstgemuese') return 0;
+  return ifkoVorschlag(element) ?? 0;
+}
+
+/**
+ * Wie viele grüne Kisten auf dieser Strecke stehen.
  *
  * Die Zahl gilt für das **ganze** Möbel. Eine Gondel wird zweimal durchlaufen
  * – einmal je Seite –, also bekommt jede Seite die Hälfte.
  */
 export function kistenAnteil(strecke: Streckenmeter): number {
   const el = strecke.element;
-  if (!el.ifkoKisten) return 0;
+  const kisten = kistenzahl(el);
+  if (!kisten) return 0;
 
   // Verteilt wird über die **Feldkette dieser Seite** und nicht über
   // `element.breite`. Die beiden sind nicht dasselbe: Die Breite eines Möbels
@@ -211,7 +228,7 @@ export function kistenAnteil(strecke: Streckenmeter): number {
   if (!(laenge > 0)) return 0;
 
   const seiten = el.beidseitig ? 2 : 1;
-  const jeCm = el.ifkoKisten / seiten / laenge;
+  const jeCm = kisten / seiten / laenge;
   return (strecke.bis - strecke.von) * jeCm;
 }
 

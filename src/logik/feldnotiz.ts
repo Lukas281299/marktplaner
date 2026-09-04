@@ -42,18 +42,21 @@ export function notizZeilen(text: string | undefined): string[] {
 /**
  * Die Zeilen, die links oben im Feld stehen.
  *
- * Erst die Bodenzahl, dann die eigenen Notizzeilen – genau die Reihenfolge,
- * die vorher von Hand getippt wurde. Am Bild ändert sich dadurch nichts; die
- * erste Zeile kommt nur nicht mehr aus dem Text, sondern aus einer Zahl, mit
- * der sich rechnen lässt.
+ * Erst die Bodenzahl, dann die eigenen Notizzeilen.
  *
- * Solange ein Feld noch keine Zahl trägt, gilt der Text unverändert. Alte
- * Planungen zeichnen sich dadurch wie bisher, auch bevor sie umgestellt sind.
+ * **Ohne Pluszeichen.** In den Wanzl-Plänen steht dort „5+", und solange die
+ * Zahl von Hand in die Notiz getippt wurde, stand sie auch hier so. Das Plus
+ * erklärt aber keine Legende, und niemand im Markt liest daraus etwas – es
+ * war Schreibweise und keine Aussage. Die Zahl steht jetzt für sich.
+ *
+ * Solange ein Feld noch keine Zahl trägt, gilt der Text unverändert. Steht
+ * dort noch ein von Hand getipptes „5+/6+", bleibt es genauso stehen: Das ist
+ * eine eigene Notiz und keine Zahl, die dieses Feld gesetzt hätte.
  */
 export function feldzeilen(feld: Pick<Regalfeld, 'boeden' | 'notiz'>): string[] {
   const eigene = notizZeilen(feld.notiz);
-  if (!feld.boeden || feld.boeden <= 0) return eigene;
-  return [`${Math.round(feld.boeden)}+`, ...eigene].slice(0, NOTIZ_ZEILEN);
+  if (feld.boeden === undefined || feld.boeden <= 0) return eigene;
+  return [`${Math.round(feld.boeden)}`, ...eigene].slice(0, NOTIZ_ZEILEN);
 }
 
 /** Die Bodentiefen, die es im wire-tech-System gibt, in cm. */

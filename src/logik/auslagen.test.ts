@@ -4,6 +4,7 @@ import {
   feldauslagen,
   frontfaktor,
   kistenAnteil,
+  kistenzahl,
   moebelauslagen,
   TK_FACH,
   TK_TOTZONE,
@@ -460,5 +461,60 @@ describe('Was der Durchgang gefunden hat', () => {
     // und nicht 6 mit dem Unterbau obendrauf.
     expect(a.tatsaechlich).toBe(500);
     expect(a.ohne).toBe(0);
+  });
+});
+
+describe('Die Kistenzahl rechnet sich selbst', () => {
+  it('nimmt beim Obstmöbel den Vorschlag, wenn nichts eingetragen ist', () => {
+    // „Das ist jetzt überflüssig" – von Hand eintragen muss das niemand mehr.
+    const tisch = element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite: 125,
+      stufen: [120, 60],
+      felderUnten: [{ breite: 125 }],
+    });
+    // 1,25 m mit T1200 + T600: 6 + 3 Kisten.
+    expect(kistenzahl(tisch)).toBe(9);
+  });
+
+  it('lässt eine eingetragene Zahl gewinnen', () => {
+    const tisch = element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite: 125,
+      stufen: [120, 60],
+      ifkoKisten: 7,
+    });
+    expect(kistenzahl(tisch)).toBe(7);
+    // Auch die Null: Wer sie einträgt, meint sie.
+    expect(kistenzahl({ ...tisch, ifkoKisten: 0 })).toBe(0);
+  });
+
+  it('gibt einem Trockenregal von selbst keine Kisten', () => {
+    // Sonst bekäme jedes Regal im Markt eine Kistenzahl, die niemand wollte.
+    expect(kistenzahl(element({ breite: 125, felderUnten: [{ breite: 125, boeden: 5 }] }))).toBe(0);
+    // Am Kartoffelregal trägt der Planer sie ein, und dann gilt sie.
+    expect(kistenzahl(element({ breite: 125, ifkoKisten: 6 }))).toBe(6);
+  });
+
+  it('zählt sie auch in der Auswertung mit', () => {
+    // Bild und Tabelle müssen dieselbe Zahl sagen.
+    const tisch = element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite: 125,
+      stufen: [120, 60],
+      felderUnten: [{ breite: 125 }],
+    });
+    const anteil = kistenAnteil({
+      name: 'Äpfel',
+      laenge: 125,
+      element: tisch,
+      seite: 'unten',
+      von: 0,
+      bis: 125,
+    });
+    expect(anteil).toBeCloseTo(9, 6);
   });
 });

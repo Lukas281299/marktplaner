@@ -7,6 +7,7 @@ import { achsmassZeichen } from '../../logik/achsmass';
 import { laeuftRueckwaerts, lesbar } from '../../logik/beschriftung';
 import { feldliste } from '../../logik/feldaufteilung';
 import { feldzeilen, masszeilen } from '../../logik/feldnotiz';
+import { kistenzahl } from '../../logik/auslagen';
 import { formatiereFlaeche } from '../../logik/masse';
 import {
   felderVon,
@@ -302,17 +303,26 @@ function lesbarerBlock(
 /**
  * Die beiden Kennzahlen eines Obst- und Gemüsemöbels, als Zeilen.
  *
- * `4+` wie bei den Regalen – dort ist es die Zahl der Böden, hier die der
- * Auslagen; gelesen wird es gleich. Darunter die grünen Kisten mit ihrem
- * Kürzel, damit die beiden Zahlen nicht zu verwechseln sind.
+ * Oben die Auslagen wie bei den Regalen die Böden, darunter die grünen
+ * Kisten mit ihrem Kürzel, damit die beiden Zahlen nicht zu verwechseln sind.
+ *
+ * **Beide rechnen sich von selbst.** Ein Vitable-Tisch nennt seine Auflagen
+ * samt Tiefen; daraus folgt, wie viele Stufen er hat und wie viele Kisten
+ * daraufgehen (siehe `logik/ifko.ts`). Von Hand eintragen muss das niemand
+ * mehr – wer es trotzdem tut, dessen Zahl gilt: Der Katalog kennt die
+ * Bauart, aber nicht den Markt.
  *
  * `undefined` heißt: Dieses Möbel führt keine Kennzahlen, es gilt die Notiz.
  */
 function ogKennzahlen(element: PlanElement): string[] | undefined {
   if (element.kategorie !== 'obstgemuese') return undefined;
+  const seiten = element.beidseitig ? 2 : 1;
+  const auslagen = element.auslagen ?? (element.stufen?.length ?? 0) * seiten;
+  const kisten = kistenzahl(element);
+
   const zeilen: string[] = [];
-  if (element.auslagen) zeilen.push(`${element.auslagen}+`);
-  if (element.ifkoKisten) zeilen.push(`${element.ifkoKisten} iK`);
+  if (auslagen) zeilen.push(`${auslagen}`);
+  if (kisten) zeilen.push(`${kisten} iK`);
   return zeilen.length > 0 ? zeilen : undefined;
 }
 
