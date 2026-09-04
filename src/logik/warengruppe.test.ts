@@ -130,7 +130,7 @@ describe('Schreiben', () => {
 });
 
 describe('Rastpunkte', () => {
-  it('nimmt Feldgrenzen, Hälften und Viertel', () => {
+  it('geht in Schritten von 25 cm', () => {
     expect(rastpunkte(felder(100))).toEqual([0, 25, 50, 75, 100]);
   });
 
@@ -139,11 +139,34 @@ describe('Rastpunkte', () => {
     expect(rastpunkte(felder(100, 100))).toContain(200);
   });
 
+  it('nimmt die Feldgrenzen mit, auch wenn sie neben dem Raster liegen', () => {
+    // Ein A625 endet bei 62,5 cm – dort hört eine Warengruppe oft auf, und
+    // ohne diesen Punkt käme man nicht mehr bündig an die Feldgrenze.
+    const punkte = rastpunkte(felder(62.5, 62.5));
+    expect(punkte).toContain(62.5);
+    expect(punkte).toContain(125);
+    expect(punkte).toContain(25);
+    expect(punkte).toContain(50);
+  });
+
+  it('lässt zwischen den Stufen nichts stehen', () => {
+    // Kein Viertel eines krummen Feldes mehr: 15,6 cm wäre eine Angabe, die
+    // im Markt niemand nachmisst.
+    expect(rastpunkte(felder(62.5))).toEqual([0, 25, 50, 62.5]);
+  });
+
   it('kommt auch mit krummen Feldern zurecht', () => {
     // Das A1333 des wire tech ist nicht glatt teilbar.
     const punkte = rastpunkte(felder(133.3));
     expect(punkte[0]).toBe(0);
     expect(punkte[punkte.length - 1]).toBeCloseTo(133.5, 1);
+  });
+
+  it('rastet mit Infinity immer auf den nächsten Punkt', () => {
+    // So arbeitet der Regler: Zwischenstellungen gibt es nicht.
+    expect(eingerastet(37, [0, 25, 50, 100], Infinity)).toBe(25);
+    expect(eingerastet(38, [0, 25, 50, 100], Infinity)).toBe(50);
+    expect(eingerastet(99, [0, 25, 50, 100], Infinity)).toBe(100);
   });
 
   it('rastet nur ein, was nah genug ist', () => {

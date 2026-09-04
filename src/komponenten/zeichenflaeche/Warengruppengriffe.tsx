@@ -32,9 +32,6 @@ import type { PlanElement } from '../../typen/modell';
  */
 const GRIFF = 6.5;
 
-/** Wie weit ein Rastpunkt zieht, in Bildschirmpunkten. */
-const RAST_NAEHE = 12;
-
 /**
  * So viele Griffe höchstens – darüber wird der Plan unlesbar.
  *
@@ -123,8 +120,10 @@ function ziehe(
   if (!zeiger) return;
 
   const roh = cmAufSeite(element, griff.seite, zeiger);
-  const zoom = buehne.scaleX() || 1;
-  const ziel = eingerastet(roh, rastpunkte(felderVon(element, griff.seite)), RAST_NAEHE / zoom);
+  // **Immer** einrasten, nicht nur in der Nähe: Der Regler kennt 25-cm-Stufen
+  // und die Feldgrenzen, dazwischen gibt es nichts. Feiner einzustellen lohnt
+  // sich nicht, und wer es doch braucht, tippt „von" und „bis" am Möbel ein.
+  const ziel = eingerastet(roh, rastpunkte(felderVon(element, griff.seite)), Infinity);
 
   usePlanStore
     .getState()

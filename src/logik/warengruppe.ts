@@ -215,30 +215,46 @@ export function ohneStrecke(
 }
 
 /**
+ * Die Schrittweite des Reglers: 25 cm.
+ *
+ * Feiner lohnt sich nicht. Ein Sortiment auf 3 cm genau abzugrenzen ist eine
+ * Zahl, die im Markt niemand nachmisst – und beim Ziehen kostet jede
+ * Zwischenstellung Zielarbeit.
+ */
+export const RASTSCHRITT = 25;
+
+/**
  * Die Stellen, an denen eine Grenze beim Ziehen einrastet.
  *
- * Feldgrenzen zuerst, dann Halbe und Viertel darin. Damit trifft man die
- * üblichen Fälle ohne Zielen – drei Meter zu zweit geteilt sind anderthalb,
- * und anderthalb ist die Mitte eines Feldes oder eine Feldgrenze, je nachdem
- * wie der Zug gebaut ist.
+ * **Alle 25 cm, dazu die Feldgrenzen.** Die Feldgrenzen müssen dabei sein,
+ * weil sie nicht immer auf das Raster fallen: Ein A625-Feld endet bei 62,5
+ * und ein A1333 bei 133,3 cm. Eine Warengruppe hört meist genau an einer
+ * Feldgrenze auf, und wer die nicht mehr treffen könnte, wäre schlechter dran
+ * als mit dem freien Ziehen von vorher.
  *
  * Die Enden des Möbels gehören dazu: Ein Abschnitt soll bündig abschließen
  * können.
+ *
+ * Für genauere Werte gibt es die Felder **von** und **bis** am Möbel – dort
+ * tippt man ein, was hier nicht einrastet.
  */
 export function rastpunkte(felder: Regalfeld[]): number[] {
   const punkte = new Set<number>([0]);
   let x = 0;
   for (const feld of felder) {
-    // Viertel, Hälfte, Dreiviertel – und die Grenze selbst.
-    for (const anteil of [0.25, 0.5, 0.75, 1]) {
-      punkte.add(runde(x + feld.breite * anteil));
-    }
     x += feld.breite;
+    punkte.add(runde(x));
   }
+  for (let stelle = RASTSCHRITT; stelle < x; stelle += RASTSCHRITT) punkte.add(stelle);
   return [...punkte].sort((a, b) => a - b);
 }
 
-/** Rastet einen Wert auf den nächsten Punkt ein, wenn er nah genug ist. */
+/**
+ * Rastet einen Wert auf den nächsten Punkt ein, wenn er nah genug ist.
+ *
+ * Mit `Infinity` als Toleranz rastet er **immer** – dann gibt es keine
+ * Zwischenstellungen, sondern nur die Punkte selbst.
+ */
 export function eingerastet(wert: number, punkte: number[], toleranz: number): number {
   let bester = wert;
   let abstand = toleranz;

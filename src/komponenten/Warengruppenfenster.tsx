@@ -3,6 +3,7 @@ import {
   abteilungsstand,
   gefiltert,
   gruppenstand,
+  istAbgedeckt,
   leseSortimentsliste,
   mitAbteilung,
   mitSortiment,
@@ -88,6 +89,8 @@ export function Warengruppenfenster() {
   const titel = (wert: Standwert, pfad?: string) =>
     pfad && imPlan.has(pfad)
       ? 'Steht im Plan — zum Ändern die Meter am Möbel ändern'
+      : pfad && istAbgedeckt(imPlan, pfad)
+      ? 'Die Stufe darüber steht als Ganzes im Plan — damit ist es untergebracht'
       : wert === 'gruen'
         ? 'Steht im Markt — anklicken für „nicht vorgesehen"'
         : wert === 'grau'

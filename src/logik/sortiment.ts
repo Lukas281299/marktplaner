@@ -54,6 +54,23 @@ export function schluesselVon(abteilung: string, gruppe: string): string {
 }
 
 /**
+ * Steht eine **Stufe darüber** im Plan?
+ *
+ * Wer eine ganze Warengruppe einzeichnet – „Fisch/Meeresfrüchte" über drei
+ * Meter Tiefkühlschrank –, hat damit auch den Lachs und die Garnelen
+ * untergebracht. Sie stehen nicht einzeln im Plan, und offen sind sie
+ * trotzdem nicht: Sie liegen dort mit drin.
+ */
+export function istAbgedeckt(imPlan: ReadonlySet<string> | undefined, pfad: string): boolean {
+  if (!imPlan || imPlan.size === 0) return false;
+  const stufen = pfad.split(' › ');
+  for (let i = 1; i < stufen.length; i++) {
+    if (imPlan.has(stufen.slice(0, i).join(' › '))) return true;
+  }
+  return false;
+}
+
+/**
  * Der Zustand eines einzelnen Eintrags.
  *
  * `imPlan` sind die Pfade, die im Markt gezeichnet sind (siehe
@@ -73,6 +90,9 @@ export function standVon(
   // Ein zugeordneter Name ist nicht offen. Seine Meter laufen woanders, und
   // rot zu bleiben hieße, dauerhaft etwas anzumahnen, das erledigt ist.
   if (zuordnungen && zuordnungVon(zuordnungen, letzteStufe(pfad))) return 'zugeordnet';
+  // Dasselbe für ein Sortiment unter einer Warengruppe, die als Ganzes im
+  // Plan steht: Es ist mit untergebracht.
+  if (istAbgedeckt(imPlan, pfad)) return 'zugeordnet';
   return 'rot';
 }
 
@@ -211,6 +231,18 @@ export function gruppenstand(
   imPlan?: ReadonlySet<string>,
 ): { wert: Standwert; zahlen: Standzahlen } {
   const eigen = pfadVon(abteilung, gruppe.name);
+
+  // **Die ganze Warengruppe eingezeichnet.** Dann steht sie, ganz gleich, was
+  // ihre Sortimente einzeln sagen: Der Plan ist die Auskunft, nicht die Summe
+  // darunter. Wer größere Strukturen am Stück setzt, will genau das.
+  if (imPlan?.has(eigen)) {
+    return { wert: 'gruen', zahlen: { gruen: 1, offen: 0, grau: 0 } };
+  }
+  // Und steht die Abteilung darüber im Plan, ist die Warengruppe mit drin.
+  if (istAbgedeckt(imPlan, eigen)) {
+    return { wert: 'zugeordnet', zahlen: { gruen: 0, offen: 0, grau: 1 } };
+  }
+
   if (gruppe.sortimente.length === 0) {
     const wert = standVon(stand, eigen, zuordnungen, imPlan);
     return {
@@ -239,6 +271,11 @@ export function abteilungsstand(
   zuordnungen?: Record<string, string>,
   imPlan?: ReadonlySet<string>,
 ): { wert: Standwert; zahlen: Standzahlen } {
+  // Eine ganze Abteilung am Stück – dieselbe Regel wie eine Stufe tiefer.
+  if (imPlan?.has(pfadVon(abteilung.name))) {
+    return { wert: 'gruen', zahlen: { gruen: 1, offen: 0, grau: 0 } };
+  }
+
   if (abteilung.warengruppen.length === 0) {
     const wert = standVon(stand, pfadVon(abteilung.name), zuordnungen, imPlan);
     return {

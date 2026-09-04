@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buende, teileBeschriftung, zieleDerStrecke } from './sortimentsbund';
 import { pfadeImPlan } from './planstand';
+import { abteilungsstand, gruppenstand, istAbgedeckt, standVon } from './sortiment';
 import { meterauswertung } from './meterbaum';
 import type { PlanElement, Projekt } from '../typen/modell';
 import type { Sortimentsliste } from '../daten/warengruppen';
@@ -225,5 +226,54 @@ describe('Der Haken in der Liste', () => {
     // gehört den Nüssen und nicht mehr dem Trockenobst.
     const imPlan = pfadeImPlan(projekt([mit('Nüsse', TROCKENOBST)]), liste);
     expect([...imPlan]).toEqual([NUESSE]);
+  });
+});
+
+describe('Größere Strukturen am Stück', () => {
+  const GRUPPE = P('Backwaren', 'Bake Off');
+
+  it('hakt eine ganze Warengruppe ab, die im Plan steht', () => {
+    // Der gemeldete Fall: „Fisch/Meeresfrüchte" über drei Meter gesetzt, in
+    // der Rechnung richtig, in der Liste rot. Der Punkt leitete sich stur aus
+    // den Sortimenten ab.
+    const plan = projekt([mit('Bake Off', GRUPPE)]);
+    const imPlan = pfadeImPlan(plan, liste);
+    const gruppe = liste.abteilungen[1].warengruppen[0];
+    expect(gruppenstand(undefined, 'Backwaren', gruppe, undefined, imPlan).wert).toBe('gruen');
+  });
+
+  it('zählt die Abteilung darüber als erledigt', () => {
+    const plan = projekt([mit('Bake Off', GRUPPE)]);
+    const imPlan = pfadeImPlan(plan, liste);
+    const zahl = abteilungsstand(undefined, liste.abteilungen[1], undefined, imPlan);
+    expect(zahl.wert).toBe('gruen');
+    expect(zahl.zahlen.offen).toBe(0);
+  });
+
+  it('nimmt die Sortimente darunter aus den offenen Punkten', () => {
+    // Sie stehen nicht einzeln im Plan – offen sind sie trotzdem nicht.
+    const plan = projekt([mit('Bake Off', GRUPPE)]);
+    const imPlan = pfadeImPlan(plan, liste);
+    expect(standVon(undefined, KUCHEN_BAKE, undefined, imPlan)).toBe('zugeordnet');
+    expect(istAbgedeckt(imPlan, KUCHEN_BAKE)).toBe(true);
+  });
+
+  it('lässt ein einzeln gesetztes Sortiment grün, nicht abgedeckt', () => {
+    const plan = projekt([mit('Kuchen', KUCHEN_BAKE)]);
+    const imPlan = pfadeImPlan(plan, liste);
+    expect(standVon(undefined, KUCHEN_BAKE, undefined, imPlan)).toBe('gruen');
+    expect(istAbgedeckt(imPlan, KUCHEN_BAKE)).toBe(false);
+  });
+
+  it('lässt eine Nachbarabteilung unberührt', () => {
+    const plan = projekt([mit('Bake Off', GRUPPE)]);
+    const imPlan = pfadeImPlan(plan, liste);
+    expect(standVon(undefined, NUESSE, undefined, imPlan)).toBe('rot');
+  });
+
+  it('führt die Meter der Warengruppe in ihrer eigenen Zeile', () => {
+    const { baum, gesamt } = meterauswertung(projekt([mit('Bake Off', GRUPPE)]), liste);
+    expect(namenIm(baum)).toEqual(['Backwaren', 'Bake Off']);
+    expect(gesamt.laufend).toBe(3);
   });
 });

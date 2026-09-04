@@ -201,6 +201,7 @@ export function Warengruppenwahl({
                                     stand,
                                     pfadVon(abteilung.name, gruppe.name, name),
                                     zuordnungen,
+                                    imPlan,
                                   )}`}
                                 />
                                 {name}
