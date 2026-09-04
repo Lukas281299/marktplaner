@@ -124,6 +124,17 @@ describe('Der Baum', () => {
     expect(baum[0].name).toBe('Obst & Gemüse');
   });
 
+  it('rät bei einem mehrdeutigen Namen ohne Pfad nicht', () => {
+    // „Kuchen" steht in der Liste zweimal. Die erste Fundstelle zu nehmen
+    // hieße, die Meter mit halber Wahrscheinlichkeit richtig einzuordnen –
+    // und zwar unsichtbar. Sie stehen deshalb offen da, bis jemand sie über
+    // das Menü zuweist.
+    const { baum } = meterauswertung(projekt([mit('Kuchen')]), LISTE);
+    expect(baum).toHaveLength(1);
+    expect(baum[0].name).toBe(OHNE_ABTEILUNG);
+    expect(baum[0].kinder[0].name).toBe('Kuchen');
+  });
+
   it('stellt ans Ende, was sich nicht einordnen lässt', () => {
     const { baum } = meterauswertung(
       projekt([mit('Elstar', 'Obst & Gemüse › Äpfel › Elstar'), mit('Wundertüten')]),

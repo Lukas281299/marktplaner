@@ -120,17 +120,20 @@ function runde(knoten: Meterknoten): Meterknoten {
  * **Gesucht wird der volle Pfad und nicht nur die Abteilung.** Ein Name, den
  * die Liste genau einmal kennt, gehört unter seine Warengruppe – wer nur die
  * Abteilung nachschlägt, hängt ein Sortiment neben die Warengruppe statt
- * darunter, und deren Summe fehlten dann genau diese Meter. Ist der Name
- * mehrdeutig, bleibt es bei der Abteilung: Zwischen zwei gleich richtigen
- * Stellen zu wählen hieße raten.
+ * darunter, und deren Summe fehlten dann genau diese Meter.
+ *
+ * **Ist der Name mehrdeutig, wird nicht geraten.** „Kuchen" steht in der
+ * Liste fünfmal; die erste Fundstelle zu nehmen hieße, die Meter mit einer
+ * Wahrscheinlichkeit von eins zu fünf richtig einzuordnen – und zwar
+ * unsichtbar. Solche Strecken stehen unter „Noch nicht eingeordnet", bis
+ * jemand sie über das Menü einem Sortiment zuweist. Das ist dieselbe
+ * Auskunft, die auch am Möbel selbst steht.
  */
 function stufenVon(zeile: Warengruppenzeile, liste: Sortimentsliste): string[] {
   if (zeile.pfad) return zeile.pfad.split(' › ');
   if (zeile.name === OHNE_WARENGRUPPE) return [OHNE_ABTEILUNG, zeile.name];
   const pfad = eindeutigerPfad(liste, zeile.name);
-  if (pfad) return pfad.split(' › ');
-  const abteilung = abteilungVon(liste, zeile.name);
-  return abteilung ? [abteilung, zeile.name] : [OHNE_ABTEILUNG, zeile.name];
+  return pfad ? pfad.split(' › ') : [OHNE_ABTEILUNG, zeile.name];
 }
 
 /**

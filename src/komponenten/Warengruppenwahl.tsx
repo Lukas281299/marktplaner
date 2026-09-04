@@ -62,6 +62,16 @@ export function Warengruppenwahl({
   const knopf = useRef<HTMLButtonElement | null>(null);
   const feld = useRef<HTMLInputElement | null>(null);
 
+  /**
+   * Die Lage des Menüs, nachgeführt.
+   *
+   * Es hängt am Fenster und nicht am Knopf – scrollt jemand das
+   * Eigenschaftenfenster, wandert der Knopf und das Menü bliebe stehen. Bei
+   * einer Liste mit 364 Sortimenten scrollt man, und dann darf das Menü nicht
+   * neben seinem Knopf hängen bleiben.
+   */
+  const [lage, setLage] = useState(() => lageAm(null));
+
   // Schließt beim Klick daneben und bei Escape.
   useEffect(() => {
     if (!offen) return;
@@ -90,6 +100,21 @@ export function Warengruppenwahl({
     if (offen) feld.current?.focus();
   }, [offen]);
 
+  // Und die Lage nachführen, solange es offen ist. `true` als drittes
+  // Argument fängt auch das Scrollen **innerhalb** des Eigenschaftenfensters:
+  // Ein Scroll-Ereignis steigt nicht auf, es wird nur eingefangen.
+  useEffect(() => {
+    if (!offen) return;
+    const messen = () => setLage(lageAm(knopf.current));
+    messen();
+    window.addEventListener('scroll', messen, true);
+    window.addEventListener('resize', messen);
+    return () => {
+      window.removeEventListener('scroll', messen, true);
+      window.removeEventListener('resize', messen);
+    };
+  }, [offen]);
+
   if (sortiment.abteilungen.length === 0) return null;
 
   const nimm = (name: string, pfad: string) => {
@@ -100,7 +125,6 @@ export function Warengruppenwahl({
 
   const sucht = suche.trim() !== '';
   const gezeigt = gefiltert(sortiment, suche);
-  const lage = lageAm(knopf.current);
 
   return (
     <>

@@ -4,6 +4,7 @@ import { gesamtUmgrenzung } from '../logik/geometrie';
 import { felderVon, seitenbreite, seitenVon } from '../logik/regalseiten';
 import { mitAbschnitt } from '../logik/warengruppe';
 import { warengruppenVon } from '../logik/warengruppenzuordnung';
+import { eindeutigerPfad } from '../logik/sortiment';
 import { abteilungsstand, gruppenstand, pfadVon, standVon } from '../logik/sortiment';
 import type { Standwert } from '../logik/sortiment';
 import { usePlanStore } from '../zustand/planStore';
@@ -636,10 +637,15 @@ const WARENGRUPPE_SETZEN: Werkzeug = {
     }
 
     const text = String(eingabe.text ?? '').trim();
+    // Kennt die Sortimentsliste den Namen genau einmal, kommt sein Pfad mit:
+    // Der macht ihn eindeutig und stellt die Strecke in der Auswertung an die
+    // richtige Stelle. Bei einem mehrdeutigen Namen – „Kuchen" steht fünfmal
+    // in der Liste – bleibt er weg, statt eine der Stellen zu raten.
+    const pfad = text ? eindeutigerPfad(s.sortiment, text) : undefined;
     s.setzeWarengruppen(
       el.id,
       seite,
-      mitAbschnitt(warengruppenVon(el, seite), gesamt, { von, bis, text }),
+      mitAbschnitt(warengruppenVon(el, seite), gesamt, { von, bis, text, pfad }),
     );
     zeige([el.id], s);
 
