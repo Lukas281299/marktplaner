@@ -53,22 +53,35 @@ export function zeigtBodenmasse(element: PlanElement): boolean {
 }
 
 /**
+ * Möbel, bei denen die Seitenzahl aus dem Katalog kommt.
+ *
+ * Die **Truhe** gibt es ein- und beidseitig als **zwei verschiedene Möbel**,
+ * mit verschiedener Tiefe: 112 gegen 212 cm. Welche von beiden im Markt
+ * steht, entscheidet man beim Einsetzen und nicht danach mit einem Schalter –
+ * der verdoppelte die Meter, ohne die Tiefe anzufassen, und aus einer Single
+ * Island wurde eine Double Island, die im Plan nur halb so tief steht.
+ *
+ * Deshalb ist der Schalter hier **immer** weg, auch an der beidseitigen: Die
+ * Vorlage hat den Wert richtig gesetzt, und niemand soll ihn verstellen. Wer
+ * die andere Bauart braucht, nimmt sie aus dem Katalog.
+ */
+const SEITEN_AUS_DEM_KATALOG: ReadonlySet<Grundform> = new Set<Grundform>(['tkTruhe']);
+
+/**
  * Möbel, die keine zweite Seite haben können.
  *
  * Der Schalter verdoppelt die Meter. Das setzt voraus, dass es zwei Seiten
- * gibt, die getrennt bestückt werden – und genau das trifft hier nicht zu:
+ * gibt, die getrennt bestückt werden – und eine **Palette**, ein
+ * **Drehständer** und eine **Schütte** stehen frei im Gang: Man kommt von
+ * überall heran, aber es ist eine Fläche und nicht zwei.
  *
- *  - Eine **Palette** und ein **Drehständer** stehen frei im Gang. Man kommt
- *    von überall heran, aber es ist eine Fläche und nicht zwei.
- *  - Eine **Truhe** gibt es ein- und beidseitig als eigenes Katalogmöbel, mit
- *    verschiedener Tiefe (112 gegen 212 cm). Der Schalter hätte die Meter
- *    verdoppelt, ohne die Tiefe anzufassen – aus einer Single Island wäre
- *    eine Double Island geworden, die im Plan nur halb so tief steht.
+ * Anders als bei der Truhe bleibt der Schalter hier sichtbar, wenn er schon
+ * auf an steht. Dort wäre das ein Fehler aus einer älteren Planung, und man
+ * muss ihn zurücknehmen können.
  */
 const OHNE_ZWEITE_SEITE: ReadonlySet<Grundform> = new Set<Grundform>([
   'palette',
   'drehstaender',
-  'tkTruhe',
 ]);
 
 /** Dasselbe, wo die Form allein es nicht sagt: Die Schütte ist ein Trog. */
@@ -82,10 +95,10 @@ const OHNE_ZWEITE_SEITE_VORLAGEN: ReadonlySet<string> = new Set(['schuette']);
  * stehen: Ob jemand zwei Kühlmöbel Rücken an Rücken als **ein** Möbel plant,
  * ist seine Entscheidung und nicht die des Katalogs.
  *
- * Steht der Schalter schon auf an, bleibt er sichtbar – sonst käme man an
- * eine beidseitige Truhe aus einer älteren Planung nicht mehr heran.
+ * Bei der Truhe ist es umgekehrt – dort ist es die des Katalogs.
  */
 export function zeigtBeidseitig(element: PlanElement): boolean {
+  if (SEITEN_AUS_DEM_KATALOG.has(element.form)) return false;
   if (element.beidseitig) return true;
   if (!traegtWare(element)) return false;
   if (OHNE_ZWEITE_SEITE_VORLAGEN.has(element.vorlageId)) return false;

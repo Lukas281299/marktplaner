@@ -91,14 +91,18 @@ describe('Beidseitig bestückt', () => {
     expect(zeigtBeidseitig(moebel({ form: 'abgerundet', vorlageId: 'schuette' }))).toBe(false);
   });
 
-  it('steht nicht an einer einseitigen Truhe', () => {
-    // Ein- und beidseitig sind eigene Katalogmöbel mit verschiedener Tiefe.
-    // Der Schalter hätte die Meter verdoppelt, ohne die Tiefe anzufassen.
+  it('steht an keiner Truhe – auch nicht an der beidseitigen', () => {
+    // Ein- und beidseitig sind zwei verschiedene Möbel mit verschiedener
+    // Tiefe. Welche im Markt steht, entscheidet der Katalog; der Schalter
+    // hätte die Meter verdoppelt, ohne die Tiefe anzufassen.
     expect(zeigtBeidseitig(moebel({ form: 'tkTruhe' }))).toBe(false);
+    expect(zeigtBeidseitig(moebel({ form: 'tkTruhe', beidseitig: true }))).toBe(false);
   });
 
-  it('steht an einer beidseitigen Truhe weiterhin', () => {
-    expect(zeigtBeidseitig(moebel({ form: 'tkTruhe', beidseitig: true }))).toBe(true);
+  it('bleibt an einer Palette stehen, wenn er schon auf an steht', () => {
+    // Dort wäre es ein Fehler aus einer älteren Planung – und den muss man
+    // zurücknehmen können.
+    expect(zeigtBeidseitig(moebel({ form: 'palette', beidseitig: true }))).toBe(true);
   });
 
   it('steht nicht an einer Kasse', () => {
