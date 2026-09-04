@@ -376,7 +376,7 @@ export function Werkzeugleiste() {
             onClick={() =>
               store().setzeEinstellung({ amRasterEinrasten: !einstellungen.amRasterEinrasten })
             }
-            title="Am Raster einrasten (S)"
+            title="Am Raster einrasten (E)"
           >
             <SymbolMagnet /> <span className="knopf-text">Einrasten</span>
           </button>
