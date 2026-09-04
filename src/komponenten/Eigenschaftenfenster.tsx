@@ -1476,6 +1476,21 @@ function Warengruppenband({
                   usePlanStore.getState().schnappschuss();
                   aendere(i, { text: name, pfad });
                 }}
+                fuegeHinzu={
+                  abschnitt.text.trim()
+                    ? (name, pfad) => {
+                        usePlanStore.getState().schnappschuss();
+                        // Der erste Name behält seinen Pfad – er ist der
+                        // Anker, an dem sich der zweite einordnet (siehe
+                        // `logik/sortimentsbund.ts`). Hat er keinen, nimmt
+                        // die Strecke den des neuen.
+                        aendere(i, {
+                          text: `${abschnitt.text.trim()}, ${name}`,
+                          pfad: abschnitt.pfad ?? pfad,
+                        });
+                      }
+                    : undefined
+                }
               />
               <button
                 className="knopf knopf-nur-symbol"

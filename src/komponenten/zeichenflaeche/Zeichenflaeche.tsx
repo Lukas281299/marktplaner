@@ -14,7 +14,7 @@ import {
   type Hilfslinie,
 } from '../../logik/einrasten';
 import { hatEcken } from '../../logik/elementEcken';
-import { runde, ueberschneiden, umgrenzung } from '../../logik/geometrie';
+import { gesamtUmgrenzung, runde, ueberschneiden, umgrenzung } from '../../logik/geometrie';
 import { auswahlFuerKlick, mitGruppen, mitgliederVon } from '../../logik/gruppen';
 import { formatiereLaenge } from '../../logik/masse';
 import { fangePunkt, fangpunkte } from '../../logik/messen';
@@ -387,13 +387,51 @@ export function Zeichenflaeche() {
     [groesse, setzeAnsicht],
   );
 
+  /**
+   * Auf die Auswahl zoomen.
+   *
+   * Die Zoomknöpfe halten die Bildschirmmitte fest. Wer ein Möbel am Rand
+   * ausgewählt hat und hineinzoomt, sieht danach leeres Raster und sucht es.
+   * Hier zoomt die Ansicht auf die Umgrenzung der ausgewählten Möbel – nicht
+   * näher als 1,5: Ein einzelnes Regal, das den ganzen Bildschirm füllt,
+   * verliert seine Nachbarschaft, und die ist meist der Grund, hinzusehen.
+   *
+   * Ohne Auswahl ist es der ganze Markt, wie bei Strg+0.
+   */
+  const zoomAufAuswahl = useCallback(() => {
+    const store = usePlanStore.getState();
+    const gewaehlt = store.projekt.elemente.filter((el) => store.auswahl.includes(el.id));
+    const rahmen = gesamtUmgrenzung(gewaehlt);
+    if (!rahmen) {
+      einpassen();
+      return;
+    }
+    if (groesse.breite < 200 || groesse.hoehe < 200) return;
+    const breite = Math.max(1, rahmen.rechts - rahmen.links);
+    const laenge = Math.max(1, rahmen.unten - rahmen.oben);
+    const rand = 120;
+    const zoom = Math.min(
+      1.5,
+      Math.max(
+        ZOOM_MIN,
+        Math.min((groesse.breite - rand * 2) / breite, (groesse.hoehe - rand * 2) / laenge),
+      ),
+    );
+    setzeAnsicht({
+      zoom,
+      x: groesse.breite / 2 - (rahmen.links + breite / 2) * zoom,
+      y: groesse.hoehe / 2 - (rahmen.oben + laenge / 2) * zoom,
+    });
+  }, [groesse, setzeAnsicht, einpassen]);
+
   // Werkzeugleiste, Bild-Export und Suche brauchen Zugriff auf diese
   // Funktionen.
   useEffect(() => {
     buehneSteuerung.buehne = buehneRef.current;
     buehneSteuerung.einpassen = einpassen;
     buehneSteuerung.zeigeAuf = zeigeAuf;
-  }, [einpassen, zeigeAuf]);
+    buehneSteuerung.zoomAufAuswahl = zoomAufAuswahl;
+  }, [einpassen, zeigeAuf, zoomAufAuswahl]);
 
   // Beim Öffnen eines anderen Projekts die Ansicht neu ausrichten.
   // Das geschieht erst, wenn die Zeichenfläche eine brauchbare Größe hat.

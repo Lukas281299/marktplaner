@@ -165,6 +165,13 @@ export function useTastatur(): void {
           // es weg, damit man nicht erst Escape suchen muss.
           store.setzeWerkzeug(store.werkzeug === 'messen' ? 'auswahl' : 'messen');
           return;
+        case 'f':
+        case 'F':
+          // Fokus: auf die Auswahl zoomen. Strg+F bleibt die Suche – die
+          // läuft oben im Zweig mit der Steuerungstaste.
+          e.preventDefault();
+          buehneSteuerung.zoomAufAuswahl?.();
+          return;
         // ------------------------------------------------ Im Plan bewegen
         case 'w':
         case 'W':

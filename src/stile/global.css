@@ -880,6 +880,34 @@ p .wg-punkt {
   padding-left: 20px;
 }
 
+/* Name und „+" nebeneinander – ein Knopf im Knopf wäre kein gültiges HTML. */
+.wg-menue-zeile {
+  display: flex;
+  align-items: stretch;
+}
+
+.wg-menue-zeile .wg-menue-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.wg-menue-dazu {
+  flex: none;
+  width: 24px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--text-schwach);
+  cursor: pointer;
+  border-radius: var(--rundung);
+}
+
+.wg-menue-dazu:hover {
+  background: var(--blau-hell);
+  color: var(--blau-dunkel);
+}
+
 .wg-menue-abteilung:hover,
 .wg-menue-name:hover {
   background: var(--blau-hell);
@@ -2406,4 +2434,15 @@ button.meterpfeil:hover {
 .verwaistliste .kennzahl {
   align-items: flex-start;
   gap: 8px;
+}
+
+.verwaistplan + .verwaistplan {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #e8cf9f;
+}
+
+.verwaistplan-name {
+  font-weight: 600;
+  margin-bottom: 2px;
 }

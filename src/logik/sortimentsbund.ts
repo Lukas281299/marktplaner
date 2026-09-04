@@ -254,20 +254,62 @@ export function zieleDerStrecke(
 
   const eigen = strecke.pfad ? letzteStufe(strecke.pfad) : undefined;
 
-  // **Die Warengruppe des Nachbarn zuerst.** Wer „Dressing, Säfte" auf einen
+  // **Die Nachbarschaft des Nachbarn zuerst.** Wer „Dressing, Säfte" auf einen
   // Meter schreibt, meint die Säfte, die neben dem Dressing liegen – und
   // „Säfte" steht in der Liste zweimal, einmal bei den Getränken und einmal
   // beim Obst unter Convenience. Ohne diesen Blick ins Nachbarfach bliebe der
   // zweite Name ungeordnet, obwohl die Sache eindeutig ist.
-  const nachbargruppe = gruppeDes(strecke.pfad) ?? gruppeDes(ersterPfad(liste, teile));
+  //
+  // Zwei Ringe: erst die **Warengruppe** des Nachbarn, dann seine
+  // **Abteilung**. „Sirup, Kaffeefilter" auf einer Kopfgondel: Kaffeefilter
+  // steht unter TroSo › Kaffee, Sirup dort nicht – aber in derselben
+  // Abteilung unter Konfitüre, Dessert genau einmal, und bei den Getränken
+  // noch einmal. Neben dem Kaffeefilter ist der Sirup aus der Abteilung des
+  // Kaffeefilters gemeint. Erst wenn auch die Abteilung ihn doppelt kennt,
+  // wird nicht mehr geraten.
+  const ankerpfad = strecke.pfad ?? ersterPfad(liste, teile);
+  const nachbargruppe = gruppeDes(ankerpfad);
+  const nachbarabteilung = ankerpfad ? ankerpfad.split(' › ')[0] : undefined;
 
   const zuTeil = (teil: string): Streckenziel => {
     if (eigen && schluessel(teil) === schluessel(eigen)) return { name: eigen, pfad: strecke.pfad };
     if (eigen && !kenntNamen(liste, teil)) return { name: eigen, pfad: strecke.pfad };
-    return { name: teil, pfad: inGruppe(liste, nachbargruppe, teil) ?? eindeutigerPfad(liste, teil) };
+    return {
+      name: teil,
+      pfad:
+        inGruppe(liste, nachbargruppe, teil) ??
+        inAbteilung(liste, nachbarabteilung, teil) ??
+        eindeutigerPfad(liste, teil),
+    };
   };
 
   return teile.map(zuTeil);
+}
+
+/**
+ * Steht dieser Name in **dieser** Abteilung genau einmal?
+ *
+ * Der zweite Ring der Nachbarschaft. Kennt die Abteilung den Namen zweimal,
+ * kommt nichts zurück – dann wäre es geraten.
+ */
+function inAbteilung(
+  liste: Sortimentsliste,
+  abteilungsname: string | undefined,
+  name: string,
+): string | undefined {
+  if (!abteilungsname) return undefined;
+  const gesucht = schluessel(name);
+  const treffer: string[] = [];
+  for (const a of liste.abteilungen) {
+    if (schluessel(a.name) !== schluessel(abteilungsname)) continue;
+    for (const w of a.warengruppen) {
+      if (schluessel(w.name) === gesucht) treffer.push([a.name, w.name].join(' › '));
+      for (const s of w.sortimente) {
+        if (schluessel(s) === gesucht) treffer.push([a.name, w.name, s].join(' › '));
+      }
+    }
+  }
+  return treffer.length === 1 ? treffer[0] : undefined;
 }
 
 /** Die Warengruppe eines Pfades: seine ersten beiden Stufen. */

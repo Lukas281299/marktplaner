@@ -22,8 +22,16 @@ export const buehneSteuerung: {
    * sehen, soll nicht ungefragt hineingerissen werden.
    */
   zeigeAuf: ((punkt: Punkt, mindestZoom?: number) => void) | null;
+  /**
+   * Zoomt auf die ausgewählten Möbel – ohne Auswahl auf den ganzen Markt.
+   *
+   * Die Zoomknöpfe halten die Bildschirmmitte fest; wer ein Möbel am Rand
+   * ausgewählt hat, zoomt damit ins Leere und sucht es danach.
+   */
+  zoomAufAuswahl: (() => void) | null;
 } = {
   buehne: null,
   einpassen: null,
   zeigeAuf: null,
+  zoomAufAuswahl: null,
 };

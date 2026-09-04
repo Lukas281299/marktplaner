@@ -393,6 +393,13 @@ export function Werkzeugleiste() {
           >
             <SymbolEinpassen /> <span className="knopf-text">Einpassen</span>
           </button>
+          <button
+            className="knopf"
+            onClick={() => buehneSteuerung.zoomAufAuswahl?.()}
+            title="Auf die ausgewählten Möbel zoomen (F) – ohne Auswahl auf den ganzen Markt"
+          >
+            <SymbolLupe /> <span className="knopf-text">Auswahl</span>
+          </button>
           <button className="knopf knopf-nur-symbol" onClick={() => zoomen(1.25)} title="Vergrößern">
             <SymbolZoomPlus />
           </button>

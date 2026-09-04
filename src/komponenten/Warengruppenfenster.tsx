@@ -23,7 +23,11 @@ import {
   type Standwert,
 } from '../logik/sortiment';
 import { pfadeImPlan } from '../logik/planstand';
-import { verwaistePfade, type VerwaisterPfad } from '../logik/listenabgleich';
+import {
+  pruefeAllePlanungen,
+  ziehePlanungNach,
+  type Planbericht,
+} from '../speicher/sortimentsabgleich';
 import { usePlanStore } from '../zustand/planStore';
 import { Spaltenschalter } from './Spaltengriffe';
 
@@ -73,12 +77,15 @@ export function Warengruppenfenster() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
   /**
-   * Was die neue Liste in dieser Planung nicht mehr kennt.
+   * Was die neue Liste in den Planungen nicht mehr kennt – je Planung.
    *
    * Steht nur nach dem Ersetzen da, und nur, wenn es etwas zu sagen gibt.
-   * Der Plan selbst ist unversehrt – gerissen ist die Verbindung zur Liste.
+   * Die Pläne selbst sind unversehrt – gerissen ist die Verbindung zur Liste.
+   * Geprüft werden **alle** gespeicherten Planungen, nicht nur die offene:
+   * Die Liste gilt am Gerät für jede.
    */
-  const [verwaist, setVerwaist] = useState<VerwaisterPfad[] | null>(null);
+  const [verwaist, setVerwaist] = useState<Planbericht[] | null>(null);
+  const [prueft, setPrueft] = useState(false);
 
   const gezeigt = gefiltert(sortiment, suche);
   const zahlen = umfang(sortiment);
@@ -183,6 +190,38 @@ export function Warengruppenfenster() {
   };
 
   /**
+   * Zieht die Pfade in allen gemeldeten Planungen nach.
+   *
+   * Die geöffnete über den Datenspeicher – dort können ungespeicherte
+   * Änderungen liegen, die eine Fassung aus der Datenbank überschriebe. Die
+   * übrigen werden geladen, umgehängt und wieder abgelegt. Was keinen
+   * eindeutigen Nachfolger hat, bleibt stehen und wird weiter gezeigt.
+   */
+  const zieheNach = async () => {
+    if (!verwaist) return;
+    let zahl = 0;
+    const rest: Planbericht[] = [];
+    for (const bericht of verwaist) {
+      const umzug = new Map(
+        bericht.eintraege.filter((e) => e.neu).map((e) => [e.alt, e.neu!] as const),
+      );
+      if (umzug.size > 0) {
+        zahl += bericht.offen
+          ? usePlanStore.getState().ziehePfadeNach(umzug)
+          : await ziehePlanungNach(bericht.id, umzug);
+      }
+      const bleibt = bericht.eintraege.filter((e) => !e.neu);
+      if (bleibt.length > 0) rest.push({ ...bericht, eintraege: bleibt });
+    }
+    const offen = rest.reduce((n, b) => n + b.eintraege.length, 0);
+    setMeldung(
+      `${zahl} ${zahl === 1 ? 'Eintrag' : 'Einträge'} nachgezogen.` +
+        (offen > 0 ? ` ${offen} bleiben offen — dort ist der Name nicht eindeutig.` : ''),
+    );
+    setVerwaist(rest.length > 0 ? rest : null);
+  };
+
+  /**
    * Eine Datei einlesen – ergänzend oder ersetzend.
    *
    * Ergänzen ist der übliche Weg: Die Sortimentsliste des Marktes wurde
@@ -201,10 +240,15 @@ export function Warengruppenfenster() {
         setMeldung(
           `Liste ersetzt: ${z.abteilungen} Abteilungen, ${z.warengruppen} Warengruppen, ${z.sortimente} Sortimente.`,
         );
-        // Nachsehen, was diese Planung benutzt und die neue Liste nicht mehr
+        // Nachsehen, was die Planungen benutzen und die neue Liste nicht mehr
         // führt. Angefasst wird dabei nichts – nur gezeigt.
-        const offen = verwaistePfade(usePlanStore.getState().projekt, gelesen);
-        setVerwaist(offen.length > 0 ? offen : null);
+        setPrueft(true);
+        try {
+          const berichte = await pruefeAllePlanungen(gelesen, usePlanStore.getState().projekt);
+          setVerwaist(berichte.length > 0 ? berichte : null);
+        } finally {
+          setPrueft(false);
+        }
         return;
       }
       setVerwaist(null);
@@ -612,59 +656,72 @@ export function Warengruppenfenster() {
           </p>
         )}
 
+        {prueft && (
+          <p className="hinweis" style={{ marginTop: 6 }}>
+            Alle Planungen werden gegen die neue Liste geprüft …
+          </p>
+        )}
+
         {/* Der Bericht nach dem Ersetzen. Er sagt zuerst, dass nichts
             verloren ist – das ist die Frage, die man in dem Moment hat. */}
         {verwaist && (
           <div className="listenabgleich">
             <p className="hinweis" style={{ marginTop: 6 }}>
-              <strong>{verwaist.length} Einträge</strong> in dieser Planung kennt die neue Liste
-              nicht mehr. Die Meter stehen weiter im Markt und sind richtig gerechnet — es fehlt
-              nur die Verbindung zur Liste, und deshalb sind sie dort nicht abgehakt.
+              <strong>
+                {verwaist.reduce((n, b) => n + b.eintraege.length, 0) === 1
+                  ? '1 Eintrag'
+                  : `${verwaist.reduce((n, b) => n + b.eintraege.length, 0)} Einträge`}
+              </strong>{' '}
+              in {verwaist.length === 1 ? 'einer Planung' : `${verwaist.length} Planungen`} kennt
+              die neue Liste nicht mehr. Die Meter stehen weiter im Markt und sind richtig gerechnet —
+              es fehlt nur die Verbindung zur Liste, und deshalb sind sie dort nicht abgehakt.
             </p>
             <div className="verwaistliste">
-              {verwaist.slice(0, 12).map((eintrag) => (
-                <div className="kennzahl" key={eintrag.alt}>
-                  <span style={{ overflowWrap: 'anywhere' }}>
-                    {eintrag.alt}
-                    {eintrag.neu ? (
-                      <span className="pinselpfad">↳ neu: {eintrag.neu}</span>
-                    ) : (
-                      <span className="pinselpfad">
-                        kein eindeutiger Nachfolger — am Möbel über ▾ wählen
+              {verwaist.map((bericht) => (
+                <div key={bericht.id} className="verwaistplan">
+                  <div className="verwaistplan-name">
+                    {bericht.name}
+                    {bericht.offen && <span className="kategorie-anzahl"> · geöffnet</span>}
+                  </div>
+                  {bericht.eintraege.slice(0, 8).map((eintrag) => (
+                    <div className="kennzahl" key={eintrag.alt}>
+                      <span style={{ overflowWrap: 'anywhere' }}>
+                        {eintrag.alt}
+                        {eintrag.neu ? (
+                          <span className="pinselpfad">↳ neu: {eintrag.neu}</span>
+                        ) : (
+                          <span className="pinselpfad">
+                            kein eindeutiger Nachfolger — am Möbel über ▾ wählen
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  <span className="kennzahl-wert">{(eintrag.meter / 100).toFixed(2)} m</span>
+                      <span className="kennzahl-wert">
+                        {(eintrag.meter / 100).toLocaleString('de-DE', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{' '}
+                        m
+                      </span>
+                    </div>
+                  ))}
+                  {bericht.eintraege.length > 8 && (
+                    <p className="hinweis" style={{ margin: '2px 0 0' }}>
+                      … und {bericht.eintraege.length - 8} weitere.
+                    </p>
+                  )}
                 </div>
               ))}
-              {verwaist.length > 12 && (
-                <p className="hinweis" style={{ margin: '4px 0 0' }}>
-                  … und {verwaist.length - 12} weitere.
-                </p>
-              )}
             </div>
             <div className="knopfreihe" style={{ marginTop: 6 }}>
-              {verwaist.some((e) => e.neu) && (
+              {verwaist.some((b) => b.eintraege.some((e) => e.neu)) && (
                 <button
                   className="knopf knopf-haupt"
                   style={{ flex: 1 }}
-                  title="Die Pfade dort umhängen, wo der Name in der neuen Liste eindeutig ist. Der Text im Plan bleibt stehen."
-                  onClick={() => {
-                    const umzug = new Map(
-                      verwaist.filter((e) => e.neu).map((e) => [e.alt, e.neu!] as const),
-                    );
-                    const zahl = usePlanStore.getState().ziehePfadeNach(umzug);
-                    const rest = verwaist.filter((e) => !e.neu);
-                    setMeldung(
-                      `${zahl} ${zahl === 1 ? 'Eintrag' : 'Einträge'} nachgezogen.` +
-                        (rest.length > 0
-                          ? ` ${rest.length} bleiben offen — dort ist der Name nicht eindeutig.`
-                          : ''),
-                    );
-                    setVerwaist(rest.length > 0 ? rest : null);
-                  }}
+                  title="Die Pfade in allen Planungen dort umhängen, wo der Name in der neuen Liste eindeutig ist. Der Text im Plan bleibt stehen."
+                  onClick={() => void zieheNach()}
                 >
-                  {verwaist.filter((e) => e.neu).length} nachziehen
+                  {verwaist.reduce((n, b) => n + b.eintraege.filter((e) => e.neu).length, 0)}{' '}
+                  nachziehen
                 </button>
               )}
               <button className="knopf" onClick={() => setVerwaist(null)}>

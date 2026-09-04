@@ -37,7 +37,17 @@ const liste: Sortimentsliste = {
     },
     {
       name: 'Getränke',
-      warengruppen: [{ name: 'Getränke Einweg', sortimente: ['Säfte', 'Cola'] }],
+      warengruppen: [{ name: 'Getränke Einweg', sortimente: ['Säfte', 'Cola', 'Sirup'] }],
+    },
+    {
+      // Der zweite echte Fall: „Sirup" steht hier unter Konfitüre, Dessert
+      // **und** bei den Getränken; Kaffeefilter steht in derselben Abteilung,
+      // aber in einer anderen Warengruppe.
+      name: 'Lebensmittel & Tabak (TroSo)',
+      warengruppen: [
+        { name: 'Kaffee', sortimente: ['Kaffeefilter', 'Kaffee gemahlen'] },
+        { name: 'Konfitüre, Dessert', sortimente: ['Sirup', 'Pudding'] },
+      ],
     },
     {
       name: 'Feinbackwaren',
@@ -333,5 +343,74 @@ describe('Der Nachbar auf demselben Meter', () => {
     const plan = projekt([mit('Nüsse, ab KW 12', NUESSE)]);
     expect(buende(plan, liste).size).toBe(0);
     expect([...pfadeImPlan(plan, liste)]).toEqual([NUESSE]);
+  });
+});
+
+describe('Der zweite Ring: die Abteilung des Nachbarn', () => {
+  const KAFFEEFILTER = P('Lebensmittel & Tabak (TroSo)', 'Kaffee', 'Kaffeefilter');
+  const SIRUP_TROSO = P('Lebensmittel & Tabak (TroSo)', 'Konfitüre, Dessert', 'Sirup');
+  const SIRUP_GETRAENKE = P('Getränke', 'Getränke Einweg', 'Sirup');
+
+  it('findet den Sirup in der Abteilung des Kaffeefilters', () => {
+    // Der gemeldete Fall: „Sirup, Kaffeefilter" auf einer Kopfgondel, der
+    // Pfad am Kaffeefilter. Sirup steht nicht in dessen Warengruppe, aber in
+    // dessen Abteilung genau einmal.
+    expect(zieleDerStrecke(liste, { name: 'Sirup, Kaffeefilter', pfad: KAFFEEFILTER })).toEqual([
+      { name: 'Sirup', pfad: SIRUP_TROSO },
+      { name: 'Kaffeefilter', pfad: KAFFEEFILTER },
+    ]);
+  });
+
+  it('lässt den Pfad des eigenen Namens immer gewinnen', () => {
+    // Hängt der Pfad am Sirup der Getränke, bleibt es dieser Sirup – und der
+    // Kaffeefilter findet sich, weil er in der Liste eindeutig ist.
+    expect(zieleDerStrecke(liste, { name: 'Sirup, Kaffeefilter', pfad: SIRUP_GETRAENKE })).toEqual([
+      { name: 'Sirup', pfad: SIRUP_GETRAENKE },
+      { name: 'Kaffeefilter', pfad: KAFFEEFILTER },
+    ]);
+  });
+
+  it('hakt beide ab, egal an welchem der Pfad hängt', () => {
+    const a = pfadeImPlan(projekt([mit('Sirup, Kaffeefilter', KAFFEEFILTER)]), liste);
+    expect([...a].sort()).toEqual([KAFFEEFILTER, SIRUP_TROSO].sort());
+    const b = pfadeImPlan(projekt([mit('Sirup, Kaffeefilter', SIRUP_GETRAENKE)]), liste);
+    expect([...b].sort()).toEqual([KAFFEEFILTER, SIRUP_GETRAENKE].sort());
+  });
+
+  it('nimmt die eigene Warengruppe vor der Abteilung', () => {
+    const doppelt: Sortimentsliste = {
+      abteilungen: [
+        {
+          name: 'A',
+          warengruppen: [
+            { name: 'G1', sortimente: ['Anker', 'Zwilling'] },
+            { name: 'G2', sortimente: ['Zwilling'] },
+          ],
+        },
+      ],
+    };
+    expect(zieleDerStrecke(doppelt, { name: 'Anker, Zwilling', pfad: P('A', 'G1', 'Anker') })).toEqual([
+      { name: 'Anker', pfad: P('A', 'G1', 'Anker') },
+      { name: 'Zwilling', pfad: P('A', 'G1', 'Zwilling') },
+    ]);
+  });
+
+  it('rät nicht, wenn auch die Abteilung den Namen doppelt kennt', () => {
+    const doppelt: Sortimentsliste = {
+      abteilungen: [
+        {
+          name: 'A',
+          warengruppen: [
+            { name: 'G0', sortimente: ['Anker'] },
+            { name: 'G1', sortimente: ['Zwilling'] },
+            { name: 'G2', sortimente: ['Zwilling'] },
+          ],
+        },
+      ],
+    };
+    expect(zieleDerStrecke(doppelt, { name: 'Anker, Zwilling', pfad: P('A', 'G0', 'Anker') })).toEqual([
+      { name: 'Anker', pfad: P('A', 'G0', 'Anker') },
+      { name: 'Zwilling', pfad: undefined },
+    ]);
   });
 });

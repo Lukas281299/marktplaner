@@ -49,9 +49,19 @@ function lageAm(knopf: HTMLElement | null): { left: number; top: number; maxHeig
 
 export function Warengruppenwahl({
   waehle,
+  fuegeHinzu,
 }: {
   /** Bekommt den Namen und den vollen Pfad – der macht ihn eindeutig. */
   waehle: (name: string, pfad: string) => void;
+  /**
+   * Nimmt den Namen als **weiteres** Sortiment auf dieselbe Strecke.
+   *
+   * Zwei Sortimente auf einem Meter schreibt man mit Komma: „Nüsse,
+   * Trockenobst". Das Komma soll niemand selbst tippen müssen – neben jedem
+   * Namen steht ein „+", das ihn anhängt, statt den ersten zu ersetzen.
+   * Steht nichts im Feld, gibt es nichts anzuhängen; dann fehlt der Knopf.
+   */
+  fuegeHinzu?: (name: string, pfad: string) => void;
 }) {
   const sortiment = usePlanStore((s) => s.sortiment);
   const stand = usePlanStore((s) => s.projekt.sortimentsstand);
@@ -129,6 +139,46 @@ export function Warengruppenwahl({
     setSuche('');
   };
 
+  const dazu = (name: string, pfad: string) => {
+    fuegeHinzu?.(name, pfad);
+    setOffen(false);
+    setSuche('');
+  };
+
+  /** Ein Eintrag im Menü: der Name, und daneben das „+", wenn es eins gibt. */
+  const Eintrag = ({
+    name,
+    pfad,
+    tief,
+    wert,
+  }: {
+    name: string;
+    pfad: string;
+    tief: boolean;
+    wert: string;
+  }) => (
+    <div className="wg-menue-zeile">
+      <button
+        type="button"
+        className={`wg-menue-name${tief ? ' wg-tief' : ''}`}
+        onClick={() => nimm(name, pfad)}
+      >
+        <span className={`wg-punkt ${wert}`} />
+        {name}
+      </button>
+      {fuegeHinzu && (
+        <button
+          type="button"
+          className="wg-menue-dazu"
+          title={`„${name}" als weiteres Sortiment auf dieselbe Strecke – dazu, nicht statt`}
+          onClick={() => dazu(name, pfad)}
+        >
+          +
+        </button>
+      )}
+    </div>
+  );
+
   const sucht = suche.trim() !== '';
   const gezeigt = gefiltert(sortiment, suche);
 
@@ -181,31 +231,25 @@ export function Warengruppenwahl({
                         const g = gruppenstand(stand, abteilung.name, gruppe, zuordnungen, imPlan);
                         return (
                           <div key={gruppe.name}>
-                            <button
-                              type="button"
-                              className="wg-menue-name"
-                              onClick={() => nimm(gruppe.name, pfadVon(abteilung.name, gruppe.name))}
-                            >
-                              <span className={`wg-punkt ${g.wert}`} />
-                              {gruppe.name}
-                            </button>
+                            <Eintrag
+                              name={gruppe.name}
+                              pfad={pfadVon(abteilung.name, gruppe.name)}
+                              tief={false}
+                              wert={g.wert}
+                            />
                             {gruppe.sortimente.map((name) => (
-                              <button
-                                type="button"
-                                className="wg-menue-name wg-tief"
+                              <Eintrag
                                 key={name}
-                                onClick={() => nimm(name, pfadVon(abteilung.name, gruppe.name, name))}
-                              >
-                                <span
-                                  className={`wg-punkt ${standVon(
-                                    stand,
-                                    pfadVon(abteilung.name, gruppe.name, name),
-                                    zuordnungen,
-                                    imPlan,
-                                  )}`}
-                                />
-                                {name}
-                              </button>
+                                name={name}
+                                pfad={pfadVon(abteilung.name, gruppe.name, name)}
+                                tief
+                                wert={standVon(
+                                  stand,
+                                  pfadVon(abteilung.name, gruppe.name, name),
+                                  zuordnungen,
+                                  imPlan,
+                                )}
+                              />
                             ))}
                           </div>
                         );
