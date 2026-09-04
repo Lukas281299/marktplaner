@@ -373,12 +373,18 @@ export function warengruppenmeter(
     // Erst umleiten: Ein zugeordneter Name bringt seine Meter dorthin, wo
     // gerechnet wird. Eine Kette wird dabei nicht verfolgt – eine Zuordnung
     // ist eine Aussage über zwei Namen, keine Vererbung.
-    const ziel = optionen.zugeordnetZu?.(strecke.name)?.trim() || strecke.name;
-    // Ein zugeordneter Name bringt seine Meter woandershin – dann gilt auch
-    // dessen Pfad nicht mehr, sondern der des Ziels, den die Auswertung nicht
-    // kennt. Deshalb läuft eine Zuordnung über den Namen.
-    const zeile =
-      ziel === strecke.name ? nimm(anzeigename(strecke), strecke.pfad) : nimm(ziel);
+    //
+    // **Nachgeschlagen wird der Anzeigename und nicht der Text im Plan.**
+    // Steht dort „Marmorkuchen Aktion" mit dem Pfad auf Kuchen, dann zählt
+    // die Strecke als Kuchen – und eine Zuordnung von Kuchen muss sie
+    // mitnehmen. Über den Plantext gesucht, ginge sie ins Leere, während die
+    // Kisten (`logik/meterbaum.ts`) dem Ziel folgten: Die Zeile behielte
+    // ihre Meter und verlöre ihre Kisten.
+    const eigener = anzeigename(strecke);
+    const ziel = optionen.zugeordnetZu?.(eigener)?.trim() || eigener;
+    // Beim Umleiten fällt der Pfad weg: Er gehört zum Namen, den man verlässt,
+    // und den des Ziels kennt die Auswertung nicht.
+    const zeile = ziel === eigener ? nimm(eigener, strecke.pfad) : nimm(ziel);
     zeile.laufend += strecke.laenge;
     zeile.strecken++;
 

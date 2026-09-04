@@ -1799,20 +1799,6 @@ function Foerderbandfelder({ element, einheit }: { element: PlanElement; einheit
 }
 
 /**
- * Die beiden Kennzahlen eines Obst- und Gemüsemöbels.
- *
- * Bei Regalen steht oben links in der Ecke, was von Hand hineingeschrieben
- * wurde – die Zahl der Böden ist dort eine Entscheidung. Ein Vitable-Tisch
- * dagegen bringt seine Auslagen mit: Sie hängen am Modul. Deshalb steht hier
- * eine Zahl statt eines Textfelds, und sie steht am **Möbel** und nicht an
- * jedem Feld einzeln.
- *
- * Die zweite Zahl ist die, um die es beim Bestellen geht: Wie viele grüne
- * Kisten daraufgehen. Sie wird nicht gerechnet – wie viele auf einen Tisch
- * passen, weiß der Planer, und eine gerechnete Zahl wäre eine erfundene.
- * Zusammengezählt wird sie in der Flächenübersicht.
- */
-/**
  * Wie viele Paletten auf diese Aktionsfläche gehen.
  *
  * Die Fläche sagt bisher nur, wie groß sie ist. Beim Planen ist aber die
@@ -1850,8 +1836,26 @@ function Aktionspaletten({ element }: { element: PlanElement }) {
   );
 }
 
+/**
+ * Auslagen und grüne Kisten eines Möbels.
+ *
+ * **Zwei Ebenen.** Die Zahlen gehören zum Möbel**typ** – ein Vitable-Tisch
+ * A1250 fasst immer dasselbe, und wer es einmal einträgt, trägt es für alle
+ * ein. Für halbrunde Köpfe, Ecken und frei gezogene Möbel stimmt das nicht;
+ * dort schaltet man auf „nur dieses Möbel" um, und die Zahl ist danach gegen
+ * Änderungen an der Typvorgabe geschützt.
+ *
+ * **Vorgeschlagen, nicht eingetragen.** Aus den Stufen eines Vitable-Tisches
+ * oder aus Bodenzahl und Bodentiefe eines Regals rechnet sich der Vorschlag
+ * (siehe `logik/ifko.ts`); übernommen wird er auf Knopfdruck. Die Zahl gehört
+ * dem Planer.
+ *
+ * Das Bödenfeld erscheint nur, wo die Auslagen am Möbel hängen. Ein Regal
+ * trägt seine Bodenzahl am **Feld** – ein zweites Feld dafür wäre eine
+ * zweite Wahrheit.
+ */
 function ObstGemueseKennzahlen({ element }: { element: PlanElement }) {
-  // Die Zahlen gehören zum Möbel**typ**, nicht zum einzelnen Stück: Ein
+  // Gespeichert unter der Vorlagenkennung: Ein
   // Vitable-Tisch A1250 trägt immer dieselbe Zahl Auslagen. Gespeichert wird
   // deshalb unter der Vorlagenkennung – einmal eintragen, danach gilt es für
   // jedes weitere.

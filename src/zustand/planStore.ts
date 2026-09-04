@@ -51,6 +51,7 @@ import {
   warengruppenVon,
 } from '../logik/warengruppenzuordnung';
 import { geordnet, mitVerschobenerKante } from '../logik/warengruppe';
+import { mitUmbenanntemPfad } from '../logik/pfadumbenennung';
 import { feldUnterPunkt } from '../logik/feldtreffer';
 import type {
   BibliothekEintrag,
@@ -474,6 +475,15 @@ export interface PlanStore {
   setzeSortimentsstand(pfad: string, wert: Standwert): void;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
+
+  /**
+   * Benennt einen Eintrag der Sortimentsliste um – samt der Planung.
+   *
+   * `alt` und `neu` sind volle Pfade. Ohne das Nachziehen zeigten die
+   * Pfade an den Warengruppenstrecken und die grünen Haken auf einen
+   * Namen, den die Liste nicht mehr kennt.
+   */
+  benenneSortimentUm(liste: Sortimentsliste, alt: string, neu: string): void;
   /**
    * Ordnet die aufgenommene Warengruppe der Auswahl zu.
    *
@@ -515,6 +525,15 @@ export interface PlanStore {
   setzeSortimentsstand(pfad: string, wert: Standwert): void;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
+
+  /**
+   * Benennt einen Eintrag der Sortimentsliste um – samt der Planung.
+   *
+   * `alt` und `neu` sind volle Pfade. Ohne das Nachziehen zeigten die
+   * Pfade an den Warengruppenstrecken und die grünen Haken auf einen
+   * Namen, den die Liste nicht mehr kennt.
+   */
+  benenneSortimentUm(liste: Sortimentsliste, alt: string, neu: string): void;
   setzeFavoriten(ids: string[]): void;
 
   /** Übernimmt die am Gerät gemerkten Kennzahlen beim Start. */
@@ -926,6 +945,15 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   pflegeSortiment(liste) {
     set({ sortiment: liste });
     void speichereSortiment(liste);
+  },
+
+  benenneSortimentUm(liste, alt, neu) {
+    set({ sortiment: liste });
+    void speichereSortiment(liste);
+    // Und die Pfade in der Planung mitziehen: Sie sind Zeichenketten und
+    // zeigten sonst auf einen Namen, den es nicht mehr gibt – siehe
+    // `logik/pfadumbenennung.ts`.
+    aendere(set, get, (p) => mitUmbenanntemPfad(p, alt, neu));
   },
 
   setzeWarengruppenPinsel(pinsel) {

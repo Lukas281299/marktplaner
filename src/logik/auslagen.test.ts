@@ -417,3 +417,48 @@ describe('Die Front eines Eckstücks', () => {
     expect(frontfaktor(element({ form: 'tkTruhe', kategorie: 'tiefkuehlung' }))).toBe(1);
   });
 });
+
+describe('Was der Durchgang gefunden hat', () => {
+  it('verteilt die Kisten über die Feldkette der Seite', () => {
+    // Die Breite eines Möbels ist die *längere* seiner Seiten. Wer über sie
+    // verteilt, verliert an der kürzeren genau den Unterschied.
+    const gondel = element({
+      kategorie: 'obstgemuese',
+      breite: 500,
+      beidseitig: true,
+      ifkoKisten: 40,
+      felderUnten: [{ breite: 500 }],
+      felderOben: [{ breite: 400 }],
+    });
+    const auf = (seite: 'unten' | 'oben', bis: number) =>
+      kistenAnteil({ name: 'x', laenge: bis, element: gondel, seite, von: 0, bis });
+
+    // Je Seite die Hälfte der 40 Kisten – jede Seite über ihre eigene Länge.
+    expect(auf('unten', 500)).toBeCloseTo(20, 6);
+    expect(auf('oben', 400)).toBeCloseTo(20, 6);
+  });
+
+  it('lässt am Preisgestell keine Bodenzahl über die Facings gewinnen', () => {
+    // An einem Gestell gibt es keine Böden. Eine versehentlich eingetragene
+    // Zahl darf die Lage der Kisten nicht aus der Rechnung werfen.
+    const gestell = element({
+      form: 'getraenkegestell',
+      kategorie: 'getraenke',
+      breite: 200,
+      kisten: { lage: 'laengs', reihen: 2 },
+      felderUnten: [{ breite: 200, boeden: 5, unterbau: { art: 'euro' } }],
+    });
+    const a = auslagenAnteil({
+      name: 'Bier MW',
+      laenge: 200,
+      element: gestell,
+      seite: 'unten',
+      von: 0,
+      bis: 200,
+    });
+    // 2,5 Facings je laufendem Meter über 2,00 m – nicht 5 aus der Bodenzahl
+    // und nicht 6 mit dem Unterbau obendrauf.
+    expect(a.tatsaechlich).toBe(500);
+    expect(a.ohne).toBe(0);
+  });
+});

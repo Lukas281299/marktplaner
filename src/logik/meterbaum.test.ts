@@ -250,3 +250,39 @@ describe('Über Grenzen hinweg', () => {
     expect(gesamt.tatsaechlich).toBe(10);
   });
 });
+
+describe('Was der Durchgang gefunden hat', () => {
+  it('nimmt bei der Zuordnung den Anzeigenamen und nicht den Plantext', () => {
+    // Im Plan steht „Marmorkuchen Aktion", gezählt wird es als Kuchen. Wer
+    // Kuchen den Torten zuordnet, muss diese Strecke mitnehmen – sonst
+    // bleiben die Meter stehen und die Kisten wandern allein weiter.
+    const el = mit('Marmorkuchen Aktion', 'Backwaren › Bake Off › Kuchen', {
+      kategorie: 'obstgemuese',
+      ifkoKisten: 4,
+    });
+    const plan = { ...projekt([el]), zuordnungen: { kuchen: 'Torten' } };
+    const { baum, gesamt } = meterauswertung(plan, LISTE);
+
+    const namen: string[] = [];
+    const geh = (k: { name: string; kinder: unknown[] }) => {
+      namen.push(k.name);
+      (k.kinder as (typeof k)[]).forEach(geh);
+    };
+    baum.forEach(geh);
+    expect(namen).toContain('Torten');
+    expect(namen).not.toContain('Kuchen');
+    // Und die Kisten sind mitgekommen, statt unterwegs zu verschwinden.
+    expect(gesamt.kisten).toBe(4);
+  });
+
+  it('hängt ein Sortiment ohne Pfad unter seine Warengruppe', () => {
+    // Eine ältere Planung trägt nur den Namen. Er steht in der Liste genau
+    // einmal – dann gehört er unter seine Warengruppe und nicht daneben.
+    const { baum } = meterauswertung(projekt([mit('Elstar')]), LISTE);
+    expect(baum[0].name).toBe('Obst & Gemüse');
+    expect(baum[0].kinder[0].name).toBe('Äpfel');
+    expect(baum[0].kinder[0].kinder[0].name).toBe('Elstar');
+    // Die Warengruppe trägt die Meter dann auch wirklich.
+    expect(baum[0].kinder[0].laufend).toBe(1);
+  });
+});

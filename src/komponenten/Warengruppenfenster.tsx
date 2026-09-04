@@ -73,6 +73,16 @@ export function Warengruppenfenster() {
           : 'Offen — anklicken für „steht im Markt"';
 
   const pflegen = (liste: typeof sortiment) => usePlanStore.getState().pflegeSortiment(liste);
+
+  /**
+   * Umbenennen – und die Planung mitnehmen.
+   *
+   * Die Strecken im Plan merken sich ihren Pfad als Zeichenkette, ebenso die
+   * grünen Haken. Wer nur die Liste änderte, ließe beide auf einen Namen
+   * zeigen, den es nicht mehr gibt.
+   */
+  const umbenennen = (liste: typeof sortiment, altPfad: string, neuPfad: string) =>
+    usePlanStore.getState().benenneSortimentUm(liste, altPfad, neuPfad);
   /**
    * Einen Namen aufnehmen – mit seinem Platz in der Liste.
    *
@@ -266,7 +276,13 @@ export function Warengruppenfenster() {
                       title="Abteilung umbenennen"
                       onClick={() => {
                         const name = frage('Abteilung umbenennen:', abteilung.name);
-                        if (name) pflegen(umbenannteAbteilung(sortiment, abteilung.name, name));
+                        if (name) {
+                          umbenennen(
+                            umbenannteAbteilung(sortiment, abteilung.name, name),
+                            pfadVon(abteilung.name),
+                            pfadVon(name),
+                          );
+                        }
                       }}
                     >
                       ✎
@@ -331,8 +347,15 @@ export function Warengruppenfenster() {
                               onClick={() => {
                                 const name = frage('Warengruppe umbenennen:', gruppe.name);
                                 if (name) {
-                                  pflegen(
-                                    umbenannteWarengruppe(sortiment, abteilung.name, gruppe.name, name),
+                                  umbenennen(
+                                    umbenannteWarengruppe(
+                                      sortiment,
+                                      abteilung.name,
+                                      gruppe.name,
+                                      name,
+                                    ),
+                                    pfadVon(abteilung.name, gruppe.name),
+                                    pfadVon(abteilung.name, name),
                                   );
                                 }
                               }}
@@ -399,7 +422,7 @@ export function Warengruppenfenster() {
                                 onClick={() => {
                                   const neu = frage('Sortiment umbenennen:', name);
                                   if (neu) {
-                                    pflegen(
+                                    umbenennen(
                                       umbenanntesSortiment(
                                         sortiment,
                                         abteilung.name,
@@ -407,6 +430,8 @@ export function Warengruppenfenster() {
                                         name,
                                         neu,
                                       ),
+                                      pfadVon(abteilung.name, gruppe.name, name),
+                                      pfadVon(abteilung.name, gruppe.name, neu),
                                     );
                                   }
                                 }}

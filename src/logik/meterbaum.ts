@@ -1,5 +1,12 @@
 import { auslagenAnteil, kistenAnteil } from './auslagen';
-import { abteilungVon, ersteStufe, letzteStufe, pfadVon, zuordnungVon } from './sortiment';
+import {
+  abteilungVon,
+  eindeutigerPfad,
+  ersteStufe,
+  letzteStufe,
+  pfadVon,
+  zuordnungVon,
+} from './sortiment';
 import { metersumme, OHNE_WARENGRUPPE, strecken, warengruppenmeter } from './warengruppenmeter';
 import type { Sortimentsliste } from '../daten/warengruppen';
 import type { Projekt } from '../typen/modell';
@@ -109,10 +116,19 @@ function runde(knoten: Meterknoten): Meterknoten {
  * getippt und einmal abgehakt wurde. Bleibt beides ohne Treffer, hängt die
  * Zeile unter „Noch nicht eingeordnet": Sie zählt mit, sie steht nur nicht
  * am richtigen Platz, und das sieht man ihr an.
+ *
+ * **Gesucht wird der volle Pfad und nicht nur die Abteilung.** Ein Name, den
+ * die Liste genau einmal kennt, gehört unter seine Warengruppe – wer nur die
+ * Abteilung nachschlägt, hängt ein Sortiment neben die Warengruppe statt
+ * darunter, und deren Summe fehlten dann genau diese Meter. Ist der Name
+ * mehrdeutig, bleibt es bei der Abteilung: Zwischen zwei gleich richtigen
+ * Stellen zu wählen hieße raten.
  */
 function stufenVon(zeile: Warengruppenzeile, liste: Sortimentsliste): string[] {
   if (zeile.pfad) return zeile.pfad.split(' › ');
   if (zeile.name === OHNE_WARENGRUPPE) return [OHNE_ABTEILUNG, zeile.name];
+  const pfad = eindeutigerPfad(liste, zeile.name);
+  if (pfad) return pfad.split(' › ');
   const abteilung = abteilungVon(liste, zeile.name);
   return abteilung ? [abteilung, zeile.name] : [OHNE_ABTEILUNG, zeile.name];
 }

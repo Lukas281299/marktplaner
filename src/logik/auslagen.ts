@@ -1,4 +1,4 @@
-import { felderVon } from './regalseiten';
+import { felderVon, seitenbreite } from './regalseiten';
 import { KISTE, kistenseiten } from './getraenkekisten';
 import { ersteStufe } from './sortiment';
 import type { Auslagenanteil, Streckenmeter } from './warengruppenmeter';
@@ -200,9 +200,18 @@ export function ohneAuslagenbegriff(strecke: Streckenmeter): boolean {
  */
 export function kistenAnteil(strecke: Streckenmeter): number {
   const el = strecke.element;
-  if (!el.ifkoKisten || !(el.breite > 0)) return 0;
+  if (!el.ifkoKisten) return 0;
+
+  // Verteilt wird über die **Feldkette dieser Seite** und nicht über
+  // `element.breite`. Die beiden sind nicht dasselbe: Die Breite eines Möbels
+  // ist die **längere** seiner Seiten. Wer über sie verteilt, verliert an der
+  // kürzeren Seite genau den Unterschied – bei 5,00 zu 4,00 m ein Fünftel
+  // der Kisten, ohne dass irgendwo stünde, wo sie geblieben sind.
+  const laenge = seitenbreite(felderVon(el, strecke.seite)) || el.breite;
+  if (!(laenge > 0)) return 0;
+
   const seiten = el.beidseitig ? 2 : 1;
-  const jeCm = el.ifkoKisten / seiten / el.breite;
+  const jeCm = el.ifkoKisten / seiten / laenge;
   return (strecke.bis - strecke.von) * jeCm;
 }
 
@@ -243,6 +252,17 @@ export function auslagenAnteil(strecke: Streckenmeter): Auslagenanteil {
   // aber nicht**: Steht am Feld doch eine Bodenzahl, gilt die – das ist die
   // Leitregel dieser Datei, und ein Pflanzregal mit drei Böden hat eben drei.
   const stumm = ohneAuslagenbegriff(strecke);
+
+  // **Am Preisgestell gibt es keine Böden.** Die Vorgabe sind Kistenfacings,
+  // und die gelten über die ganze Strecke. Liefe sie durch `feldauslagen`,
+  // gewänne eine versehentlich eingetragene Bodenzahl über sie, und ein
+  // Unterbau addierte ein Facing – zwei Regalbegriffe, die hier nichts
+  // bedeuten.
+  if (strecke.element.form === 'getraenkegestell') {
+    const laenge = strecke.bis - strecke.von;
+    if (vorgabe === undefined) return { tatsaechlich: 0, ohne: laenge, ohneMassstab: 0 };
+    return { tatsaechlich: laenge * vorgabe, ohne: 0, ohneMassstab: 0 };
+  }
 
   let tatsaechlich = 0;
   let ohne = 0;
