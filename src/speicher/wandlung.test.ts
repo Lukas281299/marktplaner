@@ -513,7 +513,8 @@ describe('Fassung 17 · Bezeichnungen nachziehen', () => {
       x: 500,
       y: 500,
       breite: 675,
-      tiefe: 70,
+      // Boden 700 mm + 70 mm tote Zone – so steht es im Katalog.
+      tiefe: 77,
       hoehe: 220,
       drehung: 0,
       farbe: WT_GRAU,
@@ -604,7 +605,8 @@ describe('Fassung 18 · Aus der Palette wird der Unterbau', () => {
           x: 500,
           y: 500,
           breite: 250,
-          tiefe: 70,
+          // Boden 700 mm + 70 mm tote Zone – so steht es im Katalog.
+          tiefe: 77,
           hoehe: 220,
           drehung: 0,
           farbe: WT_GRAU,
@@ -653,7 +655,8 @@ describe('Fassung 19 · Aus „5+" in der Notiz wird eine Zahl', () => {
           x: 500,
           y: 500,
           breite: 100 * notizen.length,
-          tiefe: 70,
+          // Boden 700 mm + 70 mm tote Zone – so steht es im Katalog.
+          tiefe: 77,
           hoehe: 220,
           drehung: 0,
           farbe: WT_GRAU,

@@ -22,7 +22,8 @@ const regal = (breiten: number[], zusatz: Partial<PlanElement> = {}): PlanElemen
     x: 0,
     y: 0,
     breite: breiten.reduce((s, b) => s + b, 0),
-    tiefe: 70,
+    // Boden 700 mm + 70 mm tote Zone – so steht es in der Bibliothek.
+    tiefe: 77,
     hoehe: 220,
     drehung: 0,
     farbe: '#787878',
@@ -80,11 +81,26 @@ describe('Vollständige Bezeichnung', () => {
   it('schreibt bei beidseitigen Möbeln die Tiefe je Seite', () => {
     const gondel = regal([125, 125], {
       beidseitig: true,
-      tiefe: 140,
+      // 2 × 700 mm Boden + 70 mm tote Zone dazwischen.
+      tiefe: 147,
       beschriftung: 'Gondel A1250 · T2×700 · H1800',
       hoehe: 180,
     });
     expect(bezeichnungFuer(gondel)).toBe('Gondel 2× A1250 · T2×700 · H1800');
+  });
+
+  it('nennt die Bodentiefe und nicht das halbe Stellmaß', () => {
+    // Eine Gondel aus zwei 700er Böden steht 1470 mm tief – 70 mm davon sind
+    // die tote Zone dazwischen. Die Hälfte des Stellmaßes wären 735, und die
+    // gibt es nicht zu bestellen.
+    const gondel = {
+      ...regal([125, 125]),
+      beidseitig: true,
+      tiefe: 147,
+      hoehe: 180,
+      beschriftung: 'Gondel A1250 · T2×999 · H1800',
+    } as PlanElement;
+    expect(bezeichnungFuer(gondel)).toContain('T2×700');
   });
 
   it('lässt ein Möbel ohne Felder in Ruhe', () => {
@@ -159,7 +175,8 @@ describe('Jede Abteilung in ihrer eigenen Schreibweise', () => {
   it('wirft die alte Feldzahl eines Gondelzugs weg, statt sie doppelt zu nennen', () => {
     const zug = regal([100, 100, 100], {
       beidseitig: true,
-      tiefe: 140,
+      // 2 × 700 mm Boden + 70 mm tote Zone dazwischen.
+      tiefe: 147,
       beschriftung: 'Gondelzug 3,00 m · 3 Felder A1000 · T2×700',
     });
     expect(bezeichnungFuer(zug)).toBe('Gondelzug 3× A1000 · T2×700');

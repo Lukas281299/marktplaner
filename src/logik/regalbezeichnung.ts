@@ -1,4 +1,5 @@
 import { modulName, modulsatzFuer, satzAusAchsmass } from '../daten/module';
+import { bodentiefeMm } from './feldnotiz';
 import type { PlanElement } from '../typen/modell';
 
 /**
@@ -189,7 +190,13 @@ export function bezeichnungFuer(element: PlanElement): string | undefined {
   // Tiefe und Höhe stehen in Millimetern und werden mitgezogen – aber nur,
   // wo sie schon in dieser einfachen Form stehen. „T1200+600“ bei Obst und
   // Gemüse meint hinten und vorn; das kann hier niemand nachrechnen.
-  const tiefeMm = Math.round((element.beidseitig ? element.tiefe / 2 : element.tiefe) * 10);
+  //
+  // **Die Bodentiefe und nicht das Stellmaß.** Ein Regal von 1470 mm Tiefe
+  // ist eine Gondel aus zwei 700er Böden mit 70 mm toter Zone dazwischen –
+  // die Hälfte davon wären 735, und die gibt es nicht zu bestellen.
+  // `bodentiefeMm` zieht die tote Zone ab und rastet auf das nächste Maß des
+  // Systems ein.
+  const tiefeMm = bodentiefeMm(element);
   const nachgezogen = (teil: string): string => {
     if (/^T\d+$/.test(teil)) return `T${tiefeMm}`;
     if (/^T2×\d+$/.test(teil)) return `T2×${tiefeMm}`;
