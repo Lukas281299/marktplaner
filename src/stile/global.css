@@ -2380,3 +2380,30 @@ button.meterpfeil:hover {
   background: var(--flaeche);
   color: var(--text-schwach);
 }
+
+/* Der Bericht nach dem Ersetzen der Sortimentsliste.
+   Er sitzt am Fuß der Spalte und darf sie nicht sprengen: Bei vierzig
+   verwaisten Einträgen wäre die Liste darüber nicht mehr erreichbar. */
+.listenabgleich {
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid #e8cf9f;
+  border-radius: var(--rundung);
+  background: #fdf3e2;
+  color: #7a5410;
+}
+
+.listenabgleich .hinweis {
+  color: inherit;
+}
+
+.verwaistliste {
+  max-height: 180px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.verwaistliste .kennzahl {
+  align-items: flex-start;
+  gap: 8px;
+}

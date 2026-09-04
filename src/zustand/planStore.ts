@@ -53,6 +53,7 @@ import { mitUmbenanntemPfad } from '../logik/pfadumbenennung';
 import { feldUnterPunkt } from '../logik/feldtreffer';
 import { warengruppeUnterPunkt } from '../logik/warengruppentreffer';
 import { pfadeImPlan } from '../logik/planstand';
+import { mitNachgezogenenPfaden } from '../logik/listenabgleich';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -492,6 +493,13 @@ export interface PlanStore {
    * sagt, was in **diesem** Markt daraus geworden ist.
    */
   setzeSortimentsstand(pfad: string, wert: Standwert): void;
+  /**
+   * Hängt die Warengruppenpfade der Planung um – für eine neue Sortimentsliste.
+   *
+   * `umzug` bildet alte auf neue Pfade ab; angefasst wird nur, was darin
+   * steht. Zurück kommt, wie viele Pfade umgezogen sind.
+   */
+  ziehePfadeNach(umzug: Map<string, string>): number;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
 
@@ -965,6 +973,13 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     const pfade = pfadeUnter(get().sortiment, pfad).filter((p) => !imPlan.has(p));
     if (pfade.length === 0) return;
     aendere(set, get, (p) => ({ ...p, sortimentsstand: mitStand(p.sortimentsstand, pfade, wert) }));
+  },
+
+  ziehePfadeNach(umzug) {
+    const elemente = mitNachgezogenenPfaden(get().projekt, umzug);
+    if (!elemente) return 0;
+    aendere(set, get, (p) => ({ ...p, elemente }));
+    return umzug.size;
   },
 
   pflegeSortiment(liste) {

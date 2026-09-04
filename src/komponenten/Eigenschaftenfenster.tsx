@@ -28,7 +28,7 @@ import { ifkoVorschlag } from '../logik/ifko';
 import { bodentiefeMm } from '../logik/feldnotiz';
 import { aktionsflaechen, palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
 import { getraenkezahlen } from '../logik/getraenkezahlen';
-import { teileBeschriftung } from '../logik/sortimentsbund';
+import { zieleDerStrecke } from '../logik/sortimentsbund';
 import {
   zeigtBeidseitig,
   zeigtBodenmasse,
@@ -1138,10 +1138,15 @@ function Sortimentszuordnung({
   const mehrdeutig = useMemo(() => mehrdeutigeNamen(sortiment), [sortiment]);
   const text = abschnitt.text.trim();
 
-  // Stehen hier zwei Sortimente gemeinsam, ist das eine Aussage und kein
-  // Versehen – dann soll das Fenster zeigen, dass es beide gelesen hat.
-  const namen = useMemo(() => teileBeschriftung(sortiment, text), [sortiment, text]);
-  const gemeinsam = namen.length > 1;
+  // Stehen hier mehrere Sortimente, soll das Fenster zeigen, **was es daraus
+  // gelesen hat** – und zwar dieselbe Antwort, mit der später gerechnet wird.
+  const ziele = useMemo(
+    () => zieleDerStrecke(sortiment, { name: text, pfad: abschnitt.pfad }),
+    [sortiment, text, abschnitt.pfad],
+  );
+  const gelesen = [...new Map(ziele.map((z) => [z.name.toLocaleLowerCase('de-DE'), z])).values()];
+  const gemeinsam = gelesen.length > 1;
+  const ungeordnet = gelesen.filter((z) => !z.pfad).map((z) => z.name);
 
   // Ein getippter Name, den die Liste genau einmal kennt, lässt sich mit
   // einem Klick festmachen – das ist der häufige Fall und spart das Menü.
@@ -1153,11 +1158,19 @@ function Sortimentszuordnung({
   if (gemeinsam) {
     return (
       <>
-        <div className="wg-pfadzeile" title="Beide zählen gemeinsam – die Meter einmal">
+        <div className="wg-pfadzeile" title="Sie zählen gemeinsam – die Meter einmal">
           <span className="wg-pfadtext">
-            ↳ {namen.length} Sortimente gemeinsam: {namen.join(' · ')}
+            ↳ Gezählt wird: {gelesen.map((z) => z.name).join(' · ')}
           </span>
         </div>
+        {ungeordnet.length > 0 && (
+          <div className="wg-pfadzeile warnung">
+            <span className="wg-pfadtext">
+              {ungeordnet.map((n) => `„${n}"`).join(', ')} ordnet die Liste nicht ein — über ▾
+              wählen oder in der Liste anlegen
+            </span>
+          </div>
+        )}
         {abschnitt.pfad && (
           <div className="wg-pfadzeile" title="Wohin die Meter dieser Strecke zählen">
             <span className="wg-pfadtext">↳ {abschnitt.pfad}</span>

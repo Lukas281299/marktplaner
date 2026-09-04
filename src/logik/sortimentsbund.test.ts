@@ -31,6 +31,15 @@ const liste: Sortimentsliste = {
       warengruppen: [{ name: 'Bake Off', sortimente: ['Kuchen', 'Waffeln'] }],
     },
     {
+      // Der echte Fall: „Säfte" steht hier **und** bei den Getränken.
+      name: 'Obst & Gemüse',
+      warengruppen: [{ name: 'Convenience', sortimente: ['Dressing', 'Säfte'] }],
+    },
+    {
+      name: 'Getränke',
+      warengruppen: [{ name: 'Getränke Einweg', sortimente: ['Säfte', 'Cola'] }],
+    },
+    {
       name: 'Feinbackwaren',
       warengruppen: [{ name: 'Süßes', sortimente: ['Kuchen'] }],
     },
@@ -103,9 +112,15 @@ describe('Eine Beschriftung in ihre Namen zerlegen', () => {
     ]);
   });
 
-  it('trennt nicht, wenn ein Teil kein Name ist', () => {
-    // „Nüsse, ab KW 12" ist ein Name mit einer Anmerkung dahinter.
-    expect(teileBeschriftung(liste, 'Nüsse, ab KW 12')).toEqual(['Nüsse, ab KW 12']);
+  it('trennt, sobald ein Teil ein Name ist', () => {
+    // „Dressings" gibt es in der Liste nicht – die führt „Dressing" in der
+    // Einzahl. Früher fiel damit auch der zweite Name durch.
+    expect(teileBeschriftung(liste, 'Dressings, Säfte')).toEqual(['Dressings', 'Säfte']);
+    expect(teileBeschriftung(liste, 'Nüsse, ab KW 12')).toEqual(['Nüsse', 'ab KW 12']);
+  });
+
+  it('lässt zusammen, worin kein einziger Name steht', () => {
+    expect(teileBeschriftung(liste, 'Aktion, ab KW 12')).toEqual(['Aktion, ab KW 12']);
   });
 
   it('lässt einen einzelnen Namen, wie er ist', () => {
@@ -275,5 +290,48 @@ describe('Größere Strukturen am Stück', () => {
     const { baum, gesamt } = meterauswertung(projekt([mit('Bake Off', GRUPPE)]), liste);
     expect(namenIm(baum)).toEqual(['Backwaren', 'Bake Off']);
     expect(gesamt.laufend).toBe(3);
+  });
+});
+
+describe('Der Nachbar auf demselben Meter', () => {
+  const DRESSING = P('Obst & Gemüse', 'Convenience', 'Dressing');
+  const SAEFTE_OG = P('Obst & Gemüse', 'Convenience', 'Säfte');
+
+  it('findet einen mehrdeutigen Namen in der Warengruppe des Nachbarn', () => {
+    // Der gemeldete Fall: „Säfte allein nimmt er. Dressings, Säfte – dann
+    // fällt Säfte raus." „Säfte" steht zweimal in der Liste; welches gemeint
+    // ist, sagt der Nachbar auf demselben Meter.
+    expect(zieleDerStrecke(liste, { name: 'Dressing, Säfte', pfad: DRESSING })).toEqual([
+      { name: 'Dressing', pfad: DRESSING },
+      { name: 'Säfte', pfad: SAEFTE_OG },
+    ]);
+  });
+
+  it('kommt auch mit der Mehrzahl im Plan zurecht', () => {
+    // „Dressings" kennt die Liste nicht – der Teil lehnt sich an den Pfad an,
+    // und die Säfte finden sich trotzdem.
+    expect(zieleDerStrecke(liste, { name: 'Dressings, Säfte', pfad: DRESSING })).toEqual([
+      { name: 'Dressing', pfad: DRESSING },
+      { name: 'Säfte', pfad: SAEFTE_OG },
+    ]);
+  });
+
+  it('hakt danach beide ab', () => {
+    const plan = projekt([mit('Dressings, Säfte', DRESSING)]);
+    expect([...pfadeImPlan(plan, liste)].sort()).toEqual([DRESSING, SAEFTE_OG].sort());
+  });
+
+  it('rät nicht, wenn es keinen Nachbarn gibt', () => {
+    // „Säfte" allein und ohne Pfad bleibt ungeordnet – beide Bedeutungen sind
+    // gleich richtig.
+    expect(zieleDerStrecke(liste, { name: 'Säfte' })).toEqual([
+      { name: 'Säfte', pfad: undefined },
+    ]);
+  });
+
+  it('macht aus einer Anmerkung keinen Bund', () => {
+    const plan = projekt([mit('Nüsse, ab KW 12', NUESSE)]);
+    expect(buende(plan, liste).size).toBe(0);
+    expect([...pfadeImPlan(plan, liste)]).toEqual([NUESSE]);
   });
 });

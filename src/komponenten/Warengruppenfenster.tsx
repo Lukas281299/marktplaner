@@ -23,6 +23,7 @@ import {
   type Standwert,
 } from '../logik/sortiment';
 import { pfadeImPlan } from '../logik/planstand';
+import { verwaistePfade, type VerwaisterPfad } from '../logik/listenabgleich';
 import { usePlanStore } from '../zustand/planStore';
 import { Spaltenschalter } from './Spaltengriffe';
 
@@ -71,6 +72,13 @@ export function Warengruppenfenster() {
   const [pflege, setPflege] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
+  /**
+   * Was die neue Liste in dieser Planung nicht mehr kennt.
+   *
+   * Steht nur nach dem Ersetzen da, und nur, wenn es etwas zu sagen gibt.
+   * Der Plan selbst ist unversehrt – gerissen ist die Verbindung zur Liste.
+   */
+  const [verwaist, setVerwaist] = useState<VerwaisterPfad[] | null>(null);
 
   const gezeigt = gefiltert(sortiment, suche);
   const zahlen = umfang(sortiment);
@@ -193,8 +201,13 @@ export function Warengruppenfenster() {
         setMeldung(
           `Liste ersetzt: ${z.abteilungen} Abteilungen, ${z.warengruppen} Warengruppen, ${z.sortimente} Sortimente.`,
         );
+        // Nachsehen, was diese Planung benutzt und die neue Liste nicht mehr
+        // führt. Angefasst wird dabei nichts – nur gezeigt.
+        const offen = verwaistePfade(usePlanStore.getState().projekt, gelesen);
+        setVerwaist(offen.length > 0 ? offen : null);
         return;
       }
+      setVerwaist(null);
 
       const { liste, zuwachs } = vereinigt(sortiment, gelesen);
       usePlanStore.getState().setzeSortimentsliste(liste, true);
@@ -597,6 +610,68 @@ export function Warengruppenfenster() {
           <p className="hinweis" style={{ marginTop: 6 }}>
             {meldung}
           </p>
+        )}
+
+        {/* Der Bericht nach dem Ersetzen. Er sagt zuerst, dass nichts
+            verloren ist – das ist die Frage, die man in dem Moment hat. */}
+        {verwaist && (
+          <div className="listenabgleich">
+            <p className="hinweis" style={{ marginTop: 6 }}>
+              <strong>{verwaist.length} Einträge</strong> in dieser Planung kennt die neue Liste
+              nicht mehr. Die Meter stehen weiter im Markt und sind richtig gerechnet — es fehlt
+              nur die Verbindung zur Liste, und deshalb sind sie dort nicht abgehakt.
+            </p>
+            <div className="verwaistliste">
+              {verwaist.slice(0, 12).map((eintrag) => (
+                <div className="kennzahl" key={eintrag.alt}>
+                  <span style={{ overflowWrap: 'anywhere' }}>
+                    {eintrag.alt}
+                    {eintrag.neu ? (
+                      <span className="pinselpfad">↳ neu: {eintrag.neu}</span>
+                    ) : (
+                      <span className="pinselpfad">
+                        kein eindeutiger Nachfolger — am Möbel über ▾ wählen
+                      </span>
+                    )}
+                  </span>
+                  <span className="kennzahl-wert">{(eintrag.meter / 100).toFixed(2)} m</span>
+                </div>
+              ))}
+              {verwaist.length > 12 && (
+                <p className="hinweis" style={{ margin: '4px 0 0' }}>
+                  … und {verwaist.length - 12} weitere.
+                </p>
+              )}
+            </div>
+            <div className="knopfreihe" style={{ marginTop: 6 }}>
+              {verwaist.some((e) => e.neu) && (
+                <button
+                  className="knopf knopf-haupt"
+                  style={{ flex: 1 }}
+                  title="Die Pfade dort umhängen, wo der Name in der neuen Liste eindeutig ist. Der Text im Plan bleibt stehen."
+                  onClick={() => {
+                    const umzug = new Map(
+                      verwaist.filter((e) => e.neu).map((e) => [e.alt, e.neu!] as const),
+                    );
+                    const zahl = usePlanStore.getState().ziehePfadeNach(umzug);
+                    const rest = verwaist.filter((e) => !e.neu);
+                    setMeldung(
+                      `${zahl} ${zahl === 1 ? 'Eintrag' : 'Einträge'} nachgezogen.` +
+                        (rest.length > 0
+                          ? ` ${rest.length} bleiben offen — dort ist der Name nicht eindeutig.`
+                          : ''),
+                    );
+                    setVerwaist(rest.length > 0 ? rest : null);
+                  }}
+                >
+                  {verwaist.filter((e) => e.neu).length} nachziehen
+                </button>
+              )}
+              <button className="knopf" onClick={() => setVerwaist(null)}>
+                Schließen
+              </button>
+            </div>
+          </div>
         )}
         {fehler && (
           <p className="hinweis" style={{ marginTop: 6, color: 'var(--rot, #b3372a)' }}>

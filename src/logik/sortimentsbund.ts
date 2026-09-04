@@ -33,9 +33,14 @@ const schluessel = (text: string) => text.trim().toLocaleLowerCase('de-DE');
  * Sortiment und trägt seine Kommas im Namen; blind zu trennen machte daraus
  * drei Namen, von denen es zwei nicht gibt.
  *
- * Getrennt wird nur, wenn danach **jeder** Teil ein Name aus der Liste ist.
- * Sonst bleibt der Text, wie er ist – ein Kommentar hinter dem Namen soll
- * kein halbes Sortiment werden.
+ * Getrennt wird, sobald **mindestens ein** Teil ein Name aus der Liste ist.
+ * Vorher mussten es alle sein – dann fiel „Dressings, Säfte" durch, weil die
+ * Liste „Dressing" in der Einzahl führt, und mit ihm fielen auch die Säfte
+ * heraus. Ein Teil, den die Liste nicht kennt, verhält sich danach wie jeder
+ * freie Text: Er lehnt sich an den gespeicherten Pfad an.
+ *
+ * Steht in keinem Teil ein bekannter Name, bleibt der Text zusammen – dann
+ * ist das Komma Teil eines Satzes und keine Aufzählung.
  */
 export function teileBeschriftung(liste: Sortimentsliste, text: string): string[] {
   const ganz = text.trim();
@@ -44,7 +49,7 @@ export function teileBeschriftung(liste: Sortimentsliste, text: string): string[
 
   const teile = ganz.split(',').map((t) => t.trim()).filter(Boolean);
   if (teile.length < 2) return [ganz];
-  return teile.every((t) => kenntNamen(liste, t)) ? teile : [ganz];
+  return teile.some((t) => kenntNamen(liste, t)) ? teile : [ganz];
 }
 
 /**
@@ -156,8 +161,12 @@ export function buende(projekt: Projekt, liste: Sortimentsliste): Map<string, Bu
   // Erst die gemeinsamen Beschriftungen: Sie stehen im Plan und bestimmen die
   // Reihenfolge, in der die Namen gelesen werden.
   for (const strecke of strecken(projekt)) {
-    const ziele = zieleDerStrecke(liste, strecke);
-    if (ziele.length > 1) verbinde(ziele.map((z) => z.name));
+    // Nur Namen, die die Liste kennt: „Nüsse, ab KW 12" ist ein Name mit
+    // einer Anmerkung und kein Bund aus zweien.
+    const namen = zieleDerStrecke(liste, strecke)
+      .map((z) => z.name)
+      .filter((name) => kenntNamen(liste, name));
+    verbinde([...new Set(namen.map((n) => [schluessel(n), n] as const))].map(([, n]) => n));
   }
 
   // Dann die Zuordnungen. Das Ziel steht voran: Dort laufen die Meter.
@@ -241,16 +250,66 @@ export function zieleDerStrecke(
   strecke: { name: string; pfad?: string },
 ): Streckenziel[] {
   const teile = teileBeschriftung(liste, strecke.name);
+  if (teile.length === 0) return [{ name: strecke.name, pfad: strecke.pfad }];
+
   const eigen = strecke.pfad ? letzteStufe(strecke.pfad) : undefined;
+
+  // **Die Warengruppe des Nachbarn zuerst.** Wer „Dressing, Säfte" auf einen
+  // Meter schreibt, meint die Säfte, die neben dem Dressing liegen – und
+  // „Säfte" steht in der Liste zweimal, einmal bei den Getränken und einmal
+  // beim Obst unter Convenience. Ohne diesen Blick ins Nachbarfach bliebe der
+  // zweite Name ungeordnet, obwohl die Sache eindeutig ist.
+  const nachbargruppe = gruppeDes(strecke.pfad) ?? gruppeDes(ersterPfad(liste, teile));
 
   const zuTeil = (teil: string): Streckenziel => {
     if (eigen && schluessel(teil) === schluessel(eigen)) return { name: eigen, pfad: strecke.pfad };
     if (eigen && !kenntNamen(liste, teil)) return { name: eigen, pfad: strecke.pfad };
-    return { name: teil, pfad: eindeutigerPfad(liste, teil) };
+    return { name: teil, pfad: inGruppe(liste, nachbargruppe, teil) ?? eindeutigerPfad(liste, teil) };
   };
 
-  if (teile.length === 0) return [{ name: strecke.name, pfad: strecke.pfad }];
   return teile.map(zuTeil);
+}
+
+/** Die Warengruppe eines Pfades: seine ersten beiden Stufen. */
+function gruppeDes(pfad: string | undefined): string | undefined {
+  if (!pfad) return undefined;
+  const stufen = pfad.split(' › ');
+  return stufen.length >= 2 ? stufen.slice(0, 2).join(' › ') : undefined;
+}
+
+/** Der erste Teil, den die Liste eindeutig kennt – als Anker für die anderen. */
+function ersterPfad(liste: Sortimentsliste, teile: string[]): string | undefined {
+  for (const teil of teile) {
+    const pfad = eindeutigerPfad(liste, teil);
+    if (pfad) return pfad;
+  }
+  return undefined;
+}
+
+/**
+ * Steht dieser Name in **dieser** Warengruppe?
+ *
+ * Nur dort gesucht, und nur dort: Das ist keine Rateaktion, sondern die
+ * Nachbarschaft auf demselben Meter.
+ */
+function inGruppe(
+  liste: Sortimentsliste,
+  gruppenpfad: string | undefined,
+  name: string,
+): string | undefined {
+  if (!gruppenpfad) return undefined;
+  const [abteilung, gruppe] = gruppenpfad.split(' › ');
+  const gesucht = schluessel(name);
+  for (const a of liste.abteilungen) {
+    if (schluessel(a.name) !== schluessel(abteilung)) continue;
+    for (const w of a.warengruppen) {
+      if (schluessel(w.name) !== schluessel(gruppe)) continue;
+      if (w.sortimente.some((s) => schluessel(s) === gesucht)) {
+        return [a.name, w.name, name].join(' › ');
+      }
+    }
+  }
+  return undefined;
 }
 
 /**
