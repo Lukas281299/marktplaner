@@ -54,14 +54,13 @@ describe('Kisten auf einer Auflage', () => {
   });
 
   it('lässt das 1,00-m-Feld ganz', () => {
-    // Dort bleibt nichts übrig, also gibt es auch keine Lücke.
+    // Dort bleibt nichts übrig, also gibt es auch keine Lücke – und alle
+    // vier Werte kommen aus der Rechnung heraus.
     expect(nutzbreite(100)).toBe(100);
     expect(ifkoJeStufe(100, 40)).toBeCloseTo(5 / 3, 6);
+    expect(ifkoJeStufe(100, 60)).toBe(2.5);
     expect(ifkoJeStufe(100, 80)).toBeCloseTo(10 / 3, 6);
     expect(ifkoJeStufe(100, 120)).toBe(5);
-    // T600: gerechnet 2,5, gemessen hatte Lukas 3. Die halbe Kiste kommt
-    // erst zustande, wenn die Auflage über die Feldgrenze weiterläuft.
-    expect(ifkoJeStufe(100, 60)).toBe(2.5);
   });
 
   it('rechnet jede Breite über dasselbe Raster', () => {

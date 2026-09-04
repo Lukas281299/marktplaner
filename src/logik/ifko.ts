@@ -23,20 +23,22 @@ import type { PlanElement } from '../typen/modell';
  * geteilt durch das, was von der Kiste zum Gang zeigt – 60 cm quer, 40 cm
  * längs. Mal der Zahl der Reihen dahinter.
  *
- * Gemessen hat Lukas das an zwei Feldbreiten, und die Rechnung trifft seine
- * Zahlen:
+ * Dazu die **Grifflücke**: Ein 1,25-m-Feld trägt Kisten auf 1,20 m, die fünf
+ * Zentimeter daneben sind zum Anfassen. Beim 1,00-m-Feld bleibt nichts übrig,
+ * dort gibt es auch keine.
+ *
+ * Damit geht die im Markt gemessene Tabelle **ohne Rest und ohne Rundung**
+ * auf – jede der acht Zahlen kommt aus der Rechnung heraus:
  *
  * ```
  *              T400     T600     T800    T1200
- *   Feld 1,00   1 2/3     2,5     3 1/3      5     gemessen: 1 2/3 · 3 · 3 1/3 · 5
- *   Feld 1,25    2,08    3,13      4,17    6,25    gemessen: 2 · 3 · 4 · 6
+ *   Feld 1,00   1 2/3     2,5     3 1/3      5
+ *   Feld 1,25       2       3         4       6
  * ```
  *
- * **Gerechnet wird durchgehend und nicht Feld für Feld.** Eine Auflage läuft
- * über die ganze Länge des Möbels, und die Kisten laufen mit – sie hören
- * nicht an einer Feldgrenze auf. Deshalb stehen bei 1,25 m gebrochene Werte,
- * wo im einzelnen Feld nur ganze Kisten Platz hätten: Über vier Felder
- * ergeben vier mal 6,25 genau 25 ganze Kisten.
+ * Gerechnet wird **Feld für Feld**, denn jedes Feld hat seine eigene
+ * Grifflücke: Ein Möbel aus vier 1,25-m-Einheiten trägt Kisten auf 4 × 1,20 m
+ * und nicht auf 5,00 m.
  *
  * Ein gestuftes Möbel hat mehrere Auflagen verschiedener Tiefe; gezählt wird
  * Stufe für Stufe und zusammengelegt. Eine Gondel trägt ihre Stufen auf
