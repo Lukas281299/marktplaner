@@ -190,7 +190,13 @@ async function projektHolen(
   id: string,
 ): Promise<Projekt | undefined> {
   const antwort = await hole(zugang.adresse, `/anhang/${konto}/${id}`);
-  if (!antwort.ok) return undefined;
+  // **Nur „gibt es nicht" heißt fehlt.** Ein Serverfehler ist etwas anderes,
+  // und ihn wie ein Fehlen zu behandeln kostet eine Planung: Der Eintrag
+  // flöge aus dem Verzeichnis, und beim nächsten Abgleich schöbe der lokale –
+  // ältere – Stand den neueren auf dem Server beiseite. Ein abgebrochener
+  // Abgleich ist immer besser als ein stiller Verlust.
+  if (antwort.status === 404) return undefined;
+  if (!antwort.ok) throw new Error(await begruendung(antwort, 'Abholen fehlgeschlagen'));
   const roh = (await antwort.json()) as { inhalt: string };
   // Der andere Rechner kann eine ältere Fassung des Marktplaners haben –
   // etwa weil dort die Web-Version noch nicht neu geladen wurde.

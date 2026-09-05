@@ -199,6 +199,9 @@ function zaehltDazu(pfad: string | undefined, zweig: string): boolean {
   return !!pfad && (pfad === zweig || pfad.startsWith(`${zweig} › `));
 }
 
+/** Zwei Namen vergleichen, wie der Markt sie vergleicht. */
+const zeichen = (text: string) => text.trim().toLocaleLowerCase('de-DE');
+
 /**
  * Wie viele Meter in wie vielen Planungen an diesem Eintrag hängen.
  *
@@ -222,11 +225,17 @@ export async function metersAmEintrag(
   let meter = 0;
   let planungen = 0;
 
+  // Auch **frei getippte** Meter zählen mit: Sie tragen den Namen ohne Pfad,
+  // und wer den Eintrag löscht, verliert ihre Verbindung genauso. Eine Zahl,
+  // die zu klein ist, wiegt in Sicherheit.
+  const name = zeichen(zweig.split(' › ').pop() ?? zweig);
+
   const zaehle = (projekt: Projekt) => {
     let eigen = 0;
     for (const element of projekt.elemente ?? []) {
       for (const a of [...(element.warengruppenUnten ?? []), ...(element.warengruppenOben ?? [])]) {
-        if (zaehltDazu(a.pfad, zweig)) eigen += Math.max(0, a.bis - a.von);
+        const trifft = a.pfad ? zaehltDazu(a.pfad, zweig) : zeichen(a.text) === name;
+        if (trifft) eigen += Math.max(0, a.bis - a.von);
       }
     }
     if (eigen > 0) {

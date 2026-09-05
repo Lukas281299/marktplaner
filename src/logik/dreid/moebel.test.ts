@@ -223,6 +223,124 @@ describe('Obst und Gemüse', () => {
   });
 });
 
+/**
+ * Das 45-Grad-Eckstück in Obst und Gemüse.
+ *
+ * **Es war lange ein Klotz.** Gebaut wurde es wie der runde Kopf am Gangende:
+ * voller Korpus bis 67 cm, darüber waagerechte Auflagen. Im Markt ist es das
+ * Gegenteil – die geneigten Auflagen des geraden Zuges laufen durch die Ecke
+ * weiter und werden nach vorn hin nur kürzer, bis sie an der Diagonalen
+ * auslaufen. Zwei solche Stücke fasen die Gangecke gemeinsam ab.
+ *
+ * Geprüft wird deshalb dreierlei: dass die Auflagen **geneigt** sind wie im
+ * Zug, dass sie **schmaler werden** zur Ecke hin, und dass **kein Teil über
+ * den Umriss hinausragt**, den der Grundriss zeichnet. Das Letzte ist die
+ * eigentliche Regel: Steht im Raum etwas anderes als im Plan, ist einer von
+ * beiden falsch.
+ */
+describe('Die Ecke in Obst und Gemüse', () => {
+  const eck = (teil: Partial<PlanElement> = {}) =>
+    element({
+      kategorie: 'obstgemuese',
+      form: 'vitableEckInnen',
+      breite: 47.75,
+      tiefe: 95.5,
+      hoehe: 180,
+      stufen: [80, 60, 40],
+      felderUnten: [{ breite: 47.75 }],
+      ...teil,
+    });
+
+  /** Die Front des gezeichneten Umrisses an dieser Stelle. */
+  const front = (element: PlanElement, x: number) => {
+    const rest = Math.max(0, element.tiefe - element.breite);
+    const anteil = x / element.breite;
+    return element.gespiegelt
+      ? rest + (element.tiefe - rest) * anteil
+      : element.tiefe - (element.tiefe - rest) * anteil;
+  };
+
+  it('trägt geneigte Auflagen wie der gerade Zug – und keinen vollen Korpus', () => {
+    const teile = bauteileFuer(eck());
+    const auflagen = quaderMit(teile, 'edelstahl');
+    expect(auflagen.length).toBeGreaterThan(0);
+    expect(auflagen.every((a) => a.neigung === 25)).toBe(true);
+    // Ein Prisma über die ganze Grundfläche wäre der alte Klotz.
+    expect(teile.some((t) => t.art === 'prisma' && t.h > 40)).toBe(false);
+  });
+
+  it('lässt die Auflagen zur Ecke hin schmaler werden', () => {
+    const teile = bauteileFuer(eck());
+    const auflagen = quaderMit(teile, 'edelstahl');
+    const tiefsteVorn = Math.min(...auflagen.map((a) => a.t));
+    const tiefsteHinten = Math.max(...auflagen.map((a) => a.t));
+    // Vorn läuft sie aus, hinten steht die volle Stufe – sonst ist es keine Fase.
+    expect(tiefsteVorn).toBeLessThan(tiefsteHinten * 0.75);
+  });
+
+  it('ragt mit keinem Teil über den gezeichneten Umriss hinaus', () => {
+    // Beide Seiten und beide Größen: Das T1200-Eck ist breit genug für
+    // Kisten, und gerade die stehen am ehesten über.
+    const faelle = [
+      eck({ gespiegelt: false }),
+      eck({ gespiegelt: true }),
+      eck({ breite: 65.85, tiefe: 131.7, stufen: [120, 60], felderUnten: [{ breite: 65.85 }] }),
+      eck({
+        breite: 65.85,
+        tiefe: 131.7,
+        stufen: [120, 60],
+        felderUnten: [{ breite: 65.85 }],
+        gespiegelt: true,
+      }),
+    ];
+    for (const el of faelle) {
+      for (const t of bauteileFuer(el)) {
+        if (t.art !== 'quader') continue;
+        // Die geneigte Auflage reicht in y so weit wie ihre Tiefe mal cos 25°.
+        const cos = Math.cos((25 * Math.PI) / 180);
+        const bisY = t.neigung ? t.y + t.t * cos : t.y + t.t;
+        const engste = Math.min(front(el, t.x), front(el, t.x + t.b));
+        expect(bisY).toBeLessThanOrEqual(engste + 1);
+      }
+    }
+  });
+
+  it('legt Ware auf die Ecke – Kisten, wo sie passen, sonst lose', () => {
+    // Eine leere Edelstahlfläche sähe aus wie ein unfertiges Möbel.
+    const teile = bauteileFuer(eck());
+    const ware = teile.filter((t) => t.material === 'kiste' || t.material === 'ware');
+    expect(ware.length).toBeGreaterThan(0);
+  });
+
+  it('setzt die Auflagen auf dieselben Höhen wie der Zug daneben', () => {
+    // Sonst träfen sie am Stoß nicht aufeinander, und die Ecke sähe aus wie
+    // angeflanscht.
+    const zug = element({
+      kategorie: 'obstgemuese',
+      form: 'vitable',
+      breite: 100,
+      tiefe: 95.5,
+      hoehe: 180,
+      stufen: [80, 60, 40],
+      felderUnten: [{ breite: 100 }],
+    });
+    const hoehen = (el: PlanElement) =>
+      [...new Set(quaderMit(bauteileFuer(el), 'edelstahl').map((a) => Math.round(a.z)))].sort(
+        (a, b) => a - b,
+      );
+    expect(hoehen(eck())).toEqual(hoehen(zug));
+  });
+
+  it('baut das Außeneck als Dreieck – vorn auf null auslaufend', () => {
+    const aussen = eck({ form: 'vitableEckAussen', breite: 95.5 });
+    const auflagen = quaderMit(bauteileFuer(aussen), 'edelstahl');
+    expect(auflagen.length).toBeGreaterThan(0);
+    // Am spitzen Ende bleibt nichts mehr übrig.
+    const rechts = auflagen.filter((a) => a.x > 95.5 * 0.9);
+    expect(rechts).toHaveLength(0);
+  });
+});
+
 describe('Die Tiefkühlung', () => {
   it('macht aus der Truhe eine Wanne mit Glasdeckel', () => {
     const truhe = element({

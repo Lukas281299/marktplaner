@@ -447,6 +447,254 @@ function kopf(element: PlanElement, umriss: Punkt[], rund: boolean): Bauteil[] {
   return teile;
 }
 
+// ===========================================================================
+//  Das Eckstück: derselbe Zug, unter 45 Grad auslaufend
+// ===========================================================================
+
+/**
+ * Die Ecke ist kein eigenes Möbel, sondern der Zug um die Ecke gezogen.
+ *
+ * **Warum das vorher ein Klotz war.** Das Eckstück wurde wie ein Kopf gebaut –
+ * voller Korpus bis 67 cm, darüber waagerechte Auflagen. Das ist die Bauform
+ * des runden Kopfes am Gangende und für die Ecke falsch. Auf dem Foto sieht
+ * man das Gegenteil: Die geneigten Auflagen des geraden Zuges laufen **durch**
+ * die Ecke weiter, sie werden nur nach vorn hin kürzer, bis sie an der
+ * Diagonalen auslaufen. Zwei solche Stücke, eines je Zug und das zweite
+ * seitenverkehrt, fasen die Gangecke gemeinsam ab – die zwei 45-Grad-Ecken.
+ *
+ * Deshalb wird hier dasselbe gebaut wie in `vitableSeite`: dieselben
+ * Hinterkanten aus dem Katalog, dieselbe Neigung, dasselbe Frontgitter,
+ * dieselbe Hygieneklappe, dieselben Kisten. Nur endet jede Auflage nicht an
+ * einer geraden Vorderkante, sondern an der Schräge des Umrisses.
+ *
+ * **Gebaut wird in schmalen Streifen entlang der Breite.** Ein Quader kann
+ * nicht spitz zulaufen; drei Zentimeter breite Streifen, jeder so tief, wie
+ * der Umriss es an seiner engsten Stelle zulässt, ergeben die Schräge sauber
+ * genug – auf 180 cm Höhe sieht man die Stufen nicht.
+ */
+const ECK_STREIFEN = 3;
+
+/**
+ * Wo die Front an der Stelle `x` liegt.
+ *
+ * `rest` ist die Tiefe am flachen Ende: beim Inneneck `tiefe − breite` (bei
+ * gleicher Breite und Tiefe also null), beim Außeneck immer null. Damit ist
+ * es genau der Umriss, den `ElementSymbol` in den Grundriss zeichnet.
+ */
+function eckfront(x: number, breite: number, tiefe: number, rest: number, gespiegelt: boolean) {
+  if (breite <= 0) return tiefe;
+  const anteil = x / breite;
+  return gespiegelt ? rest + (tiefe - rest) * anteil : tiefe - (tiefe - rest) * anteil;
+}
+
+/**
+ * Die Kisten auf einer Ecke-Auflage – nur dort, wo sie noch hinpassen.
+ *
+ * **In der Ecke wird gedreht.** Ein Eckstück ist keinen Meter breit, sondern
+ * einen halben: Quer passt dort keine 60er Kiste, längs aber zwei 40er. Genau
+ * so steht es im Markt, und deshalb wird hier nicht die Lage des Zuges
+ * übernommen, sondern die genommen, von der mehr auf die Auflage geht.
+ *
+ * Ob eine Reihe noch Platz hat, entscheidet die Tiefe an der **knapperen**
+ * Seite der Spalte: Eine Kiste, die halb über der Schräge hinge, wäre
+ * schlimmer als eine fehlende.
+ */
+function eckKisten(
+  breite: number,
+  zHinten: number,
+  nenntiefe: number,
+  tiefeBei: (x: number) => number,
+): Bauteil[] {
+  const hoechstens = auflageFuer(nenntiefe).reihen;
+
+  /** Was bei dieser Lage herauskommt – Zahl der Kisten und ihre Plätze. */
+  const versuch = (kisteBreite: number, kisteTiefe: number) => {
+    const spalten = Math.floor(nutzbreite(breite) / kisteBreite);
+    if (spalten <= 0) return { zahl: 0, kisteBreite, kisteTiefe, plaetze: [] as number[][] };
+    const rand = (breite - spalten * kisteBreite) / 2;
+    const plaetze: number[][] = [];
+    let zahl = 0;
+    for (let k = 0; k < spalten; k++) {
+      const xa = rand + k * kisteBreite;
+      const eng = Math.min(tiefeBei(xa), tiefeBei(xa + kisteBreite));
+      const reihen = Math.min(hoechstens, Math.floor(eng / kisteTiefe));
+      plaetze.push([xa, reihen]);
+      zahl += reihen;
+    }
+    return { zahl, kisteBreite, kisteTiefe, plaetze };
+  };
+
+  const quer = versuch(IFKO.lang, IFKO.kurz);
+  const laengs = versuch(IFKO.kurz, IFKO.lang);
+  const besser = laengs.zahl > quer.zahl ? laengs : quer;
+
+  const teile: Bauteil[] = [];
+  for (const [xa, reihen] of besser.plaetze) {
+    for (let reihe = 0; reihe < reihen; reihe++) {
+      const d = reihe * besser.kisteTiefe;
+      teile.push(
+        quader(
+          xa + 1,
+          SAEULE_T + d * COS,
+          zHinten + AUFLAGE - d * SIN,
+          besser.kisteBreite - 2,
+          besser.kisteTiefe - 2,
+          KISTE_H,
+          'kiste',
+          { neigung: NEIGUNG },
+        ),
+      );
+    }
+  }
+  return teile;
+}
+
+/**
+ * Lose Ware auf einer geneigten Auflage – für die Ecke, wo keine Kiste hinpasst.
+ *
+ * **Warum nicht einfach Kisten.** Ein 45-Grad-Eckstück eines T800-Zuges ist
+ * 47,5 cm breit und läuft von 80 auf 44 cm Tiefe zu. Quer passt dort keine
+ * 60er Kiste (zu schmal), längs keine (vorn zu flach) – das ist keine Lücke
+ * im Programm, sondern die Wirklichkeit: Über Eck liegt die Ware lose, und
+ * genau so ist es auf dem Foto zu sehen.
+ *
+ * Gelegt wird im Raster über die Auflage, jede Reihe in ihrer Farbe, und die
+ * Höhe folgt der Neigung – sonst schwebten die vorderen Stücke.
+ */
+function eckWare(breite: number, zHinten: number, tiefeBei: (x: number) => number): Bauteil[] {
+  const teile: Bauteil[] = [];
+  const spalte = 13;
+  const reihe = 13;
+  const spalten = Math.floor(breite / spalte);
+  if (spalten <= 0) return teile;
+  const rand = (breite - spalten * spalte) / 2;
+
+  for (let i = 0; i < spalten; i++) {
+    const x = rand + (i + 0.5) * spalte;
+    const tief = tiefeBei(x);
+    const reihen = Math.floor((tief - 8) / reihe);
+    const farbe = OBSTFARBEN[i % OBSTFARBEN.length];
+    for (let r = 0; r < reihen; r++) {
+      // Etwas versetzt, damit es nach Haufen aussieht und nicht nach Gitter.
+      const d = 8 + (r + 0.5) * reihe;
+      const versatz = r % 2 === 0 ? 0 : spalte / 2.6;
+      const radius = r % 3 === 0 ? 5 : 4.2;
+      teile.push(
+        kugel(
+          Math.min(breite - radius, x + versatz),
+          SAEULE_T + d * COS,
+          zHinten + AUFLAGE - d * SIN + radius,
+          radius,
+          'ware',
+          farbe,
+        ),
+      );
+    }
+  }
+  return teile;
+}
+
+/** Ein Eckstück – innen (`rest = tiefe − breite`) oder außen (`rest = 0`). */
+function vitableEcke(element: PlanElement, rest: number): Bauteil[] {
+  const breite = element.breite;
+  const tiefe = element.tiefe;
+  if (breite <= 0 || tiefe <= 0) return [];
+
+  const gespiegelt = !!element.gespiegelt;
+  const hoehe = hoeheVon(element);
+  const stufen = stufenVon(element, tiefe);
+  const teile: Bauteil[] = [];
+
+  const front = (x: number) => eckfront(x, breite, tiefe, rest, gespiegelt);
+  /** Wie tief eine Auflage der Nenntiefe `d` bei `x` noch sein darf. */
+  const tiefeBei = (d: number) => (x: number) =>
+    Math.max(0, Math.min(d, (front(x) - SAEULE_T) / COS));
+
+  // Die Hinterkanten aus dem Katalog – dieselben wie im geraden Zug, sonst
+  // träfen die Auflagen am Stoß nicht aufeinander.
+  const hk0 = untersteHinterkante(stufen, hoehe);
+  let hinterkante = hk0;
+  const hinterkanten: number[] = [];
+  stufen.forEach((d, i) => {
+    if (i > 0) hinterkante += 30 + 0.2 * d;
+    hinterkanten.push(hinterkante);
+  });
+
+  // Säulen an beiden Enden, Fußrohr so weit, wie der Korpus dort reicht.
+  const unterste = stufen[0];
+  const korpusBei = (x: number) =>
+    Math.max(SAEULE_T, Math.min(front(x) - 2, SAEULE_T + unterste * COS));
+  for (const x of [0, breite]) {
+    teile.push(quader(x - SAEULE_B / 2, 0, 0, SAEULE_B, SAEULE_T, hoehe, 'regalDunkel'));
+    teile.push(quader(x - SAEULE_B / 2, 0, 0, SAEULE_B, korpusBei(x), FUSS_H, 'regalDunkel'));
+  }
+  teile.push(wandplatte(0, SAEULE_T / 2 - 0.4, FUSS_H, breite, hoehe - FUSS_H, 'gitter', 0.8));
+
+  const obersteKante = hinterkanten[hinterkanten.length - 1] + 12;
+  if (hoehe > obersteKante + 15) {
+    teile.push(
+      wandplatte(
+        0,
+        SAEULE_T / 2 + 0.8,
+        obersteKante,
+        breite,
+        hoehe - obersteKante - 4,
+        'holzHell',
+        1.2,
+      ),
+    );
+  }
+
+  // Die Auflagen, Streifen für Streifen.
+  const streifen = Math.max(1, Math.ceil(breite / ECK_STREIFEN));
+  const w = breite / streifen;
+  stufen.forEach((d, s) => {
+    const z = hinterkanten[s];
+    const bis = tiefeBei(d);
+    for (let i = 0; i < streifen; i++) {
+      const x0 = i * w;
+      // Die knappere Seite zählt: Sonst stünde der Streifen über die Schräge
+      // hinaus, und die Ecke wäre wieder ein Klotz.
+      const dLokal = Math.min(bis(x0), bis(x0 + w));
+      if (dLokal < 6) continue;
+
+      teile.push(
+        quader(x0, SAEULE_T, z, w + 0.05, dLokal, AUFLAGE, 'edelstahl', { neigung: NEIGUNG }),
+      );
+
+      const yVorn = SAEULE_T + dLokal * COS;
+      const zVorn = z - dLokal * SIN;
+      teile.push(quader(x0, yVorn - 0.6, zVorn + AUFLAGE, w + 0.05, 0.6, FRONTGITTER_H, 'chrom'));
+
+      if (s === 0) {
+        // Hygieneklappe: Sie folgt der Schräge mit nach vorn.
+        teile.push(
+          quader(x0, yVorn - KLAPPE_STAERKE, 3, w + 0.05, KLAPPE_STAERKE, zVorn - 3, 'regalDunkel'),
+        );
+      }
+    }
+    const mitKisten = eckKisten(breite, z, d, bis);
+    teile.push(...(mitKisten.length > 0 ? mitKisten : eckWare(breite, z, bis)));
+  });
+
+  // Holz-Seitenwand nur am **tiefen** Ende: Dort stößt das Stück an den Zug.
+  // Am flachen Ende trifft es sein seitenverkehrtes Gegenstück, und eine Wand
+  // mitten in der Fase sähe aus wie eine Trennung, die es nicht gibt.
+  const tiefesEnde = gespiegelt ? breite : 0;
+  teile.push(
+    seitenplatte(
+      gespiegelt ? breite : -1.9,
+      0,
+      0,
+      korpusBei(tiefesEnde),
+      hk0 + 12,
+      'holzHell',
+      1.9,
+    ),
+  );
+  return teile;
+}
+
 export function vitableBauteile(element: PlanElement): Bauteil[] {
   switch (element.form) {
     // Die Umrisse sind dieselben, die `ElementSymbol` in den Grundriss
@@ -456,34 +704,14 @@ export function vitableBauteile(element: PlanElement): Bauteil[] {
       return kopf(element, rundkopf(element.breite, element.tiefe), true);
     case 'vitableAbschluss':
       return kopf(element, rechteck(element.breite, element.tiefe), false);
-    case 'vitableEckInnen': {
-      // Volle Tiefe am Anschluss, zur Ecke hin unter 45 Grad auslaufend.
-      const rest = Math.max(0, element.tiefe - element.breite);
-      const eck = element.gespiegelt
-        ? [
-            { x: 0, y: 0 },
-            { x: element.breite, y: 0 },
-            { x: element.breite, y: element.tiefe },
-            { x: 0, y: rest },
-          ]
-        : [
-            { x: 0, y: 0 },
-            { x: element.breite, y: 0 },
-            { x: element.breite, y: rest },
-            { x: 0, y: element.tiefe },
-          ];
-      return kopf(element, eck, false);
-    }
+    // Die Ecken sind **kein Kopf**, sondern der Zug um die Ecke gezogen –
+    // siehe `vitableEcke`. Volle Tiefe am Anschluss an den Zug, zur Ecke hin
+    // unter 45 Grad auslaufend.
+    case 'vitableEckInnen':
+      return vitableEcke(element, Math.max(0, element.tiefe - element.breite));
     case 'vitableEckAussen':
-      return kopf(
-        element,
-        [
-          { x: 0, y: 0 },
-          { x: element.breite, y: 0 },
-          { x: 0, y: element.tiefe },
-        ],
-        false,
-      );
+      // Das Außeneck läuft auf null aus – der Umriss ist ein Dreieck.
+      return vitableEcke(element, 0);
     default:
       return element.beidseitig ? gondel(element) : gerade(element);
   }

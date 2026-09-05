@@ -1581,14 +1581,18 @@ function Warengruppenband({
    */
   const schreibeText = (index: number, text: string) => {
     const pfad = abschnitte[index]?.pfad;
-    // **Mit Pfad entscheidet der Vergleich mit ihm**, ohne Pfad der Vergleich
-    // mit der Liste: Ein getippter Text, den die Liste kennt, ist ihr Name und
-    // soll mitziehen; einer, den sie nicht kennt, gehört dem Planer. Sonst
-    // wäre eine noch nicht zugeordnete Strecke schutzlos, weil `eigenerText`
-    // dort nie zustande käme.
+    // **Trägt der Text einen Namen aus der Liste, gehört er der Liste.** Das
+    // gilt auch für einen getippten Bund: „Nüsse, Trockenobst" sind zwei
+    // Sortimente, und beide sollen mitziehen, wenn sie umbenannt werden.
+    // Steht dort nichts, was die Liste kennt – „Marmorkuchen Aktion" –, ist es
+    // der Satz des Planers und bleibt bei jedem Umbenennen stehen.
+    const traegtListennamen = teileBeschriftung(sortiment, text).some((teil) =>
+      kenntNamen(sortiment, teil),
+    );
     aendere(index, {
       text,
-      eigenerText: pfad ? text.trim() !== letzteStufe(pfad) : !kenntNamen(sortiment, text),
+      eigenerText:
+        !traegtListennamen && (pfad ? text.trim() !== letzteStufe(pfad) : text.trim().length > 0),
     });
   };
 

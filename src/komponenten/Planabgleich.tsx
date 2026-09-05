@@ -59,6 +59,11 @@ export function Planabgleich() {
     void pruefe();
   }, [pruefe]);
 
+  // Die Meldung „auch in N weiteren Planungen angekommen" gehört zu **diesem**
+  // Umbenennen. Beim Schließen ist sie gelesen; bliebe sie stehen, stünde sie
+  // beim nächsten Öffnen wieder da und meinte etwas von vorgestern.
+  useEffect(() => () => usePlanStore.getState().vergissNachgezogene(), []);
+
   const zahl = (berichte ?? []).reduce((n, b) => n + b.eintraege.length, 0);
 
   /** Eine Entscheidung ausführen – für eine Zeile oder für alle einer Planung. */
