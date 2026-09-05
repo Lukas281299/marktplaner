@@ -1904,11 +1904,17 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // Und in allen übrigen Planungen denselben Weg zurück – aber nur, wenn an
     // genau diesem Schritt umbenannt wurde.
     if (umbenennung) {
+      // **Für die Gegenrichtung neu gerechnet.** `auchOhnePfad` beantwortet
+      // die Frage „gibt es den alten Namen in der Liste noch?" – und beim
+      // Zurückgehen ist der alte Name der neue. Den Wert vom Hinweg zu
+      // übernehmen zöge mal zu viel und mal zu wenig mit.
+      const neuName = umbenennung.neu.split(' › ').pop() ?? umbenennung.neu;
+      const zurueckOhnePfad = !kenntNamen(listeVorher, neuName);
       void inderReihe(() =>
         benenneInAllenPlanungenUm(
           umbenennung.neu,
           umbenennung.alt,
-          umbenennung.auchOhnePfad,
+          zurueckOhnePfad,
           () => get().projekt.id,
         ),
       );
@@ -1934,6 +1940,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     });
     nimmListeZurueck(set, sortiment, listeNachher);
     // Vorwärts denselben Weg: Strg+Y benennt in allen Planungen wieder um.
+    // Hier gilt der Wert vom Hinweg – es ist ja derselbe Weg.
     if (umbenennung) {
       void inderReihe(() =>
         benenneInAllenPlanungenUm(

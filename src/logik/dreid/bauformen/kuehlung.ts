@@ -126,6 +126,7 @@ function hochkuehlregal(element: PlanElement, tueren: boolean): Bauteil[] {
   const hoehe = hoeheVon(element);
   const sockel = 33.4;
   const haube = 9;
+  const grundboden = element.grundboden && element.grundboden > 0 ? element.grundboden : 55;
   const teile: Bauteil[] = [];
 
   teile.push(quader(0, 0, 0, b, t - 3, sockel, 'anthrazit'));
@@ -136,13 +137,20 @@ function hochkuehlregal(element: PlanElement, tueren: boolean): Bauteil[] {
   // Haube, vorn über die Türlinie kragend.
   teile.push(quader(0, 0, hoehe - haube, b, t + 2, haube, 'anthrazit'));
   // Grundboden und Innenraum. Der Grundboden ist die erste Ebene.
-  teile.push(quader(3, 10, sockel, b - 6, t - 16, 1.5, 'hellgrau'));
-  teile.push(quader(3, t - 7.3, sockel, b - 6, 0.8, PREISSCHIENE, 'preisschiene'));
+  //
+  // **So tief, wie am Möbel steht.** Die Bibliothek führt an jedem
+  // Orion-Eintrag seine Grundbodentiefe (48/60/70/80 je Bautiefe), und die
+  // Kistenrechnung benutzt sie. Gezeichnet wurde er dagegen mit `t − 16` –
+  // bei T804 also 64,4 statt 48, sechzehn Zentimeter zu weit vorn.
+  const grundbodenTiefe = Math.max(20, Math.min(grundboden, t - 16));
+  teile.push(quader(3, 10, sockel, b - 6, grundbodenTiefe, 1.5, 'hellgrau'));
+  teile.push(
+    quader(3, 10 + grundbodenTiefe - 0.8, sockel, b - 6, 0.8, PREISSCHIENE, 'preisschiene'),
+  );
   // **Je Feld sein eigener Innenraum.** Ein 3,75-m-Regal aus drei Feldern mit
   // verschiedenen Bodenzahlen ist im Markt genau das – drei Abschnitte, und
   // jeder trägt, was an ihm steht.
   const felder = felderVon(element, 'unten');
-  const grundboden = element.grundboden && element.grundboden > 0 ? element.grundboden : 55;
   let x = 0;
   for (const feld of felder.length > 0 ? felder : [{ breite: b }]) {
     const fb = Math.min(feld.breite, b - x);

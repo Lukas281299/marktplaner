@@ -223,6 +223,23 @@ export interface Vektoroptionen {
  * bzw. 2,7 mm gut über der Druckgrenze lägen und der Ausgabedialog sie
  * ausdrücklich verspricht.
  */
+/**
+ * Ein Text, gekürzt auf eine Breite – mit drei Punkten, wenn er nicht passt.
+ *
+ * Dieselbe Regel wie am Bildschirm (`ellipsis` an der Konva-Beschriftung).
+ * Gerechnet wird mit derselben Näherung wie in `pdfVektor.textbreite`: Für
+ * Helvetica sind 0,5 der Schrifthöhe je Zeichen nah genug, und ein paar
+ * Zeichen mehr oder weniger entscheiden hier nichts.
+ */
+function gekuerzt(text: string, breite: number, groesse: number): string {
+  if (!text || breite <= 0) return text;
+  const jeZeichen = groesse * 0.5;
+  const passt = Math.floor(breite / jeZeichen);
+  if (passt >= text.length) return text;
+  if (passt <= 1) return '';
+  return `${text.slice(0, passt - 1).trimEnd()}…`;
+}
+
 export function zoomFuerMassstab(massstab: number): number {
   return massstab > 0 ? 33.3 / massstab : 0.33;
 }
@@ -369,7 +386,15 @@ export function planAlsVektor(projekt: Projekt, optionen: Vektoroptionen = {}): 
     }
 
     if (optionen.beschriftungen !== false && el.beschriftungSichtbar !== false) {
-      const beschriftung = (el.beschriftung || el.name || '').trim();
+      // **Gekürzt wie am Bildschirm.** Dort begrenzt Konva den Text auf die
+      // Möbelbreite und setzt sonst drei Punkte. Im Export fehlte das: Ein
+      // langer Name lief ungekürzt über die Nachbarmöbel und machte den Plan
+      // an der Stelle unlesbar.
+      const beschriftung = gekuerzt(
+        (el.beschriftung || el.name || '').trim(),
+        el.breite,
+        (el.schriftgroesse || 12) / ersatzzoom,
+      );
       if (beschriftung) {
         texte.push({
           text: beschriftung,
