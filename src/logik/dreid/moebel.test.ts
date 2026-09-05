@@ -599,16 +599,32 @@ describe('Körbe und Hängeware', () => {
     expect(oben).toBeGreaterThan(unten + 40);
   });
 
-  it('hängt statt Böden ein Feingewebe mit Ware davor', () => {
+  it('hängt statt Böden ein Gitter mit Haken davor', () => {
     // Die Blister-Rückwand ist ein Gewebe, kein Blech — und dünner als die
     // Gitter-Rückwand des Regals, an der man sie unterscheidet.
     const mit = bau({ haengeware: { anteil: 50, lage: 'oben' } });
     expect(mit.some((t) => t.art === 'quader' && t.material === 'gitter' && t.t === 0.6)).toBe(true);
-    // Davor die Ware und der Stab an den Hakenspitzen.
-    expect(mit.some((t) => t.material === 'ware')).toBe(true);
-    expect(mit.some((t) => t.art === 'zylinder' && t.material === 'chrom' && t.achse === 'x')).toBe(
-      true,
+    // Und davor die Haken, quer nach vorn.
+    const haken = mit.filter(
+      (t) => t.art === 'zylinder' && t.material === 'chrom' && t.achse === 'y',
     );
+    expect(haken.length).toBeGreaterThan(4);
+  });
+
+  it('macht die Haken 30 cm lang', () => {
+    const mit = bau({ haengeware: { anteil: 50, lage: 'oben' } });
+    const haken = mit.filter(
+      (t): t is Extract<Bauteil, { art: 'zylinder' }> =>
+        t.art === 'zylinder' && t.material === 'chrom' && t.achse === 'y',
+    );
+    expect(haken.every((h) => h.laenge === 30)).toBe(true);
+  });
+
+  it('zeichnet an der Blisterwand keine Ware', () => {
+    // Was daran hängt, ist Ware und keine Einrichtung. Gezeichnet wird das
+    // Gitter und die Haken, sonst nichts.
+    const mit = bau({ haengeware: { anteil: 50, lage: 'oben' } });
+    expect(mit.some((t) => t.material === 'ware')).toBe(false);
   });
 
   it('drängt die Böden aus der Zone der Hängeware', () => {

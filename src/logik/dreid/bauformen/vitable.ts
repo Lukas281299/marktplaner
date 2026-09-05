@@ -1,19 +1,18 @@
 import { felderVon } from '../../regalseiten';
 import { auflageFuer, IFKO, nutzbreite } from '../../ifko';
 import {
-  halbellipse,
+  kugel,
   nachInnen,
   prisma,
   quader,
+  rechteck,
   seitenplatte,
   spiegele,
-  trapez,
-  viertelkreis,
   wandplatte,
   type Bauteil,
 } from '../bauteile';
 import { hoeheVon } from '../moebel';
-import type { PlanElement, Regalfeld } from '../../../typen/modell';
+import type { PlanElement, Punkt, Regalfeld } from '../../../typen/modell';
 
 /**
  * Obst und Gemüse – Wanzl Vitable, aus dem Workbook Version 38 (10/2025).
@@ -230,31 +229,81 @@ const VORDERKANTE = 67;
 /** Der schwarze Sockel unter dem Korpus. */
 const KOPF_SOCKEL = 11;
 /** Wie viel jede weitere Stufe nach innen rückt und nach oben steigt. */
-const STUFE_EINZUG = 26;
-const STUFE_STEIGUNG = 21;
+const STUFE_EINZUG = 30;
+const STUFE_STEIGUNG = 24;
+/** Der Drahtrand um eine Auflage – im Markt hält er die lose Ware. */
+const RAND_H = 9;
 
 /** Der Schwerpunkt eines Umrisses. */
-function mitte(umriss: { x: number; y: number }[]) {
+function mitte(umriss: Punkt[]) {
   return {
     x: umriss.reduce((s, p) => s + p.x, 0) / umriss.length,
     y: umriss.reduce((s, p) => s + p.y, 0) / umriss.length,
   };
 }
 
+/** Liegt der Punkt im Polygon? Strahlensatz, wie üblich. */
+function drin(umriss: Punkt[], x: number, y: number): boolean {
+  let innen = false;
+  for (let i = 0, j = umriss.length - 1; i < umriss.length; j = i++) {
+    const a = umriss[i];
+    const b = umriss[j];
+    if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) innen = !innen;
+  }
+  return innen;
+}
+
 /**
- * Die radialen Trennwände auf einem runden Kopf.
+ * Der Umriss des runden Gondelkopfs — **so wie im Grundriss**.
+ *
+ * Gerade Seite am Zug (x = 0), dann zwei gerade Kanten und vorn der
+ * Halbkreis, der sich vom Zug weg wölbt. Genau diese Form zeichnet
+ * `ElementSymbol` auch; wölbte sie sich hier nach vorn statt zur Seite,
+ * stünde im Raum ein anderes Möbel als im Plan.
+ */
+function rundkopf(breite: number, tiefe: number, schritte = 18): Punkt[] {
+  const r = tiefe / 2;
+  const gerade = Math.max(0, breite - r);
+  const punkte: Punkt[] = [
+    { x: 0, y: 0 },
+    { x: gerade, y: 0 },
+  ];
+  for (let i = 0; i <= schritte; i++) {
+    const w = -Math.PI / 2 + (Math.PI * i) / schritte;
+    punkte.push({ x: gerade + r * Math.cos(w), y: r + r * Math.sin(w) });
+  }
+  punkte.push({ x: 0, y: tiefe });
+  return punkte;
+}
+
+/**
+ * Der Drahtrand um eine Auflage.
+ *
+ * Ein Ring lässt sich aus einem Prisma nicht bauen — also aus Stücken: je
+ * zwei benachbarte Punkte des Umrisses und dieselben zwei ein Stück weiter
+ * innen. Jedes zweite Paar genügt; aus zwei Metern Entfernung sieht das
+ * niemand.
+ */
+function randdraht(umriss: Punkt[], z: number, h: number): Bauteil[] {
+  const innen = nachInnen(umriss, 1.4);
+  const teile: Bauteil[] = [];
+  for (let i = 0; i + 2 < umriss.length; i += 2) {
+    teile.push(
+      prisma([umriss[i], umriss[i + 2], innen[i + 2], innen[i]], z, h, 'regalDunkel'),
+    );
+  }
+  return teile;
+}
+
+/**
+ * Die radialen Trennbügel auf einem runden Kopf.
  *
  * Auf dem Kopfmöbel liegt die Ware nicht in Kisten, sondern lose in
  * Tortenstücken, die schmale Drahtbügel voneinander trennen. Ein Bügel ist
  * hier ein dünnes Prisma vom Mittelpunkt zur Kante – anders lässt sich ein
  * Teil, das nicht achsparallel steht, aus Quadern nicht bauen.
  */
-function trennwaende(
-  umriss: { x: number; y: number }[],
-  z: number,
-  h: number,
-  anzahl: number,
-): Bauteil[] {
+function trennbuegel(umriss: Punkt[], z: number, h: number, anzahl: number): Bauteil[] {
   const m = mitte(umriss);
   const teile: Bauteil[] = [];
   const schritt = Math.max(1, Math.floor(umriss.length / anzahl));
@@ -264,9 +313,8 @@ function trennwaende(
     const dx = p.x - m.x;
     const dy = p.y - m.y;
     const l = Math.hypot(dx, dy) || 1;
-    // Der Bügel ist 8 mm dick, quer zu seiner Richtung.
-    const nx = (-dy / l) * 0.4;
-    const ny = (dx / l) * 0.4;
+    const nx = (-dy / l) * 0.5;
+    const ny = (dx / l) * 0.5;
     teile.push(
       prisma(
         [
@@ -285,20 +333,16 @@ function trennwaende(
 }
 
 /** Die Farben, in denen die lose Ware auf einem Kopfmöbel liegt. */
-const OBSTFARBEN = ['#d8c33a', '#c4562f', '#4f7a34', '#8a4a2a'];
+const OBSTFARBEN = ['#d8c33a', '#3f6b2f', '#c4562f', '#8a5a2a', '#b8402f'];
 
 /**
- * Lose Ware auf einer Auflage – Obst, aufgehäuft.
+ * Lose Ware, aufgehäuft — je Tortenstück ein Haufen in seiner Farbe.
  *
- * Kugeln und keine Kisten: Auf dem runden Kopf liegen Bananen, Avocados und
- * Mangos frei, jede Sorte in ihrem Tortenstück. Drei Kugeln je Stück reichen
- * dafür; mehr sieht man aus zwei Metern Entfernung nicht.
+ * Auf dem runden Kopf liegen Bananen, Avocados und Mangos frei, jede Sorte
+ * für sich. Fünf Kugeln je Stück, in zwei Lagen: Das sieht nach Haufen aus
+ * und nicht nach aufgereihten Bällen.
  */
-function loseWare(
-  umriss: { x: number; y: number }[],
-  z: number,
-  stuecke: number,
-): Bauteil[] {
+function loseWare(umriss: Punkt[], z: number, stuecke: number): Bauteil[] {
   const m = mitte(umriss);
   const teile: Bauteil[] = [];
   const schritt = Math.max(1, Math.floor(umriss.length / stuecke));
@@ -308,10 +352,45 @@ function loseWare(
     const p = umriss[i];
     const farbe = OBSTFARBEN[n % OBSTFARBEN.length];
     n++;
-    for (const anteil of [0.45, 0.68, 0.86]) {
-      const x = m.x + (p.x - m.x) * anteil;
-      const y = m.y + (p.y - m.y) * anteil;
-      teile.push({ art: 'kugel', x, y, z: z + 5, radius: 6.5, material: 'ware', farbe });
+    const lagen: [number, number, number][] = [
+      [0.42, -0.06, 5],
+      [0.6, 0.06, 5.5],
+      [0.78, -0.05, 5],
+      [0.55, 0, 5.5],
+      [0.72, 0.08, 4.5],
+    ];
+    lagen.forEach(([anteil, quer, radius], k) => {
+      const dx = p.x - m.x;
+      const dy = p.y - m.y;
+      const x = m.x + dx * anteil - dy * quer;
+      const y = m.y + dy * anteil + dx * quer;
+      teile.push(kugel(x, y, z + (k < 3 ? radius : radius + 5), radius, 'ware', farbe));
+    });
+  }
+  return teile;
+}
+
+/**
+ * Grüne Kisten auf einer Auflage — im Raster, wie am geraden Möbel.
+ *
+ * Gesetzt wird über ein Gitter im Rasterschritt der ifko; behalten wird, was
+ * wirklich auf der Auflage liegt. Über Eck gibt es keine Reihe, der man
+ * folgen könnte, und aufgereihte Einzelkisten sähen aus wie hingestreut.
+ */
+function kistenAuf(umriss: Punkt[], z: number, hoechstens = 14): Bauteil[] {
+  const xs = umriss.map((p) => p.x);
+  const ys = umriss.map((p) => p.y);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const teile: Bauteil[] = [];
+
+  for (let y = y0 + IFKO.kurz / 2; y < Math.max(...ys); y += IFKO.kurz) {
+    for (let x = x0 + IFKO.lang / 2; x < Math.max(...xs); x += IFKO.lang) {
+      if (!drin(umriss, x, y)) continue;
+      teile.push(
+        quader(x - IFKO.lang / 2 + 1, y - IFKO.kurz / 2 + 1, z, IFKO.lang - 2, IFKO.kurz - 2, KISTE_H, 'kiste'),
+      );
+      if (teile.length >= hoechstens) return teile;
     }
   }
   return teile;
@@ -320,70 +399,49 @@ function loseWare(
 /**
  * Die Ecken, Abschlüsse und Köpfe – gestufte Auslagen über einem Holzkorpus.
  *
- * **So sieht es im Markt aus** (Fotos aus dem Markt, Dezember 2025): unten ein
- * schwarzer Sockel mit Rollen, darüber ein Korpus in Holzdekor, der dem
- * Umriss folgt, und obenauf die Auflagen – die unterste außen, jede weitere
- * ein Stück weiter innen und höher. Am Außenrand läuft eine dunkle Schiene um,
- * an der schräg die Preisschilder hängen.
+ * **So sieht es im Markt aus** (Fotos, Dezember 2025): unten ein schwarzer
+ * Sockel, darüber ein Korpus in Holzdekor, der dem Umriss folgt, am oberen
+ * Rand eine dunkle Schiene und darüber die schräg stehenden Preisschilder.
+ * Obenauf die Auflagen – die unterste außen, jede weitere ein Stück weiter
+ * innen und höher, jede mit ihrem Drahtrand.
  *
  * Was daraufliegt, unterscheidet die beiden Fälle:
  *
  *  - Am **Eck und am geraden Abschluss** laufen die grünen Kisten des Zuges
  *    weiter – dasselbe Bild wie am geraden Möbel.
  *  - Auf dem **runden Kopf** liegt die Ware lose in Tortenstücken, die
- *    Drahtbügel trennen, und in der Mitte sitzt eine zweite, höhere Etage.
+ *    Drahtbügel trennen.
  */
-function kopf(
-  element: PlanElement,
-  umriss: { x: number; y: number }[],
-  rund: boolean,
-): Bauteil[] {
+function kopf(element: PlanElement, umriss: Punkt[], rund: boolean): Bauteil[] {
   const hoehe = hoeheVon(element);
   const stufen = stufenVon(element, element.tiefe);
   const teile: Bauteil[] = [];
 
-  // Sockel und Holzkorpus.
-  teile.push(prisma(nachInnen(umriss, 3), 0, KOPF_SOCKEL, 'schwarz'));
-  teile.push(prisma(umriss, KOPF_SOCKEL - 0.8, VORDERKANTE - KOPF_SOCKEL, 'holzHell'));
-  // Die dunkle Schiene am Rand, an der die Preisschilder hängen.
-  teile.push(prisma(umriss, VORDERKANTE - 4, 4, 'regalDunkel'));
+  // Sockel, Holzkorpus, dunkle Schiene, Preisschilder.
+  teile.push(prisma(nachInnen(umriss, 4), 0, KOPF_SOCKEL, 'schwarz'));
+  teile.push(prisma(umriss, KOPF_SOCKEL - 0.8, VORDERKANTE - KOPF_SOCKEL - 5, 'holzHell'));
+  teile.push(prisma(nachInnen(umriss, -0.8), VORDERKANTE - 6, 6, 'regalDunkel'));
+  teile.push(prisma(nachInnen(umriss, -3), VORDERKANTE - 1, 5, 'glas'));
 
   // Die Auflagen: außen die unterste, jede weitere höher und weiter innen.
   const anzahl = Math.max(1, Math.min(stufen.length, 3));
   for (let k = 0; k < anzahl; k++) {
-    const einzug = 2 + k * STUFE_EINZUG;
+    const flaeche = nachInnen(umriss, 3 + k * STUFE_EINZUG);
     const z = VORDERKANTE + k * STUFE_STEIGUNG;
     if (z + AUFLAGE > hoehe) break;
-    const flaeche = nachInnen(umriss, einzug);
-    // Zu klein zum Belegen? Dann hört die Stufung hier auf.
-    const spanne = Math.max(...flaeche.map((p) => p.x)) - Math.min(...flaeche.map((p) => p.x));
-    if (spanne < 30) break;
+
+    const xs = flaeche.map((p) => p.x);
+    const ys = flaeche.map((p) => p.y);
+    if (Math.max(...xs) - Math.min(...xs) < 35 || Math.max(...ys) - Math.min(...ys) < 35) break;
 
     teile.push(prisma(flaeche, z, AUFLAGE, 'edelstahl'));
+    teile.push(...randdraht(flaeche, z + AUFLAGE, RAND_H));
 
     if (rund) {
-      teile.push(...trennwaende(flaeche, z + AUFLAGE, 9, 6));
+      teile.push(...trennbuegel(flaeche, z + AUFLAGE, RAND_H + 3, 6));
       teile.push(...loseWare(flaeche, z + AUFLAGE, 6));
     } else {
-      // Grüne Kisten, wie am geraden Möbel: eine Reihe entlang der Kante.
-      const m = mitte(flaeche);
-      const schritt = Math.max(1, Math.floor(flaeche.length / 4));
-      for (let i = Math.floor(schritt / 2); i < flaeche.length; i += schritt) {
-        const p = flaeche[i];
-        const x = m.x + (p.x - m.x) * 0.55;
-        const y = m.y + (p.y - m.y) * 0.55;
-        teile.push(
-          quader(
-            x - IFKO.lang / 2,
-            y - IFKO.kurz / 2,
-            z + AUFLAGE,
-            IFKO.lang - 2,
-            IFKO.kurz - 2,
-            KISTE_H,
-            'kiste',
-          ),
-        );
-      }
+      teile.push(...kistenAuf(flaeche, z + AUFLAGE));
     }
   }
   return teile;
@@ -391,14 +449,41 @@ function kopf(
 
 export function vitableBauteile(element: PlanElement): Bauteil[] {
   switch (element.form) {
+    // Die Umrisse sind dieselben, die `ElementSymbol` in den Grundriss
+    // zeichnet. Wäre hier eine andere Form, stünde im Raum ein anderes Möbel
+    // als im Plan.
     case 'vitableAbschlussRund':
-      return kopf(element, halbellipse(element.breite, element.tiefe - 2), true);
+      return kopf(element, rundkopf(element.breite, element.tiefe), true);
     case 'vitableAbschluss':
-      return kopf(element, viertelkreis(Math.min(element.breite, element.tiefe) - 2), false);
-    case 'vitableEckInnen':
-      return kopf(element, trapez(element.breite, element.tiefe, 0.35), false);
+      return kopf(element, rechteck(element.breite, element.tiefe), false);
+    case 'vitableEckInnen': {
+      // Volle Tiefe am Anschluss, zur Ecke hin unter 45 Grad auslaufend.
+      const rest = Math.max(0, element.tiefe - element.breite);
+      const eck = element.gespiegelt
+        ? [
+            { x: 0, y: 0 },
+            { x: element.breite, y: 0 },
+            { x: element.breite, y: element.tiefe },
+            { x: 0, y: rest },
+          ]
+        : [
+            { x: 0, y: 0 },
+            { x: element.breite, y: 0 },
+            { x: element.breite, y: rest },
+            { x: 0, y: element.tiefe },
+          ];
+      return kopf(element, eck, false);
+    }
     case 'vitableEckAussen':
-      return kopf(element, trapez(element.breite, element.tiefe, 0.6), false);
+      return kopf(
+        element,
+        [
+          { x: 0, y: 0 },
+          { x: element.breite, y: 0 },
+          { x: 0, y: element.tiefe },
+        ],
+        false,
+      );
     default:
       return element.beidseitig ? gondel(element) : gerade(element);
   }

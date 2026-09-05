@@ -274,19 +274,18 @@ function korb(x0: number, b: number, hinten: number, z: number, tiefe: number): 
  * Säule, nicht mittig wie die Gitter-Rückwand — das ist der Unterschied, an
  * dem man sie erkennt, und deshalb steht davor kein Boden mehr.
  *
- * **Die Haken werden nicht einzeln gebaut.** Ein Feld von 1,25 m mit Haken
- * alle 5 cm und sieben Reihen wären 175 Haken plus 175 Warenteile. Zu sehen
- * ist ohnehin nicht der Haken, sondern die Ware davor. Also je Reihe ein
- * Warenblock, ein Stab an den Hakenspitzen und der Streifen der
- * Pendeletikettentaschen (08.024).
+ * **Gezeichnet wird das Gitter und die Haken, sonst nichts.** Was daran
+ * hängt, ist Ware und keine Einrichtung; sie zu zeichnen machte aus der Wand
+ * einen Warenblock, und man sähe nicht mehr, worum es geht. Die Haken ragen
+ * 30 cm heraus — das ist die Länge, mit der geplant wird.
  */
 const BLISTER_STAERKE = 0.6;
-/** Blisterhaken 10–40 lang (WT100 08.020/08.022); 20 ist das übliche Maß. */
-const HAKEN_L = 20;
-/** Wie weit die Ware am Haken herunterhängt – geschätzt. */
-const WARE_H = 22;
-/** Abstand der Hakenreihen – geschätzt, damit sich die Ware nicht überdeckt. */
-const REIHEN_ABSTAND = 28;
+/** Wie weit die Haken aus der Wand ragen, in cm. */
+const HAKEN_L = 30;
+/** Waagerechter Abstand zweier Haken. */
+const HAKEN_ABSTAND = 12.5;
+/** Senkrechter Abstand zweier Hakenreihen. */
+const HAKEN_REIHE = 30;
 /** Mehr Reihen baut niemand, und mehr Bauteile will die Ansicht nicht. */
 const REIHEN_MAX = 7;
 
@@ -302,22 +301,26 @@ function blisterwand(
     wandplatte(x0, saeulenfront, z1, b, z2 - z1, 'gitter', BLISTER_STAERKE),
   ];
 
-  const platz = z2 - z1 - WARE_H;
-  const n = Math.max(1, Math.min(REIHEN_MAX, Math.round(platz / REIHEN_ABSTAND)));
-  for (const z of verteileHoehen(z1 + WARE_H + 3, z2 - 5, n)) {
-    teile.push(
-      quader(
-        x0 + 2,
-        saeulenfront + BLISTER_STAERKE + 0.5,
-        z - WARE_H,
-        b - 4,
-        HAKEN_L - 2,
-        WARE_H,
-        'ware',
-      ),
-    );
-    teile.push(zylinder(x0, saeulenfront + HAKEN_L, z, 0.24, b, 'x', 'chrom'));
-    teile.push(quader(x0, saeulenfront + HAKEN_L - 0.7, z + 1, b, 0.7, 4, 'preisschiene'));
+  const reihen = Math.max(1, Math.min(REIHEN_MAX, Math.floor((z2 - z1) / HAKEN_REIHE)));
+  const jeReihe = Math.max(1, Math.round(b / HAKEN_ABSTAND));
+  const schritt = b / jeReihe;
+
+  for (let r = 0; r < reihen; r++) {
+    const z = z2 - 8 - r * HAKEN_REIHE;
+    if (z < z1 + 4) break;
+    for (let i = 0; i < jeReihe; i++) {
+      teile.push(
+        zylinder(
+          x0 + schritt * (i + 0.5),
+          saeulenfront + BLISTER_STAERKE,
+          z,
+          0.3,
+          HAKEN_L,
+          'y',
+          'chrom',
+        ),
+      );
+    }
   }
   return teile;
 }
