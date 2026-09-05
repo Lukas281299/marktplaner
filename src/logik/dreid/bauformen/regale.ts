@@ -1,5 +1,6 @@
 import { felderVon } from '../../regalseiten';
 import { KISTE } from '../../getraenkekisten';
+import { getraenkekasten } from './kasten';
 import { unterbauAnzahl, unterbaumass, unterbauReihen } from '../../unterbau';
 import {
   halbellipse,
@@ -175,8 +176,9 @@ function einStueck(
         // Getränkekisten, vor dem untersten Boden gestapelt.
         const stapel = Math.max(1, Math.floor(zone / KISTE.hoehe));
         for (let k = 0; k < stapel; k++) {
-          const material = k % 2 === 0 ? 'kisteRot' : 'kiste';
-          teile.push(quader(x + 1, y0 + 1, k * KISTE.hoehe, b - 2, t - 2, KISTE.hoehe - 1, material));
+          teile.push(
+            ...getraenkekasten(x + 1, y0 + 1, k * KISTE.hoehe, b - 2, t - 2, k, k === stapel - 1),
+          );
         }
         break;
       }

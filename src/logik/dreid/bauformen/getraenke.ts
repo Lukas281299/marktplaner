@@ -1,5 +1,6 @@
 import { GESTELL_HOEHE, GESTELL_STAERKE, KISTE, kistenseiten, seitentiefe } from '../../getraenkekisten';
 import { quader, zylinder, type Bauteil } from '../bauteile';
+import { getraenkekasten } from './kasten';
 import type { PlanElement } from '../../../typen/modell';
 
 /**
@@ -39,9 +40,16 @@ function kistenSeite(
     for (let i = 0; i < anzahl; i++) {
       for (let stapel = 0; stapel < STAPEL; stapel++) {
         // Die Farbe wechselt je Spalte – Getränkekästen sind bunt.
-        const material = i % 3 === 0 ? 'kisteRot' : i % 3 === 1 ? 'kiste' : 'ware';
         teile.push(
-          quader(rand + i * kb + 1, y + 1, stapel * KISTE.hoehe, kb - 2, kt - 2, KISTE.hoehe - 1, material),
+          ...getraenkekasten(
+            rand + i * kb + 1,
+            y + 1,
+            stapel * KISTE.hoehe,
+            kb - 2,
+            kt - 2,
+            i + reihe,
+            stapel === STAPEL - 1,
+          ),
         );
       }
     }

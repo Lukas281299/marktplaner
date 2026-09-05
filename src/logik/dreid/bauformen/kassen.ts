@@ -10,6 +10,7 @@ import {
   zylinder,
   type Bauteil,
 } from '../bauteile';
+import { getraenkekasten } from './kasten';
 import { hoeheVon } from '../moebel';
 import type { PlanElement } from '../../../typen/modell';
 
@@ -463,8 +464,19 @@ function kastenablage(element: PlanElement): Bauteil[] {
     for (let bahn = 0; bahn < bahnen; bahn++) {
       const y = 4 + bahn * ((t - 8) / bahnen);
       for (let i = 0; i < je; i++) {
-        const material = (i + bahn) % 3 === 0 ? 'kisteRot' : (i + bahn) % 3 === 1 ? 'kiste' : 'ware';
-        teile.push(quader(i * 40 + 1, y, z + 2, 38, Math.min(30, (t - 8) / bahnen - 2), 28, material));
+        // Auf einem Leergutregal steht je Platz **ein** Kasten – der ist
+        // damit immer der oberste und zeigt seine Flaschen.
+        teile.push(
+          ...getraenkekasten(
+            i * 40 + 1,
+            y,
+            z + 2,
+            38,
+            Math.min(30, (t - 8) / bahnen - 2),
+            i + bahn,
+            true,
+          ),
+        );
       }
     }
   }

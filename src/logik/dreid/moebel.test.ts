@@ -397,21 +397,50 @@ describe('Der BakeOff-Turm', () => {
 });
 
 describe('Getränke', () => {
+  const gestell = element({
+    kategorie: 'getraenke',
+    form: 'getraenkegestell',
+    breite: 150,
+    tiefe: 66,
+    hoehe: 160,
+    kisten: { lage: 'laengs', reihen: 1 },
+  });
+
+  /** Der Korpus eines Kastens – so hoch wie das Stapelmaß minus eins. */
+  const korpusse = (teile: Bauteil[]) =>
+    quaderMit(teile, 'kisteRot').filter((t) => Math.abs(t.h - 29) < 0.01);
+
   it('stapelt die Kästen vor dem Gestell', () => {
-    const gestell = element({
-      kategorie: 'getraenke',
-      form: 'getraenkegestell',
-      breite: 150,
-      tiefe: 66,
-      hoehe: 160,
-      kisten: { lage: 'laengs', reihen: 1 },
-    });
-    const teile = bauteileFuer(gestell);
-    const kaesten = teile.filter(
-      (t) => t.material === 'kiste' || t.material === 'kisteRot' || t.material === 'ware',
-    );
     // Drei Kästen nebeneinander auf 150 cm, vier hoch, zwei Seiten.
-    expect(kaesten.length).toBe(3 * 4 * 2);
+    expect(korpusse(bauteileFuer(gestell)).length).toBe(3 * 4 * 2);
+  });
+
+  it('setzt Flaschen nur auf den obersten Kasten eines Stapels', () => {
+    // **Sonst steckte die Ware im Boden des nächsten Kastens.** Und ohne
+    // Flaschen obenauf sieht ein Stapel aus wie eine Wand aus Klötzen.
+    const teile = bauteileFuer(gestell);
+    const flaschen = teile.filter((t) => t.art === 'zylinder' && t.material === 'ware');
+    expect(flaschen.length).toBeGreaterThan(0);
+    // Je Stapel ein voller Satz Flaschen – bei 3 × 2 Stapeln sechs Sätze.
+    const hoehen = [...new Set(flaschen.map((f) => Math.round(f.z)))];
+    expect(hoehen).toHaveLength(1);
+    // Und sie liegen oben, nicht irgendwo im Stapel.
+    expect(hoehen[0]).toBeGreaterThan(3 * 30);
+  });
+
+  it('gibt jedem Kasten seine Grifföffnungen', () => {
+    // Daran erkennt man einen Getränkekasten, auch von weitem.
+    const griffe = quaderMit(bauteileFuer(gestell), 'schwarz').filter((t) => t.t < 1);
+    // Zwei je Kasten, an beiden Stirnseiten.
+    expect(griffe.length).toBe(3 * 4 * 2 * 2);
+  });
+
+  it('gibt den Kästen die Farben, die es wirklich gibt', () => {
+    // Rot, blau, grün, gelb – kein Beige. Und nebeneinander verschieden,
+    // damit der Block den Rhythmus bekommt, den er im Markt auch hat.
+    const farben = new Set(korpusse(bauteileFuer(gestell)).map((t) => t.farbe));
+    expect(farben.size).toBeGreaterThan(1);
+    expect([...farben].every((f) => typeof f === 'string' && f.startsWith('#'))).toBe(true);
   });
 });
 
