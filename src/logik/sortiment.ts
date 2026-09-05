@@ -606,6 +606,128 @@ export function umbenanntesSortiment(
   }));
 }
 
+/**
+ * Ein Eintrag rutscht eine Stelle nach oben oder unten.
+ *
+ * **Warum eine eigene Reihenfolge?** Weil die Liste dem Weg durch den Laden
+ * folgt und nicht dem Alphabet. Wer die Molkerei nach vorn zieht, ordnet
+ * seinen Markt und nicht seine Buchstaben – und die Auswertung übernimmt
+ * diese Ordnung (siehe `logik/meterbaum.ts`).
+ *
+ * Am Rand passiert nichts: Die erste Zeile kann nicht weiter nach oben.
+ */
+function verschoben<T>(werte: T[], index: number, richtung: -1 | 1): T[] {
+  const ziel = index + richtung;
+  if (index < 0 || ziel < 0 || ziel >= werte.length) return werte;
+  const neu = [...werte];
+  [neu[index], neu[ziel]] = [neu[ziel], neu[index]];
+  return neu;
+}
+
+/** Eine Abteilung eine Stelle nach oben oder unten. */
+export function verschobeneAbteilung(
+  liste: Sortimentsliste,
+  name: string,
+  richtung: -1 | 1,
+): Sortimentsliste {
+  const index = liste.abteilungen.findIndex((a) => a.name === name);
+  return { abteilungen: verschoben(liste.abteilungen, index, richtung) };
+}
+
+/** Eine Warengruppe eine Stelle nach oben oder unten – innerhalb ihrer Abteilung. */
+export function verschobeneWarengruppe(
+  liste: Sortimentsliste,
+  abteilung: string,
+  gruppe: string,
+  richtung: -1 | 1,
+): Sortimentsliste {
+  return {
+    abteilungen: liste.abteilungen.map((a) => {
+      if (a.name !== abteilung) return a;
+      const index = a.warengruppen.findIndex((w) => w.name === gruppe);
+      return { ...a, warengruppen: verschoben(a.warengruppen, index, richtung) };
+    }),
+  };
+}
+
+/** Ein Sortiment eine Stelle nach oben oder unten – innerhalb seiner Warengruppe. */
+export function verschobenesSortiment(
+  liste: Sortimentsliste,
+  abteilung: string,
+  gruppe: string,
+  name: string,
+  richtung: -1 | 1,
+): Sortimentsliste {
+  return aendereGruppe(liste, abteilung, gruppe, (w) => ({
+    ...w,
+    sortimente: verschoben(w.sortimente, w.sortimente.indexOf(name), richtung),
+  }));
+}
+
+/**
+ * Ein Sortiment hängt in einer anderen Warengruppe.
+ *
+ * Das Umgruppieren: „Staubsaugerbeutel" stand unter Haushaltswaren und soll
+ * unter Wasch & Putzmittel. Der Eintrag wandert mitsamt seinem Namen; wo er
+ * herkam, bleibt er nicht stehen.
+ *
+ * Steht der Name am Ziel schon, wird er nicht verdoppelt – dann verschwindet
+ * er nur an der alten Stelle, und das ist genau die gewollte Wirkung.
+ */
+export function umgehaengtesSortiment(
+  liste: Sortimentsliste,
+  vonAbteilung: string,
+  vonGruppe: string,
+  name: string,
+  zuAbteilung: string,
+  zuGruppe: string,
+): Sortimentsliste {
+  const ohne = ohneSortiment(liste, vonAbteilung, vonGruppe, name);
+  return mitSortiment(ohne, zuAbteilung, zuGruppe, name);
+}
+
+/**
+ * Eine Warengruppe hängt in einer anderen Abteilung – mit allem darin.
+ *
+ * Steht am Ziel schon eine Warengruppe dieses Namens, werden die Sortimente
+ * zusammengelegt. Zwei gleichnamige Warengruppen nebeneinander wären eine
+ * Falle: In der Auswertung sähe man eine und meinte die andere.
+ */
+export function umgehaengteWarengruppe(
+  liste: Sortimentsliste,
+  vonAbteilung: string,
+  gruppe: string,
+  zuAbteilung: string,
+): Sortimentsliste {
+  const quelle = liste.abteilungen
+    .find((a) => a.name === vonAbteilung)
+    ?.warengruppen.find((w) => w.name === gruppe);
+  if (!quelle || vonAbteilung === zuAbteilung) return liste;
+
+  const ohne = ohneWarengruppe(liste, vonAbteilung, gruppe);
+  return {
+    abteilungen: ohne.abteilungen.map((a) => {
+      if (a.name !== zuAbteilung) return a;
+      const schon = a.warengruppen.find((w) => w.name === gruppe);
+      if (!schon) return { ...a, warengruppen: [...a.warengruppen, quelle] };
+      return {
+        ...a,
+        warengruppen: a.warengruppen.map((w) =>
+          w.name === gruppe
+            ? {
+                ...w,
+                sortimente: [
+                  ...w.sortimente,
+                  ...quelle.sortimente.filter((s) => !w.sortimente.includes(s)),
+                ],
+              }
+            : w,
+        ),
+      };
+    }),
+  };
+}
+
 /** Der gemeinsame Weg zu einer Warengruppe – die drei Sortimentsschritte teilen ihn. */
 function aendereGruppe(
   liste: Sortimentsliste,
@@ -746,6 +868,52 @@ function ausJson(roh: string): Sortimentsliste {
   return { abteilungen };
 }
 
+/**
+ * Eine Tabellenzeile in ihre Spalten zerlegen – mit Anführungszeichen.
+ *
+ * **Ein Trennzeichen im Namen zerreißt die Zeile nicht.** „Baguette,
+ * Stangen, Ciab." ist ein Sortiment, und Excel schreibt es in
+ * Anführungszeichen, wenn das Komma auch das Trennzeichen ist. Wer stumpf an
+ * jedem Trennzeichen schneidet, macht daraus drei Spalten und aus einem
+ * Sortiment drei halbe.
+ *
+ * Doppelte Anführungszeichen im Text stehen für eines – so schreibt es jedes
+ * Tabellenprogramm, und so liest es diese Funktion.
+ */
+function spaltenAus(zeile: string, trenner: string): string[] {
+  const spalten: string[] = [];
+  let feld = '';
+  let inAnfuehrung = false;
+
+  for (let i = 0; i < zeile.length; i++) {
+    const zeichen = zeile[i];
+    if (inAnfuehrung) {
+      if (zeichen !== '"') {
+        feld += zeichen;
+      } else if (zeile[i + 1] === '"') {
+        feld += '"';
+        i++;
+      } else {
+        inAnfuehrung = false;
+      }
+      continue;
+    }
+    if (zeichen === '"' && feld.trim() === '') {
+      inAnfuehrung = true;
+      feld = '';
+      continue;
+    }
+    if (zeichen === trenner) {
+      spalten.push(feld);
+      feld = '';
+      continue;
+    }
+    feld += zeichen;
+  }
+  spalten.push(feld);
+  return spalten.map((z) => z.trim());
+}
+
 function ausTabelle(roh: string): Sortimentsliste {
   const trenner = roh.includes('\t') ? '\t' : roh.includes(';') ? ';' : ',';
   const abteilungen: Sortimentsabteilung[] = [];
@@ -754,7 +922,7 @@ function ausTabelle(roh: string): Sortimentsliste {
 
   for (const zeile of roh.split(/\r?\n/)) {
     if (!zeile.trim()) continue;
-    const spalten = zeile.split(trenner).map((z) => z.trim().replace(/^"|"$/g, ''));
+    const spalten = spaltenAus(zeile, trenner);
     const [a, w, s] = [spalten[0] ?? '', spalten[1] ?? '', spalten[2] ?? ''];
 
     // Eine Kopfzeile erkennt man daran, dass sie sich selbst beschreibt.

@@ -990,6 +990,50 @@ p .wg-punkt {
   color: #b3372a;
 }
 
+/* Der laufende Umzug: Der Knopf bleibt gedrückt, bis das Ziel geklickt ist. */
+.wg-werkzeug.aktiv {
+  background: var(--blau-hell);
+  color: var(--blau);
+}
+
+/*
+ * Der Pfeil vor einer Warengruppe.
+ *
+ * Dieselbe Bedienung wie an der Abteilung, eine Stufe tiefer: Elf Abteilungen
+ * mit dreihundert Sortimenten sind aufgeklappt keine Liste mehr, sondern eine
+ * Wand — und das gilt innerhalb einer Abteilung genauso.
+ */
+.wg-klappe {
+  flex: none;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-schwach);
+  cursor: pointer;
+  padding: 3px 1px 3px 0;
+  width: 12px;
+  text-align: center;
+}
+
+.wg-klappe:hover {
+  color: var(--text);
+}
+
+/*
+ * Ein mögliches Ziel eines Umzugs.
+ *
+ * Solange ein Eintrag umzieht, sind die Namen keine Pinsel mehr, sondern
+ * Ziele. Ohne diesen Unterschied klickte man in der Meinung, etwas
+ * aufzunehmen, und verschöbe es.
+ */
+.wg-ziel {
+  outline: 1px dashed var(--blau);
+  outline-offset: -1px;
+  border-radius: var(--rundung);
+}
+
 .wg-fuss {
   flex: none;
   padding: var(--abstand-2) var(--abstand-3);

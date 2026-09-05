@@ -434,6 +434,15 @@ export interface PlanStore {
    * Wechsel zu den Möbeln wieder alles zu.
    */
   offeneAbteilungen: string[];
+  /**
+   * Welche Warengruppen **zugeklappt** sind – als Pfad `Abteilung › Gruppe`.
+   *
+   * Andersherum als bei den Abteilungen, und mit Absicht: Eine aufgeklappte
+   * Abteilung soll ihre Warengruppen zeigen. Wer eine davon zuklappt, trifft
+   * eine Entscheidung über diese eine – und die soll nicht verlorengehen,
+   * wenn er die Abteilung zwischendurch zumacht.
+   */
+  zugeklappteGruppen: string[];
   ansicht: Ansicht;
   /** Erst `true`, wenn aus der Datenbank geladen wurde. */
   geladen: boolean;
@@ -484,6 +493,8 @@ export interface PlanStore {
   setzeSucheOffen(offen: boolean): void;
   /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
   schalteAbteilung(name: string): void;
+  /** Eine Warengruppe auf- oder zuklappen – über ihren Pfad. */
+  schalteWarengruppe(pfad: string): void;
   /** Beginnt das Zuordnen – `null` bricht ab. */
   starteZuordnung(name: string | null): void;
   /**
@@ -832,6 +843,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   vorschau: null,
   zeichenvorlage: null,
   offeneAbteilungen: [],
+  zugeklappteGruppen: [],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
   geladenerStand: null,
@@ -948,6 +960,13 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       offeneAbteilungen: offen.includes(name)
         ? offen.filter((n) => n !== name)
         : [...offen, name],
+    });
+  },
+
+  schalteWarengruppe(pfad) {
+    const zu = get().zugeklappteGruppen;
+    set({
+      zugeklappteGruppen: zu.includes(pfad) ? zu.filter((p) => p !== pfad) : [...zu, pfad],
     });
   },
 
