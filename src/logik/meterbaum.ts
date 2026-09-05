@@ -10,7 +10,7 @@ import { metersumme, OHNE_WARENGRUPPE, strecken, warengruppenmeter } from './war
 import type { Sortimentsliste } from '../daten/warengruppen';
 import type { Projekt } from '../typen/modell';
 import { buende, bundFuer, zieleDerStrecke } from './sortimentsbund';
-import type { Warengruppenzeile } from './warengruppenmeter';
+import type { Meterziel, Streckenmeter, Warengruppenzeile } from './warengruppenmeter';
 
 /**
  * Die Meterauswertung als Baum – so geordnet wie die Sortimentsliste.
@@ -109,6 +109,15 @@ function runde(knoten: Meterknoten): Meterknoten {
 }
 
 /**
+ * Wie eine Sonder- oder Aktionsplatzierung in der Auswertung heißt.
+ *
+ * Sie hängt unter ihrer Warengruppe wie ein Sortiment, ist aber keines: Auf
+ * ihr liegt Werbeware. In der Sortimentsliste steht sie deshalb nicht, und
+ * abgehakt wird durch sie nichts.
+ */
+export const AKTIONSZEILE = 'Sonderplatzierung';
+
+/**
  * Wo eine Zeile im Baum hingehört.
  *
  * Erst der Pfad, den die Strecke selbst trägt. Sonst der Versuch, den Namen
@@ -200,21 +209,64 @@ export function meterauswertung(
   const bund = buende(projekt, liste);
 
   /**
-   * In welche Zeile eine Strecke zählt.
+   * In welche Zeilen eine Strecke zählt – und mit welchem Anteil.
    *
-   * Erst, wohin sie für sich gehört (`zieleDerStrecke` wägt Text und Pfad
-   * gegeneinander ab), dann, ob dieser Name mit anderen einen Bund bildet.
+   * Erst, wohin ihre Namen für sich gehören (`zieleDerStrecke` wägt Text und
+   * Pfad gegeneinander ab). Dann entscheidet die Strecke selbst:
+   *
+   *  - **Ohne Aufteilung** bleibt alles wie bisher: Zwei Namen auf einem
+   *    Meter bilden **eine** Zeile mit beiden Namen (der Bund). Das ist der
+   *    Normalfall und soll es bleiben.
+   *  - **Mit Aufteilung** bekommt jeder Name seine eigene Zeile und seinen
+   *    Anteil – nebeneinander teilen sie die Länge, übereinander die
+   *    Auslagen. Siehe `Streckenaufteilung`.
    */
-  const zielDerStrecke = (strecke: { name: string; pfad?: string }) => {
+  const zieleMitAnteil = (strecke: Streckenmeter): Meterziel[] => {
     const ziele = zieleDerStrecke(liste, strecke);
-    const erste = ziele[0] ?? { name: strecke.name, pfad: strecke.pfad };
-    const treffer = bundFuer(bund, liste, erste.name);
-    return treffer ? { name: treffer.beschriftung, pfad: treffer.pfad } : erste;
+    const teilung = strecke.aufteilung;
+
+    // **Eine Sonderplatzierung zählt unter ihrer Warengruppe, aber getrennt.**
+    // Auf dem Meter liegt Werbeware und kein reguläres Sortiment; er ist
+    // trotzdem Fläche dieser Warengruppe, laufend wie tatsächlich. Deshalb
+    // hängt er als eigene Zeile unter dem Pfad, den er trägt – ohne dass
+    // dafür in jedem Sortiment eine Warengruppe „Aktion" angelegt werden
+    // müsste.
+    if (strecke.aktion) {
+      const pfad = strecke.pfad ?? eindeutigerPfad(liste, strecke.name);
+      return [
+        {
+          name: AKTIONSZEILE,
+          pfad: pfad ? pfadVon(...pfad.split(' › '), AKTIONSZEILE) : undefined,
+          anteil: 1,
+          aktion: true,
+        },
+      ];
+    }
+
+    const gebuendelt = (): Meterziel[] => {
+      const erste = ziele[0] ?? { name: strecke.name, pfad: strecke.pfad };
+      const treffer = bundFuer(bund, liste, erste.name);
+      const ziel = treffer ? { name: treffer.beschriftung, pfad: treffer.pfad } : erste;
+      return [{ ...ziel, anteil: 1 }];
+    };
+
+    if (!teilung || ziele.length < 2 || teilung.werte.length !== ziele.length) return gebuendelt();
+    const werte = teilung.werte.map((w) => Math.max(0, w));
+    const summe = werte.reduce((s, w) => s + w, 0);
+    if (!(summe > 0)) return gebuendelt();
+
+    if (teilung.art === 'uebereinander') {
+      // Jeder hat die ganze Länge; die eingetragene Zahl **sind** seine
+      // Auslagen. Zwei Regalböden Dessertsoßen über einer Milchpalette:
+      // beide 1,25 m lang, das eine mit zwei Auslagen, das andere mit einer.
+      return ziele.map((ziel, i) => ({ ...ziel, anteil: 1, auslagen: werte[i] }));
+    }
+    return ziele.map((ziel, i) => ({ ...ziel, anteil: werte[i] / summe }));
   };
 
   const zeilen = warengruppenmeter(projekt, {
     auslagen: auslagenAnteil,
-    zielFuer: (strecke) => zielDerStrecke(strecke),
+    zieleFuer: zieleMitAnteil,
   });
 
   // Die Kisten je Zeile: getrennt gerechnet, weil die Meterlogik für den
@@ -223,11 +275,15 @@ export function meterauswertung(
   for (const strecke of strecken(projekt)) {
     const zahl = kistenAnteil(strecke);
     if (zahl <= 0) continue;
-    // Derselbe Schlüssel wie bei der Meterzeile, sonst behielte die Zeile
-    // ihre Meter und verlöre ihre Kisten.
-    const ziel = zielDerStrecke(strecke);
-    const schluessel = ziel.pfad ?? ziel.name;
-    kistenJeZeile.set(schluessel, (kistenJeZeile.get(schluessel) ?? 0) + zahl);
+    // Dieselben Schlüssel wie bei den Meterzeilen, sonst behielte eine Zeile
+    // ihre Meter und verlöre ihre Kisten. Eine aufgeteilte Strecke verteilt
+    // ihre Kisten mit – nebeneinander nach dem Anteil, übereinander bekommt
+    // jeder alle: Die Kisten stehen auf demselben Möbel.
+    for (const ziel of zieleMitAnteil(strecke)) {
+      const schluessel = ziel.pfad ?? ziel.name;
+      const teil = zahl * ziel.anteil;
+      kistenJeZeile.set(schluessel, (kistenJeZeile.get(schluessel) ?? 0) + teil);
+    }
   }
 
   const summe = metersumme(zeilen);

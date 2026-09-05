@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { meterauswertung, obstgemuesezahlen, OHNE_ABTEILUNG } from './meterbaum';
+import { pfadeImPlan } from './planstand';
 import type { PlanElement, Projekt } from '../typen/modell';
 
 /**
@@ -301,5 +302,236 @@ describe('Was der Durchgang gefunden hat', () => {
     expect(baum[0].kinder[0].kinder[0].name).toBe('Elstar');
     // Die Warengruppe trägt die Meter dann auch wirklich.
     expect(baum[0].kinder[0].laufend).toBe(1);
+  });
+});
+
+/**
+ * Wie sich mehrere Sortimente eine Strecke teilen.
+ *
+ * Lukas' beide Fälle, unverändert übernommen:
+ *
+ *  - Die **Staubsaugerbeutel** stehen mit bei den Haushaltsreinigern. Sie
+ *    gehören in verschiedene Abteilungen und teilen sich einen Meter
+ *    nebeneinander.
+ *  - Die **Dessertsoßen** stehen auf 1,25 m, belegen davon aber nur zwei
+ *    Regalböden; darunter steht eine Milchpalette. Beide sind 1,25 m breit
+ *    und unterscheiden sich in den Auslagen.
+ */
+const MISCHLISTE = {
+  abteilungen: [
+    {
+      name: 'Drogerie & Tiernahrung',
+      warengruppen: [{ name: 'Wasch & Putzmittel', sortimente: ['Haushaltsreiniger'] }],
+    },
+    {
+      name: 'Non-Food',
+      warengruppen: [{ name: 'Haushaltswaren', sortimente: ['Staubsaugerbeutel'] }],
+    },
+    {
+      name: 'Molkerei',
+      warengruppen: [{ name: 'Milch', sortimente: ['Milch'] }],
+    },
+    {
+      name: 'Lebensmittel',
+      warengruppen: [{ name: 'Konfitüre, Dessert', sortimente: ['Dessertsoßen'] }],
+    },
+  ],
+};
+
+/** Sucht eine Zeile im ganzen Baum. */
+function finde(baum: ReturnType<typeof meterauswertung>['baum'], name: string): {
+  laufend: number;
+  tatsaechlich?: number;
+} {
+  for (const knoten of baum) {
+    if (knoten.name === name) return knoten;
+    const tiefer = finde(knoten.kinder, name);
+    if (tiefer) return tiefer;
+  }
+  return undefined as unknown as { laufend: number; tatsaechlich?: number };
+}
+
+describe('Zwei Sortimente auf einer Strecke', () => {
+  const gemischt = (aufteilung?: {
+    art: 'nebeneinander' | 'uebereinander';
+    werte: number[];
+  }) =>
+    element({
+      breite: 100,
+      felderUnten: [{ breite: 100, boeden: 5 }],
+      warengruppenUnten: [
+        {
+          von: 0,
+          bis: 100,
+          text: 'Haushaltsreiniger, Staubsaugerbeutel',
+          pfad: 'Drogerie & Tiernahrung › Wasch & Putzmittel › Haushaltsreiniger',
+          aufteilung,
+        },
+      ],
+    });
+
+  it('bleibt ohne Angabe eine gemeinsame Zeile', () => {
+    // Der Normalfall, und er soll sich nicht ändern: Wer zwei Namen auf einen
+    // Meter setzt, will meistens gar nicht auf den Zentimeter aufteilen.
+    const { baum } = meterauswertung(projekt([gemischt()]), MISCHLISTE);
+    expect(finde(baum, 'Haushaltsreiniger, Staubsaugerbeutel').laufend).toBe(1);
+    expect(finde(baum, 'Staubsaugerbeutel')).toBeUndefined();
+  });
+
+  it('teilt nebeneinander die Länge – und die Abteilungen gehen auseinander', () => {
+    const { baum, gesamt } = meterauswertung(
+      projekt([gemischt({ art: 'nebeneinander', werte: [50, 50] })]),
+      MISCHLISTE,
+    );
+    expect(finde(baum, 'Haushaltsreiniger').laufend).toBe(0.5);
+    expect(finde(baum, 'Staubsaugerbeutel').laufend).toBe(0.5);
+    // 0,5 m mit fünf Böden sind 2,5 tatsächliche Meter – je Sortiment.
+    expect(finde(baum, 'Haushaltsreiniger').tatsaechlich).toBe(2.5);
+    expect(finde(baum, 'Staubsaugerbeutel').tatsaechlich).toBe(2.5);
+    // Zusammen bleibt es der eine Meter, der im Plan steht.
+    expect(gesamt.laufend).toBe(1);
+    expect(baum.map((k) => k.name)).toContain('Non-Food');
+  });
+
+  it('teilt nebeneinander auch ungleich', () => {
+    const { baum } = meterauswertung(
+      projekt([gemischt({ art: 'nebeneinander', werte: [75, 25] })]),
+      MISCHLISTE,
+    );
+    expect(finde(baum, 'Haushaltsreiniger').laufend).toBe(0.75);
+    expect(finde(baum, 'Staubsaugerbeutel').laufend).toBe(0.25);
+  });
+
+  it('gibt übereinander jedem die ganze Länge und teilt die Auslagen', () => {
+    // Dessertsoßen auf zwei Böden, darunter die Milchpalette.
+    const el = element({
+      breite: 125,
+      felderUnten: [{ breite: 125, boeden: 5 }],
+      warengruppenUnten: [
+        {
+          von: 0,
+          bis: 125,
+          text: 'Dessertsoßen, Milch',
+          pfad: 'Lebensmittel › Konfitüre, Dessert › Dessertsoßen',
+          aufteilung: { art: 'uebereinander' as const, werte: [2, 1] },
+        },
+      ],
+    });
+    const { baum } = meterauswertung(projekt([el]), MISCHLISTE);
+    // Beide stehen auf 1,25 m – das ist die Front, die sie einnehmen.
+    expect(finde(baum, 'Dessertsoßen').laufend).toBe(1.25);
+    expect(finde(baum, 'Milch').laufend).toBe(1.25);
+    // Unterschieden werden sie durch die Auslagen: zwei Böden gegen eine
+    // Palette. Die fünf Böden des Möbels treten dahinter zurück.
+    expect(finde(baum, 'Dessertsoßen').tatsaechlich).toBe(2.5);
+    expect(finde(baum, 'Milch').tatsaechlich).toBe(1.25);
+  });
+
+  it('übergeht eine Aufteilung, die nicht mehr zu den Namen passt', () => {
+    // Jemand hat den Text geändert; lieber eine Zeile zu wenig aufgeteilt als
+    // Meter an der falschen Stelle.
+    const { baum } = meterauswertung(
+      projekt([gemischt({ art: 'nebeneinander', werte: [50, 30, 20] })]),
+      MISCHLISTE,
+    );
+    expect(finde(baum, 'Haushaltsreiniger, Staubsaugerbeutel').laufend).toBe(1);
+  });
+
+  it('lässt eine Aufteilung ohne Gewicht in Ruhe', () => {
+    const { baum } = meterauswertung(
+      projekt([gemischt({ art: 'nebeneinander', werte: [0, 0] })]),
+      MISCHLISTE,
+    );
+    expect(finde(baum, 'Haushaltsreiniger, Staubsaugerbeutel').laufend).toBe(1);
+  });
+});
+
+describe('Sonderplatzierungen', () => {
+  /** Ein Meter Werbeware in der Molkerei – kein reguläres Sortiment darauf. */
+  const aktionsmeter = element({
+    breite: 100,
+    felderUnten: [{ breite: 100, boeden: 5 }],
+    warengruppenUnten: [
+      { von: 0, bis: 100, text: 'Milch', pfad: 'Molkerei › Milch', aktion: true },
+    ],
+  });
+
+  it('zählt unter ihrer Warengruppe, aber in einer eigenen Zeile', () => {
+    const { baum } = meterauswertung(projekt([aktionsmeter]), MISCHLISTE);
+    const abteilung = baum.find((k) => k.name === 'Molkerei');
+    expect(abteilung?.laufend).toBe(1);
+    const gruppe = abteilung?.kinder.find((k) => k.name === 'Milch');
+    expect(gruppe?.laufend).toBe(1);
+    // Sie hängt darunter wie ein Sortiment, heißt aber nicht wie eines.
+    expect(gruppe?.kinder.map((k) => k.name)).toEqual(['Sonderplatzierung']);
+    // Und sie zählt voll mit: 1 m mit fünf Böden sind fünf tatsächliche.
+    expect(gruppe?.tatsaechlich).toBe(5);
+  });
+
+  it('hakt in der Sortimentsliste nichts ab', () => {
+    // Auf ihr liegt Werbeware. Wer sie als Beleg nähme, ginge am Ende an
+    // einer Lücke vorbei.
+    expect(pfadeImPlan(projekt([aktionsmeter]), MISCHLISTE).size).toBe(0);
+  });
+
+  it('lässt einen gewöhnlichen Meter abhaken', () => {
+    const el = element({
+      breite: 100,
+      felderUnten: [{ breite: 100, boeden: 5 }],
+      warengruppenUnten: [{ von: 0, bis: 100, text: 'Milch', pfad: 'Molkerei › Milch › Milch' }],
+    });
+    expect(pfadeImPlan(projekt([el]), MISCHLISTE).has('Molkerei › Milch › Milch')).toBe(true);
+  });
+});
+
+describe('Freie Flächen', () => {
+  const flaeche = (meterVorgabe?: number, weiteres: Partial<PlanElement> = {}) =>
+    element({
+      form: 'aktionsflaeche',
+      kategorie: 'aktion',
+      breite: 300,
+      tiefe: 200,
+      felderUnten: undefined,
+      meterVorgabe,
+      warengruppenUnten: [
+        { von: 0, bis: 300, text: 'Milch', pfad: 'Molkerei › Milch › Milch' },
+      ],
+      ...weiteres,
+    });
+
+  it('zählt ohne eingetragene Meter gar nicht', () => {
+    // So wie bisher: Die Breite eines Rechtecks hängt daran, wie herum man es
+    // gezogen hat, und wäre als laufende Meter geraten.
+    const { gesamt } = meterauswertung(projekt([flaeche()]), MISCHLISTE);
+    expect(gesamt.laufend).toBe(0);
+  });
+
+  it('zählt mit der eingetragenen Zahl und nicht mit ihrer Breite', () => {
+    // 3,00 m breit gezeichnet, 5,00 m eingetragen: Es gelten die 5,00 m.
+    const { baum } = meterauswertung(projekt([flaeche(500)]), MISCHLISTE);
+    expect(finde(baum, 'Milch').laufend).toBe(5);
+  });
+
+  it('nimmt die Auslagen der Fläche für die tatsächlichen Meter', () => {
+    const { baum } = meterauswertung(projekt([flaeche(500, { auslagen: 2 })]), MISCHLISTE);
+    expect(finde(baum, 'Milch').tatsaechlich).toBe(10);
+  });
+
+  it('teilt die Meter unter zwei Warengruppen auf', () => {
+    const el = flaeche(400, {
+      warengruppenUnten: [
+        { von: 0, bis: 150, text: 'Milch', pfad: 'Molkerei › Milch › Milch' },
+        {
+          von: 150,
+          bis: 300,
+          text: 'Dessertsoßen',
+          pfad: 'Lebensmittel › Konfitüre, Dessert › Dessertsoßen',
+        },
+      ],
+    });
+    const { baum, gesamt } = meterauswertung(projekt([el]), MISCHLISTE);
+    expect(finde(baum, 'Milch').laufend).toBe(2);
+    expect(finde(baum, 'Dessertsoßen').laufend).toBe(2);
+    expect(gesamt.laufend).toBe(4);
   });
 });

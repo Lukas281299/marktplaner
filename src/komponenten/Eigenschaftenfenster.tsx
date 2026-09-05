@@ -28,7 +28,7 @@ import { ifkoVorschlag } from '../logik/ifko';
 import { bodentiefeMm } from '../logik/feldnotiz';
 import { aktionsflaechen, palettenplaetze, PALETTENGROESSEN } from '../logik/palettenplatz';
 import { getraenkezahlen } from '../logik/getraenkezahlen';
-import { zieleDerStrecke } from '../logik/sortimentsbund';
+import { teileBeschriftung, zieleDerStrecke } from '../logik/sortimentsbund';
 import {
   zeigtBeidseitig,
   zeigtBodenmasse,
@@ -1237,6 +1237,140 @@ function Sortimentszuordnung({
 }
 
 /**
+ * Wie sich mehrere Sortimente **eine** Strecke teilen.
+ *
+ * Steht nur da, wo es etwas zu entscheiden gibt: sobald auf einer Strecke
+ * mehr als ein Name steht. Vorgabe bleibt **gemeinsam** – zwei Namen auf
+ * einem Meter werden in der Auswertung eine Zeile, so wie bisher, und die
+ * meisten Strecken wollen es genau so.
+ *
+ * Wer teilt, entscheidet sich für eine Richtung:
+ *
+ *  - **nebeneinander** – links das eine, rechts das andere. Die Länge wird
+ *    geteilt, in Prozent.
+ *  - **übereinander** – jeder hat die ganze Länge, geteilt werden die
+ *    Auslagen. Zwei Regalböden Dessertsoßen über einer Milchpalette: beide
+ *    1,25 m breit, das eine mit zwei Böden, das andere mit einem.
+ */
+function Streckenteilung({
+  abschnitt,
+  aendern,
+  beiStart,
+}: {
+  abschnitt: Warengruppenabschnitt;
+  aendern: (werte: Partial<Warengruppenabschnitt>) => void;
+  beiStart: () => void;
+}) {
+  const liste = usePlanStore((s) => s.sortiment);
+  const namen = teileBeschriftung(liste, abschnitt.text);
+  if (namen.length < 2) return null;
+
+  const teilung = abschnitt.aufteilung;
+  const art = teilung?.art ?? 'gemeinsam';
+  // Passt die Zahl der Werte nicht mehr zu den Namen – jemand hat den Text
+  // geändert –, gilt wieder die Vorgabe. Falsche Zahlen wären schlimmer als
+  // gar keine.
+  const passt = teilung && teilung.werte.length === namen.length;
+  const werte = passt
+    ? teilung.werte
+    : art === 'uebereinander'
+      ? namen.map(() => 1)
+      : namen.map(() => Math.round(100 / namen.length));
+
+  /** Beim Wechsel der Richtung neu anfangen – Prozente sind keine Böden. */
+  const setzeArt = (neu: string) => {
+    beiStart();
+    if (neu === 'gemeinsam') {
+      aendern({ aufteilung: undefined });
+      return;
+    }
+    aendern({
+      aufteilung: {
+        art: neu === 'uebereinander' ? 'uebereinander' : 'nebeneinander',
+        werte:
+          neu === 'uebereinander'
+            ? namen.map(() => 1)
+            : namen.map(() => Math.round(100 / namen.length)),
+      },
+    });
+  };
+
+  const setzeWert = (index: number, zahl: number) => {
+    if (art === 'gemeinsam') return;
+    aendern({
+      aufteilung: {
+        art,
+        werte: werte.map((w, j) => (j === index ? Math.max(0, zahl) : w)),
+      },
+    });
+  };
+
+  const summe = werte.reduce((s, w) => s + w, 0);
+
+  return (
+    <div className="streckenteilung">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span className="kategorie-anzahl" style={{ flexShrink: 0 }}>
+          {namen.length} Sortimente
+        </span>
+        <select
+          value={art}
+          style={{ flex: 1, minWidth: 0, fontSize: 11 }}
+          title={
+            'Gemeinsam: eine Zeile in der Auswertung, beide Namen. ' +
+            'Nebeneinander: die Länge wird geteilt. ' +
+            'Übereinander: jeder hat die ganze Länge, geteilt werden die Auslagen.'
+          }
+          onChange={(e) => setzeArt(e.target.value)}
+        >
+          <option value="gemeinsam">gemeinsam — eine Zeile</option>
+          <option value="nebeneinander">nebeneinander — Länge teilen</option>
+          <option value="uebereinander">übereinander — Auslagen teilen</option>
+        </select>
+      </div>
+
+      {art !== 'gemeinsam' &&
+        namen.map((name, j) => (
+          <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
+            <span
+              style={{
+                flex: 1,
+                minWidth: 0,
+                fontSize: 11,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+              title={name}
+            >
+              {name}
+            </span>
+            <input
+              type="number"
+              min="0"
+              step={art === 'uebereinander' ? '1' : '5'}
+              style={{ width: 56, fontSize: 11 }}
+              value={werte[j]}
+              onFocus={beiStart}
+              onChange={(e) => setzeWert(j, Number(e.target.value))}
+            />
+            <span className="kategorie-anzahl" style={{ width: 46, flexShrink: 0 }}>
+              {art === 'uebereinander' ? 'Auslagen' : summe > 0 ? `${Math.round((werte[j] / summe) * 100)} %` : '—'}
+            </span>
+          </div>
+        ))}
+
+      {art === 'uebereinander' && (
+        <p className="hinweis" style={{ margin: '3px 0 0' }}>
+          Jedes Sortiment zählt die ganze Länge; die Böden des Möbels treten
+          hinter diese Zahlen zurück.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * Die Teilsortimente einer Warengruppenstrecke – Meter für Meter.
  *
  * Unter dem Möbel steht „Trockenobst" über drei Meter. Auf dem ersten liegt
@@ -1505,6 +1639,27 @@ function Warengruppenband({
             </div>
 
             <Sortimentszuordnung
+              abschnitt={abschnitt}
+              aendern={(werte) => aendere(i, werte)}
+              beiStart={() => usePlanStore.getState().schnappschuss()}
+            />
+
+            <Schalter
+              label="Sonderplatzierung (Aktion)"
+              wert={Boolean(abschnitt.aktion)}
+              titel={
+                'Auf diesem Meter liegt Werbeware und kein reguläres Sortiment. ' +
+                'Er zählt trotzdem als Fläche seiner Warengruppe — in einer eigenen ' +
+                'Zeile der Auswertung, und ohne dass dadurch ein Sortiment als ' +
+                'untergebracht gilt.'
+              }
+              aendern={(aktion) => {
+                usePlanStore.getState().schnappschuss();
+                aendere(i, { aktion: aktion || undefined });
+              }}
+            />
+
+            <Streckenteilung
               abschnitt={abschnitt}
               aendern={(werte) => aendere(i, werte)}
               beiStart={() => usePlanStore.getState().schnappschuss()}
@@ -1866,6 +2021,73 @@ function Foerderbandfelder({ element, einheit }: { element: PlanElement; einheit
         Die Route zeichnest du mit dem Werkzeug <strong>Förderband</strong>.
         Ziehst du das Band an seinen Griffen länger, wächst der Verlauf mit –
         es entstehen keine leeren Flächen daneben.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Wie viele laufende Meter eine freie Fläche zählt.
+ *
+ * Streusalz im Winter, Grillkohle im Sommer, eine Aktionspalette in der
+ * Molkerei – das sind Meter des Sortiments, aber kein Regal. Die gezeichnete
+ * Fläche sagt, **wo** sie liegen; wie viele es sind, sagt diese Zahl.
+ *
+ * **Warum nicht die Breite?** Weil sie daran hängt, wie herum man das
+ * Rechteck gezogen hat. Zwei mal drei Meter sind je nach Drehung zwei oder
+ * drei laufende Meter – eine Zufallszahl, und in der Auswertung sähe sie aus
+ * wie gemessen.
+ *
+ * **Ohne Zahl zählt die Fläche gar nicht**, so wie bisher. Wer sie einträgt,
+ * sagt ausdrücklich: Das hier sind so viele Meter. Erst dann nimmt die Fläche
+ * auch eine Warengruppe an.
+ */
+function Flaechenmeter({ element }: { element: PlanElement }) {
+  const setze = (werte: Partial<PlanElement>) => {
+    usePlanStore.getState().schnappschuss();
+    usePlanStore.getState().aendereElemente([element.id], werte);
+  };
+  const meter = element.meterVorgabe ? (element.meterVorgabe / 100).toFixed(2) : '';
+
+  return (
+    <div className="gruppe">
+      <div className="gruppe-titel">Zählt als Fläche</div>
+      <div className="feld-zeile">
+        <div className="feld">
+          <label>Laufende Meter</label>
+          <input
+            type="number"
+            min="0"
+            step="0.25"
+            value={meter}
+            placeholder="—"
+            title="Wie viele laufende Meter diese Fläche in der Auswertung zählt. Leer heißt: zählt nicht mit."
+            onChange={(e) => {
+              const zahl = Number(e.target.value);
+              setze({ meterVorgabe: zahl > 0 ? zahl * 100 : undefined });
+            }}
+          />
+        </div>
+        <div className="feld">
+          <label>Auslagen</label>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={element.auslagen ?? ''}
+            placeholder="—"
+            title="Wie viele Lagen die Ware hoch steht — eine Palette ist eine. Leer heißt: zählt nur laufend."
+            onChange={(e) => {
+              const zahl = Number(e.target.value);
+              setze({ auslagen: zahl > 0 ? zahl : undefined });
+            }}
+          />
+        </div>
+      </div>
+      <p className="hinweis" style={{ marginTop: 4, marginBottom: 0 }}>
+        {element.meterVorgabe
+          ? 'Trage oben die Warengruppe ein — die Fläche zählt dann mit diesen Metern in ihrer Abteilung.'
+          : 'Ohne Zahl zählt die Fläche nicht mit. Die Breite des Rechtecks taugt nicht dafür: Sie hängt daran, wie herum du es gezogen hast.'}
       </p>
     </div>
   );
@@ -2877,10 +3099,14 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
         // angehören – Blumenmöbel etwa stehen zu dritt nebeneinander.
         const satz = modulsatzFuer(ziel.form) ?? satzAusAchsmass(ziel.achsmass);
         if (satz) return <Feldaufteilung element={ziel} satz={satz} einheit={einheit} />;
-        // Eine Aktionsfläche hat keine Felder und trägt keine Warengruppe:
-        // Sie schreibt ihren Namen selbst in die Mitte, dazu ihre Zahlen in
-        // die Ecken. Ihren Text stellt man unter „Beschriftung" ein.
-        if (ziel.form === 'aktionsflaeche') return null;
+        // Eine Aktionsfläche hat keine Felder. Sie schreibt ihren Namen
+        // selbst in die Mitte, dazu ihre Zahlen in die Ecken; ihren Text
+        // stellt man unter „Beschriftung" ein.
+        //
+        // **Eine freie Fläche mit eingetragenen Metern trägt aber sehr wohl
+        // eine Warengruppe** – dafür ist sie da. Ihr Band misst dann nicht in
+        // gezeichneten Zentimetern, sondern in dem, was eingetragen ist.
+        if (ziel.form === 'aktionsflaeche' && !(ziel.meterVorgabe ?? 0)) return null;
         // Und ebenso wenig, was gar keine Ware trägt: An einer Kassenzeile,
         // einer Kundenführung oder einer Säule stand hier bisher ein
         // Warengruppenband, dessen Meter in keiner Tabelle auftauchen.
@@ -2910,7 +3136,10 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
       )}
 
       {ausgewaehlte.length === 1 && erstes.form === 'aktionsflaeche' && (
-        <Aktionspaletten element={erstes} />
+        <>
+          <Flaechenmeter element={erstes} />
+          <Aktionspaletten element={erstes} />
+        </>
       )}
 
       {/* ------------------------------------------------------ Darstellung */}

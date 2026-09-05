@@ -1488,6 +1488,19 @@ details.erklaerung[open] > summary {
 }
 
 /*
+ * Wie sich mehrere Sortimente eine Strecke teilen.
+ *
+ * Steht nur da, wo mehr als ein Name auf der Strecke steht – dann aber offen
+ * und nicht zugeklappt: Wer zwei Sortimente zusammensetzt, trifft hier eine
+ * Entscheidung, und die soll er sehen, ohne danach zu suchen.
+ */
+.streckenteilung {
+  border-left: 2px solid var(--rand);
+  padding: 3px 0 3px 6px;
+  margin-left: -2px;
+}
+
+/*
  * Teilsortimente einer Warengruppenstrecke.
  *
  * Zugeklappt eine Zeile mit dem, was drinsteht – die meisten Strecken

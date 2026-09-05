@@ -24,10 +24,17 @@ import type { Projekt } from '../typen/modell';
  * Stehen **zwei Sortimente gemeinsam** an einer Strecke — „Nüsse,
  * Trockenobst" —, werden beide abgehakt: Beide stehen im Markt, und die Liste
  * soll das sagen (siehe `logik/sortimentsbund.ts`).
+ *
+ * **Eine Sonderplatzierung hakt nichts ab.** Auf ihr liegt Werbeware und kein
+ * reguläres Sortiment; sie ist Fläche der Warengruppe, aber kein Beleg dafür,
+ * dass das Sortiment untergebracht wäre. Würde sie haken, ginge man am Ende
+ * an einer Lücke vorbei — genau der Fehler, gegen den der grüne Haken
+ * gedacht ist.
  */
 export function pfadeImPlan(projekt: Projekt, liste: Sortimentsliste): Set<string> {
   const pfade = new Set<string>();
   for (const strecke of strecken(projekt)) {
+    if (strecke.aktion) continue;
     for (const pfad of pfadeDerStrecke(liste, strecke)) pfade.add(pfad);
   }
   return pfade;

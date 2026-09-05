@@ -1,7 +1,13 @@
 import { geordnet } from './warengruppe';
 import { letzteStufe } from './sortiment';
 import { felderVon, seitenbreite, seitenVon } from './regalseiten';
-import type { Grundform, PlanElement, Projekt, Warengruppenabschnitt } from '../typen/modell';
+import type {
+  Grundform,
+  PlanElement,
+  Projekt,
+  Streckenaufteilung,
+  Warengruppenabschnitt,
+} from '../typen/modell';
 
 /**
  * Die Meter je Warengruppe.
@@ -58,6 +64,38 @@ export interface Streckenmeter {
   von: number;
   /** Ende der Strecke, ebenso gemessen. */
   bis: number;
+  /**
+   * Wie sich mehrere Namen auf dieser Strecke die Meter teilen.
+   *
+   * Kommt vom Abschnitt mit. Ohne Angabe bilden sie eine gemeinsame Zeile –
+   * siehe `Streckenaufteilung`.
+   */
+  aufteilung?: Streckenaufteilung;
+  /** Ist diese Strecke eine Sonder- oder Aktionsplatzierung? */
+  aktion?: boolean;
+}
+
+/**
+ * Eine Zeile, in die eine Strecke zählt – mit ihrem Anteil daran.
+ *
+ * Ein Ziel je Name. **Der Anteil ist nicht immer ein Bruchteil**: Liegen zwei
+ * Sortimente übereinander, hat jedes die ganze Länge, und was sie
+ * unterscheidet, sind die Auslagen. Dann steht in `anteil` eine 1 und in
+ * `auslagen` die Zahl der Böden – siehe `Streckenaufteilung`.
+ */
+export interface Meterziel {
+  name: string;
+  pfad?: string;
+  /** Wie viel der Länge auf dieses Ziel entfällt – 1 ist die ganze. */
+  anteil: number;
+  /**
+   * Auslagen je laufendem Meter, wenn sie für dieses Ziel feststehen.
+   *
+   * Ohne Angabe rechnet die Strecke mit den Böden des Möbels, wie bisher.
+   */
+  auslagen?: number;
+  /** Zählt als Sonder- oder Aktionsplatzierung. */
+  aktion?: boolean;
 }
 
 /**
@@ -158,7 +196,25 @@ const OHNE_WARE_VORLAGEN: ReadonlySet<string> = new Set([
 export function traegtWare(element: PlanElement): boolean {
   if (element.kategorie === 'ausstattung') return false;
   if (OHNE_WARE_VORLAGEN.has(element.vorlageId)) return false;
+  // **Eine Fläche mit eingetragenen Metern zählt.** Ohne die Zahl bliebe es
+  // beim Alten: Ihre Breite hängt daran, wie herum man sie gezogen hat, und
+  // als laufende Meter wäre das eine Zufallszahl. Wer die Zahl einträgt,
+  // sagt ausdrücklich, wie viele Meter dort liegen – siehe `meterVorgabe`.
+  if (element.form === 'aktionsflaeche') return (element.meterVorgabe ?? 0) > 0;
   return !OHNE_WARE.has(element.form);
+}
+
+/**
+ * Die Länge, in der die Warengruppen einer Seite gemessen werden.
+ *
+ * Normalerweise die Feldkette des Möbels. Eine **freie Fläche** hat keine
+ * Felder; dort gilt die von Hand eingetragene Zahl, und die Abschnitte
+ * darauf teilen sie sich in demselben Verhältnis, in dem sie gezeichnet sind.
+ */
+function messlaenge(element: PlanElement, feldbreite: number): number {
+  const vorgabe = element.meterVorgabe;
+  if (element.form === 'aktionsflaeche' && vorgabe && vorgabe > 0) return vorgabe;
+  return feldbreite;
 }
 
 /**
@@ -182,6 +238,11 @@ export function strecken(projekt: Projekt): Streckenmeter[] {
       const breite = seitenbreite(felder);
       if (breite <= 0) continue;
 
+      // Auf einer freien Fläche gilt die eingetragene Zahl statt der Breite.
+      // Gestreckt wird nur die **Länge** – wo die Abschnitte liegen, bleibt,
+      // wie es gezeichnet ist.
+      const massstab = messlaenge(element, breite) / breite;
+
       const abschnitte = seite === 'oben' ? element.warengruppenOben : element.warengruppenUnten;
       for (const a of geordnet(abschnitte, breite)) {
         const name = a.text.trim();
@@ -189,11 +250,15 @@ export function strecken(projekt: Projekt): Streckenmeter[] {
         aus.push({
           name,
           pfad: a.pfad,
-          laenge: a.bis - a.von,
+          laenge: (a.bis - a.von) * massstab,
           element,
           seite,
-          von: a.von,
-          bis: a.bis,
+          // Auch die Lage wird gestreckt, damit die Auslagenrechnung
+          // dieselbe Achse benutzt wie die Länge.
+          von: a.von * massstab,
+          bis: a.bis * massstab,
+          aufteilung: a.aufteilung,
+          aktion: a.aktion,
         });
       }
     }
@@ -329,7 +394,7 @@ export interface Meteroptionen {
    */
   auslagen?: Auslagenzahl;
   /**
-   * In welche Zeile eine Strecke zählt – Name und Pfad.
+   * In welche Zeilen eine Strecke zählt – und mit welchem Anteil.
    *
    * Gefragt wird nach der **Strecke** und nicht nach ihrem Namen, weil die
    * Antwort mehr braucht als den Namen: die Sortimentsliste, den gespeicherten
@@ -337,9 +402,13 @@ export interface Meteroptionen {
    * gehört nicht hierher – hier wird gerechnet, nicht eingeordnet. Siehe
    * `logik/sortimentsbund.ts` und `logik/meterbaum.ts`.
    *
+   * **Mehrere Ziele sind der Ausnahmefall.** Der Normalfall ist eines: Zwei
+   * Namen auf einem Meter bilden eine gemeinsame Zeile. Erst wer die Strecke
+   * ausdrücklich aufteilt, bekommt zwei Zeilen mit ihren Anteilen.
+   *
    * Ohne Angabe zählt die Strecke unter ihrem eigenen Namen und Pfad.
    */
-  zielFuer?: (strecke: Streckenmeter) => { name: string; pfad?: string } | undefined;
+  zieleFuer?: (strecke: Streckenmeter) => Meterziel[] | undefined;
 }
 
 /** Fasst gleiche Namen zusammen und rechnet beide Spalten. */
@@ -383,24 +452,36 @@ export function warengruppenmeter(
     // mitnehmen. Über den Plantext gesucht, ginge sie ins Leere, während die
     // Kisten (`logik/meterbaum.ts`) dem Ziel folgten: Die Zeile behielte
     // ihre Meter und verlöre ihre Kisten.
-    const ziel = optionen.zielFuer?.(strecke);
-    const zeile = ziel
-      ? nimm(ziel.name, ziel.pfad)
-      : nimm(anzeigename(strecke), strecke.pfad);
-    zeile.laufend += strecke.laenge;
-    zeile.strecken++;
-
+    const ziele = optionen.zieleFuer?.(strecke) ?? [
+      { name: anzeigename(strecke), pfad: strecke.pfad, anteil: 1 },
+    ];
     const anteil = optionen.auslagen?.(strecke);
-    if (!anteil) {
-      zeile.ohneAuslagen += strecke.laenge;
-    } else {
-      const ohneMassstab = anteil.ohneMassstab ?? 0;
+
+    for (const ziel of ziele) {
+      const zeile = nimm(ziel.name, ziel.pfad);
+      const laenge = strecke.laenge * ziel.anteil;
+      zeile.laufend += laenge;
+      zeile.strecken++;
+
+      // **Feste Auslagen gehen vor.** Liegen zwei Sortimente übereinander,
+      // steht am Ziel, wie viele Böden jedes belegt – die Böden des Möbels
+      // sagen dann nichts mehr, sie sind ja gerade aufgeteilt worden.
+      if (ziel.auslagen !== undefined) {
+        zeile.tatsaechlich = (zeile.tatsaechlich ?? 0) + laenge * ziel.auslagen;
+        continue;
+      }
+
+      if (!anteil) {
+        zeile.ohneAuslagen += laenge;
+        continue;
+      }
+      const ohneMassstab = (anteil.ohneMassstab ?? 0) * ziel.anteil;
       // Eine Zahl bekommt die Zeile, sobald auch nur ein Stück der Strecke
       // bekannt ist – und daneben steht, wie viel davon noch offen war.
-      if (anteil.ohne + ohneMassstab < strecke.laenge - 0.005) {
-        zeile.tatsaechlich = (zeile.tatsaechlich ?? 0) + anteil.tatsaechlich;
+      if (anteil.ohne + (anteil.ohneMassstab ?? 0) < strecke.laenge - 0.005) {
+        zeile.tatsaechlich = (zeile.tatsaechlich ?? 0) + anteil.tatsaechlich * ziel.anteil;
       }
-      zeile.ohneAuslagen += anteil.ohne;
+      zeile.ohneAuslagen += anteil.ohne * ziel.anteil;
       zeile.nurLaufend += ohneMassstab;
     }
   }

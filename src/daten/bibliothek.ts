@@ -1,4 +1,5 @@
 import type { BibliothekEintrag, Grundform, Punkt } from '../typen/modell';
+import { KATEGORIEN } from './kategorien';
 import { BAND_STANDARD, gesamtlaenge } from '../logik/kassen';
 import {
   GESTELL_HOEHE,
@@ -1092,6 +1093,40 @@ function viertelkreis(breite: number, tiefe: number, schritte = 16): Punkt[] {
   return punkte;
 }
 
+/**
+ * Eine **freie Fläche** je Abteilung.
+ *
+ * Nicht jedes Sortiment steht im Regal. Streusalz im Winter, Grillkohle im
+ * Sommer, eine Aktionspalette in der Molkerei – das sind Meter der Abteilung,
+ * aber kein Möbel. Dafür gibt es hier in **jeder** Abteilung dieselbe Fläche:
+ * ein Rechteck, das man sich zurechtzieht, dem man eine Warengruppe gibt und
+ * bei dem man einträgt, wie viele laufende Meter es zählt.
+ *
+ * **Die Zahl macht die Fläche zur Fläche.** Ohne sie zählt sie nichts – die
+ * Breite eines Rechtecks hängt daran, wie herum man es gezogen hat, und als
+ * laufende Meter wäre das geraten. Siehe `PlanElement.meterVorgabe`.
+ *
+ * Die Farbe ist die der Abteilung, damit man im Plan sieht, wohin die Fläche
+ * gehört, ohne sie anzuklicken.
+ */
+function flaechenEintraege(): BibliothekEintrag[] {
+  return KATEGORIEN.filter((k) => k.id !== 'ausstattung' && k.id !== 'eigene').map((k) => ({
+    id: `flaeche-${k.id}`,
+    name: `Freie Fläche · ${k.name}`,
+    kategorie: k.id,
+    breite: 300,
+    tiefe: 200,
+    hoehe: 0,
+    form: 'aktionsflaeche' as const,
+    farbe: k.farbe,
+    standardBeschriftung: '',
+    gruppe: 'Freie Flächen',
+    hinweis:
+      'Fläche statt Regal — Warengruppe zuordnen und rechts eintragen, ' +
+      'wie viele laufende Meter sie zählt',
+  }));
+}
+
 export const BIBLIOTHEK: BibliothekEintrag[] = [
   // ---------------------------------------------------------------- Regale
   ...wt100Eintraege(),
@@ -1432,6 +1467,9 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   { id: 'bodenablauf', name: 'Bodenablauf', kategorie: 'ausstattung', breite: 30, tiefe: 30, hoehe: 0, form: 'bodenablauf', farbe: '#aebcc6', gruppe: 'Bau und Technik' },
   { id: 'anschluss-strom', name: 'Stromanschluss', kategorie: 'ausstattung', breite: 20, tiefe: 20, hoehe: 0, form: 'anschlussStrom', farbe: '#e8c96a', gruppe: 'Bau und Technik' },
   { id: 'anschluss-wasser', name: 'Wasseranschluss', kategorie: 'ausstattung', breite: 20, tiefe: 20, hoehe: 0, form: 'anschlussWasser', farbe: '#8ec4de', gruppe: 'Bau und Technik' },
+
+  // Für jede Abteilung eine freie Fläche – siehe `flaechenEintraege`.
+  ...flaechenEintraege(),
 ];
 
 /** Sucht eine Vorlage. Gibt `undefined` zurück, wenn es sie nicht (mehr) gibt. */

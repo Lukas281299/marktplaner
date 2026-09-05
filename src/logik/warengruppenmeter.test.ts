@@ -225,8 +225,11 @@ describe('Zuordnung einer Warengruppe zu einer anderen', () => {
       warengruppenUnten: [{ von: 0, bis: 400, text: 'Waffeln' }],
     });
     const zeilen = warengruppenmeter(projekt([el]), {
-      zielFuer: (strecke) =>
-        strecke.name === 'Waffeln' ? { name: 'Kuchen' } : { name: strecke.name },
+      zieleFuer: (strecke) => [
+        strecke.name === 'Waffeln'
+          ? { name: 'Kuchen', anteil: 1 }
+          : { name: strecke.name, anteil: 1 },
+      ],
     });
     expect(zeilen.find((z) => z.name === 'Kuchen')?.laufend).toBe(4);
     expect(zeilen.find((z) => z.name === 'Waffeln')).toBeUndefined();
@@ -244,8 +247,11 @@ describe('Zuordnung einer Warengruppe zu einer anderen', () => {
       warengruppenUnten: [{ von: 0, bis: 100, text: 'Waffeln' }],
     });
     const zeilen = warengruppenmeter(projekt([a, b]), {
-      zielFuer: (strecke) =>
-        strecke.name === 'Waffeln' ? { name: 'Kuchen' } : { name: strecke.name },
+      zieleFuer: (strecke) => [
+        strecke.name === 'Waffeln'
+          ? { name: 'Kuchen', anteil: 1 }
+          : { name: strecke.name, anteil: 1 },
+      ],
     });
     expect(zeilen.find((z) => z.name === 'Kuchen')?.laufend).toBe(4);
   });
@@ -258,9 +264,9 @@ describe('Zuordnung einer Warengruppe zu einer anderen', () => {
       warengruppenUnten: [{ von: 0, bis: 100, text: 'A' }],
     });
     const zeilen = warengruppenmeter(projekt([el]), {
-      zielFuer: (strecke) => {
+      zieleFuer: (strecke) => {
         const ziel = ({ A: 'B', B: 'C' } as Record<string, string>)[strecke.name];
-        return { name: ziel ?? strecke.name };
+        return [{ name: ziel ?? strecke.name, anteil: 1 }];
       },
     });
     expect(zeilen.map((z) => z.name)).toContain('B');

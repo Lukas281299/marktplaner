@@ -142,6 +142,14 @@ export function teileGeordnet(
  * andere Ende, und zwar so, dass es beim Drehen plötzlich passiert und
  * niemand weiß, warum.
  */
+/**
+ * Das Zeichen vor einer Sonderplatzierung im Plan.
+ *
+ * Ein Stern und kein Wort: Auf einem Meter ist wenig Platz, und „Aktion"
+ * davorzuschreiben nähme den halben Namen weg.
+ */
+export const AKTIONSZEICHEN = '★';
+
 export function gruppenspannen(
   abschnitte: Warengruppenabschnitt[] | undefined,
   gesamtbreite: number,
@@ -150,7 +158,11 @@ export function gruppenspannen(
     .map((a, index) => ({
       von: a.von,
       bis: a.bis,
-      text: a.text.trim(),
+      // Eine Sonderplatzierung bekommt ihr Zeichen davor. Beim Planen zählt,
+      // dass man auf einen Blick sieht, welcher Meter Werbeware trägt und
+      // welcher reguläres Sortiment – in der Auswertung stehen sie ohnehin
+      // getrennt.
+      text: a.aktion ? `${AKTIONSZEICHEN} ${a.text.trim()}` : a.text.trim(),
       schrift: a.schrift,
       index,
     }))

@@ -359,6 +359,39 @@ export type Unterbauart =
  * umschreiben.
  */
 /**
+ * Wie sich mehrere Sortimente **eine** Strecke teilen.
+ *
+ * Ohne diese Angabe gilt, was immer galt: Stehen zwei Namen auf einem Meter,
+ * wird daraus in der Auswertung **eine** Zeile mit beiden Namen. Das ist der
+ * richtige Normalfall – wer zwei Sortimente zusammen hinstellt, will meistens
+ * gar nicht auf den Zentimeter sagen, wie sie sich verteilen.
+ *
+ * Manchmal will man es aber doch, und dann gibt es genau zwei Fälle. Sie
+ * unterscheiden sich nicht in der Zahl, sondern in der Richtung:
+ *
+ *  - **nebeneinander** – die beiden teilen sich die Länge. Die
+ *    Staubsaugerbeutel stehen mit bei den Haushaltsreinigern; auf dem Meter
+ *    ist links das eine und rechts das andere, halbe-halbe. Dann bekommt
+ *    jeder seinen Bruchteil der laufenden **und** der tatsächlichen Meter.
+ *
+ *  - **übereinander** – jeder hat die **ganze** Länge, geteilt werden die
+ *    Auslagen. Die Dessertsoßen stehen auf 1,25 m, belegen davon aber nur
+ *    zwei Regalböden; darunter steht eine Milchpalette. Beide sind 1,25 m
+ *    breit, und was sie unterscheidet, ist die Zahl der Böden. Die Zahlen
+ *    hier sind dann genau diese Auslagen: 2 und 1.
+ *
+ * `werte` steht in derselben Reihenfolge wie die Namen in der Beschriftung.
+ * Passt die Länge nicht zur Zahl der Namen – jemand hat den Text geändert –,
+ * wird die Aufteilung übergangen und es gilt wieder der Normalfall. Lieber
+ * eine Zeile zu wenig aufgeteilt als Meter an der falschen Stelle.
+ */
+export interface Streckenaufteilung {
+  art: 'nebeneinander' | 'uebereinander';
+  /** Prozente (nebeneinander) oder Auslagen (übereinander), je Name. */
+  werte: number[];
+}
+
+/**
  * Ein Stück innerhalb einer Warengruppenstrecke.
  *
  * Unter dem Möbel steht „Trockenobst" über drei Meter – aber auf dem ersten
@@ -432,6 +465,25 @@ export interface Warengruppenabschnitt {
    * Suche findet es.
    */
   notiz?: string;
+
+  /**
+   * Wie sich mehrere Namen auf dieser Strecke die Meter teilen.
+   *
+   * Ohne Angabe bilden sie eine gemeinsame Zeile – siehe
+   * `Streckenaufteilung`.
+   */
+  aufteilung?: Streckenaufteilung;
+
+  /**
+   * Diese Strecke ist eine **Sonder- oder Aktionsplatzierung**.
+   *
+   * Der Meter trägt Werbeware und kein reguläres Sortiment. Er ist trotzdem
+   * Fläche der Warengruppe – laufend wie tatsächlich –, und genau so zählt
+   * er: unter seiner Warengruppe, aber in einer eigenen Zeile. **Ohne** dass
+   * dafür in jedem Sortiment eine Warengruppe „Aktion" angelegt werden muss,
+   * und ohne dass ein Sortiment dadurch als untergebracht gilt.
+   */
+  aktion?: boolean;
 }
 
 /** Ein tatsächlich auf dem Plan platziertes Element. */
@@ -678,6 +730,21 @@ export interface PlanElement {
    * ist es eine Zahl und keine Notiz.
    */
   auslagen?: number;
+
+  /**
+   * Wie viele laufende Meter diese **Fläche** zählt, in Zentimetern.
+   *
+   * Nur für freie Flächen. Streusalz im Winter, Grillkohle im Sommer,
+   * Aktionspaletten in der Molkerei – das sind Meter des Sortiments, aber
+   * kein Regal. Die gezeichnete Fläche sagt, **wo** sie liegen; wie viele es
+   * sind, sagt diese Zahl, denn die Breite eines Rechtecks hängt daran, wie
+   * herum man es gezogen hat.
+   *
+   * **Ohne diese Zahl zählt eine Fläche gar nicht** – so wie bisher. Erst
+   * wer sie einträgt, sagt: Das hier sind so viele Meter. Die Warengruppen
+   * darauf teilen sie sich in demselben Verhältnis wie auf jedem Möbel.
+   */
+  meterVorgabe?: number;
 
   /**
    * Wie viele grüne Kisten auf dieses Möbel gehen.
