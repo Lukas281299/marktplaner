@@ -247,8 +247,15 @@ export function prisma(
   return { art: 'prisma', punkte, z, h, material, ...(farbe ? { farbe } : {}) };
 }
 
-export function kugel(x: number, y: number, z: number, radius: number, material: Materialname): Kugel {
-  return { art: 'kugel', x, y, z, radius, material };
+export function kugel(
+  x: number,
+  y: number,
+  z: number,
+  radius: number,
+  material: Materialname,
+  farbe?: string,
+): Kugel {
+  return { art: 'kugel', x, y, z, radius, material, ...(farbe ? { farbe } : {}) };
 }
 
 // ------------------------------------------------------------------ Formen

@@ -225,30 +225,166 @@ function gondel(element: PlanElement): Bauteil[] {
   return teile;
 }
 
+/** Die Vorderkante der untersten Auflage – überall gleich, siehe oben. */
+const VORDERKANTE = 67;
+/** Der schwarze Sockel unter dem Korpus. */
+const KOPF_SOCKEL = 11;
+/** Wie viel jede weitere Stufe nach innen rückt und nach oben steigt. */
+const STUFE_EINZUG = 26;
+const STUFE_STEIGUNG = 21;
+
+/** Der Schwerpunkt eines Umrisses. */
+function mitte(umriss: { x: number; y: number }[]) {
+  return {
+    x: umriss.reduce((s, p) => s + p.x, 0) / umriss.length,
+    y: umriss.reduce((s, p) => s + p.y, 0) / umriss.length,
+  };
+}
+
 /**
- * Die runden und eckigen Abschlüsse – kegelförmige Auslagen um eine Säule.
+ * Die radialen Trennwände auf einem runden Kopf.
  *
- * Der Kegel ist hier eine flache Auflage in mittlerer Höhe (zwischen der
- * Spitze an der Säule und der Außenkante bei ≈ 67 cm), darunter die gebogene
- * Frontverkleidung bis kurz über den Boden. Das trifft den Umriss und die
- * Höhe; die Neigung des Kegels fehlt.
+ * Auf dem Kopfmöbel liegt die Ware nicht in Kisten, sondern lose in
+ * Tortenstücken, die schmale Drahtbügel voneinander trennen. Ein Bügel ist
+ * hier ein dünnes Prisma vom Mittelpunkt zur Kante – anders lässt sich ein
+ * Teil, das nicht achsparallel steht, aus Quadern nicht bauen.
  */
-function kopf(element: PlanElement, umriss: { x: number; y: number }[]): Bauteil[] {
+function trennwaende(
+  umriss: { x: number; y: number }[],
+  z: number,
+  h: number,
+  anzahl: number,
+): Bauteil[] {
+  const m = mitte(umriss);
+  const teile: Bauteil[] = [];
+  const schritt = Math.max(1, Math.floor(umriss.length / anzahl));
+
+  for (let i = 0; i < umriss.length; i += schritt) {
+    const p = umriss[i];
+    const dx = p.x - m.x;
+    const dy = p.y - m.y;
+    const l = Math.hypot(dx, dy) || 1;
+    // Der Bügel ist 8 mm dick, quer zu seiner Richtung.
+    const nx = (-dy / l) * 0.4;
+    const ny = (dx / l) * 0.4;
+    teile.push(
+      prisma(
+        [
+          { x: m.x + nx, y: m.y + ny },
+          { x: p.x + nx, y: p.y + ny },
+          { x: p.x - nx, y: p.y - ny },
+          { x: m.x - nx, y: m.y - ny },
+        ],
+        z,
+        h,
+        'regalDunkel',
+      ),
+    );
+  }
+  return teile;
+}
+
+/** Die Farben, in denen die lose Ware auf einem Kopfmöbel liegt. */
+const OBSTFARBEN = ['#d8c33a', '#c4562f', '#4f7a34', '#8a4a2a'];
+
+/**
+ * Lose Ware auf einer Auflage – Obst, aufgehäuft.
+ *
+ * Kugeln und keine Kisten: Auf dem runden Kopf liegen Bananen, Avocados und
+ * Mangos frei, jede Sorte in ihrem Tortenstück. Drei Kugeln je Stück reichen
+ * dafür; mehr sieht man aus zwei Metern Entfernung nicht.
+ */
+function loseWare(
+  umriss: { x: number; y: number }[],
+  z: number,
+  stuecke: number,
+): Bauteil[] {
+  const m = mitte(umriss);
+  const teile: Bauteil[] = [];
+  const schritt = Math.max(1, Math.floor(umriss.length / stuecke));
+
+  let n = 0;
+  for (let i = Math.floor(schritt / 2); i < umriss.length; i += schritt) {
+    const p = umriss[i];
+    const farbe = OBSTFARBEN[n % OBSTFARBEN.length];
+    n++;
+    for (const anteil of [0.45, 0.68, 0.86]) {
+      const x = m.x + (p.x - m.x) * anteil;
+      const y = m.y + (p.y - m.y) * anteil;
+      teile.push({ art: 'kugel', x, y, z: z + 5, radius: 6.5, material: 'ware', farbe });
+    }
+  }
+  return teile;
+}
+
+/**
+ * Die Ecken, Abschlüsse und Köpfe – gestufte Auslagen über einem Holzkorpus.
+ *
+ * **So sieht es im Markt aus** (Fotos aus dem Markt, Dezember 2025): unten ein
+ * schwarzer Sockel mit Rollen, darüber ein Korpus in Holzdekor, der dem
+ * Umriss folgt, und obenauf die Auflagen – die unterste außen, jede weitere
+ * ein Stück weiter innen und höher. Am Außenrand läuft eine dunkle Schiene um,
+ * an der schräg die Preisschilder hängen.
+ *
+ * Was daraufliegt, unterscheidet die beiden Fälle:
+ *
+ *  - Am **Eck und am geraden Abschluss** laufen die grünen Kisten des Zuges
+ *    weiter – dasselbe Bild wie am geraden Möbel.
+ *  - Auf dem **runden Kopf** liegt die Ware lose in Tortenstücken, die
+ *    Drahtbügel trennen, und in der Mitte sitzt eine zweite, höhere Etage.
+ */
+function kopf(
+  element: PlanElement,
+  umriss: { x: number; y: number }[],
+  rund: boolean,
+): Bauteil[] {
   const hoehe = hoeheVon(element);
   const stufen = stufenVon(element, element.tiefe);
-  const spitze = untersteHinterkante(stufen, hoehe);
-  const auflage = (spitze + 67) / 2;
   const teile: Bauteil[] = [];
-  teile.push(prisma(nachInnen(umriss, 2), 3, auflage - 3, 'regalDunkel'));
-  teile.push(prisma(umriss, auflage, AUFLAGE, 'edelstahl'));
-  teile.push(prisma(nachInnen(umriss, 3), auflage + AUFLAGE, 4, 'chrom'));
-  // Ein paar Kisten in der Mitte.
-  const mx = umriss.reduce((s, p) => s + p.x, 0) / umriss.length;
-  const my = umriss.reduce((s, p) => s + p.y, 0) / umriss.length;
-  teile.push(quader(mx - IFKO.lang / 2 - 1, my - IFKO.kurz, auflage + AUFLAGE, IFKO.lang - 2, IFKO.kurz - 2, KISTE_H, 'kiste'));
-  if (element.breite > 120) {
-    teile.push(quader(mx - IFKO.lang - 2, my + 2, auflage + AUFLAGE, IFKO.lang - 2, IFKO.kurz - 2, KISTE_H, 'kiste'));
-    teile.push(quader(mx + 2, my + 2, auflage + AUFLAGE, IFKO.lang - 2, IFKO.kurz - 2, KISTE_H, 'kiste'));
+
+  // Sockel und Holzkorpus.
+  teile.push(prisma(nachInnen(umriss, 3), 0, KOPF_SOCKEL, 'schwarz'));
+  teile.push(prisma(umriss, KOPF_SOCKEL - 0.8, VORDERKANTE - KOPF_SOCKEL, 'holzHell'));
+  // Die dunkle Schiene am Rand, an der die Preisschilder hängen.
+  teile.push(prisma(umriss, VORDERKANTE - 4, 4, 'regalDunkel'));
+
+  // Die Auflagen: außen die unterste, jede weitere höher und weiter innen.
+  const anzahl = Math.max(1, Math.min(stufen.length, 3));
+  for (let k = 0; k < anzahl; k++) {
+    const einzug = 2 + k * STUFE_EINZUG;
+    const z = VORDERKANTE + k * STUFE_STEIGUNG;
+    if (z + AUFLAGE > hoehe) break;
+    const flaeche = nachInnen(umriss, einzug);
+    // Zu klein zum Belegen? Dann hört die Stufung hier auf.
+    const spanne = Math.max(...flaeche.map((p) => p.x)) - Math.min(...flaeche.map((p) => p.x));
+    if (spanne < 30) break;
+
+    teile.push(prisma(flaeche, z, AUFLAGE, 'edelstahl'));
+
+    if (rund) {
+      teile.push(...trennwaende(flaeche, z + AUFLAGE, 9, 6));
+      teile.push(...loseWare(flaeche, z + AUFLAGE, 6));
+    } else {
+      // Grüne Kisten, wie am geraden Möbel: eine Reihe entlang der Kante.
+      const m = mitte(flaeche);
+      const schritt = Math.max(1, Math.floor(flaeche.length / 4));
+      for (let i = Math.floor(schritt / 2); i < flaeche.length; i += schritt) {
+        const p = flaeche[i];
+        const x = m.x + (p.x - m.x) * 0.55;
+        const y = m.y + (p.y - m.y) * 0.55;
+        teile.push(
+          quader(
+            x - IFKO.lang / 2,
+            y - IFKO.kurz / 2,
+            z + AUFLAGE,
+            IFKO.lang - 2,
+            IFKO.kurz - 2,
+            KISTE_H,
+            'kiste',
+          ),
+        );
+      }
+    }
   }
   return teile;
 }
@@ -256,13 +392,13 @@ function kopf(element: PlanElement, umriss: { x: number; y: number }[]): Bauteil
 export function vitableBauteile(element: PlanElement): Bauteil[] {
   switch (element.form) {
     case 'vitableAbschlussRund':
-      return kopf(element, halbellipse(element.breite, element.tiefe - 2));
+      return kopf(element, halbellipse(element.breite, element.tiefe - 2), true);
     case 'vitableAbschluss':
-      return kopf(element, viertelkreis(Math.min(element.breite, element.tiefe) - 2));
+      return kopf(element, viertelkreis(Math.min(element.breite, element.tiefe) - 2), false);
     case 'vitableEckInnen':
-      return kopf(element, trapez(element.breite, element.tiefe, 0.35));
+      return kopf(element, trapez(element.breite, element.tiefe, 0.35), false);
     case 'vitableEckAussen':
-      return kopf(element, trapez(element.breite, element.tiefe, 0.6));
+      return kopf(element, trapez(element.breite, element.tiefe, 0.6), false);
     default:
       return element.beidseitig ? gondel(element) : gerade(element);
   }

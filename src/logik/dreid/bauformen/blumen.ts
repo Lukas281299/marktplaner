@@ -18,13 +18,49 @@ const EIMER_R = 13;
 const EIMER_H = 25;
 const TOPF_RASTER = 28;
 
-/** Ein Eimer mit einem Strauß obendrauf. */
-function eimer(x: number, y: number, z: number, teile: Bauteil[], zink = true) {
-  teile.push(zylinder(x, y, z, EIMER_R, EIMER_H, 'z', zink ? 'edelstahl' : 'schwarz'));
-  teile.push(kugel(x, y, z + EIMER_H + 12, 14, 'blume'));
+/**
+ * Die Farben, in denen die Blüten stehen.
+ *
+ * Drei reichen. Ein Blumenstand ist bunt, aber er ist kein Farbkasten: Wer
+ * zwölf Farben verteilt, bekommt Konfetti und keine Blumen.
+ */
+const BLUETEN = ['#e0577a', '#e8c94a', '#f2efe6', '#c8506e'];
+
+/**
+ * Ein Eimer mit seinem Strauß.
+ *
+ * **Das meistwiederholte Teil der ganzen Abteilung** – an einem Pflanzregal
+ * stehen sechs, an einer Insel acht. Deshalb lohnt sich hier die Mühe: ein
+ * Eimer, der sich nach unten verjüngt, ein heller Rand, Grün darin und
+ * darüber drei Blüten statt einer großen Kugel. Sechs Teile statt zwei, und
+ * aus drei Metern Entfernung sieht man den Unterschied sofort.
+ */
+function eimer(x: number, y: number, z: number, teile: Bauteil[], zink = true, saat = 0) {
+  const material = zink ? 'edelstahl' : 'schwarz';
+  // Der Eimer: unten schmaler als oben.
+  teile.push(zylinder(x, y, z, EIMER_R - 3, EIMER_H * 0.6, 'z', material));
+  teile.push(zylinder(x, y, z + EIMER_H * 0.55, EIMER_R, EIMER_H * 0.45, 'z', material));
+  // Der Rand, eine Spur heller.
+  teile.push(zylinder(x, y, z + EIMER_H - 1.4, EIMER_R + 0.8, 1.4, 'z', 'chrom'));
+  // Das Grün, aus dem die Blüten kommen.
+  teile.push(kugel(x, y, z + EIMER_H + 5, 10.5, 'pflanze'));
+  // Und drei Blüten, versetzt.
+  const versatz: [number, number, number][] = [
+    [-6, -3, 13],
+    [6, 2, 15],
+    [0, 6, 11],
+  ];
+  versatz.forEach(([dx, dy, dz], i) => {
+    teile.push(kugel(x + dx, y + dy, z + EIMER_H + dz, 5.5, 'blume', BLUETEN[(saat + i) % BLUETEN.length]));
+  });
 }
 
-/** Pflanzen im Raster auf einer Fläche. */
+/**
+ * Pflanzen im Raster auf einer Fläche.
+ *
+ * Topf, Grün, und auf jeder dritten Pflanze eine Blüte: So sieht ein Tisch
+ * mit Topfware aus, und nicht wie ein Feld gleicher Kugeln.
+ */
 function pflanzen(x0: number, y0: number, b: number, t: number, z: number, teile: Bauteil[], radius = 11) {
   const nx = Math.max(1, Math.floor(b / TOPF_RASTER));
   const ny = Math.max(1, Math.floor(t / TOPF_RASTER));
@@ -34,8 +70,15 @@ function pflanzen(x0: number, y0: number, b: number, t: number, z: number, teile
     for (let j = 0; j < ny; j++) {
       const x = x0 + rx + i * TOPF_RASTER;
       const y = y0 + ry + j * TOPF_RASTER;
-      teile.push(zylinder(x, y, z, 8, 10, 'z', 'holzDunkel'));
-      teile.push(kugel(x, y, z + 10 + radius * 0.8, radius, (i + j) % 3 === 0 ? 'blume' : 'pflanze'));
+      // Der Topf verjüngt sich nach unten, wie ein Topf es tut.
+      teile.push(zylinder(x, y, z, 6.5, 5, 'z', 'holzDunkel'));
+      teile.push(zylinder(x, y, z + 4.5, 8, 6, 'z', 'holzDunkel'));
+      teile.push(kugel(x, y, z + 10 + radius * 0.75, radius, 'pflanze'));
+      if ((i + j) % 3 === 0) {
+        teile.push(
+          kugel(x, y, z + 10 + radius * 1.35, radius * 0.42, 'blume', BLUETEN[(i + j) % BLUETEN.length]),
+        );
+      }
     }
   }
 }
@@ -57,8 +100,8 @@ function pflanzregal(element: PlanElement): Bauteil[] {
     const z = h * (0.36 + (0.6 * i) / Math.max(1, n - 1)) - 8;
     teile.push(quader(2, 7, z, b - 4, 32, 1.5, 'draht', { neigung: 15 }));
     teile.push(zylinder(2, 7 + 32 * 0.96, z - 32 * 0.26, 1.5, b - 4, 'x', 'chrom'));
-    eimer(b * 0.3, 7 + 20, z - 20, teile);
-    eimer(b * 0.7, 7 + 20, z - 20, teile);
+    eimer(b * 0.3, 7 + 20, z - 20, teile, true, i);
+    eimer(b * 0.7, 7 + 20, z - 20, teile, true, i + 2);
   }
   return teile;
 }
@@ -80,7 +123,7 @@ function blumensaeule(element: PlanElement): Bauteil[] {
     [t - 26, h * 0.4],
     [t - 36, h * 0.74],
   ];
-  for (const [y, z] of stufen) eimer(b / 2, y, z, teile, false);
+  stufen.forEach(([y, z], i) => eimer(b / 2, y, z, teile, false, i));
   return teile;
 }
 
@@ -101,7 +144,7 @@ function blumeninsel(element: PlanElement): Bauteil[] {
   teile.push(quader(x0 + 2, y0 - 35, z, k - 4, 35, 1.5, 'draht'));
   teile.push(quader(x0 - 35, y0 + 2, z, 35, k - 4, 1.5, 'draht'));
   teile.push(quader(x0 + k, y0 + 2, z, 35, k - 4, 1.5, 'draht'));
-  for (const [x, y] of [
+  for (const [i, [x, y]] of [
     [x0 + k * 0.3, y0 + k + 18],
     [x0 + k * 0.7, y0 + k + 18],
     [x0 + k * 0.3, y0 - 18],
@@ -110,8 +153,8 @@ function blumeninsel(element: PlanElement): Bauteil[] {
     [x0 - 18, y0 + k * 0.7],
     [x0 + k + 18, y0 + k * 0.3],
     [x0 + k + 18, y0 + k * 0.7],
-  ]) {
-    eimer(x, y, z - 22, teile);
+  ].entries()) {
+    eimer(x, y, z - 22, teile, true, i);
   }
   return teile;
 }
