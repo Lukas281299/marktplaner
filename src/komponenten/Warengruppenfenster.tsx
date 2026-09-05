@@ -155,6 +155,28 @@ export function Warengruppenfenster() {
     usePlanStore.getState().starteZuordnung(name);
   };
 
+  /**
+   * Der Knopf, mit dem ein Name seine Meter einem anderen zuschlägt.
+   *
+   * **Er steht immer da, nicht nur in der Pflege.** Zuschlagen ist eine
+   * Entscheidung über *diesen* Markt und gehört damit zum Planen, genau wie
+   * das Aufnehmen — anders als Umbenennen und Verschieben, die die Liste
+   * selbst ändern und deshalb im Pflegefenster liegen.
+   */
+  const zuschlagknopf = (name: string) => (
+    <button
+      className={`wg-werkzeug${zuordnungslauf === name ? ' aktiv' : ''}`}
+      title={
+        zuordnungVon(zuordnungen, name)
+          ? `Die Zuordnung von „${name}" lösen`
+          : `Die Meter von „${name}" einer anderen Warengruppe zuschlagen — danach das Ziel anklicken`
+      }
+      onClick={() => ordneZu(name)}
+    >
+      →
+    </button>
+  );
+
   /** Die Marke „→ Kuchen" hinter einem zugeordneten Namen. */
   const zuordnungsmarke = (name: string) => {
     const ziel = zuordnungVon(zuordnungen, name);
@@ -382,6 +404,7 @@ export function Warengruppenfenster() {
                           {gruppe.name}
                         </button>
                         {zuordnungsmarke(gruppe.name)}
+                        {zuschlagknopf(gruppe.name)}
                       </div>
 
                       {gruppeOffen &&
@@ -403,6 +426,7 @@ export function Warengruppenfenster() {
                             {name}
                           </button>
                           {zuordnungsmarke(name)}
+                          {zuschlagknopf(name)}
                         </div>
                         );
                       })}
