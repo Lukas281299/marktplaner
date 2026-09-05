@@ -50,9 +50,18 @@ function lageAm(knopf: HTMLElement | null): { left: number; top: number; maxHeig
 export function Warengruppenwahl({
   waehle,
   fuegeHinzu,
+  titel,
 }: {
   /** Bekommt den Namen und den vollen Pfad – der macht ihn eindeutig. */
   waehle: (name: string, pfad: string) => void;
+  /**
+   * Was der Knopf verspricht.
+   *
+   * Neben dem Textfeld wählt das Menü die Beschriftung; an einer
+   * Sonderplatzierung wählt es nur, **wohin die Meter zählen**, und dann muss
+   * das auch dranstehen.
+   */
+  titel?: string;
   /**
    * Nimmt den Namen als **weiteres** Sortiment auf dieselbe Strecke.
    *
@@ -188,7 +197,7 @@ export function Warengruppenwahl({
         ref={knopf}
         type="button"
         className="wg-wahl"
-        title="Aus der Sortimentsliste wählen"
+        title={titel ?? 'Aus der Sortimentsliste wählen'}
         onClick={() => setOffen((o) => !o)}
       >
         ▾

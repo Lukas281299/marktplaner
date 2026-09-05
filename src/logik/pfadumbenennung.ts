@@ -9,6 +9,11 @@ import type { PlanElement, Projekt, Warengruppenabschnitt } from '../typen/model
  * Zeichenketten, und beide zeigen ins Leere, sobald jemand die Liste über den
  * Stift umbenennt.
  *
+ * **Mit umgezogen wird auch die Beschriftung im Plan** – dort, wo sie den
+ * Namen trägt und nichts Eigenes sagt. Sonst stünde am Möbel weiter der alte
+ * Name, während die Rechnung schon den neuen benutzt: dieselbe Strecke mit
+ * zwei Namen, und einer davon falsch.
+ *
  * Ohne dieses Nachziehen sähe es so aus: „Feinbackwaren" wird zu „Feine
  * Backwaren", und in der Auswertung stehen danach **zwei** Abteilungen
  * nebeneinander – die neue, leere aus der Liste und die alte aus den
@@ -31,6 +36,45 @@ function ersetzt(pfad: string, alt: string, neu: string): string {
   return pfad === alt ? neu : neu + pfad.slice(alt.length);
 }
 
+/** Zwei Namen vergleichen, wie der Markt sie vergleicht. */
+function gleich(a: string, b: string): boolean {
+  return a.trim().toLocaleLowerCase('de-DE') === b.trim().toLocaleLowerCase('de-DE');
+}
+
+/**
+ * Die Beschriftung im Plan mit umbenennen – aber nur, wo sie den Namen trägt.
+ *
+ * **Der Text im Plan ist nicht der Pfad.** Wer „Marmorkuchen Aktion" auf drei
+ * Meter schreibt und sie dem Kuchen zuordnet, meint beides so: Im Plan steht
+ * seine Beschreibung, gezählt wird der Kuchen. Wird der Kuchen umbenannt,
+ * bleibt „Marmorkuchen Aktion" stehen – der Satz gehört ihm und nicht der
+ * Liste.
+ *
+ * Steht dort aber schlicht der Name, ist er derselbe Name und geht denselben
+ * Weg. Sonst zeigte der Plan nach dem Umbenennen einen Namen, den die Liste
+ * nicht mehr führt, und man müsste jede Strecke von Hand nachziehen.
+ *
+ * Bei zwei Sortimenten auf einer Strecke – „Nüsse, Trockenobst" – wird nur
+ * der Teil ausgetauscht, um den es geht.
+ */
+function mitText(text: string, altName: string, neuName: string): string {
+  if (!text.trim() || gleich(altName, neuName)) return text;
+  // Erst der ganze Text: „Baguette, Stangen, Ciab." ist **ein** Name und
+  // keine drei. Wer hier am Komma schnitte, machte drei halbe daraus.
+  if (gleich(text, altName)) return text.trim() === text ? neuName : text.replace(text.trim(), neuName);
+
+  if (!text.includes(',')) return text;
+  const teile = text.split(',');
+  let getroffen = false;
+  const neue = teile.map((teil) => {
+    if (!gleich(teil, altName)) return teil;
+    getroffen = true;
+    // Die Abstände ringsum bleiben, wie sie waren.
+    return teil.replace(teil.trim(), neuName);
+  });
+  return getroffen ? neue.join(',') : text;
+}
+
 /** Die Abschnitte einer Seite mit nachgezogenen Pfaden – oder unverändert. */
 function mitPfaden(
   abschnitte: Warengruppenabschnitt[] | undefined,
@@ -38,11 +82,17 @@ function mitPfaden(
   neu: string,
 ): Warengruppenabschnitt[] | undefined {
   if (!abschnitte) return abschnitte;
+  const altName = alt.split(' › ').pop() ?? alt;
+  const neuName = neu.split(' › ').pop() ?? neu;
+
   let geaendert = false;
   const gezogen = abschnitte.map((a) => {
     if (!a.pfad || !betroffen(a.pfad, alt)) return a;
     geaendert = true;
-    return { ...a, pfad: ersetzt(a.pfad, alt, neu) };
+    // **Nur an Strecken, deren Pfad betroffen ist.** Ein „Kuchen" ohne Pfad
+    // kann der aus den Backwaren sein oder der aus den Feinbackwaren; ihn
+    // mit umzubenennen hieße raten.
+    return { ...a, pfad: ersetzt(a.pfad, alt, neu), text: mitText(a.text, altName, neuName) };
   });
   return geaendert ? gezogen : abschnitte;
 }

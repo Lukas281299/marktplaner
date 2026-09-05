@@ -218,8 +218,8 @@ export function meterauswertung(
    *    Meter bilden **eine** Zeile mit beiden Namen (der Bund). Das ist der
    *    Normalfall und soll es bleiben.
    *  - **Mit Aufteilung** bekommt jeder Name seine eigene Zeile und seinen
-   *    Anteil – nebeneinander teilen sie die Länge, übereinander die
-   *    Auslagen. Siehe `Streckenaufteilung`.
+   *    Anteil in Prozent – von den laufenden wie von den tatsächlichen
+   *    Metern. Siehe `Streckenaufteilung`.
    */
   const zieleMitAnteil = (strecke: Streckenmeter): Meterziel[] => {
     const ziele = zieleDerStrecke(liste, strecke);
@@ -255,12 +255,6 @@ export function meterauswertung(
     const summe = werte.reduce((s, w) => s + w, 0);
     if (!(summe > 0)) return gebuendelt();
 
-    if (teilung.art === 'uebereinander') {
-      // Jeder hat die ganze Länge; die eingetragene Zahl **sind** seine
-      // Auslagen. Zwei Regalböden Dessertsoßen über einer Milchpalette:
-      // beide 1,25 m lang, das eine mit zwei Auslagen, das andere mit einer.
-      return ziele.map((ziel, i) => ({ ...ziel, anteil: 1, auslagen: werte[i] }));
-    }
     return ziele.map((ziel, i) => ({ ...ziel, anteil: werte[i] / summe }));
   };
 

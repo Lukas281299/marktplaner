@@ -352,10 +352,7 @@ function finde(baum: ReturnType<typeof meterauswertung>['baum'], name: string): 
 }
 
 describe('Zwei Sortimente auf einer Strecke', () => {
-  const gemischt = (aufteilung?: {
-    art: 'nebeneinander' | 'uebereinander';
-    werte: number[];
-  }) =>
+  const gemischt = (aufteilung?: { werte: number[] }) =>
     element({
       breite: 100,
       felderUnten: [{ breite: 100, boeden: 5 }],
@@ -378,9 +375,9 @@ describe('Zwei Sortimente auf einer Strecke', () => {
     expect(finde(baum, 'Staubsaugerbeutel')).toBeUndefined();
   });
 
-  it('teilt nebeneinander die Länge – und die Abteilungen gehen auseinander', () => {
+  it('teilt die Meter nach Prozent – und die Abteilungen gehen auseinander', () => {
     const { baum, gesamt } = meterauswertung(
-      projekt([gemischt({ art: 'nebeneinander', werte: [50, 50] })]),
+      projekt([gemischt({ werte: [50, 50] })]),
       MISCHLISTE,
     );
     expect(finde(baum, 'Haushaltsreiniger').laufend).toBe(0.5);
@@ -393,45 +390,47 @@ describe('Zwei Sortimente auf einer Strecke', () => {
     expect(baum.map((k) => k.name)).toContain('Non-Food');
   });
 
-  it('teilt nebeneinander auch ungleich', () => {
+  it('teilt auch ungleich', () => {
     const { baum } = meterauswertung(
-      projekt([gemischt({ art: 'nebeneinander', werte: [75, 25] })]),
+      projekt([gemischt({ werte: [75, 25] })]),
       MISCHLISTE,
     );
     expect(finde(baum, 'Haushaltsreiniger').laufend).toBe(0.75);
     expect(finde(baum, 'Staubsaugerbeutel').laufend).toBe(0.25);
   });
 
-  it('gibt übereinander jedem die ganze Länge und teilt die Auslagen', () => {
-    // Dessertsoßen auf zwei Böden, darunter die Milchpalette.
+  it('rechnet mit dem Verhältnis, nicht mit der Summe hundert', () => {
+    // Zwei Regalböden Dessertsoßen über einer Milchpalette: Der Planer trägt
+    // ein, was er für richtig hält, und 4 zu 6 heißt dasselbe wie 40 zu 60.
     const el = element({
       breite: 125,
-      felderUnten: [{ breite: 125, boeden: 5 }],
+      felderUnten: [{ breite: 125, boeden: 4 }],
       warengruppenUnten: [
         {
           von: 0,
           bis: 125,
           text: 'Dessertsoßen, Milch',
           pfad: 'Lebensmittel › Konfitüre, Dessert › Dessertsoßen',
-          aufteilung: { art: 'uebereinander' as const, werte: [2, 1] },
+          aufteilung: { werte: [4, 6] },
         },
       ],
     });
-    const { baum } = meterauswertung(projekt([el]), MISCHLISTE);
-    // Beide stehen auf 1,25 m – das ist die Front, die sie einnehmen.
-    expect(finde(baum, 'Dessertsoßen').laufend).toBe(1.25);
-    expect(finde(baum, 'Milch').laufend).toBe(1.25);
-    // Unterschieden werden sie durch die Auslagen: zwei Böden gegen eine
-    // Palette. Die fünf Böden des Möbels treten dahinter zurück.
-    expect(finde(baum, 'Dessertsoßen').tatsaechlich).toBe(2.5);
-    expect(finde(baum, 'Milch').tatsaechlich).toBe(1.25);
+    const { baum, gesamt } = meterauswertung(projekt([el]), MISCHLISTE);
+    expect(finde(baum, 'Dessertsoßen').laufend).toBe(0.5);
+    expect(finde(baum, 'Milch').laufend).toBe(0.75);
+    // Vier Böden auf 1,25 m sind 5,00 tatsächliche Meter, im selben
+    // Verhältnis geteilt.
+    expect(finde(baum, 'Dessertsoßen').tatsaechlich).toBe(2);
+    expect(finde(baum, 'Milch').tatsaechlich).toBe(3);
+    // Und zusammen bleibt es der eine Meter, der im Plan steht.
+    expect(gesamt.laufend).toBe(1.25);
   });
 
   it('übergeht eine Aufteilung, die nicht mehr zu den Namen passt', () => {
     // Jemand hat den Text geändert; lieber eine Zeile zu wenig aufgeteilt als
     // Meter an der falschen Stelle.
     const { baum } = meterauswertung(
-      projekt([gemischt({ art: 'nebeneinander', werte: [50, 30, 20] })]),
+      projekt([gemischt({ werte: [50, 30, 20] })]),
       MISCHLISTE,
     );
     expect(finde(baum, 'Haushaltsreiniger, Staubsaugerbeutel').laufend).toBe(1);
@@ -439,7 +438,7 @@ describe('Zwei Sortimente auf einer Strecke', () => {
 
   it('lässt eine Aufteilung ohne Gewicht in Ruhe', () => {
     const { baum } = meterauswertung(
-      projekt([gemischt({ art: 'nebeneinander', werte: [0, 0] })]),
+      projekt([gemischt({ werte: [0, 0] })]),
       MISCHLISTE,
     );
     expect(finde(baum, 'Haushaltsreiniger, Staubsaugerbeutel').laufend).toBe(1);

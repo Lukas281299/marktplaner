@@ -5,23 +5,9 @@ import {
   gruppenstand,
   istAbgedeckt,
   leseSortimentsliste,
-  mitAbteilung,
-  mitSortiment,
-  mitWarengruppe,
-  ohneAbteilung,
-  ohneSortiment,
   naechsterStand,
-  ohneWarengruppe,
   pfadVon,
   standVon,
-  umbenannteAbteilung,
-  umbenannteWarengruppe,
-  umbenanntesSortiment,
-  umgehaengtesSortiment,
-  umgehaengteWarengruppe,
-  verschobeneAbteilung,
-  verschobeneWarengruppe,
-  verschobenesSortiment,
   zuordnungVon,
   umfang,
   vereinigt,
@@ -33,9 +19,8 @@ import {
   ziehePlanungNach,
   type Planbericht,
 } from '../speicher/sortimentsabgleich';
-import { alsTabellenblob } from '../logik/sortimentsausgabe';
-import { ladeDateiHerunter } from '../speicher/projektArchiv';
 import { usePlanStore } from '../zustand/planStore';
+import { Listenpflege } from './Listenpflege';
 import { Spaltenschalter } from './Spaltengriffe';
 
 /**
@@ -48,9 +33,14 @@ import { Spaltenschalter } from './Spaltengriffe';
  *    jeder Klick auf einen Meter im Plan ihn dort hinein. So lassen sich
  *    mehrere Meter hintereinander bestreichen, ohne zwischendurch ins
  *    Eigenschaftenfenster zu wechseln.
- *  - **Pflegen.** Über den Stift lässt sich jeder Name ändern, entfernen oder
- *    ein neuer anlegen. Ein Sortiment ändert sich, das Programm soll dem
- *    nicht im Weg stehen.
+ *  - **Zuschlagen.** Über den **→** zählt eine Warengruppe zu einer anderen,
+ *    ohne dass man sie im Plan setzen müsste.
+ *
+ * **Bearbeitet wird woanders.** Umbenennen, verschieben und ergänzen sind
+ * seltener, dafür folgenreich, und sie brauchen Platz. Der Stift oben öffnet
+ * dafür ein eigenes Fenster (`Listenpflege`). Beides in dieser schmalen
+ * Spalte übereinanderzulegen hieß, dass an jeder Zeile sechs Knöpfe standen
+ * und man den Namen kaum noch las.
  *
  * **Grün steht schon im Plan, rot fehlt noch** – damit man am Ende sieht, ob
  * etwas vergessen wurde.
@@ -82,19 +72,6 @@ export function Warengruppenfenster() {
 
   const [suche, setSuche] = useState('');
   const [pflege, setPflege] = useState(false);
-  /**
-   * Was gerade umgehängt wird – ein Sortiment oder eine ganze Warengruppe.
-   *
-   * Wie beim Zuordnen wird das **Ziel geklickt** und nicht getippt: Ein
-   * abgetippter Name kann sich vertippen, und dann stünde der Eintrag in
-   * einer Warengruppe, die es nicht gibt.
-   */
-  const [umzug, setUmzug] = useState<{
-    art: 'sortiment' | 'warengruppe';
-    abteilung: string;
-    gruppe?: string;
-    name: string;
-  } | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [meldung, setMeldung] = useState<string | null>(null);
   /**
@@ -135,17 +112,6 @@ export function Warengruppenfenster() {
           ? 'Zählt zu einer anderen Warengruppe — gilt damit als untergebracht'
           : 'Offen — anklicken für „steht im Markt"';
 
-  const pflegen = (liste: typeof sortiment) => usePlanStore.getState().pflegeSortiment(liste);
-
-  /**
-   * Umbenennen – und die Planung mitnehmen.
-   *
-   * Die Strecken im Plan merken sich ihren Pfad als Zeichenkette, ebenso die
-   * grünen Haken. Wer nur die Liste änderte, ließe beide auf einen Namen
-   * zeigen, den es nicht mehr gibt.
-   */
-  const umbenennen = (liste: typeof sortiment, altPfad: string, neuPfad: string) =>
-    usePlanStore.getState().benenneSortimentUm(liste, altPfad, neuPfad);
   /**
    * Einen Namen aufnehmen – mit seinem Platz in der Liste.
    *
@@ -202,81 +168,6 @@ export function Warengruppenfenster() {
         → {ziel}
       </button>
     );
-  };
-
-  /**
-   * Die beiden Pfeile, mit denen ein Eintrag seine Stelle wechselt.
-   *
-   * **Die Reihenfolge der Liste ist die des Marktes** – sie folgt dem Weg
-   * durch den Laden, und die Auswertung übernimmt sie. Alphabetisch wäre eine
-   * Ordnung, die niemand im Kopf hat.
-   */
-  const Rang = ({ hoch, runter }: { hoch: () => void; runter: () => void }) => (
-    <>
-      <button className="wg-werkzeug" title="Eine Stelle nach oben" onClick={hoch}>
-        ↑
-      </button>
-      <button className="wg-werkzeug" title="Eine Stelle nach unten" onClick={runter}>
-        ↓
-      </button>
-    </>
-  );
-
-  /**
-   * Ein Umzug beginnt oder wird abgebrochen.
-   *
-   * Läuft schon einer, hebt derselbe Knopf ihn wieder auf – sonst bliebe die
-   * Liste in einem Zustand, aus dem man nur mit Raten herauskommt.
-   */
-  const starteUmzug = (neu: NonNullable<typeof umzug>) => {
-    setUmzug(
-      umzug && umzug.art === neu.art && umzug.name === neu.name && umzug.gruppe === neu.gruppe
-        ? null
-        : neu,
-    );
-  };
-
-  /** Das Ziel eines Umzugs ist angeklickt – jetzt wird umgehängt. */
-  const hierhin = (abteilung: string, gruppe?: string) => {
-    if (!umzug) return false;
-    if (umzug.art === 'sortiment') {
-      if (!gruppe || !umzug.gruppe) return false;
-      if (umzug.abteilung === abteilung && umzug.gruppe === gruppe) {
-        setUmzug(null);
-        return true;
-      }
-      umbenennen(
-        umgehaengtesSortiment(
-          sortiment,
-          umzug.abteilung,
-          umzug.gruppe,
-          umzug.name,
-          abteilung,
-          gruppe,
-        ),
-        pfadVon(umzug.abteilung, umzug.gruppe, umzug.name),
-        pfadVon(abteilung, gruppe, umzug.name),
-      );
-      setUmzug(null);
-      return true;
-    }
-    if (umzug.abteilung === abteilung) {
-      setUmzug(null);
-      return true;
-    }
-    umbenennen(
-      umgehaengteWarengruppe(sortiment, umzug.abteilung, umzug.name, abteilung),
-      pfadVon(umzug.abteilung, umzug.name),
-      pfadVon(abteilung, umzug.name),
-    );
-    setUmzug(null);
-    return true;
-  };
-
-  /** Fragt nach einem Namen. Leer oder abgebrochen heißt: nichts tun. */
-  const frage = (text: string, vorgabe = '') => {
-    const antwort = window.prompt(text, vorgabe);
-    return antwort?.trim() ? antwort.trim() : null;
   };
 
   /**
@@ -370,9 +261,9 @@ export function Warengruppenfenster() {
             ← Möbel
           </button>
           <button
-            className={`knopf${pflege ? ' aktiv' : ''}`}
-            onClick={() => setPflege(!pflege)}
-            title="Namen ändern, entfernen und neue anlegen"
+            className="knopf"
+            onClick={() => setPflege(true)}
+            title="Sortimentsliste bearbeiten — umbenennen, verschieben, ergänzen"
           >
             ✎
           </button>
@@ -444,16 +335,8 @@ export function Warengruppenfenster() {
             <div key={abteilung.name} className="wg-abteilung">
               <div className="wg-kopf">
                 <button
-                  className={`wg-titel${umzug?.art === 'warengruppe' ? ' wg-ziel' : ''}`}
-                  title={
-                    umzug?.art === 'warengruppe'
-                      ? `„${umzug.name}" hierher verschieben`
-                      : undefined
-                  }
-                  onClick={() => {
-                    if (hierhin(abteilung.name)) return;
-                    usePlanStore.getState().schalteAbteilung(abteilung.name);
-                  }}
+                  className="wg-titel"
+                  onClick={() => usePlanStore.getState().schalteAbteilung(abteilung.name)}
                 >
                   <span className="wg-pfeil">{offen ? '▾' : '▸'}</span>
                   {abteilung.name}
@@ -467,51 +350,6 @@ export function Warengruppenfenster() {
                   title={titel(zahl.wert, pfadVon(abteilung.name))}
                   onClick={() => schalte(pfadVon(abteilung.name), zahl.wert)}
                 />
-                {pflege && (
-                  <>
-                    <Rang
-                      hoch={() => pflegen(verschobeneAbteilung(sortiment, abteilung.name, -1))}
-                      runter={() => pflegen(verschobeneAbteilung(sortiment, abteilung.name, 1))}
-                    />
-                    <button
-                      className="wg-werkzeug"
-                      title="Abteilung umbenennen"
-                      onClick={() => {
-                        const name = frage('Abteilung umbenennen:', abteilung.name);
-                        if (name) {
-                          umbenennen(
-                            umbenannteAbteilung(sortiment, abteilung.name, name),
-                            pfadVon(abteilung.name),
-                            pfadVon(name),
-                          );
-                        }
-                      }}
-                    >
-                      ✎
-                    </button>
-                    <button
-                      className="wg-werkzeug"
-                      title="Warengruppe anlegen"
-                      onClick={() => {
-                        const name = frage(`Neue Warengruppe in „${abteilung.name}":`);
-                        if (name) pflegen(mitWarengruppe(sortiment, abteilung.name, name));
-                      }}
-                    >
-                      +
-                    </button>
-                    <button
-                      className="wg-werkzeug gefahr"
-                      title="Abteilung mit allem darin entfernen"
-                      onClick={() => {
-                        if (window.confirm(`„${abteilung.name}" mit allen Warengruppen entfernen?`)) {
-                          pflegen(ohneAbteilung(sortiment, abteilung.name));
-                        }
-                      }}
-                    >
-                      ×
-                    </button>
-                  </>
-                )}
               </div>
 
               {offen &&
@@ -521,7 +359,6 @@ export function Warengruppenfenster() {
                   // Zugeklappt wird die einzelne Warengruppe, nicht die
                   // Abteilung: Wer sucht, will alles sehen.
                   const gruppeOffen = sucht || !zugeklappteGruppen.includes(eigen);
-                  const zielFuerSortiment = umzug?.art === 'sortiment';
                   return (
                     <div key={gruppe.name}>
                       <div className="wg-zeile">
@@ -538,104 +375,13 @@ export function Warengruppenfenster() {
                           onClick={() => schalte(eigen, gStand.wert)}
                         />
                         <button
-                          className={`wg-name${pinsel?.pfad === eigen ? ' aktiv' : ''}${zielFuerSortiment ? ' wg-ziel' : ''}`}
-                          onClick={() => {
-                            if (hierhin(abteilung.name, gruppe.name)) return;
-                            nimm(gruppe.name, eigen);
-                          }}
-                          title={
-                            zielFuerSortiment
-                              ? `„${umzug?.name}“ hierher verschieben`
-                              : 'Aufnehmen — dann im Plan die Meter anklicken und Enter drücken'
-                          }
+                          className={`wg-name${pinsel?.pfad === eigen ? ' aktiv' : ''}`}
+                          onClick={() => nimm(gruppe.name, eigen)}
+                          title="Aufnehmen — dann im Plan die Meter anklicken und Enter drücken"
                         >
                           {gruppe.name}
                         </button>
                         {zuordnungsmarke(gruppe.name)}
-                        {pflege && (
-                          <>
-                            <Rang
-                              hoch={() =>
-                                pflegen(
-                                  verschobeneWarengruppe(sortiment, abteilung.name, gruppe.name, -1),
-                                )
-                              }
-                              runter={() =>
-                                pflegen(
-                                  verschobeneWarengruppe(sortiment, abteilung.name, gruppe.name, 1),
-                                )
-                              }
-                            />
-                            <button
-                              className={`wg-werkzeug${umzug?.art === 'warengruppe' && umzug.name === gruppe.name ? ' aktiv' : ''}`}
-                              title="In eine andere Abteilung verschieben — danach die Abteilung anklicken"
-                              onClick={() =>
-                                starteUmzug({
-                                  art: 'warengruppe',
-                                  abteilung: abteilung.name,
-                                  name: gruppe.name,
-                                })
-                              }
-                            >
-                              ⇄
-                            </button>
-                            <button
-                              className="wg-werkzeug"
-                              title={
-                                zuordnungVon(zuordnungen, gruppe.name)
-                                  ? `Die Zuordnung von „${gruppe.name}" lösen`
-                                  : `Die Meter von „${gruppe.name}" einer anderen Warengruppe zuschlagen`
-                              }
-                              onClick={() => ordneZu(gruppe.name)}
-                            >
-                              →
-                            </button>
-                            <button
-                              className="wg-werkzeug"
-                              title="Warengruppe umbenennen"
-                              onClick={() => {
-                                const name = frage('Warengruppe umbenennen:', gruppe.name);
-                                if (name) {
-                                  umbenennen(
-                                    umbenannteWarengruppe(
-                                      sortiment,
-                                      abteilung.name,
-                                      gruppe.name,
-                                      name,
-                                    ),
-                                    pfadVon(abteilung.name, gruppe.name),
-                                    pfadVon(abteilung.name, name),
-                                  );
-                                }
-                              }}
-                            >
-                              ✎
-                            </button>
-                            <button
-                              className="wg-werkzeug"
-                              title="Sortiment anlegen"
-                              onClick={() => {
-                                const name = frage(`Neues Sortiment in „${gruppe.name}":`);
-                                if (name) {
-                                  pflegen(mitSortiment(sortiment, abteilung.name, gruppe.name, name));
-                                }
-                              }}
-                            >
-                              +
-                            </button>
-                            <button
-                              className="wg-werkzeug gefahr"
-                              title="Warengruppe mit ihren Sortimenten entfernen"
-                              onClick={() => {
-                                if (window.confirm(`„${gruppe.name}" entfernen?`)) {
-                                  pflegen(ohneWarengruppe(sortiment, abteilung.name, gruppe.name));
-                                }
-                              }}
-                            >
-                              ×
-                            </button>
-                          </>
-                        )}
                       </div>
 
                       {gruppeOffen &&
@@ -657,92 +403,6 @@ export function Warengruppenfenster() {
                             {name}
                           </button>
                           {zuordnungsmarke(name)}
-                          {pflege && (
-                            <>
-                              <Rang
-                                hoch={() =>
-                                  pflegen(
-                                    verschobenesSortiment(
-                                      sortiment,
-                                      abteilung.name,
-                                      gruppe.name,
-                                      name,
-                                      -1,
-                                    ),
-                                  )
-                                }
-                                runter={() =>
-                                  pflegen(
-                                    verschobenesSortiment(
-                                      sortiment,
-                                      abteilung.name,
-                                      gruppe.name,
-                                      name,
-                                      1,
-                                    ),
-                                  )
-                                }
-                              />
-                              <button
-                                className={`wg-werkzeug${umzug?.art === 'sortiment' && umzug.name === name && umzug.gruppe === gruppe.name ? ' aktiv' : ''}`}
-                                title="In eine andere Warengruppe verschieben — danach die Warengruppe anklicken"
-                                onClick={() =>
-                                  starteUmzug({
-                                    art: 'sortiment',
-                                    abteilung: abteilung.name,
-                                    gruppe: gruppe.name,
-                                    name,
-                                  })
-                                }
-                              >
-                                ⇄
-                              </button>
-                              <button
-                                className="wg-werkzeug"
-                                title={
-                                  zuordnungVon(zuordnungen, name)
-                                    ? `Die Zuordnung von „${name}" lösen`
-                                    : `Die Meter von „${name}" einer anderen Warengruppe zuschlagen`
-                                }
-                                onClick={() => ordneZu(name)}
-                              >
-                                →
-                              </button>
-                              <button
-                                className="wg-werkzeug"
-                                title="Sortiment umbenennen"
-                                onClick={() => {
-                                  const neu = frage('Sortiment umbenennen:', name);
-                                  if (neu) {
-                                    umbenennen(
-                                      umbenanntesSortiment(
-                                        sortiment,
-                                        abteilung.name,
-                                        gruppe.name,
-                                        name,
-                                        neu,
-                                      ),
-                                      pfadVon(abteilung.name, gruppe.name, name),
-                                      pfadVon(abteilung.name, gruppe.name, neu),
-                                    );
-                                  }
-                                }}
-                              >
-                                ✎
-                              </button>
-                              <button
-                                className="wg-werkzeug gefahr"
-                                title="Sortiment entfernen"
-                                onClick={() =>
-                                  pflegen(
-                                    ohneSortiment(sortiment, abteilung.name, gruppe.name, name),
-                                  )
-                                }
-                              >
-                                ×
-                              </button>
-                            </>
-                          )}
                         </div>
                         );
                       })}
@@ -779,19 +439,9 @@ export function Warengruppenfenster() {
           </div>
         )}
 
-        {pflege && (
-          <button
-            className="knopf"
-            style={{ width: '100%', marginTop: 10 }}
-            onClick={() => {
-              const name = frage('Neue Abteilung:');
-              if (name) pflegen(mitAbteilung(sortiment, name));
-            }}
-          >
-            + Abteilung
-          </button>
-        )}
       </div>
+
+      {pflege && <Listenpflege schliessen={() => setPflege(false)} />}
 
       <div className="wg-fuss">
         <div className="kennzahl">
@@ -834,23 +484,6 @@ export function Warengruppenfenster() {
             </label>
           )}
         </div>
-        {sortiment.abteilungen.length > 0 && (
-          <button
-            className="knopf"
-            style={{ width: '100%', marginTop: 4 }}
-            title={
-              'Die Liste als Tabelle ausgeben — drei Spalten, so gegliedert wie hier. ' +
-              'Excel öffnet sie mit einem Doppelklick, und dieselbe Datei liest der ' +
-              'Marktplaner wieder ein.'
-            }
-            onClick={() => {
-              ladeDateiHerunter(alsTabellenblob(sortiment), 'Sortimentsliste.csv');
-              setMeldung('Sortimentsliste ausgegeben — die Datei liegt bei deinen Downloads.');
-            }}
-          >
-            ↓ Nach Excel ausgeben
-          </button>
-        )}
         {meldung && (
           <p className="hinweis" style={{ marginTop: 6 }}>
             {meldung}

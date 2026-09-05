@@ -359,26 +359,25 @@ export type Unterbauart =
  * umschreiben.
  */
 /**
- * Wie sich mehrere Sortimente **eine** Strecke teilen.
+ * Wie sich mehrere Sortimente **eine** Strecke teilen – in Prozent.
  *
  * Ohne diese Angabe gilt, was immer galt: Stehen zwei Namen auf einem Meter,
  * wird daraus in der Auswertung **eine** Zeile mit beiden Namen. Das ist der
  * richtige Normalfall – wer zwei Sortimente zusammen hinstellt, will meistens
  * gar nicht auf den Zentimeter sagen, wie sie sich verteilen.
  *
- * Manchmal will man es aber doch, und dann gibt es genau zwei Fälle. Sie
- * unterscheiden sich nicht in der Zahl, sondern in der Richtung:
+ * Manchmal will man es doch, und dann ist es immer dieselbe Frage: **Wie viel
+ * Prozent gehört wem?** Zwei Fälle, eine Rechnung:
  *
- *  - **nebeneinander** – die beiden teilen sich die Länge. Die
- *    Staubsaugerbeutel stehen mit bei den Haushaltsreinigern; auf dem Meter
- *    ist links das eine und rechts das andere, halbe-halbe. Dann bekommt
- *    jeder seinen Bruchteil der laufenden **und** der tatsächlichen Meter.
+ *  - Die Staubsaugerbeutel stehen mit bei den Haushaltsreinigern, links das
+ *    eine und rechts das andere: 50 zu 50.
+ *  - Die Dessertsoßen stehen auf 1,25 m, belegen davon aber nur zwei
+ *    Regalböden, und darunter steht eine Milchpalette: vielleicht 30 zu 70.
  *
- *  - **übereinander** – jeder hat die **ganze** Länge, geteilt werden die
- *    Auslagen. Die Dessertsoßen stehen auf 1,25 m, belegen davon aber nur
- *    zwei Regalböden; darunter steht eine Milchpalette. Beide sind 1,25 m
- *    breit, und was sie unterscheidet, ist die Zahl der Böden. Die Zahlen
- *    hier sind dann genau diese Auslagen: 2 und 1.
+ * Beide Male bekommt jeder seinen Prozentsatz der laufenden **und** der
+ * tatsächlichen Meter. Ob die beiden nebeneinander oder übereinander liegen,
+ * ändert an der Rechnung nichts – es ändert nur die Zahl, die man einträgt,
+ * und die kennt der Planer besser als jede Regel.
  *
  * `werte` steht in derselben Reihenfolge wie die Namen in der Beschriftung.
  * Passt die Länge nicht zur Zahl der Namen – jemand hat den Text geändert –,
@@ -386,8 +385,7 @@ export type Unterbauart =
  * eine Zeile zu wenig aufgeteilt als Meter an der falschen Stelle.
  */
 export interface Streckenaufteilung {
-  art: 'nebeneinander' | 'uebereinander';
-  /** Prozente (nebeneinander) oder Auslagen (übereinander), je Name. */
+  /** Der Anteil je Name. Die Summe ist beliebig und wird umgerechnet. */
   werte: number[];
 }
 

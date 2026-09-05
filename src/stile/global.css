@@ -677,6 +677,51 @@ body {
 }
 
 /*
+ * Das Pflegefenster: dieselbe Liste, aber in voller Breite und ohne Punkte.
+ *
+ * Hier wird nicht geplant, sondern die Liste geordnet. Deshalb kein grüner
+ * Haken, kein Pinsel und keine Zuordnung — nur Namen und Werkzeuge, und
+ * dafür so viel Platz, dass beides nebeneinander steht.
+ */
+.pflege-liste {
+  margin-top: var(--abstand-2);
+  max-height: 52vh;
+  overflow-y: auto;
+  border: 1px solid var(--rand);
+  border-radius: var(--rundung);
+  padding: var(--abstand-1) 0;
+}
+
+.pflege-abteilung + .pflege-abteilung {
+  border-top: 1px solid var(--rand);
+  margin-top: var(--abstand-1);
+  padding-top: var(--abstand-1);
+}
+
+.wg-tiefer {
+  padding-left: 32px;
+}
+
+.wg-tiefer .wg-name {
+  font-size: 12px;
+}
+
+/* Die Abteilung trägt ihre Stufe im Gewicht. */
+.wg-name.stark {
+  font-weight: 600;
+}
+
+/*
+ * Ein Sortiment im Pflegefenster ist kein Knopf.
+ *
+ * Anklicken kann man es nur als Ziel eines Umzugs, und Ziele sind hier die
+ * Warengruppen. Es als Knopf zu zeigen verspräche etwas, das nicht passiert.
+ */
+.wg-name.still {
+  cursor: default;
+}
+
+/*
  * Der Haken vor jedem Eintrag: offen, erledigt, nicht vorgesehen.
  *
  * Ein Knopf und keine Farbe am Text: Man klickt ihn an, und er schaltet

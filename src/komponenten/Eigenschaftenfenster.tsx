@@ -1237,20 +1237,73 @@ function Sortimentszuordnung({
 }
 
 /**
- * Wie sich mehrere Sortimente **eine** Strecke teilen.
+ * Wohin die Meter einer Sonderplatzierung zählen.
+ *
+ * **Der Text im Plan und das Ziel sind hier zwei verschiedene Dinge.** Auf
+ * dem Meter steht „Aktion", denn das ist es, was dort liegt. Zählen sollen
+ * die Meter trotzdem bei der Molkerei. Das Menü hier setzt deshalb nur den
+ * **Pfad** und lässt die Beschriftung in Ruhe – anders als das Menü oben
+ * neben dem Textfeld, das beides setzt.
+ *
+ * Ohne Ziel zählen die Meter nirgends. Das ist kein stiller Zustand, sondern
+ * einer, der angeschrieben wird: Sonst sucht man die Meter in der Molkerei
+ * und findet sie unter „Noch nicht eingeordnet".
+ */
+function Aktionsziel({
+  abschnitt,
+  aendern,
+  beiStart,
+}: {
+  abschnitt: Warengruppenabschnitt;
+  aendern: (werte: Partial<Warengruppenabschnitt>) => void;
+  beiStart: () => void;
+}) {
+  return (
+    <div className={`wg-pfadzeile${abschnitt.pfad ? '' : ' warnung'}`}>
+      <span className="wg-pfadtext">
+        {abschnitt.pfad
+          ? `★ zählt zu ${abschnitt.pfad}`
+          : '★ Noch keiner Warengruppe zugeordnet — rechts wählen'}
+      </span>
+      {abschnitt.pfad && (
+        <button
+          className="wg-werkzeug"
+          title="Zuordnung lösen"
+          onClick={() => {
+            beiStart();
+            aendern({ pfad: undefined });
+          }}
+        >
+          ×
+        </button>
+      )}
+      <Warengruppenwahl
+        titel="Warengruppe wählen, zu der diese Aktionsmeter zählen — die Beschriftung bleibt stehen"
+        waehle={(_, pfad) => {
+          beiStart();
+          aendern({ pfad });
+        }}
+      />
+    </div>
+  );
+}
+
+/**
+ * Wie sich mehrere Sortimente **eine** Strecke teilen – in Prozent.
  *
  * Steht nur da, wo es etwas zu entscheiden gibt: sobald auf einer Strecke
  * mehr als ein Name steht. Vorgabe bleibt **gemeinsam** – zwei Namen auf
  * einem Meter werden in der Auswertung eine Zeile, so wie bisher, und die
  * meisten Strecken wollen es genau so.
  *
- * Wer teilt, entscheidet sich für eine Richtung:
+ * Wer teilt, trägt Prozente ein. Ob die beiden nebeneinander stehen oder
+ * übereinander liegen, ändert an der Rechnung nichts: Beide Male bekommt
+ * jeder seinen Anteil an den laufenden **und** an den tatsächlichen Metern.
+ * Wie hoch der ist, weiß der Planer besser als jede Regel – zwei Regalböden
+ * Dessertsoßen über einer Milchpalette sind vielleicht 30 zu 70.
  *
- *  - **nebeneinander** – links das eine, rechts das andere. Die Länge wird
- *    geteilt, in Prozent.
- *  - **übereinander** – jeder hat die ganze Länge, geteilt werden die
- *    Auslagen. Zwei Regalböden Dessertsoßen über einer Milchpalette: beide
- *    1,25 m breit, das eine mit zwei Böden, das andere mit einem.
+ * Die Zahlen müssen sich nicht auf hundert summieren; gerechnet wird ihr
+ * Verhältnis. Daneben steht, was daraus wird.
  */
 function Streckenteilung({
   abschnitt,
@@ -1266,46 +1319,16 @@ function Streckenteilung({
   if (namen.length < 2) return null;
 
   const teilung = abschnitt.aufteilung;
-  const art = teilung?.art ?? 'gemeinsam';
   // Passt die Zahl der Werte nicht mehr zu den Namen – jemand hat den Text
   // geändert –, gilt wieder die Vorgabe. Falsche Zahlen wären schlimmer als
   // gar keine.
-  const passt = teilung && teilung.werte.length === namen.length;
-  const werte = passt
-    ? teilung.werte
-    : art === 'uebereinander'
-      ? namen.map(() => 1)
-      : namen.map(() => Math.round(100 / namen.length));
-
-  /** Beim Wechsel der Richtung neu anfangen – Prozente sind keine Böden. */
-  const setzeArt = (neu: string) => {
-    beiStart();
-    if (neu === 'gemeinsam') {
-      aendern({ aufteilung: undefined });
-      return;
-    }
-    aendern({
-      aufteilung: {
-        art: neu === 'uebereinander' ? 'uebereinander' : 'nebeneinander',
-        werte:
-          neu === 'uebereinander'
-            ? namen.map(() => 1)
-            : namen.map(() => Math.round(100 / namen.length)),
-      },
-    });
-  };
-
-  const setzeWert = (index: number, zahl: number) => {
-    if (art === 'gemeinsam') return;
-    aendern({
-      aufteilung: {
-        art,
-        werte: werte.map((w, j) => (j === index ? Math.max(0, zahl) : w)),
-      },
-    });
-  };
-
+  const geteilt = Boolean(teilung && teilung.werte.length === namen.length);
+  const werte = geteilt
+    ? teilung!.werte
+    : namen.map(() => Math.round(100 / namen.length));
   const summe = werte.reduce((s, w) => s + w, 0);
+
+  const setzeWerte = (neu: number[]) => aendern({ aufteilung: { werte: neu } });
 
   return (
     <div className="streckenteilung">
@@ -1314,22 +1337,25 @@ function Streckenteilung({
           {namen.length} Sortimente
         </span>
         <select
-          value={art}
+          value={geteilt ? 'geteilt' : 'gemeinsam'}
           style={{ flex: 1, minWidth: 0, fontSize: 11 }}
           title={
-            'Gemeinsam: eine Zeile in der Auswertung, beide Namen. ' +
-            'Nebeneinander: die Länge wird geteilt. ' +
-            'Übereinander: jeder hat die ganze Länge, geteilt werden die Auslagen.'
+            'Gemeinsam: eine Zeile in der Auswertung, beide Namen, die Meter zählen einmal. ' +
+            'Aufgeteilt: jeder bekommt seine eigene Zeile und seinen Prozentsatz — ' +
+            'von den laufenden wie von den tatsächlichen Metern.'
           }
-          onChange={(e) => setzeArt(e.target.value)}
+          onChange={(e) => {
+            beiStart();
+            if (e.target.value === 'gemeinsam') aendern({ aufteilung: undefined });
+            else setzeWerte(namen.map(() => Math.round(100 / namen.length)));
+          }}
         >
           <option value="gemeinsam">gemeinsam — eine Zeile</option>
-          <option value="nebeneinander">nebeneinander — Länge teilen</option>
-          <option value="uebereinander">übereinander — Auslagen teilen</option>
+          <option value="geteilt">aufgeteilt — in Prozent</option>
         </select>
       </div>
 
-      {art !== 'gemeinsam' &&
+      {geteilt &&
         namen.map((name, j) => (
           <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
             <span
@@ -1348,24 +1374,21 @@ function Streckenteilung({
             <input
               type="number"
               min="0"
-              step={art === 'uebereinander' ? '1' : '5'}
+              step="5"
               style={{ width: 56, fontSize: 11 }}
               value={werte[j]}
               onFocus={beiStart}
-              onChange={(e) => setzeWert(j, Number(e.target.value))}
+              onChange={(e) =>
+                setzeWerte(
+                  werte.map((w, k) => (k === j ? Math.max(0, Number(e.target.value)) : w)),
+                )
+              }
             />
-            <span className="kategorie-anzahl" style={{ width: 46, flexShrink: 0 }}>
-              {art === 'uebereinander' ? 'Auslagen' : summe > 0 ? `${Math.round((werte[j] / summe) * 100)} %` : '—'}
+            <span className="kategorie-anzahl" style={{ width: 40, flexShrink: 0 }}>
+              {summe > 0 ? `${Math.round((werte[j] / summe) * 100)} %` : '—'}
             </span>
           </div>
         ))}
-
-      {art === 'uebereinander' && (
-        <p className="hinweis" style={{ margin: '3px 0 0' }}>
-          Jedes Sortiment zählt die ganze Länge; die Böden des Möbels treten
-          hinter diese Zahlen zurück.
-        </p>
-      )}
     </div>
   );
 }
@@ -1638,11 +1661,19 @@ function Warengruppenband({
               </button>
             </div>
 
-            <Sortimentszuordnung
-              abschnitt={abschnitt}
-              aendern={(werte) => aendere(i, werte)}
-              beiStart={() => usePlanStore.getState().schnappschuss()}
-            />
+            {abschnitt.aktion ? (
+              <Aktionsziel
+                abschnitt={abschnitt}
+                aendern={(werte) => aendere(i, werte)}
+                beiStart={() => usePlanStore.getState().schnappschuss()}
+              />
+            ) : (
+              <Sortimentszuordnung
+                abschnitt={abschnitt}
+                aendern={(werte) => aendere(i, werte)}
+                beiStart={() => usePlanStore.getState().schnappschuss()}
+              />
+            )}
 
             <Schalter
               label="Sonderplatzierung (Aktion)"

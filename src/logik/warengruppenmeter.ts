@@ -78,22 +78,15 @@ export interface Streckenmeter {
 /**
  * Eine Zeile, in die eine Strecke zählt – mit ihrem Anteil daran.
  *
- * Ein Ziel je Name. **Der Anteil ist nicht immer ein Bruchteil**: Liegen zwei
- * Sortimente übereinander, hat jedes die ganze Länge, und was sie
- * unterscheidet, sind die Auslagen. Dann steht in `anteil` eine 1 und in
- * `auslagen` die Zahl der Böden – siehe `Streckenaufteilung`.
+ * Ein Ziel je Name. Der Anteil ist ein Bruchteil zwischen 0 und 1; er wirkt
+ * auf die laufenden **und** auf die tatsächlichen Meter gleichermaßen, denn
+ * beide messen dieselbe Strecke.
  */
 export interface Meterziel {
   name: string;
   pfad?: string;
   /** Wie viel der Länge auf dieses Ziel entfällt – 1 ist die ganze. */
   anteil: number;
-  /**
-   * Auslagen je laufendem Meter, wenn sie für dieses Ziel feststehen.
-   *
-   * Ohne Angabe rechnet die Strecke mit den Böden des Möbels, wie bisher.
-   */
-  auslagen?: number;
   /** Zählt als Sonder- oder Aktionsplatzierung. */
   aktion?: boolean;
 }
@@ -462,14 +455,6 @@ export function warengruppenmeter(
       const laenge = strecke.laenge * ziel.anteil;
       zeile.laufend += laenge;
       zeile.strecken++;
-
-      // **Feste Auslagen gehen vor.** Liegen zwei Sortimente übereinander,
-      // steht am Ziel, wie viele Böden jedes belegt – die Böden des Möbels
-      // sagen dann nichts mehr, sie sind ja gerade aufgeteilt worden.
-      if (ziel.auslagen !== undefined) {
-        zeile.tatsaechlich = (zeile.tatsaechlich ?? 0) + laenge * ziel.auslagen;
-        continue;
-      }
 
       if (!anteil) {
         zeile.ohneAuslagen += laenge;
