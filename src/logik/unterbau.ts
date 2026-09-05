@@ -90,6 +90,26 @@ export function unterbauAnzahl(platz: Unterbauplatz, feldbreite: number): number
 }
 
 /**
+ * Wie viele **hintereinander** stehen.
+ *
+ * Ohne Angabe eine Reihe. Ein Kühlmöbel steht immer einzeln — es ist ein
+ * Gerät und kein Ladungsträger, und zwei hintereinander gäbe es nicht.
+ */
+export function unterbauReihen(platz: Unterbauplatz): number {
+  if (freiesMass(platz.art)) return 1;
+  return Math.max(1, Math.round(platz.reihen ?? 1));
+}
+
+/**
+ * Wie tief der Unterbau insgesamt baut – alle Reihen zusammen.
+ *
+ * Danach richtet sich, ob er in den Gang ragt.
+ */
+export function unterbautiefe(platz: Unterbauplatz): number {
+  return unterbaumass(platz).tiefe * unterbauReihen(platz);
+}
+
+/**
  * Steht der Unterbau tiefer als das Möbel – und wenn ja, wie weit?
  *
  * Nur ein Hinweis, keine Sperre: Eine Palette, die 20 cm übersteht, stellt
@@ -97,5 +117,5 @@ export function unterbauAnzahl(platz: Unterbauplatz, feldbreite: number): number
  * sogar die Regel; die Vitrine steht vor der Zeile und nicht darin.
  */
 export function stehtUeber(platz: Unterbauplatz, moebeltiefe: number): number {
-  return Math.max(0, unterbaumass(platz).tiefe - moebeltiefe);
+  return Math.max(0, unterbautiefe(platz) - moebeltiefe);
 }

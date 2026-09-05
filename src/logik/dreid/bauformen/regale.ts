@@ -1,6 +1,6 @@
 import { felderVon } from '../../regalseiten';
 import { KISTE } from '../../getraenkekisten';
-import { unterbauAnzahl, unterbaumass } from '../../unterbau';
+import { unterbauAnzahl, unterbaumass, unterbauReihen } from '../../unterbau';
 import {
   halbellipse,
   halbellipseInnen,
@@ -141,9 +141,32 @@ function unterbauTeile(
   const luecke = anzahl > 1 ? Math.max(0, (feldbreite - gesamt) / (anzahl + 1)) : 0;
   const start = anzahl > 1 ? luecke : Math.max(0, (feldbreite - mass.breite) / 2);
 
+  const reihen = unterbauReihen(platz);
   const teile: Bauteil[] = [];
   for (let i = 0; i < anzahl; i++) {
-    const x = x0 + start + i * (mass.breite + luecke);
+    for (let reihe = 0; reihe < reihen; reihe++) {
+      teile.push(...einStueck(platz, x0 + start + i * (mass.breite + luecke), reihe * mass.tiefe, mass, zone));
+    }
+  }
+  return teile;
+}
+
+/**
+ * Ein einzelnes Stück des Unterbaus, an seinem Platz.
+ *
+ * `y0` ist die Reihe: die vorderste steht an der Rückwand, jede weitere eine
+ * Kistentiefe davor. Ragt die letzte über das Möbel hinaus, steht sie im
+ * Gang — im Markt ist das der Normalfall, und der Plan zeigt es.
+ */
+function einStueck(
+  platz: Unterbauplatz,
+  x: number,
+  y0: number,
+  mass: { breite: number; tiefe: number },
+  zone: number,
+): Bauteil[] {
+  const teile: Bauteil[] = [];
+  {
     const b = mass.breite;
     const t = mass.tiefe;
 
@@ -153,34 +176,34 @@ function unterbauTeile(
         const stapel = Math.max(1, Math.floor(zone / KISTE.hoehe));
         for (let k = 0; k < stapel; k++) {
           const material = k % 2 === 0 ? 'kisteRot' : 'kiste';
-          teile.push(quader(x + 1, 1, k * KISTE.hoehe, b - 2, t - 2, KISTE.hoehe - 1, material));
+          teile.push(quader(x + 1, y0 + 1, k * KISTE.hoehe, b - 2, t - 2, KISTE.hoehe - 1, material));
         }
         break;
       }
       case 'kartoffelkiste': {
         // Ein Holzkasten mit offenem Oberteil, darin die Ware.
         const wand = 2.5;
-        teile.push(quader(x, 0, 0, b, t, 10, 'holzDunkel'));
-        teile.push(wandplatte(x, 0, 10, b, zone - 10, 'holzHell', wand));
-        teile.push(wandplatte(x, t - wand, 10, b, zone - 10, 'holzHell', wand));
-        teile.push(seitenplatte(x, 0, 10, t, zone - 10, 'holzHell', wand));
-        teile.push(seitenplatte(x + b - wand, 0, 10, t, zone - 10, 'holzHell', wand));
-        teile.push(quader(x + wand, wand, 10, b - 2 * wand, t - 2 * wand, zone - 22, 'ware'));
+        teile.push(quader(x, y0, 0, b, t, 10, 'holzDunkel'));
+        teile.push(wandplatte(x, y0, 10, b, zone - 10, 'holzHell', wand));
+        teile.push(wandplatte(x, y0 + t - wand, 10, b, zone - 10, 'holzHell', wand));
+        teile.push(seitenplatte(x, y0, 10, t, zone - 10, 'holzHell', wand));
+        teile.push(seitenplatte(x + b - wand, y0, 10, t, zone - 10, 'holzHell', wand));
+        teile.push(quader(x + wand, y0 + wand, 10, b - 2 * wand, t - 2 * wand, zone - 22, 'ware'));
         break;
       }
       case 'kuehlmoebel': {
         // Eine Vitrine in der Regalzeile: Korpus, Glasfront, Sockel.
-        teile.push(quader(x, 0, 0, b, t, 10, 'anthrazit'));
-        teile.push(quader(x, 0, 10, b, t, zone - 10, 'hellgrau'));
-        teile.push(wandplatte(x + 2, t - 1.2, 18, b - 4, zone - 30, 'glas', 1.2));
-        teile.push(platte(x + 2, 4, zone - 3, b - 4, t - 8, 'edelstahl'));
+        teile.push(quader(x, y0, 0, b, t, 10, 'anthrazit'));
+        teile.push(quader(x, y0, 10, b, t, zone - 10, 'hellgrau'));
+        teile.push(wandplatte(x + 2, y0 + t - 1.2, 18, b - 4, zone - 30, 'glas', 1.2));
+        teile.push(platte(x + 2, y0 + 4, zone - 3, b - 4, t - 8, 'edelstahl'));
         break;
       }
       default: {
         // Die vier Paletten: Ladungsträger mit einem Warenblock darauf.
-        teile.push(...palette(x, 0, b, t));
+        teile.push(...palette(x, y0, b, t));
         const ware = Math.max(0, zone - 16);
-        if (ware > 2) teile.push(quader(x + 2, 2, 14.4, b - 4, t - 4, ware, 'ware'));
+        if (ware > 2) teile.push(quader(x + 2, y0 + 2, 14.4, b - 4, t - 4, ware, 'ware'));
         break;
       }
     }
@@ -188,79 +211,113 @@ function unterbauTeile(
   return teile;
 }
 
-/** Wie hoch ein Drahtkorb hinten ist, in cm. */
-const KORB_H = 19;
-/** Und wie hoch vorn — dort greift man hinein. */
-const KORB_VORN = 12;
-
-/** Die Farbe des Drahts: schwarz, so wie die Körbe im Markt aussehen. */
-const KORB_FARBE = '#26282a';
-/** Wie breit ein Korb ungefähr ist, in cm — danach richtet sich, wie viele. */
-const KORB_BREITE = 50;
-
 /**
- * Die Drahtkörbe auf einer Etage.
+ * Der Einhängekorb — Wanzl WT100 08.010, „Einhängekorb H=190/75".
  *
- * Schwarzes Gitter, hinten hoch, vorn niedriger, oben offen: So stehen sie im
- * Markt, und so erkennt man sie auf einen Blick von einem Boden. Auf einen
- * Meter gehen zwei nebeneinander; auf einem breiteren Feld entsprechend mehr.
+ * Hinten 19 hoch, vorn 7,5: Das ist das Maß, das ihm seinen Katalognamen gibt,
+ * und es ist zugleich das, woran man ihn erkennt. Der Boden liegt
+ * **waagerecht** — geneigt hängt im ganzen Werk nur der Baguettekorb (08.013,
+ * 15 Grad).
  *
- * Fünf Teile je Korb — Boden, Rückwand, zwei Seiten, niedrige Front —, damit
- * ein Zug aus sechs Feldern nicht in tausend Drähten untergeht.
+ * Es ist **ein** Korb je Feld und nicht mehrere: Der Katalog führt ihn in den
+ * Breiten 100 und 125, also im Achsmaß. Was im Markt wie zwei Körbe
+ * nebeneinander aussieht, sind die **Trenngitter** (08.012), die innen
+ * eingehängt werden.
+ *
+ * Die beiden Stirnseiten sind Bleche und keine Drähte — sie sind zugleich die
+ * Konsolen und tragen die Haken in die Säule. Vorn läuft die eigene
+ * Scannerpreisschiene (08.011), 4 cm hoch statt der 3,5 einer Etage.
  */
-function korb(x0: number, b: number, y: number, z: number, tiefe: number): Bauteil[] {
-  const anzahl = Math.max(1, Math.round(b / KORB_BREITE));
-  const breite = b / anzahl;
-  const rand = 1.2;
-  const teile: Bauteil[] = [];
+const KORB_H_HINTEN = 19;
+const KORB_H_VORN = 7.5;
+/** Das Bodengitter ist feiner und dünner als eine Drahtetage. */
+const KORB_BODEN = 1.5;
+/** Die Seitenwange: ein Blech, zugleich die Konsole. */
+const KORB_WANGE = 1.2;
+/** Scannerpreisschiene für den Einhängekorb (WT100 08.011). */
+const KORB_PREISSCHIENE = 4;
+/** Wie weit die Frontlippe nach außen kippt – aus der Zeichnung, nicht bemaßt. */
+const KORB_NEIGUNG = 20;
 
-  for (let i = 0; i < anzahl; i++) {
-    const x = x0 + i * breite + rand;
-    const w = breite - 2 * rand;
-    const d = tiefe - 1;
-    teile.push(quader(x, y, z, w, d, 1, 'gitter', { farbe: KORB_FARBE }));
-    teile.push(quader(x, y, z, w, 0.8, KORB_H, 'gitter', { farbe: KORB_FARBE }));
-    teile.push(quader(x, y + d - 0.8, z, w, 0.8, KORB_VORN, 'gitter', { farbe: KORB_FARBE }));
-    teile.push(quader(x, y, z, 0.8, d, KORB_H, 'gitter', { farbe: KORB_FARBE }));
-    teile.push(quader(x + w - 0.8, y, z, 0.8, d, KORB_H, 'gitter', { farbe: KORB_FARBE }));
+function korb(x0: number, b: number, hinten: number, z: number, tiefe: number): Bauteil[] {
+  const vorn = hinten + tiefe;
+  const teile: Bauteil[] = [
+    platte(x0, hinten, z, b, tiefe, 'draht', KORB_BODEN),
+    wandplatte(x0, hinten, z, b, KORB_H_HINTEN, 'draht', 0.8),
+    quader(x0, vorn - 1.2, z, b, 1.2, KORB_H_VORN, 'draht', { neigung: KORB_NEIGUNG }),
+    seitenplatte(x0, hinten, z, tiefe, KORB_H_HINTEN, 'regal', KORB_WANGE),
+    seitenplatte(x0 + b - KORB_WANGE, hinten, z, tiefe, KORB_H_HINTEN, 'regal', KORB_WANGE),
+    zylinder(x0, hinten + 0.4, z + KORB_H_HINTEN, 0.5, b, 'x', 'chrom'),
+    quader(
+      x0,
+      vorn - 0.8,
+      z + KORB_H_VORN - KORB_PREISSCHIENE,
+      b,
+      0.8,
+      KORB_PREISSCHIENE,
+      'preisschiene',
+    ),
+  ];
+  // Die Trenngitter — sie sind es, die im Markt wie mehrere Körbe aussehen.
+  for (const anteil of [1 / 3, 2 / 3]) {
+    teile.push(seitenplatte(x0 + b * anteil, hinten, z, tiefe, KORB_H_HINTEN, 'draht', 0.6));
   }
   return teile;
 }
 
-/** Wie weit die Haken aus der Lochwand ragen, in cm. */
-const HAKEN = 22;
-/** Der senkrechte Abstand zweier Hakenreihen. */
-const HAKENREIHE = 26;
-
 /**
- * Die Blisterrückwand: eine Lochwand, an der die Ware an Haken hängt.
+ * Die Blister-Rückwand — Wanzl WT100 02.009 und 02.010/02.011.
  *
- * Dort gibt es **keine Böden**. Gezeichnet wird die dunkle Wand, und davor je
- * Reihe ein Haken mit dem, was daran hängt — als durchgehende Lage und nicht
- * als dreißig einzelne Packungen: Aus zwei Metern Entfernung sieht man ohnehin
- * eine Wand voller Ware, und dreißig Klötze je Reihe brächten die Ansicht zum
- * Stocken.
+ * Ein **Feingewebe**, kein Lochblech: Der Katalog nennt für sie als einziges
+ * Rückwandteil kein Raster, und die Zeichnung zeigt dicht liegende waagerechte
+ * Drähte, über die der Haken einfach gehängt wird. Sie hängt **vor** der
+ * Säule, nicht mittig wie die Gitter-Rückwand — das ist der Unterschied, an
+ * dem man sie erkennt, und deshalb steht davor kein Boden mehr.
+ *
+ * **Die Haken werden nicht einzeln gebaut.** Ein Feld von 1,25 m mit Haken
+ * alle 5 cm und sieben Reihen wären 175 Haken plus 175 Warenteile. Zu sehen
+ * ist ohnehin nicht der Haken, sondern die Ware davor. Also je Reihe ein
+ * Warenblock, ein Stab an den Hakenspitzen und der Streifen der
+ * Pendeletikettentaschen (08.024).
  */
+const BLISTER_STAERKE = 0.6;
+/** Blisterhaken 10–40 lang (WT100 08.020/08.022); 20 ist das übliche Maß. */
+const HAKEN_L = 20;
+/** Wie weit die Ware am Haken herunterhängt – geschätzt. */
+const WARE_H = 22;
+/** Abstand der Hakenreihen – geschätzt, damit sich die Ware nicht überdeckt. */
+const REIHEN_ABSTAND = 28;
+/** Mehr Reihen baut niemand, und mehr Bauteile will die Ansicht nicht. */
+const REIHEN_MAX = 7;
+
 function blisterwand(
   x0: number,
   b: number,
-  hinten: number,
-  von: number,
-  bis: number,
+  saeulenfront: number,
+  z1: number,
+  z2: number,
 ): Bauteil[] {
-  const teile: Bauteil[] = [];
-  if (bis - von < 10) return teile;
+  if (z2 - z1 < 10) return [];
+  const teile: Bauteil[] = [
+    wandplatte(x0, saeulenfront, z1, b, z2 - z1, 'gitter', BLISTER_STAERKE),
+  ];
 
-  // Die Lochwand selbst, dicht vor der Gitterrückwand.
-  teile.push(wandplatte(x0, hinten + 0.6, von, b, bis - von, 'regalDunkel', 1.2));
-
-  // Und davor die Reihen. Die oberste hängt eine Handbreit unter der
-  // Oberkante, damit die Ware nicht über die Wand hinausragt.
-  for (let z = bis - 6; z - HAKENREIHE > von; z -= HAKENREIHE) {
-    teile.push(zylinder(x0 + b * 0.25, hinten + 1.8, z, 0.4, HAKEN, 'y', 'chrom'));
-    teile.push(zylinder(x0 + b * 0.75, hinten + 1.8, z, 0.4, HAKEN, 'y', 'chrom'));
-    // Die Ware hängt daran herunter.
-    teile.push(quader(x0 + 1.5, hinten + 4, z - 19, b - 3, 1.6, 19, 'ware'));
+  const platz = z2 - z1 - WARE_H;
+  const n = Math.max(1, Math.min(REIHEN_MAX, Math.round(platz / REIHEN_ABSTAND)));
+  for (const z of verteileHoehen(z1 + WARE_H + 3, z2 - 5, n)) {
+    teile.push(
+      quader(
+        x0 + 2,
+        saeulenfront + BLISTER_STAERKE + 0.5,
+        z - WARE_H,
+        b - 4,
+        HAKEN_L - 2,
+        WARE_H,
+        'ware',
+      ),
+    );
+    teile.push(zylinder(x0, saeulenfront + HAKEN_L, z, 0.24, b, 'x', 'chrom'));
+    teile.push(quader(x0, saeulenfront + HAKEN_L - 0.7, z + 1, b, 0.7, 4, 'preisschiene'));
   }
   return teile;
 }
@@ -268,22 +325,22 @@ function blisterwand(
 /**
  * Welche Ebenen Körbe sind.
  *
- * `anzahl` zählt aus den Ebenen, die es gibt. Der Grundboden bleibt außen vor
- * — er ist das Sockelblech. Übrig bleiben die Drahtetagen, und aus denen
- * werden die Körbe genommen: unten die untersten, oben die obersten, in der
- * Mitte die mittleren.
+ * **Gezählt wird über alle Ebenen, den Grundboden eingeschlossen.** Wer von
+ * unten aufstockt, fängt beim untersten Boden an — dort steht der erste Korb,
+ * und nicht erst eine Etage darüber. Ebene 0 ist deshalb der Grundboden,
+ * Ebene 1 die erste Drahtetage.
  */
-function korbebenen(anzahl: number, lage: Ausstattungslage, etagen: number): Set<number> {
-  const wie_viele = Math.max(0, Math.min(anzahl, etagen));
-  if (wie_viele === 0) return new Set();
+function korbebenen(anzahl: number, lage: Ausstattungslage, ebenen: number): Set<number> {
+  const wieViele = Math.max(0, Math.min(anzahl, ebenen));
+  if (wieViele === 0) return new Set();
   const erste =
     lage === 'unten'
       ? 0
       : lage === 'oben'
-        ? etagen - wie_viele
-        : Math.floor((etagen - wie_viele) / 2);
+        ? ebenen - wieViele
+        : Math.floor((ebenen - wieViele) / 2);
   const aus = new Set<number>();
-  for (let i = 0; i < wie_viele; i++) aus.add(erste + i);
+  for (let i = 0; i < wieViele; i++) aus.add(erste + i);
   return aus;
 }
 
@@ -328,6 +385,15 @@ function regalseite(
   grundbodenTiefe: number,
   hoehe: number,
   fuehrungsrohr: boolean,
+  /**
+   * Wo die Vorderfläche der Säule liegt.
+   *
+   * Beim Wandregal steht die Säule bei y = 0 … SAEULE_T, bei einer
+   * Gondelseite rechnet diese Funktion im Mittelrahmen, und die Säule läuft
+   * von −SAEULE_T/2 bis +SAEULE_T/2. Die Blister-Rückwand hängt davor — ohne
+   * diese Angabe hinge sie in der Gondel fünf Zentimeter zu weit vorn.
+   */
+  saeulenfront: number,
 ): Bauteil[] {
   const teile: Bauteil[] = [];
   const kanten = grenzen(felder);
@@ -369,15 +435,17 @@ function regalseite(
     // Wo eine Blisterrückwand hängt, gibt es keine Böden. Sie nimmt ihren
     // Anteil, die Böden teilen sich den Rest.
     const { boden, wand } = zonen(feld.ausstattung, unterkante, hoehe - 20);
-    if (wand) teile.push(...blisterwand(x0, b, hinten, wand.von, wand.bis));
+    if (wand) teile.push(...blisterwand(x0, b, saeulenfront, wand.von, wand.bis));
 
     // Und darüber die übrigen n − 1: nach oben flacher, die oberste bleibt
     // eine gute Handbreit unter der Säulenoberkante.
     const hoehen = verteileHoehen(boden.von, boden.bis, n - 1);
     const koerbe = feld.ausstattung?.koerbe;
+    // Ebene 0 ist der Grundboden, danach die Drahtetagen.
     const alsKorb = koerbe
-      ? korbebenen(koerbe.anzahl, koerbe.lage, hoehen.length)
+      ? korbebenen(koerbe.anzahl, koerbe.lage, n)
       : new Set<number>();
+    if (alsKorb.has(0)) teile.push(...korb(x0, b, hinten, unterkante, T));
     const unten = Math.max(20, T - 10);
     const oben = Math.max(20, Math.min(30, unten));
     hoehen.forEach((z, k) => {
@@ -386,7 +454,10 @@ function regalseite(
       teile.push(platte(x0, hinten, z, b, d, 'draht', ETAGE));
       // Ein Korb steht auf der Etage; eine Preisschiene braucht er nicht,
       // seine Vorderkante trägt sie selbst.
-      if (alsKorb.has(k)) {
+      if (alsKorb.has(k + 1)) {
+        // **So tief wie die Etage, so breit wie das Feld.** Der Katalog führt
+        // den Korb in denselben Breiten wie das Regal; im Markt sitzt er
+        // bündig in seiner Ebene.
         teile.push(...korb(x0, b, hinten, z + ETAGE, d));
       } else {
         teile.push(quader(x0, hinten + d - 0.6, z, b, 0.6, PREISSCHIENE, 'preisschiene'));
@@ -424,7 +495,7 @@ function wandregal(element: PlanElement): Bauteil[] {
   const grundboden = element.grundboden ?? element.tiefe - TOTE_ZONE;
   return [
     ...saeulenreihe(felder, 0, hoehe),
-    ...regalseite(felder, element.tiefe, grundboden, hoehe, Boolean(element.fuehrungsrohr)),
+    ...regalseite(felder, element.tiefe, grundboden, hoehe, Boolean(element.fuehrungsrohr), SAEULE_T),
   ];
 }
 
@@ -446,11 +517,13 @@ function gondel(element: PlanElement): Bauteil[] {
 
   // Jede Seite wird so gebaut, als stünde die Säule bei y = 0 und die Front
   // bei y = seitentiefe – dann um die Mitte verschoben bzw. gespiegelt.
-  const vorderseite = regalseite(vorn, seitentiefe, grundboden, hoehe, rohr).map((teil) =>
-    verschiebeY(teil, mitte),
+  const vorderseite = regalseite(vorn, seitentiefe, grundboden, hoehe, rohr, SAEULE_T / 2).map(
+    (teil) => verschiebeY(teil, mitte),
   );
   const rueckseite = spiegele(
-    regalseite(hinten, seitentiefe, grundboden, hoehe, rohr).map((teil) => verschiebeY(teil, mitte)),
+    regalseite(hinten, seitentiefe, grundboden, hoehe, rohr, SAEULE_T / 2).map((teil) =>
+      verschiebeY(teil, mitte),
+    ),
     element.tiefe,
   );
   return [...saeulenreihe(vorn, mitte - SAEULE_T / 2, hoehe), ...vorderseite, ...rueckseite];

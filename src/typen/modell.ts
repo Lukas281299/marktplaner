@@ -366,6 +366,19 @@ export interface Unterbauplatz {
    * nicht abzählen, wie viele das sind.
    */
   anzahl?: number;
+
+  /**
+   * Wie viele **hintereinander** stehen.
+   *
+   * Getränkekisten stapelt man nicht nur nebeneinander, sondern auch in die
+   * Tiefe: zwei Reihen unter einem 80er Boden, drei unter einem 120er. Was
+   * hinten steht, ist Nachschub — es zählt deshalb keine zweite Auslage,
+   * sondern belegt nur Platz.
+   *
+   * Ohne Angabe eine Reihe. Ragt die letzte über die Möbeltiefe hinaus,
+   * steht sie im Gang, und der Plan zeigt es.
+   */
+  reihen?: number;
   /** Liegt die lange Seite parallel zur Regalfront? */
   laengs?: boolean;
   /**

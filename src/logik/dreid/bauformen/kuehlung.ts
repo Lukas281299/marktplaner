@@ -1,4 +1,14 @@
-import { quader, seitenplatte, spiegele, wandplatte, zylinder, type Bauteil } from '../bauteile';
+import { felderVon } from '../../regalseiten';
+import {
+  platte,
+  quader,
+  seitenplatte,
+  spiegele,
+  verteileHoehen,
+  wandplatte,
+  zylinder,
+  type Bauteil,
+} from '../bauteile';
 import { hoeheVon } from '../moebel';
 import type { PlanElement } from '../../../typen/modell';
 
@@ -25,16 +35,63 @@ import type { PlanElement } from '../../../typen/modell';
 
 const MODUL = 62.5;
 const STOSSLEISTE = 3;
+/** Preisschiene an der Vorderkante eines Fachbodens. */
+const PREISSCHIENE = 3;
 
-/** Weißer Innenraum, Böden und Ware zwischen zwei Höhen. */
-function innenraum(b: number, t: number, von: number, bis: number, boeden: number, bodentiefe: number, teile: Bauteil[]) {
-  teile.push(quader(4, 10, von, b - 8, t - 14, bis - von, 'weiss'));
-  for (let i = 1; i <= boeden; i++) {
-    const z = von + ((bis - von) * i) / (boeden + 1);
-    const d = Math.min(bodentiefe, t - 20);
-    teile.push(quader(5, t - 8 - d, z, b - 10, d, 1.5, 'hellgrau'));
-    teile.push(quader(7, t - 8 - d + 4, z + 1.5, b - 14, d - 8, 16, 'ware'));
-  }
+/**
+ * Wie viele Ebenen dieses Möbel zeigt.
+ *
+ * **Dieselbe Zählweise wie beim Regal:** Was am Feld steht, ist die Zahl der
+ * Ebenen einschließlich des Grundbodens. Steht dort nichts, gilt die
+ * Katalogvorgabe — vier Fachböden, bei hohen Möbeln fünf, jeweils über dem
+ * Grundboden.
+ */
+function ebenenzahl(element: PlanElement, hoehe: number): number {
+  const eingetragen = felderVon(element, 'unten')[0]?.boeden;
+  if (eingetragen !== undefined && eingetragen > 0) return eingetragen;
+  return hoehe > 215 ? 6 : 5;
+}
+
+/**
+ * Der weiße Innenraum mit seinen Fachböden.
+ *
+ * **Eine Schale und kein Klotz.** Hier stand ein voller weißer Quader über den
+ * ganzen Innenraum, und die Fachböden lagen darin — also unsichtbar. Weiß
+ * sind aber nur die Flächen, die man sieht: Rückwand (im Katalog ein
+ * Lochblech), Seiten und Decke.
+ *
+ * Die Böden werden nach unten tiefer, wie im WSL-Katalog, und tragen vorn
+ * ihre Preisschiene. Der **Grundboden zählt als erste Ebene** — wer fünf
+ * einträgt, sieht fünf.
+ */
+function innenraum(
+  b: number,
+  t: number,
+  von: number,
+  bis: number,
+  ebenen: number,
+  bodentiefe: number,
+  teile: Bauteil[],
+) {
+  const hinten = 10;
+  const innen = Math.max(20, Math.min(bodentiefe, t - 16));
+
+  // Die Schale: Rückwand, Seiten, Decke.
+  teile.push(wandplatte(4, hinten, von, b - 8, bis - von, 'weiss', 2));
+  teile.push(seitenplatte(4, hinten, von, t - 14, bis - von, 'weiss', 2));
+  teile.push(seitenplatte(b - 6, hinten, von, t - 14, bis - von, 'weiss', 2));
+  teile.push(platte(4, hinten, bis - 2, b - 8, t - 14, 'weiss'));
+
+  // Der Grundboden ist die erste Ebene; darüber hängen die übrigen.
+  const hoehen = verteileHoehen(von, bis - 12, Math.max(0, ebenen - 1));
+  hoehen.forEach((z, k) => {
+    // Nach unten tiefer: der unterste Fachboden reicht am weitesten vor.
+    const anteil = hoehen.length > 1 ? k / (hoehen.length - 1) : 0;
+    const d = Math.round(innen - (innen - Math.max(20, innen - 14)) * anteil);
+    teile.push(quader(5, hinten + 1, z, b - 10, d, 1.5, 'hellgrau'));
+    teile.push(quader(7, hinten + 5, z + 1.5, b - 14, d - 8, 16, 'ware'));
+    teile.push(quader(5, hinten + d - 0.8, z, b - 10, 0.8, PREISSCHIENE, 'preisschiene'));
+  });
 }
 
 /** Rahmenlose Glastüren mit weißen Stangengriffen. */
@@ -64,10 +121,10 @@ function hochkuehlregal(element: PlanElement, tueren: boolean): Bauteil[] {
   teile.push(seitenplatte(b - 3, 0, sockel, t - 3, hoehe - sockel, 'anthrazit', 3));
   // Haube, vorn über die Türlinie kragend.
   teile.push(quader(0, 0, hoehe - haube, b, t + 2, haube, 'anthrazit'));
-  // Grundboden und Innenraum.
-  const boeden = hoehe > 215 ? 5 : 4;
+  // Grundboden und Innenraum. Der Grundboden ist die erste Ebene.
   teile.push(quader(3, 10, sockel, b - 6, t - 16, 1.5, 'hellgrau'));
-  innenraum(b, t, sockel + 1.5, hoehe - haube, boeden, 55, teile);
+  teile.push(quader(3, t - 7.3, sockel, b - 6, 0.8, PREISSCHIENE, 'preisschiene'));
+  innenraum(b, t, sockel + 1.5, hoehe - haube, ebenenzahl(element, hoehe), 55, teile);
   if (tueren) glastueren(b, t - 5, sockel, hoehe - haube - sockel, teile);
   return teile;
 }

@@ -86,7 +86,9 @@ const quaderMit = (teile: Bauteil[], material: string): Quader[] =>
  * dünn. Danach lässt er sich zählen.
  */
 function ebenen(teile: Bauteil[]): number {
-  const draht = quaderMit(teile, 'draht').length;
+  // Eine Drahtetage ist 2,5 dick. Alles andere aus Draht gehört zu einem
+  // Korb — dessen Boden ist dünner, seine Wände sind höher.
+  const draht = quaderMit(teile, 'draht').filter((t) => Math.abs(t.h - 2.5) < 0.01).length;
   const grund = quaderMit(teile, 'regal').filter((t) => t.h <= 2.5 && t.b >= 50).length;
   return draht + grund;
 }
@@ -544,29 +546,69 @@ describe('Körbe und Hängeware', () => {
       element({ hoehe: 200, tiefe: 57, felderUnten: [{ breite: 100, boeden, ausstattung }] }),
     );
 
+  /**
+   * Die Rückwand eines Einhängekorbs: 19 hoch, aus Draht.
+   *
+   * Eine gewöhnliche Drahtetage ist 2,5 dick — daran lassen sich die beiden
+   * sicher unterscheiden.
+   */
+  const korbwaende = (teile: Bauteil[]) =>
+    quaderMit(teile, 'draht').filter((t) => t.h >= 15);
+
   it('macht aus Etagen Körbe', () => {
     const ohne = bau(undefined);
     const mit = bau({ koerbe: { anzahl: 3, lage: 'unten' } });
-    // Der Korb ist Gitter — das gibt es sonst nur als Rückwand, einmal.
-    const gitter = (teile: Bauteil[]) => teile.filter((t) => t.material === 'gitter').length;
-    expect(gitter(mit)).toBeGreaterThan(gitter(ohne) + 10);
+    expect(korbwaende(ohne)).toHaveLength(0);
+    expect(korbwaende(mit).length).toBeGreaterThan(0);
     // Die Zahl der Ebenen ändert sich dadurch nicht.
     expect(ebenen(mit)).toBe(ebenen(ohne));
   });
 
+  it('gibt dem Korb sein Katalogmaß: hinten 19, vorn 7,5', () => {
+    // Wanzl WT100 08.010, „Einhängekorb H=190/75".
+    const teile = bau({ koerbe: { anzahl: 1, lage: 'unten' } });
+    expect(korbwaende(teile).some((t) => Math.abs(t.h - 19) < 0.01)).toBe(true);
+    expect(quaderMit(teile, 'draht').some((t) => Math.abs(t.h - 7.5) < 0.01)).toBe(true);
+  });
+
+  it('macht den Korb so breit wie das Feld und so tief wie die Etage', () => {
+    const teile = bau({ koerbe: { anzahl: 1, lage: 'unten' } });
+    const boden = korbwaende(teile)[0];
+    expect(boden.b).toBe(100);
+  });
+
+  it('fängt beim untersten Boden an, wenn von unten aufgestockt wird', () => {
+    // Der Grundboden ist die erste Ebene und trägt deshalb den ersten Korb.
+    const teile = bau({ koerbe: { anzahl: 1, lage: 'unten' } }, 6);
+    const tiefster = Math.min(...korbwaende(teile).map((t) => t.z));
+    // Der Grundboden liegt bei SOCKEL = 12; der Korb sitzt darauf.
+    expect(tiefster).toBeLessThan(20);
+  });
+
+  it('nimmt bei allen Ebenen auch den Grundboden mit', () => {
+    // Sechs Ebenen, sechs Körbe: der Grundboden und die fünf Drahtetagen.
+    const teile = bau({ koerbe: { anzahl: 6, lage: 'unten' } }, 6);
+    const rueckwaende = korbwaende(teile).filter((t) => Math.abs(t.h - 19) < 0.01 && t.b >= 50);
+    expect(rueckwaende).toHaveLength(6);
+  });
+
   it('setzt die Körbe dorthin, wo sie stehen sollen', () => {
-    const hoehe = (teile: Bauteil[]) =>
-      Math.min(...teile.filter((t) => t.material === 'gitter' && t.art === 'quader' && t.h <= 1.2).map((t) => t.z));
+    const hoehe = (teile: Bauteil[]) => Math.min(...korbwaende(teile).map((t) => t.z));
     const unten = hoehe(bau({ koerbe: { anzahl: 2, lage: 'unten' } }));
     const oben = hoehe(bau({ koerbe: { anzahl: 2, lage: 'oben' } }));
     expect(oben).toBeGreaterThan(unten + 40);
   });
 
-  it('hängt statt Böden eine Lochwand mit Haken', () => {
+  it('hängt statt Böden ein Feingewebe mit Ware davor', () => {
+    // Die Blister-Rückwand ist ein Gewebe, kein Blech — und dünner als die
+    // Gitter-Rückwand des Regals, an der man sie unterscheidet.
     const mit = bau({ haengeware: { anteil: 50, lage: 'oben' } });
-    expect(mit.some((t) => t.material === 'regalDunkel')).toBe(true);
-    // Haken aus Chrom, quer nach vorn.
-    expect(mit.some((t) => t.art === 'zylinder' && t.material === 'chrom' && t.achse === 'y')).toBe(true);
+    expect(mit.some((t) => t.art === 'quader' && t.material === 'gitter' && t.t === 0.6)).toBe(true);
+    // Davor die Ware und der Stab an den Hakenspitzen.
+    expect(mit.some((t) => t.material === 'ware')).toBe(true);
+    expect(mit.some((t) => t.art === 'zylinder' && t.material === 'chrom' && t.achse === 'x')).toBe(
+      true,
+    );
   });
 
   it('drängt die Böden aus der Zone der Hängeware', () => {
@@ -584,7 +626,9 @@ describe('Körbe und Hängeware', () => {
       koerbe: { anzahl: 2, lage: 'unten' },
       haengeware: { anteil: 40, lage: 'oben' },
     });
-    expect(teile.some((t) => t.material === 'regalDunkel')).toBe(true);
-    expect(teile.filter((t) => t.material === 'gitter').length).toBeGreaterThan(10);
+    expect(teile.some((t) => t.art === 'quader' && t.material === 'gitter' && t.t === 0.6)).toBe(
+      true,
+    );
+    expect(korbwaende(teile).length).toBeGreaterThan(0);
   });
 });

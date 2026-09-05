@@ -47,6 +47,7 @@ import {
   stehtUeber,
   unterbauAnzahl,
   unterbaumass,
+  unterbautiefe,
 } from '../logik/unterbau';
 import { aussenmasse, flaeche, istRechteck, rahmen, rechteck } from '../logik/polygon';
 import { wandlaenge, wandwinkel, flaechenwandmasse } from '../logik/waende';
@@ -1897,6 +1898,25 @@ function Unterbauzeile({
                 </option>
               ))}
             </select>
+            {/*
+              Und wie viele **hintereinander**. Getränkekisten stapelt man
+              nicht nur nebeneinander, sondern auch in die Tiefe: zwei Reihen
+              unter einem 800er Boden, drei unter einem 1200er.
+            */}
+            <select
+              value={String(platz.reihen ?? 1)}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                aendern({ reihen: n <= 1 ? undefined : n });
+              }}
+              title="Wie viele hintereinander — was hinten steht, ist Nachschub"
+            >
+              {[1, 2, 3, 4].map((n) => (
+                <option key={n} value={String(n)}>
+                  {n} tief
+                </option>
+              ))}
+            </select>
           </>
         )}
       </div>
@@ -1922,7 +1942,9 @@ function Unterbauzeile({
       )}
 
       <span className="hinweis" style={{ fontSize: '0.85em' }}>
-        {formatiereLaenge(mass.breite, einheit)} breit, {formatiereLaenge(mass.tiefe, einheit)} tief
+        {formatiereLaenge(mass.breite, einheit)} breit,{' '}
+        {formatiereLaenge(unterbautiefe(platz), einheit)} tief
+        {(platz.reihen ?? 1) > 1 && ` (${platz.reihen} hintereinander)`}
         {ueber > 0 && (
           <>
             {' · '}
@@ -2855,7 +2877,9 @@ function Ausstattungszeile({
   boeden: number | undefined;
   aendern: (werte: Partial<Feldausstattung>) => void;
 }) {
-  const ebenen = Math.max(0, (boeden ?? 5) - 1);
+  // Alle Ebenen, den Grundboden eingeschlossen: Wer von unten aufstockt,
+  // fängt beim untersten Boden an.
+  const ebenen = Math.max(0, boeden ?? 5);
   const lagen: { wert: Ausstattungslage; text: string }[] = [
     { wert: 'unten', text: 'unten' },
     { wert: 'mitte', text: 'Mitte' },
@@ -2874,7 +2898,7 @@ function Ausstattungszeile({
             step={1}
             style={{ width: 44, fontSize: 11 }}
             value={ausstattung.koerbe.anzahl}
-            title={`Wie viele der ${ebenen} Etagen über dem Grundboden Körbe sind`}
+            title={`Wie viele der ${ebenen} Ebenen Körbe sind – der Grundboden zählt mit`}
             onChange={(e) =>
               aendern({
                 koerbe: {

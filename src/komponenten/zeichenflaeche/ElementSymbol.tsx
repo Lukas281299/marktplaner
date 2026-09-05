@@ -27,7 +27,7 @@ import {
 } from '../../logik/warengruppe';
 import { feldkanten } from '../../logik/warengruppenzuordnung';
 import { GESTELL_STAERKE, kistenbelegung, kistenseiten, seitentiefe, type Kistenseite } from '../../logik/getraenkekisten';
-import { unterbauAnzahl, unterbaumass } from '../../logik/unterbau';
+import { unterbauAnzahl, unterbaumass, unterbauReihen } from '../../logik/unterbau';
 import type { Grundform, PlanElement, Punkt, Regalfeld, Unterbauart } from '../../typen/modell';
 
 /**
@@ -1078,20 +1078,29 @@ export function unterbauflaechen(element: PlanElement, b: number, t: number): Un
       const laengs = unterbau.laengs ?? true;
       const mass = unterbaumass(unterbau);
       const anzahl = unterbauAnzahl(unterbau, platz.weite);
+      const reihen = unterbauReihen(unterbau);
       const gesamt = anzahl * mass.breite;
       const luecke = anzahl > 1 ? Math.max(0, (platz.weite - gesamt) / (anzahl + 1)) : 0;
       const start = anzahl > 1 ? luecke : Math.max(0, (platz.weite - mass.breite) / 2);
       for (let i = 0; i < anzahl; i++) {
-        flaechen.push({
-          x: platz.x + start + i * (mass.breite + luecke),
-          // An der Rückwand: bei der oberen Seite von oben, bei der unteren
-          // von unten – dort steht die Palette im Markt auch.
-          y: band.von === 0 && element.beidseitig ? hoehe - mass.tiefe : band.von,
-          breite: mass.breite,
-          tiefe: mass.tiefe,
-          art: unterbau.art,
-          laengs,
-        });
+        // Und je Stelle so viele hintereinander, wie eingestellt sind. Die
+        // erste steht an der Rückwand, jede weitere davor.
+        for (let reihe = 0; reihe < reihen; reihe++) {
+          const versatz = reihe * mass.tiefe;
+          flaechen.push({
+            x: platz.x + start + i * (mass.breite + luecke),
+            // An der Rückwand: bei der oberen Seite von oben, bei der unteren
+            // von unten – dort steht die Palette im Markt auch.
+            y:
+              band.von === 0 && element.beidseitig
+                ? hoehe - mass.tiefe - versatz
+                : band.von + versatz,
+            breite: mass.breite,
+            tiefe: mass.tiefe,
+            art: unterbau.art,
+            laengs,
+          });
+        }
       }
     }
   }
