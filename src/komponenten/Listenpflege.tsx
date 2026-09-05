@@ -59,9 +59,24 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
     name: string;
   } | null>(null);
 
+  const offeneAbteilungen = usePlanStore((s) => s.offeneAbteilungen);
+  const zugeklappteGruppen = usePlanStore((s) => s.zugeklappteGruppen);
+
   const gezeigt = gefiltert(sortiment, suche);
   const sucht = suche.trim() !== '';
   const zahlen = umfang(sortiment);
+
+  /**
+   * Auf- und zugeklappt wird über denselben Zustand wie in der Spalte links.
+   *
+   * Wer eine Abteilung hier zuklappt, findet sie auch dort zugeklappt — es
+   * ist dieselbe Liste, und zwei Zustände dafür wären eine Falle.
+   *
+   * Beim Suchen ist alles offen: Man will die Treffer sehen und nicht erst
+   * aufklappen, was man gerade gefunden hat.
+   */
+  const abteilungOffen = (name: string) => sucht || offeneAbteilungen.includes(name);
+  const gruppeOffen = (pfad: string) => sucht || !zugeklappteGruppen.includes(pfad);
 
   const pflegen = (liste: typeof sortiment) => usePlanStore.getState().pflegeSortiment(liste);
 
@@ -186,15 +201,26 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
           <div key={abteilung.name} className="pflege-abteilung">
             <div className="wg-zeile">
               <button
+                className="wg-klappe"
+                title={abteilungOffen(abteilung.name) ? 'Abteilung zuklappen' : 'Abteilung aufklappen'}
+                onClick={() => usePlanStore.getState().schalteAbteilung(abteilung.name)}
+              >
+                {abteilungOffen(abteilung.name) ? '▾' : '▸'}
+              </button>
+              <button
                 className={`wg-name stark${umzug?.art === 'warengruppe' ? ' wg-ziel' : ''}`}
                 title={
                   umzug?.art === 'warengruppe'
                     ? `„${umzug.name}" hierher verschieben`
-                    : 'Abteilung'
+                    : 'Abteilung auf- und zuklappen oder als Ziel anklicken'
                 }
-                onClick={() => hierhin(abteilung.name)}
+                onClick={() => {
+                  if (hierhin(abteilung.name)) return;
+                  usePlanStore.getState().schalteAbteilung(abteilung.name);
+                }}
               >
                 {abteilung.name}
+                <span className="kategorie-anzahl"> {abteilung.warengruppen.length}</span>
               </button>
               <Rang
                 hoch={() => pflegen(verschobeneAbteilung(sortiment, abteilung.name, -1))}
@@ -237,19 +263,41 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
               </button>
             </div>
 
-            {abteilung.warengruppen.map((gruppe) => (
+            {abteilungOffen(abteilung.name) &&
+              abteilung.warengruppen.map((gruppe) => (
               <div key={gruppe.name}>
                 <div className="wg-zeile wg-tief">
+                  <button
+                    className="wg-klappe"
+                    title={
+                      gruppeOffen(pfadVon(abteilung.name, gruppe.name))
+                        ? 'Warengruppe zuklappen'
+                        : 'Warengruppe aufklappen'
+                    }
+                    onClick={() =>
+                      usePlanStore
+                        .getState()
+                        .schalteWarengruppe(pfadVon(abteilung.name, gruppe.name))
+                    }
+                  >
+                    {gruppeOffen(pfadVon(abteilung.name, gruppe.name)) ? '▾' : '▸'}
+                  </button>
                   <button
                     className={`wg-name${umzug?.art === 'sortiment' ? ' wg-ziel' : ''}`}
                     title={
                       umzug?.art === 'sortiment'
                         ? `„${umzug.name}" hierher verschieben`
-                        : 'Warengruppe'
+                        : 'Warengruppe auf- und zuklappen oder als Ziel anklicken'
                     }
-                    onClick={() => hierhin(abteilung.name, gruppe.name)}
+                    onClick={() => {
+                      if (hierhin(abteilung.name, gruppe.name)) return;
+                      usePlanStore
+                        .getState()
+                        .schalteWarengruppe(pfadVon(abteilung.name, gruppe.name));
+                    }}
                   >
                     {gruppe.name}
+                    <span className="kategorie-anzahl"> {gruppe.sortimente.length}</span>
                   </button>
                   <Rang
                     hoch={() =>
@@ -312,7 +360,8 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
                   </button>
                 </div>
 
-                {gruppe.sortimente.map((name) => (
+                {gruppeOffen(pfadVon(abteilung.name, gruppe.name)) &&
+                  gruppe.sortimente.map((name) => (
                   <div className="wg-zeile wg-tiefer" key={name}>
                     <span className="wg-name still">{name}</span>
                     <Rang
