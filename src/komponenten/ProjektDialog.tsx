@@ -209,14 +209,29 @@ export function ProjekteDialog({ schliessen }: { schliessen: () => void }) {
     await neuLaden();
   };
 
+  /**
+   * Ein Verschieben, das auch die **offene** Planung erreicht.
+   *
+   * `verschiebeProjekt` schreibt in die Datenbank. Ist die verschobene Planung
+   * gerade geöffnet, weiß der Datenspeicher nichts davon und schreibt beim
+   * nächsten Selbstspeichern den alten Ordner zurück – das Verschieben wäre
+   * unbemerkt wieder weg.
+   */
+  const inOrdner = async (id: string, ordner: string | undefined) => {
+    await verschiebeProjekt(id, ordner);
+    if (usePlanStore.getState().projekt.id === id) {
+      usePlanStore.getState().merkeOrdner(ordner);
+    }
+  };
+
   /** Eine Planung in einen Ordner legen – oder wieder herausnehmen. */
   const verschieben = async (info: ProjektInfo, wahl: string) => {
     if (wahl === '__neu__') {
       const name = window.prompt('Name des neuen Ordners:', info.name);
       if (name === null || !name.trim()) return;
-      await verschiebeProjekt(info.id, name.trim());
+      await inOrdner(info.id, name.trim());
     } else {
-      await verschiebeProjekt(info.id, wahl === OHNE_ORDNER ? undefined : wahl);
+      await inOrdner(info.id, wahl === OHNE_ORDNER ? undefined : wahl);
     }
     await neuLaden();
   };
@@ -225,7 +240,7 @@ export function ProjekteDialog({ schliessen }: { schliessen: () => void }) {
   const ordnerUmbenennen = async (ordner: string, planungen: ProjektInfo[]) => {
     const name = window.prompt('Neuer Name des Ordners:', ordner);
     if (name === null || !name.trim()) return;
-    for (const info of planungen) await verschiebeProjekt(info.id, name.trim());
+    for (const info of planungen) await inOrdner(info.id, name.trim());
     await neuLaden();
   };
 

@@ -97,7 +97,11 @@ export function moebelauslagen(
   // macht die Zuordnung ohnehin keinen Unterschied.
   if (element.form === 'getraenkegestell') {
     const { vorne, hinten } = kistenseiten(element.kisten);
-    const dran = seite === 'oben' ? vorne : hinten;
+    // **Bei einem einseitigen Gestell ist die eine Seite die bestückte.**
+    // Sonst fiele die Facingzahl eines Wandgestells auf null: Gezeichnet wird
+    // seine einzige Seite als „unten", bestückt ist aber „vorne", und der
+    // Abgleich zwischen beiden Namen ist genau hier zu machen.
+    const dran = hinten === null ? vorne : seite === 'oben' ? vorne : hinten;
     // Keine Reihe heißt: Diese Seite steht an der Wand und zeigt nichts.
     if (!dran || dran.reihen <= 0) return 0;
     const kistenbreite = dran.lage === 'laengs' ? KISTE.laenge : KISTE.breite;

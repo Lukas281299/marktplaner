@@ -467,6 +467,34 @@ describe('Sonderplatzierungen', () => {
     expect(gruppe?.tatsaechlich).toBe(5);
   });
 
+  it('hängt neben dem Sortiment, nicht darunter', () => {
+    // **Der Fall, der die Bestellung zu groß macht.** Steht auf dem
+    // Aktionsmeter der volle Sortimentspfad, hing die Zeile früher **unter**
+    // dem Sortiment: „Milch" las sich dann als 2,00 m, obwohl nur ein Meter
+    // reguläre Fläche steht – und weil die Einrückung an der Stufe hängt, sah
+    // die Sonderplatzierung zugleich aus wie eine Geschwisterzeile, deren
+    // Meter man noch dazuzählen müsste.
+    const regulaer = element({
+      id: 'e2',
+      warengruppenUnten: [{ von: 0, bis: 100, text: 'Milch', pfad: 'Molkerei › Milch › Milch' }],
+    });
+    const aktion = element({
+      id: 'e3',
+      warengruppenUnten: [
+        { von: 0, bis: 100, text: 'Milch', pfad: 'Molkerei › Milch › Milch', aktion: true },
+      ],
+    });
+    const { baum } = meterauswertung(projekt([regulaer, aktion]), MISCHLISTE);
+    const gruppe = baum.find((k) => k.name === 'Molkerei')?.kinder.find((k) => k.name === 'Milch');
+    expect(gruppe?.laufend).toBe(2);
+    // Zwei Kinder auf derselben Stufe, je ein Meter.
+    expect(gruppe?.kinder.map((k) => k.name).sort()).toEqual(['Milch', 'Sonderplatzierung']);
+    expect(gruppe?.kinder.find((k) => k.name === 'Milch')?.laufend).toBe(1);
+    expect(gruppe?.kinder.find((k) => k.name === 'Sonderplatzierung')?.laufend).toBe(1);
+    // Und kein Knoten trägt die Stufe seines eigenen Vaters.
+    for (const kind of gruppe?.kinder ?? []) expect(kind.stufe).toBeGreaterThan(gruppe!.stufe);
+  });
+
   it('hakt in der Sortimentsliste nichts ab', () => {
     // Auf ihr liegt Werbeware. Wer sie als Beleg nähme, ginge am Ende an
     // einer Lücke vorbei.
@@ -509,6 +537,22 @@ describe('Freie Flächen', () => {
     // 3,00 m breit gezeichnet, 5,00 m eingetragen: Es gelten die 5,00 m.
     const { baum } = meterauswertung(projekt([flaeche(500)]), MISCHLISTE);
     expect(finde(baum, 'Milch').laufend).toBe(5);
+  });
+
+  it('streckt auch den unbeschrifteten Rest mit', () => {
+    // **Sonst verschwinden Meter spurlos.** Drei Meter gezeichnet, zwölf
+    // eingetragen, nur die halbe Breite beschriftet: Die beschriftete Hälfte
+    // wurde gestreckt, der Rest nicht – zusammen 7,50 statt 12,00 m. Die
+    // Probe „Summe der Tabelle = Meter des Marktes", auf der die ganze
+    // Auswertung beruht, ging nicht auf, und man sah der Tabelle nicht an,
+    // wo es fehlt.
+    const halb = flaeche(1200, {
+      warengruppenUnten: [{ von: 0, bis: 150, text: 'Milch', pfad: 'Molkerei › Milch › Milch' }],
+    });
+    const { gesamt, baum } = meterauswertung(projekt([halb]), MISCHLISTE);
+    expect(finde(baum, 'Milch').laufend).toBe(6);
+    expect(gesamt.ohneWarengruppe).toBe(6);
+    expect(gesamt.laufend).toBe(12);
   });
 
   it('nimmt die Auslagen der Fläche für die tatsächlichen Meter', () => {

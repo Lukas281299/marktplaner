@@ -294,12 +294,29 @@ const WINANSI_SONDER: Record<number, number> = {
   0x017e: 0x9e, 0x0178: 0x9f,
 };
 
+/**
+ * Zeichen, die WinAnsi nicht hat, aber die im Plan etwas bedeuten.
+ *
+ * Der **Stern der Sonderplatzierung** ist keine Verzierung: An ihm sieht man
+ * auf einen Blick, welcher Meter Werbeware trägt. Als Fragezeichen im Ausdruck
+ * liest er sich wie eine fehlende Angabe. Ein Sternchen ist nicht dasselbe
+ * Zeichen, aber dieselbe Aussage – und das ist mehr wert als die genaue Form.
+ */
+const ERSATZZEICHEN: Record<number, number> = {
+  0x2605: 0x2a, // ★ → *
+  0x2606: 0x2a, // ☆ → *
+  0x00d7: 0x78, // × → x
+  0x2192: 0x3e, // → → >
+  0x2713: 0x76, // ✓ → v
+};
+
 export function winAnsiBytes(text: string): Uint8Array {
   const bytes = new Uint8Array(text.length);
   for (let i = 0; i < text.length; i++) {
     const code = text.charCodeAt(i);
     if (code < 0x100) bytes[i] = code;
     else if (WINANSI_SONDER[code] !== undefined) bytes[i] = WINANSI_SONDER[code];
+    else if (ERSATZZEICHEN[code] !== undefined) bytes[i] = ERSATZZEICHEN[code];
     // Alles, was WinAnsi nicht kennt, wird ein Fragezeichen. Ein falsches
     // Zeichen ist besser als ein verschobener Rest der Zeile.
     else bytes[i] = 0x3f;

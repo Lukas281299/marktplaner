@@ -254,6 +254,10 @@ export async function abgleichen(zugang: SyncZugang): Promise<SyncErgebnis> {
   const geraet = await holeGeraeteName();
 
   for (let versuch = 0; versuch < 3; versuch++) {
+    // Ab wann dieser Versuch den lokalen Stand kennt. Alles, was der Planer
+    // danach löscht, darf beim Aufräumen nicht wieder auferstehen – siehe
+    // `setzeGraeber`.
+    const beginn = Date.now();
     const stand = await verzeichnisHolen(zugang, konto);
     const lokal = await lokalenStandLesen();
     const plan = planeAbgleich(lokal, stand.paket);
@@ -317,7 +321,7 @@ export async function abgleichen(zugang: SyncZugang): Promise<SyncErgebnis> {
     for (const id of plan.loeschenLokal) await entferneProjektStill(id);
     for (const id of plan.loeschenFern) await projektEntfernen(zugang, konto, id);
     for (const vorlage of plan.eigeneVorlagen) await speichereVorlage(vorlage);
-    await setzeGraeber(paket.graeber);
+    await setzeGraeber(paket.graeber, beginn);
 
     if (plan.zuletztGeoeffnet && plan.zuletztGeoeffnet !== lokal.zuletztGeoeffnet) {
       await merkeZuletztGeoeffnet(plan.zuletztGeoeffnet, plan.zuletztGeoeffnetAm);

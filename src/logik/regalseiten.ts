@@ -54,8 +54,21 @@ export function felderVon(element: PlanElement, seite: Seite): Regalfeld[] {
   return grundfelder(element).map((breite) => ({ breite }));
 }
 
-/** Die Seiten, die dieses Möbel überhaupt hat. */
+/**
+ * Die Seiten, die dieses Möbel überhaupt hat.
+ *
+ * **Ein Getränkegestell an der Wand hat eine.** Wer „nur eine Seite
+ * bestücken" einschaltet, sagt genau das – und dann darf die zweite Seite
+ * nicht als unbeschrifteter Regalmeter mitzählen. Sonst stünden für jedes
+ * Wandgestell seine vollen Meter ein zweites Mal unter „ohne Warengruppe" und
+ * sähen aus wie vergessene Meter, die man noch zuordnen müsste.
+ *
+ * Gelesen wird `kisten.einseitig` und nicht `beidseitig`: Der Schalter im
+ * Fenster setzt das eine, nicht das andere, und eine bestehende Planung soll
+ * nicht erst umgewandelt werden müssen, damit ihre Zahl stimmt.
+ */
 export function seitenVon(element: PlanElement): Seite[] {
+  if (element.form === 'getraenkegestell' && element.kisten?.einseitig) return ['unten'];
   return element.beidseitig ? ['oben', 'unten'] : ['unten'];
 }
 

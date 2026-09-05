@@ -100,6 +100,9 @@ function pfadeJeName(projekt: Projekt, liste: Sortimentsliste): Map<string, Set<
   };
 
   for (const strecke of strecken(projekt)) {
+    // Eine Sonderplatzierung bestimmt nicht mit, wohin ein Name gehört: Sie
+    // zählt in ihre eigene Zeile und trägt zu keinem Sortiment einen Meter bei.
+    if (strecke.aktion) continue;
     for (const ziel of zieleDerStrecke(liste, strecke)) {
       if (ziel.pfad) merke(ziel.name, ziel.pfad);
     }
@@ -161,6 +164,13 @@ export function buende(projekt: Projekt, liste: Sortimentsliste): Map<string, Bu
   // Erst die gemeinsamen Beschriftungen: Sie stehen im Plan und bestimmen die
   // Reihenfolge, in der die Namen gelesen werden.
   for (const strecke of strecken(projekt)) {
+    // **Eine Sonderplatzierung bildet keinen Bund.** „Milch, Käse" auf einer
+    // Aktionspalette heißt: Dort liegt Werbeware von beidem. Es heißt nicht,
+    // dass Milch und Käse im ganzen Markt eine gemeinsame Zeile bekommen –
+    // die Aktionsstrecke selbst trägt zu dieser Zeile keinen Meter bei, sie
+    // wandert in ihre eigene. Ohne diese Ausnahme verschmölzen zwei reguläre
+    // Sortimentszeilen wegen eines Meters Werbeware.
+    if (strecke.aktion) continue;
     // Nur Namen, die die Liste kennt: „Nüsse, ab KW 12" ist ein Name mit
     // einer Anmerkung und kein Bund aus zweien.
     const namen = zieleDerStrecke(liste, strecke)

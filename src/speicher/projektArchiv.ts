@@ -254,12 +254,29 @@ export async function listeGraeber(): Promise<Grabstein[]> {
   return datenbank.getAll('graeber');
 }
 
-/** Ersetzt alle Grabsteine durch den zusammengeführten Stand. */
-export async function setzeGraeber(graeber: Grabstein[]): Promise<void> {
+/**
+ * Ersetzt die Grabsteine durch den zusammengeführten Stand.
+ *
+ * **Was während des Abgleichs dazukam, bleibt.** Der Abgleich liest den
+ * lokalen Stand einmal zu Beginn und hängt danach minutenlang an den
+ * Netzabrufen. Löscht der Planer in dieser Zeit eine Planung, entsteht ein
+ * neuer Grabstein – und ein blindes Ersetzen räumte ihn mit weg. Die Planung
+ * stünde beim nächsten Abgleich als „hier fehlt etwas" da und käme vom Server
+ * zurück, für immer, weil der andere Rechner sie auch nie löscht.
+ *
+ * `seit` ist der Zeitpunkt, zu dem der Abgleich begonnen hat: Alles, was
+ * danach begraben wurde, bleibt liegen.
+ */
+export async function setzeGraeber(graeber: Grabstein[], seit = Infinity): Promise<void> {
   const datenbank = await db();
   const schreiben = datenbank.transaction('graeber', 'readwrite');
+  const vorhanden = (await schreiben.store.getAll()) as Grabstein[];
+  const zusammen = new Map(graeber.map((g) => [g.id, g]));
+  for (const g of vorhanden) {
+    if (g.geloeschtAm >= seit && !zusammen.has(g.id)) zusammen.set(g.id, g);
+  }
   await schreiben.store.clear();
-  for (const g of graeber) await schreiben.store.put(g);
+  for (const g of zusammen.values()) await schreiben.store.put(g);
   await schreiben.done;
 }
 

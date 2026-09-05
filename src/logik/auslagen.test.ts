@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { seitenVon } from './regalseiten';
 import {
   auslagenAnteil,
   feldauslagen,
@@ -176,16 +177,22 @@ describe('Was ein Möbel mitbringt', () => {
     expect(beide[1]).toBeCloseTo(10 / 3, 6);
   });
 
-  it('gibt einem einseitigen Gestell hinten nichts', () => {
+  it('gibt einem einseitigen Gestell auf seiner einen Seite die vollen Facings', () => {
     const gestell = element({
       form: 'getraenkegestell',
       kategorie: 'getraenke',
       beidseitig: true,
       kisten: { lage: 'laengs', reihen: 2, einseitig: true },
     });
-    // An der Wand steht nichts dahinter, und null ist hier eine Aussage.
-    expect(moebelauslagen(gestell, 'unten')).toBe(0);
+    // **Ein Wandgestell hat eine Seite, und die ist bestückt.** Gezeichnet
+    // wird sie als „unten"; früher las die Rechnung dort die Rückseite und
+    // kam auf null – die Getränkeabteilung verlor ihre Facingzahl komplett,
+    // ohne dass die Tabelle eine Lücke gemeldet hätte.
+    expect(moebelauslagen(gestell, 'unten')).toBe(2.5);
     expect(moebelauslagen(gestell, 'oben')).toBe(2.5);
+    // Und die zweite Seite gibt es nicht mehr: Sonst stünden ihre Meter als
+    // „ohne Warengruppe" ein zweites Mal in der Auswertung.
+    expect(seitenVon(gestell)).toEqual(['unten']);
   });
 
   it('lässt die grünen Kisten aus der Meterspalte heraus', () => {

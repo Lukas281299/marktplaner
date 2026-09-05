@@ -283,11 +283,19 @@ export function unbeschriftet(element: PlanElement): number {
   for (const seite of seitenVon(element)) {
     const breite = seitenbreite(felderVon(element, seite));
     if (breite <= 0) continue;
+    // **Dieselbe Streckung wie in `strecken`.** Auf einer freien Fläche gilt
+    // die eingetragene Zahl statt der gezeichneten Breite. Rechnete der Rest
+    // ohne sie, verschwänden Meter spurlos: Drei gezeichnete Meter mit zwölf
+    // eingetragenen, halb beschriftet, ergäben 6,00 m Warengruppe und 1,50 m
+    // offen – zusammen 7,50 statt 12,00. Die Probe „Summe der Tabelle =
+    // Meter des Marktes", auf der die ganze Auswertung beruht, ginge nicht
+    // mehr auf, und man sähe der Tabelle nicht an, wo es fehlt.
+    const massstab = messlaenge(element, breite) / breite;
     const abschnitte = seite === 'oben' ? element.warengruppenOben : element.warengruppenUnten;
     const belegt = geordnet(abschnitte, breite)
       .filter((a) => a.text.trim().length > 0)
       .reduce((summe, a) => summe + (a.bis - a.von), 0);
-    offen += Math.max(0, breite - belegt);
+    offen += Math.max(0, (breite - belegt) * massstab);
   }
   return offen;
 }

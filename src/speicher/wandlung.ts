@@ -426,18 +426,39 @@ function aufsMeterband(element: PlanElement): PlanElement {
   if (!hatAlte && !element.warengruppenUnten && !element.warengruppenOben) return element;
 
   const rueckwaerts = laeuftRueckwaerts(element.drehung ?? 0);
-  const ergebnis: PlanElement = {
+
+  /**
+   * Die alten Feldgruppen und schon vorhandene Strecken zusammenführen.
+   *
+   * **Beides kann auf derselben Seite liegen.** Die Bänder aus Fassung 14
+   * werden vor diesem Schritt aufgelöst und schreiben bereits in
+   * `warengruppenUnten`; von Hand geschriebene Feldgruppen stehen daneben
+   * weiter an den Feldern. Wer hier nur „schon da, also nichts tun" prüfte,
+   * strich die Feldgruppen trotzdem von den Feldern ab (`ohneAlteGruppe`) –
+   * und beim ersten Speichern waren sie unwiederbringlich fort.
+   *
+   * **Wo sich beide überlappen, gilt das Band.** Es ist das Neuere: Wer eine
+   * Warengruppe über ein Band gelegt hat, hat sie danach so gemeint.
+   */
+  const zusammen = (
+    vorhanden: Warengruppenabschnitt[] | undefined,
+    felder: (Regalfeld & { warengruppe?: AlteFeldgruppe })[] | undefined,
+  ): Warengruppenabschnitt[] | undefined => {
+    if (!felder) return vorhanden;
+    const ausFeldern = bandAus(felder, rueckwaerts);
+    if (!vorhanden || vorhanden.length === 0) return ausFeldern;
+    const frei = ausFeldern.filter((a) => !vorhanden.some((v) => a.von < v.bis && v.von < a.bis));
+    if (frei.length === 0) return vorhanden;
+    return [...vorhanden, ...frei].sort((a, b) => a.von - b.von);
+  };
+
+  return {
     ...element,
     felderUnten: alt.felderUnten?.map(ohneAlteGruppe),
     felderOben: alt.felderOben?.map(ohneAlteGruppe),
+    warengruppenUnten: zusammen(element.warengruppenUnten, alt.felderUnten),
+    warengruppenOben: zusammen(element.warengruppenOben, alt.felderOben),
   };
-  if (alt.felderUnten && !element.warengruppenUnten) {
-    ergebnis.warengruppenUnten = bandAus(alt.felderUnten, rueckwaerts);
-  }
-  if (alt.felderOben && !element.warengruppenOben) {
-    ergebnis.warengruppenOben = bandAus(alt.felderOben, rueckwaerts);
-  }
-  return ergebnis;
 }
 
 function ohneAlteGruppe(feld: Regalfeld & { warengruppe?: AlteFeldgruppe }): Regalfeld {

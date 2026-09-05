@@ -236,7 +236,13 @@ export function meterauswertung(
       return [
         {
           name: AKTIONSZEILE,
-          pfad: pfad ? pfadVon(...pfad.split(' › '), AKTIONSZEILE) : undefined,
+          // **Höchstens Abteilung › Warengruppe.** Hängte die Zeile unter
+          // einem Sortiment, trüge dessen Zeile die Werbemeter still mit –
+          // „Milch 2,00 m" bei einem Meter regulärer Fläche –, und weil die
+          // Einrückung an der Stufe hängt, sähe sie zugleich aus wie eine
+          // Geschwisterzeile, deren Meter man noch dazuzählen müsste. Beide
+          // Lesarten führen zu einer zu großen Bestellung.
+          pfad: pfad ? pfadVon(...pfad.split(' › ').slice(0, 2), AKTIONSZEILE) : undefined,
           anteil: 1,
           aktion: true,
         },

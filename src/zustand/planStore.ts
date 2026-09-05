@@ -525,6 +525,15 @@ export interface PlanStore {
   // --------------------------------------------------------------- Projekt
   setzeProjekt(projekt: Projekt, alsGeladen?: boolean): void;
   setzeEigeneVorlagen(vorlagen: BibliothekEintrag[]): void;
+  /**
+   * Trägt den Ordner der **offenen** Planung nach.
+   *
+   * Verschoben wird in der Datenbank; ohne dieses Nachtragen zeigte der
+   * Datenspeicher weiter auf den alten Ordner und schriebe ihn beim nächsten
+   * Speichern zurück.
+   */
+  merkeOrdner(ordner: string | undefined): void;
+
   /** Übernimmt eine geladene oder gespeicherte Sortimentsliste. */
   setzeSortimentsliste(liste: Sortimentsliste, speichern?: boolean): void;
   /** Nimmt einen Namen in die Liste auf – tut nichts, wenn er schon drinsteht. */
@@ -1238,6 +1247,17 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
 
   benenneProjektUm(name) {
     aendere(set, get, (p) => ({ ...p, name }));
+  },
+
+  merkeOrdner(ordner) {
+    // **Ohne Historie und ohne neues Änderungsdatum.** Wohin eine Planung
+    // einsortiert ist, ist keine Änderung an der Planung – genau wie in
+    // `verschiebeProjekt`. Hier wird nur nachgetragen, was dort schon in der
+    // Datenbank steht: Sonst schriebe der nächste Selbstspeicherer den alten
+    // Ordner zurück, und das Verschieben wäre unbemerkt wieder weg.
+    const jetzt = get().projekt;
+    if (jetzt.ordner === ordner) return;
+    set({ projekt: { ...jetzt, ordner } });
   },
 
   setzeGrundflaeche(werte) {

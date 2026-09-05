@@ -352,7 +352,14 @@ export function planAlsVektor(projekt: Projekt, optionen: Vektoroptionen = {}): 
           text: beschriftung,
           x: el.x,
           y: el.y,
-          groesse: el.schriftgroesse || 12,
+          // **In Zentimetern des Marktes, nicht in Bildschirmpunkten.**
+          // `schriftgroesse` ist eine Bildschirmgröße; am Bildschirm wird sie
+          // mit `/ zoom` ins Marktmaß gerechnet (siehe `ElementSymbol`). Ohne
+          // dieselbe Umrechnung stünde hier eine Zahl wie 12 cm – und das
+          // Blatt wirft bei 1:100 alles unter 15 cm weg. Dann trüge auf dem
+          // Ausdruck kein einziges Möbel seinen Namen, während am Bildschirm
+          // alle dastehen.
+          groesse: (el.schriftgroesse || 12) / ersatzzoom,
           // Schrift quer zum Möbel wäre unlesbar; deshalb dreht sie mit,
           // aber nie über Kopf.
           drehung: lesbarerWinkel(el.drehung ?? 0),

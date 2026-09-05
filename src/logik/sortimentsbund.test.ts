@@ -414,3 +414,52 @@ describe('Der zweite Ring: die Abteilung des Nachbarn', () => {
     ]);
   });
 });
+
+/**
+ * Eine Sonderplatzierung bündelt nichts.
+ *
+ * „Kuchen, Waffeln" auf einer Aktionspalette heißt: Dort liegt Werbeware von
+ * beidem. Es heißt **nicht**, dass Kuchen und Waffeln im ganzen Markt eine
+ * gemeinsame Zeile bekommen – die Aktionsstrecke selbst trägt zu dieser Zeile
+ * keinen einzigen Meter bei, sie wandert in ihre eigene. Ohne diese Ausnahme
+ * verschmolzen zwei reguläre Sortimentszeilen wegen eines Meters Werbeware,
+ * und man sah nicht mehr, wie viel von welchem im Markt steht.
+ */
+describe('Sonderplatzierungen bilden keinen Bund', () => {
+  const strecke = (id: string, text: string, pfad: string, aktion = false) =>
+    element({
+      id,
+      breite: 100,
+      felderUnten: [{ breite: 100, boeden: 5 }],
+      warengruppenUnten: [{ von: 0, bis: 100, text, pfad, aktion: aktion || undefined }],
+    });
+
+  const KUCHEN = 'Backwaren › Bake Off › Kuchen';
+  const WAFFELN = 'Backwaren › Bake Off › Waffeln';
+
+  it('lässt zwei reguläre Zeilen getrennt', () => {
+    const p = projekt([
+      strecke('a', 'Kuchen', KUCHEN),
+      strecke('b', 'Waffeln', WAFFELN),
+      strecke('c', 'Kuchen, Waffeln', KUCHEN, true),
+    ]);
+    expect(buende(p, liste).size).toBe(0);
+    const { baum } = meterauswertung(p, liste);
+    const gruppe = baum
+      .find((k) => k.name === 'Backwaren')
+      ?.kinder.find((k) => k.name === 'Bake Off');
+    const namen = (gruppe?.kinder ?? []).map((k) => k.name).sort();
+    expect(namen).toEqual(['Kuchen', 'Sonderplatzierung', 'Waffeln']);
+  });
+
+  it('bündelt weiterhin, wenn die Strecke keine Aktion ist', () => {
+    // Die Gegenprobe: Ohne das Häkchen ist „Kuchen, Waffeln" ein Bund, und
+    // genau so soll es bleiben.
+    const p = projekt([
+      strecke('a', 'Kuchen', KUCHEN),
+      strecke('b', 'Waffeln', WAFFELN),
+      strecke('c', 'Kuchen, Waffeln', KUCHEN),
+    ]);
+    expect(buende(p, liste).size).toBeGreaterThan(0);
+  });
+});

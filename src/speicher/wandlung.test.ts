@@ -835,3 +835,95 @@ describe('Die Ebene „Laufwege" fällt weg', () => {
     expect(neu.ebenen.map((e) => e.id)).toContain('eigene-laufwege');
   });
 });
+
+/**
+ * Fassung 14 und 15 treffen sich auf derselben Möbelseite.
+ *
+ * Fassung 14 legte die Warengruppe als **Band** unter das Möbel, Fassung 15
+ * stellte die Feldbeschriftungen auf Zentimeter um. Beim Öffnen laufen beide
+ * Schritte nacheinander — und wer beides auf einer Seite hatte, verlor das,
+ * was er von Hand geschrieben hatte: Der Bandschritt war schon durch, der
+ * Meterschritt hielt sich deshalb für erledigt und strich die Feldgruppen
+ * trotzdem ab. Beim ersten Speichern waren sie fort.
+ *
+ * Es gibt keinen Weg zurück, wenn das einmal passiert ist. Deshalb steht es
+ * hier.
+ */
+describe('Fassung 14 und 15 · Band und Feldgruppe auf einer Seite', () => {
+  const mitBeidem = () =>
+    wandleProjekt({
+      id: 'p14',
+      name: 'Markt',
+      version: 13,
+      erstelltAm: 1000,
+      geaendertAm: 2000,
+      grundflaeche: { umriss: [
+        { x: 0, y: 0 },
+        { x: 4000, y: 0 },
+        { x: 4000, y: 2500 },
+        { x: 0, y: 2500 },
+      ], wandstaerke: 30 },
+      einstellungen: { anzeigeEinheit: 'm', rasterSichtbar: true, rasterWeite: 50 },
+      ebenen: STANDARD_EBENEN,
+      raeume: [],
+      waende: [],
+      oeffnungen: [],
+      gruppen: [],
+      masslinien: [],
+      verkaufsflaechen: [],
+      elemente: [
+        {
+          id: 'zug',
+          vorlageId: 'wt100',
+          ebeneId: 'einrichtung',
+          name: 'Zug',
+          kategorie: 'regale',
+          x: 500,
+          y: 500,
+          breite: 400,
+          tiefe: 70,
+          drehung: 0,
+          form: 'wt100',
+          farbe: WT_GRAU,
+          beschriftung: '',
+          beschriftungSichtbar: true,
+          schriftgroesse: 12,
+          gesperrt: false,
+          reihenfolge: 1,
+          beidseitig: false,
+          achsmass: 100,
+          // Von Hand geschrieben: Feld 1 trägt „Ketchup".
+          felderUnten: [
+            { breite: 100, boeden: 5, warengruppe: { text: 'Ketchup', felder: 1 } },
+            { breite: 100, boeden: 5 },
+            { breite: 100, boeden: 5 },
+            { breite: 100, boeden: 5 },
+          ],
+        },
+      ],
+      // Und daneben ein Band aus Fassung 14 auf demselben Zug.
+      warengruppenbaender: [
+        { felder: [{ element: 'zug', seite: 'unten', feld: 3 }], text: 'Senf' },
+      ],
+    });
+
+  it('behält beides – das Band und die von Hand geschriebene Gruppe', () => {
+    const zug = mitBeidem().elemente[0];
+    const texte = (zug.warengruppenUnten ?? []).map((a) => a.text).sort();
+    expect(texte).toEqual(['Ketchup', 'Senf']);
+  });
+
+  it('legt sie an die richtige Stelle', () => {
+    const strecken = mitBeidem().elemente[0].warengruppenUnten ?? [];
+    const ketchup = strecken.find((a) => a.text === 'Ketchup');
+    expect(ketchup?.von).toBe(0);
+    expect(ketchup?.bis).toBe(100);
+  });
+
+  it('nimmt die alten Feldgruppen von den Feldern', () => {
+    // Sonst stünde dieselbe Beschriftung zweimal da, und die nächste Fassung
+    // legte sie noch einmal an.
+    const felder = mitBeidem().elemente[0].felderUnten ?? [];
+    expect(felder.some((f) => 'warengruppe' in f)).toBe(false);
+  });
+});
