@@ -99,6 +99,10 @@ export function mitZugeordnetenFeldern(
       bis,
       text: zusammen,
       pfad: eigener ? (pfad ?? gleiche?.pfad) : undefined,
+      // **Aus der Liste genommen heißt: der Liste folgen.** Lag auf der
+      // Strecke vorher ein eigener Satz, ist er mit diesem Griff überschrieben
+      // – dann darf auch die Ausnahme vom Umbenennen nicht stehen bleiben.
+      eigenerText: undefined,
     });
   });
 }

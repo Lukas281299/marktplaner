@@ -1,4 +1,9 @@
-import type { PlanElement, Projekt, Warengruppenabschnitt } from '../typen/modell';
+import type {
+  PlanElement,
+  Projekt,
+  Teilsortiment,
+  Warengruppenabschnitt,
+} from '../typen/modell';
 
 /**
  * Wenn ein Name in der Sortimentsliste sich ändert, ziehen die Pfade nach.
@@ -75,6 +80,32 @@ function mitText(text: string, altName: string, neuName: string): string {
   return getroffen ? neue.join(',') : text;
 }
 
+/**
+ * Die Teilsortimente einer Strecke mitbenennen – nur bei genauem Treffer.
+ *
+ * „Drei Meter Trockenobst, davon einer Eigenmarke" – meistens stehen hier
+ * eigene Worte. Manchmal aber ist es ein Name aus der Liste, und dann soll er
+ * mitziehen; die Suche findet ihn sonst unter dem neuen Namen nicht mehr.
+ *
+ * Getauscht wird nur, wo der Text **genau** der alte Name ist. „Kuchen
+ * Eigenmarke" bleibt stehen: Was davon der Name ist und was die Beschreibung,
+ * weiß hier niemand.
+ */
+function mitTeilen(
+  teile: Teilsortiment[] | undefined,
+  altName: string,
+  neuName: string,
+): Teilsortiment[] | undefined {
+  if (!teile || gleich(altName, neuName)) return teile;
+  let getroffen = false;
+  const neue = teile.map((teil) => {
+    if (!gleich(teil.text, altName)) return teil;
+    getroffen = true;
+    return { ...teil, text: neuName };
+  });
+  return getroffen ? neue : teile;
+}
+
 /** Die Abschnitte einer Seite mit nachgezogenen Pfaden – oder unverändert. */
 function mitPfaden(
   abschnitte: Warengruppenabschnitt[] | undefined,
@@ -90,7 +121,16 @@ function mitPfaden(
   const gezogen = abschnitte.map((a) => {
     if (a.pfad && betroffen(a.pfad, alt)) {
       geaendert = true;
-      return { ...a, pfad: ersetzt(a.pfad, alt, neu), text: mitText(a.text, altName, neuName) };
+      // **Der Pfad zieht immer mit, der Text nur, wenn er der Liste gehört.**
+      // „Marmorkuchen Aktion" ist der Satz des Planers; die Meter zählen
+      // trotzdem zum umbenannten Sortiment, und deshalb muss der Pfad
+      // nachziehen, auch wenn der Text stehen bleibt.
+      return {
+        ...a,
+        pfad: ersetzt(a.pfad, alt, neu),
+        text: a.eigenerText ? a.text : mitText(a.text, altName, neuName),
+        teile: mitTeilen(a.teile, altName, neuName),
+      };
     }
 
     // **Ohne Pfad nur, wenn es den alten Namen nicht mehr gibt.** Ein
@@ -98,11 +138,30 @@ function mitPfaden(
     // Feinbackwaren – solange beide in der Liste stehen, hieße Umbenennen
     // raten. Führt die Liste den alten Namen aber nirgends mehr, kann nur
     // der gemeint gewesen sein, der gerade umbenannt wurde.
-    if (!a.pfad && auchOhnePfad) {
+    if (!a.pfad && auchOhnePfad && !a.eigenerText) {
       const text = mitText(a.text, altName, neuName);
       if (text !== a.text) {
         geaendert = true;
-        return { ...a, text, pfad: neu };
+        // **Umbenannt wird, zugeordnet nicht.** Der Text zieht mit, weil es
+        // den alten Namen nirgends mehr gibt – da kann nichts anderes gemeint
+        // gewesen sein. Einen Pfad zu setzen wäre aber eine Entscheidung, die
+        // niemand getroffen hat: Eine Strecke ohne Pfad ist oft mit Absicht
+        // ohne, weil noch offen ist, wohin ihre Meter zählen. Gerechnet wird
+        // sie ohnehin über ihren Namen (siehe `logik/sortimentsbund.ts`).
+        return { ...a, text, teile: mitTeilen(a.teile, altName, neuName) };
+      }
+    }
+
+    // **Der zweite Name eines Bundes.** „Nüsse, Trockenobst" trägt nur einen
+    // Pfad – den des ersten. Wird der zweite umbenannt, greift keiner der
+    // Zweige oben, und der alte Name bliebe wörtlich stehen. Unter derselben
+    // Bedingung wie oben – es gibt den alten Namen nicht mehr – wird er
+    // mitgetauscht; der Pfad der Strecke bleibt, wo er ist.
+    if (a.pfad && auchOhnePfad && !a.eigenerText && a.text.includes(',')) {
+      const text = mitText(a.text, altName, neuName);
+      if (text !== a.text) {
+        geaendert = true;
+        return { ...a, text, teile: mitTeilen(a.teile, altName, neuName) };
       }
     }
     return a;
@@ -136,13 +195,25 @@ export function mitUmbenanntemPfad(
 ): Projekt {
   if (!alt || !neu || alt === neu) return projekt;
 
+  const altName = alt.split(' › ').pop() ?? alt;
+  const neuName = neu.split(' › ').pop() ?? neu;
+
   let geaendert = false;
   const elemente = (projekt.elemente ?? []).map((el): PlanElement => {
     const unten = mitPfaden(el.warengruppenUnten, alt, neu, auchOhnePfad);
     const oben = mitPfaden(el.warengruppenOben, alt, neu, auchOhnePfad);
-    if (unten === el.warengruppenUnten && oben === el.warengruppenOben) return el;
+
+    // **Die grobe Einordnung des ganzen Möbels zieht mit.** `warengruppe` ist
+    // kein Pfad, sondern ein Name – nach ihm gruppiert die Flächenübersicht
+    // (`logik/flaechen.ts`). Blieb er stehen, stand dort nach dem Umbenennen
+    // eine Gruppe, die die Liste nicht mehr führt, neben der neuen.
+    const grob =
+      el.warengruppe && gleich(el.warengruppe, altName) ? neuName : el.warengruppe;
+
+    if (unten === el.warengruppenUnten && oben === el.warengruppenOben && grob === el.warengruppe)
+      return el;
     geaendert = true;
-    return { ...el, warengruppenUnten: unten, warengruppenOben: oben };
+    return { ...el, warengruppenUnten: unten, warengruppenOben: oben, warengruppe: grob };
   });
 
   // Der grüne Haken hängt am selben Pfad und muss denselben Weg gehen.
@@ -166,8 +237,6 @@ export function mitUmbenanntemPfad(
 
   // Und die Zuordnung „zählt zu": Sie steht auf Namen, nicht auf Pfaden – hier
   // zählt deshalb nur die **letzte** Stufe, und nur wenn sie sich ändert.
-  const altName = alt.split(' › ').pop() ?? alt;
-  const neuName = neu.split(' › ').pop() ?? neu;
   let zuordnungen = projekt.zuordnungen;
   if (zuordnungen && altName !== neuName) {
     const schluessel = altName.trim().toLocaleLowerCase('de-DE');
@@ -177,6 +246,11 @@ export function mitUmbenanntemPfad(
       const quelleNeu = quelle === schluessel ? neuName.trim().toLocaleLowerCase('de-DE') : quelle;
       const zielNeu = ziel.trim().toLocaleLowerCase('de-DE') === schluessel ? neuName : ziel;
       if (quelleNeu !== quelle || zielNeu !== ziel) zuGeaendert = true;
+      // Fallen zwei Namen durch das Umbenennen zusammen, stünden hier zwei
+      // Zuordnungen unter demselben Schlüssel. Die erste gilt – sie war schon
+      // da; die zweite still zu überschreiben ließe eine Zuordnung
+      // verschwinden, ohne dass es jemandem auffiele.
+      if (quelleNeu in neue) continue;
       neue[quelleNeu] = zielNeu;
     }
     if (zuGeaendert) {

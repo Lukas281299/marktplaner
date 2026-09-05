@@ -94,7 +94,7 @@ import { Spaltenschalter, Spaltenstreifen } from './Spaltengriffe';
 import { Moebeluebersicht } from './Moebeluebersicht';
 import { Warengruppenmeter } from './Warengruppenmeter';
 import { Warengruppenwahl } from './Warengruppenwahl';
-import { eindeutigerPfad, mehrdeutigeNamen } from '../logik/sortiment';
+import { eindeutigerPfad, kenntNamen, letzteStufe, mehrdeutigeNamen } from '../logik/sortiment';
 
 const FORMEN: { wert: Grundform; text: string }[] = [
   { wert: 'rechteck', text: 'Rechteck' },
@@ -1284,7 +1284,11 @@ function Aktionsziel({
         titel="Warengruppe wählen, zu der diese Aktionsmeter zählen — die Beschriftung bleibt stehen"
         waehle={(_, pfad) => {
           beiStart();
-          aendern({ pfad });
+          // **Die Beschriftung ist hier ausdrücklich eine eigene.** „Aktion
+          // Ostern" zählt zur Molkerei, heißt aber nicht so. Ohne dieses
+          // Merken meldete der Abgleich die Strecke später als veralteten
+          // Namen und wollte sie angleichen.
+          aendern({ pfad, eigenerText: true });
         }}
       />
     </div>
@@ -1552,6 +1556,7 @@ function Warengruppenband({
   seite: Seite;
   mitTitel: boolean;
 }) {
+  const sortiment = usePlanStore((s) => s.sortiment);
   const felder = felderVon(element, seite);
   const gesamt = summe(felder.map((f) => f.breite));
   const abschnitte = geordnet(warengruppenVon(element, seite), gesamt);
@@ -1561,6 +1566,31 @@ function Warengruppenband({
   };
   const aendere = (index: number, werte: Partial<Warengruppenabschnitt>) =>
     setze(abschnitte.map((a, i) => (i === index ? { ...a, ...werte } : a)));
+
+  /**
+   * Einen von Hand geschriebenen Text übernehmen – und festhalten, wessen er ist.
+   *
+   * **Steht dort der Name aus der Liste, folgt er ihr.** Wird der Eintrag
+   * später umbenannt, zieht die Beschriftung mit, und im Plan steht nie ein
+   * Name, den die Liste nicht mehr führt.
+   *
+   * **Steht dort etwas Eigenes, bleibt es stehen.** „Marmorkuchen Aktion" ist
+   * der Satz des Planers; keine Umbenennung und kein Abgleich darf ihn
+   * überschreiben. Genau dafür ist `eigenerText` da – dasselbe Muster wie
+   * `beschriftungAutomatisch` an der Möbelbeschriftung.
+   */
+  const schreibeText = (index: number, text: string) => {
+    const pfad = abschnitte[index]?.pfad;
+    // **Mit Pfad entscheidet der Vergleich mit ihm**, ohne Pfad der Vergleich
+    // mit der Liste: Ein getippter Text, den die Liste kennt, ist ihr Name und
+    // soll mitziehen; einer, den sie nicht kennt, gehört dem Planer. Sonst
+    // wäre eine noch nicht zugeordnete Strecke schutzlos, weil `eigenerText`
+    // dort nie zustande käme.
+    aendere(index, {
+      text,
+      eigenerText: pfad ? text.trim() !== letzteStufe(pfad) : !kenntNamen(sortiment, text),
+    });
+  };
 
   /** Der nächste freie Platz – am liebsten hinter dem letzten Abschnitt. */
   const naechsteLuecke = (): Warengruppenabschnitt => {
@@ -1625,16 +1655,38 @@ function Warengruppenband({
                   const ziel = e.currentTarget;
                   const vorn = ziel.value.slice(0, ziel.selectionStart ?? ziel.value.length);
                   const hinten = ziel.value.slice(ziel.selectionEnd ?? ziel.value.length);
-                  aendere(i, { text: `${vorn}\\n${hinten}` });
+                  schreibeText(i, `${vorn}\n${hinten}`);
                 }}
-                onChange={(e) => aendere(i, { text: e.target.value })}
+                onChange={(e) => schreibeText(i, e.target.value)}
               />
+              {/* **Wer der Beschriftung gehört, muss man sehen können.** Eine
+                  Strecke mit eigenem Text zieht bei keiner Umbenennung mit —
+                  unsichtbar wäre das eine Falle, und der Weg zurück fehlte. */}
+              {abschnitt.eigenerText && (
+                <button
+                  className="wg-werkzeug aktiv"
+                  title={
+                    'Eigener Text — er bleibt stehen, wenn die Liste umbenannt wird. ' +
+                    'Anklicken, damit er der Liste wieder folgt.'
+                  }
+                  onClick={() => {
+                    usePlanStore.getState().schnappschuss();
+                    aendere(i, {
+                      eigenerText: undefined,
+                      ...(abschnitt.pfad ? { text: letzteStufe(abschnitt.pfad) } : {}),
+                    });
+                  }}
+                >
+                  ✎
+                </button>
+              )}
               {/* Getippt wird weiter – das Menü ist die Abkürzung für
                   alle, die den Namen nicht auswendig wissen. */}
               <Warengruppenwahl
                 waehle={(name, pfad) => {
                   usePlanStore.getState().schnappschuss();
-                  aendere(i, { text: name, pfad });
+                  // Aus der Liste genommen heißt: der Liste folgen.
+                  aendere(i, { text: name, pfad, eigenerText: undefined });
                 }}
                 fuegeHinzu={
                   abschnitt.text.trim()

@@ -25,6 +25,7 @@ import {
   umbenanntesSortiment,
   umfang,
   vereinigt,
+  eindeutigerPfad,
 } from './sortiment';
 import type { Sortimentsliste } from '../daten/warengruppen';
 
@@ -452,4 +453,66 @@ describe('Die Liste kennt die Zuordnung', () => {
     expect(standVon(stand, pfadVon('Feinbackwaren', 'Süßes', 'Waffeln'), z)).toBe('gruen');
   });
 
+});
+
+/**
+ * Umbenennen ist manchmal Zusammenlegen.
+ *
+ * Der Fall aus dem Markt: „Aufbackware Brötchen" gibt es nicht mehr, es heißt
+ * nur noch „Aufbackware" – und „Aufbackware" steht schon daneben. Bildete man
+ * bloß ab, stünde der Name danach zweimal in derselben Warengruppe. Das ist
+ * nicht nur unschön: `eindeutigerPfad` findet ihn dann **gar nicht** mehr, die
+ * Meter des Plans verteilten sich auf zwei Einträge, und der zweite bliebe
+ * für immer leer und rot.
+ */
+describe('Umbenennen auf einen Namen, den es schon gibt', () => {
+  const doppelt: Sortimentsliste = {
+    abteilungen: [
+      {
+        name: 'Backwaren',
+        warengruppen: [
+          { name: 'Aufbackware', sortimente: ['Laugen'] },
+          { name: 'Aufbackware Brötchen', sortimente: ['Kaiser', 'Laugen'] },
+        ],
+      },
+      { name: 'Backwaren SB', warengruppen: [{ name: 'Toast', sortimente: ['Weizen'] }] },
+    ],
+  };
+
+  it('legt zwei Warengruppen zu einer zusammen', () => {
+    const neu = umbenannteWarengruppe(doppelt, 'Backwaren', 'Aufbackware Brötchen', 'Aufbackware');
+    const gruppen = neu.abteilungen[0].warengruppen;
+    expect(gruppen.map((g) => g.name)).toEqual(['Aufbackware']);
+    // Die Sortimente kommen mit, doppelte nur einmal.
+    expect(gruppen[0].sortimente).toEqual(['Laugen', 'Kaiser']);
+  });
+
+  it('lässt den Namen danach wieder eindeutig sein', () => {
+    const neu = umbenannteWarengruppe(doppelt, 'Backwaren', 'Aufbackware Brötchen', 'Aufbackware');
+    expect(eindeutigerPfad(neu, 'Aufbackware')).toBe('Backwaren › Aufbackware');
+  });
+
+  it('legt zwei Sortimente zu einem zusammen', () => {
+    const neu = umbenanntesSortiment(doppelt, 'Backwaren', 'Aufbackware Brötchen', 'Kaiser', 'Laugen');
+    const gruppe = neu.abteilungen[0].warengruppen[1];
+    expect(gruppe.sortimente).toEqual(['Laugen']);
+  });
+
+  it('legt zwei Abteilungen zu einer zusammen', () => {
+    const neu = umbenannteAbteilung(doppelt, 'Backwaren SB', 'Backwaren');
+    expect(neu.abteilungen.map((a) => a.name)).toEqual(['Backwaren']);
+    expect(neu.abteilungen[0].warengruppen.map((g) => g.name)).toEqual([
+      'Aufbackware',
+      'Aufbackware Brötchen',
+      'Toast',
+    ]);
+  });
+
+  it('benennt ganz normal um, wenn es den Namen noch nicht gibt', () => {
+    const neu = umbenannteWarengruppe(doppelt, 'Backwaren', 'Aufbackware Brötchen', 'Brötchen');
+    expect(neu.abteilungen[0].warengruppen.map((g) => g.name)).toEqual([
+      'Aufbackware',
+      'Brötchen',
+    ]);
+  });
 });

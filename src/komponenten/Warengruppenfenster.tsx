@@ -14,6 +14,7 @@ import {
   type Standwert,
 } from '../logik/sortiment';
 import { pfadeImPlan } from '../logik/planstand';
+import { veralteteBeschriftungen } from '../logik/listenabgleich';
 import {
   pruefeAllePlanungen,
   ziehePlanungNach,
@@ -83,6 +84,18 @@ export function Warengruppenfenster() {
    * Die Liste gilt am Gerät für jede.
    */
   const [verwaist, setVerwaist] = useState<Planbericht[] | null>(null);
+
+  /**
+   * Wie viele Beschriftungen der **offenen** Planung von der Liste abweichen.
+   *
+   * Nur die offene: Sie liegt ohnehin im Speicher, und die Zahl darf nicht
+   * jedes Mal die Datenbank befragen. Der volle Blick über alle Planungen
+   * steht im Pflegefenster.
+   */
+  const veraltet = useMemo(
+    () => veralteteBeschriftungen(projekt, sortiment).length,
+    [projekt, sortiment],
+  );
   const [prueft, setPrueft] = useState(false);
 
   const gezeigt = gefiltert(sortiment, suche);
@@ -468,6 +481,21 @@ export function Warengruppenfenster() {
       {pflege && <Listenpflege schliessen={() => setPflege(false)} />}
 
       <div className="wg-fuss">
+        {/* **Der Hinweis findet den Planer, nicht umgekehrt.** Gerechnet wird
+            nur über die offene Planung – das kostet nichts und steht deshalb
+            dauerhaft da. Was in den übrigen Planungen liegt, zeigt der
+            Abgleich im Pflegefenster. */}
+        {veraltet > 0 && (
+          <p className="hinweis warnung" style={{ margin: '0 0 6px' }}>
+            <strong>
+              {veraltet} {veraltet === 1 ? 'Beschriftung' : 'Beschriftungen'}
+            </strong>{' '}
+            im Plan {veraltet === 1 ? 'heißt' : 'heißen'} nicht mehr wie in der Liste.{' '}
+            <button className="knopf-flach" onClick={() => setPflege(true)}>
+              Angleichen
+            </button>
+          </p>
+        )}
         <div className="kennzahl">
           <span>Abteilungen · Warengruppen · Sortimente</span>
           <span className="kennzahl-wert">

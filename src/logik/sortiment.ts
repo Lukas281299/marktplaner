@@ -499,7 +499,41 @@ export function ohneAbteilung(liste: Sortimentsliste, name: string): Sortimentsl
   return { abteilungen: liste.abteilungen.filter((a) => a.name !== name) };
 }
 
-/** Eine Abteilung umbenennen. */
+/**
+ * Umbenennen ist manchmal Zusammenlegen.
+ *
+ * „Aufbackware Brötchen" heißt künftig „Aufbackware" – und „Aufbackware"
+ * steht schon daneben. Bildete man nur ab, stünde der Name danach **zweimal**
+ * in derselben Ebene: Die Liste zeigte zwei gleiche Zeilen, `eindeutigerPfad`
+ * fände den Namen nicht mehr eindeutig, und die Meter des Plans verteilten
+ * sich auf zwei Einträge, von denen einer immer leer bliebe.
+ *
+ * Deshalb wird zusammengelegt: Der umbenannte Eintrag verschwindet, sein
+ * Inhalt geht in den, der schon da war. Die Pfade der Planung zeigen danach
+ * auf denselben Namen, und die Meter kommen an einer Stelle zusammen – genau
+ * das, was jemand meint, der so umbenennt.
+ */
+function zusammengelegt<T extends { name: string }>(
+  werte: T[],
+  alt: string,
+  neu: string,
+  vereine: (bleibt: T, geht: T) => T,
+): T[] {
+  const index = werte.findIndex((w) => w.name === alt);
+  if (index < 0) return werte;
+  const ziel = werte.findIndex((w, i) => i !== index && gleich(w.name, neu));
+  if (ziel < 0) return werte.map((w, i) => (i === index ? { ...w, name: neu } : w));
+  return werte
+    .map((w, i) => (i === ziel ? vereine(w, werte[index]) : w))
+    .filter((_, i) => i !== index);
+}
+
+/** Zwei Namen vergleichen, wie der Markt sie vergleicht. */
+function gleich(a: string, b: string): boolean {
+  return schluessel(a) === schluessel(b);
+}
+
+/** Eine Abteilung umbenennen – und mit einer gleichnamigen zusammenlegen. */
 export function umbenannteAbteilung(
   liste: Sortimentsliste,
   alt: string,
@@ -508,7 +542,13 @@ export function umbenannteAbteilung(
   const sauber = neu.trim();
   if (!sauber) return liste;
   return {
-    abteilungen: liste.abteilungen.map((a) => (a.name === alt ? { ...a, name: sauber } : a)),
+    abteilungen: zusammengelegt(liste.abteilungen, alt, sauber, (bleibt, geht) => ({
+      ...bleibt,
+      warengruppen: [
+        ...bleibt.warengruppen,
+        ...geht.warengruppen.filter((w) => !bleibt.warengruppen.some((b) => gleich(b.name, w.name))),
+      ],
+    })),
   };
 }
 
@@ -556,7 +596,13 @@ export function umbenannteWarengruppe(
       a.name === abteilung
         ? {
             ...a,
-            warengruppen: a.warengruppen.map((w) => (w.name === alt ? { ...w, name: sauber } : w)),
+            warengruppen: zusammengelegt(a.warengruppen, alt, sauber, (bleibt, geht) => ({
+              ...bleibt,
+              sortimente: [
+                ...bleibt.sortimente,
+                ...geht.sortimente.filter((s) => !bleibt.sortimente.some((b) => gleich(b, s))),
+              ],
+            })),
           }
         : a,
     ),
@@ -602,7 +648,11 @@ export function umbenanntesSortiment(
   if (!sauber) return liste;
   return aendereGruppe(liste, abteilung, gruppe, (w) => ({
     ...w,
-    sortimente: w.sortimente.map((s) => (s === alt ? sauber : s)),
+    // Steht der neue Name schon in dieser Warengruppe, bleibt es bei einem:
+    // Zwei gleiche Zeilen nebeneinander wären nicht mehr auseinanderzuhalten.
+    sortimente: w.sortimente.some((s) => s !== alt && gleich(s, sauber))
+      ? w.sortimente.filter((s) => s !== alt)
+      : w.sortimente.map((s) => (s === alt ? sauber : s)),
   }));
 }
 

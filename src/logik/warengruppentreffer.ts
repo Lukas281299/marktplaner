@@ -43,6 +43,11 @@ export function warengruppeUnterPunkt(
     if (stelle < a.von || stelle > a.bis) continue;
     const name = a.text.trim();
     if (!name) continue;
+    // **Was dasteht, gilt** – dieselbe Vorrangregel wie in
+    // `logik/sortimentsbund.ts`. Der Pfad kann ein Rest sein: Wer „Nüsse,
+    // Trockenobst" schreibt und das Trockenobst später herausnimmt, hat eine
+    // Strecke, die „Nüsse" heißt und noch den alten Pfad trägt. Zwei Stellen
+    // mit zwei Regeln wären schlimmer als eine, die manchmal irrt.
     return { name, pfad: a.pfad };
   }
   return null;

@@ -538,6 +538,24 @@ export interface Warengruppenabschnitt {
   aufteilung?: Streckenaufteilung;
 
   /**
+   * Steht hier ein **eigener** Satz und nicht der Name aus der Liste?
+   *
+   * Der Normalfall ist: Man nimmt einen Namen aus der Sortimentsliste auf und
+   * setzt ihn auf ein paar Meter. Dann steht im Plan genau das, was die Liste
+   * führt – und wenn die Liste ihn umbenennt, muss der Plan mitziehen.
+   *
+   * Manchmal aber schreibt der Planer etwas Eigenes hin: „Marmorkuchen
+   * Aktion" auf drei Meter, gezählt wird trotzdem der Kuchen. Der Satz gehört
+   * ihm, und keine Umbenennung in der Liste darf ihn überschreiben.
+   *
+   * Genau wie `PlanElement.beschriftungAutomatisch`: Ohne Angabe folgt die
+   * Beschriftung der Liste, mit `true` bleibt sie stehen. Gesetzt wird das
+   * dort, wo jemand den Text von Hand ändert – und beim Angleichen, wenn er
+   * „so lassen" wählt.
+   */
+  eigenerText?: boolean;
+
+  /**
    * Diese Strecke ist eine **Sonder- oder Aktionsplatzierung**.
    *
    * Der Meter trägt Werbeware und kein reguläres Sortiment. Er ist trotzdem

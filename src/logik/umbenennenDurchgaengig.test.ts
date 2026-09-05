@@ -168,8 +168,82 @@ describe('Ein Sortiment umbenennen', () => {
     );
     const strecke = p.elemente[0].warengruppenUnten?.[0];
     expect(strecke?.text).toBe('Frischmilch');
-    // Und sie bekommt den Pfad gleich mit — ab jetzt hängt sie fest.
+    // **Einen Pfad bekommt sie dabei nicht.** Umbenannt wird, zugeordnet
+    // nicht: Eine Strecke ohne Pfad ist oft mit Absicht ohne, weil noch offen
+    // ist, wohin ihre Meter zählen. Gerechnet wird sie über ihren Namen.
+    expect(strecke?.pfad).toBeUndefined();
+  });
+
+  it('lässt einen eigenen Satz stehen und zieht nur den Pfad', () => {
+    // „Milch aus der Region" gehört dem Planer. Die Meter zählen trotzdem
+    // zum umbenannten Sortiment — deshalb muss der Pfad mit.
+    const mitMarke = mitUmbenanntemPfad(
+      projekt([
+        element({
+          warengruppenUnten: [
+            { von: 0, bis: 100, text: 'Milch aus der Region', pfad: alt, eigenerText: true },
+          ],
+        }),
+      ]),
+      alt,
+      neu,
+    );
+    const strecke = mitMarke.elemente[0].warengruppenUnten?.[0];
+    expect(strecke?.text).toBe('Milch aus der Region');
     expect(strecke?.pfad).toBe(neu);
+  });
+
+  it('nimmt ein Teilsortiment mit, das genau so heißt', () => {
+    const p = mitUmbenanntemPfad(
+      projekt([
+        element({
+          warengruppenUnten: [
+            {
+              von: 0,
+              bis: 100,
+              text: 'Vollmilch',
+              pfad: alt,
+              teile: [
+                { von: 0, bis: 50, text: 'Vollmilch' },
+                { von: 50, bis: 100, text: 'Vollmilch Bio' },
+              ],
+            },
+          ],
+        }),
+      ]),
+      alt,
+      neu,
+    );
+    const teile = p.elemente[0].warengruppenUnten?.[0].teile;
+    expect(teile?.[0].text).toBe('Frischmilch');
+    // Nur bei genauem Treffer: Was davon der Name ist und was die
+    // Beschreibung, weiß hier niemand.
+    expect(teile?.[1].text).toBe('Vollmilch Bio');
+  });
+
+  it('benennt auch die grobe Einordnung des Möbels um', () => {
+    const p = mitUmbenanntemPfad(
+      projekt([element({ warengruppe: 'Milch' })]),
+      'Molkerei › Milch',
+      'Molkerei › Weiße Linie',
+    );
+    expect(p.elemente[0].warengruppe).toBe('Weiße Linie');
+  });
+
+  it('nimmt den zweiten Namen eines Bundes mit', () => {
+    // „Vollmilch, H-Milch" trägt nur **einen** Pfad — den der Vollmilch.
+    // Wird die H-Milch umbenannt, greift kein Pfad; der Name muss trotzdem
+    // mit, sobald es den alten nirgends mehr gibt.
+    const p = mitUmbenanntemPfad(
+      projekt([gesetzt('Vollmilch, H-Milch', alt)]),
+      'Molkerei › Milch › H-Milch',
+      'Molkerei › Milch › Haltbare Milch',
+      true,
+    );
+    const strecke = p.elemente[0].warengruppenUnten?.[0];
+    expect(strecke?.text).toBe('Vollmilch, Haltbare Milch');
+    // Der Pfad bleibt, wo er war — er gehört der Vollmilch.
+    expect(strecke?.pfad).toBe(alt);
   });
 
   it('nimmt auch eine getippte Warengruppe mit', () => {

@@ -20,8 +20,10 @@ import {
 } from '../logik/sortiment';
 import { alsTabellenblob } from '../logik/sortimentsausgabe';
 import { ladeDateiHerunter } from '../speicher/projektArchiv';
+import { metersAmEintrag } from '../speicher/sortimentsabgleich';
 import { usePlanStore } from '../zustand/planStore';
 import { Dialog } from './Dialog';
+import { Planabgleich } from './Planabgleich';
 
 /**
  * Die Sortimentsliste bearbeiten – in einem eigenen Fenster.
@@ -83,6 +85,31 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
   /** Umbenennen und Umhängen – und die Planung mitnehmen. */
   const umbenennen = (liste: typeof sortiment, altPfad: string, neuPfad: string) =>
     usePlanStore.getState().benenneSortimentUm(liste, altPfad, neuPfad);
+
+  /**
+   * Vor dem Entfernen sagen, was daran hängt.
+   *
+   * **Löschen ist nicht Umbenennen.** Wer einen Eintrag aus der Liste nimmt,
+   * nimmt ihn nicht aus dem Markt: Die Meter stehen weiter am Möbel, gehören
+   * aber zu nichts mehr. In der Auswertung rutschen sie ans Ende, unter einen
+   * Namen, den die Liste nicht mehr kennt, und der grüne Haken ist weg.
+   *
+   * Das darf man wollen. Man soll es nur wissen – und dafür braucht es eine
+   * Zahl. „steht auf 12,40 m in 2 Planungen" ist eine Antwort; „bist du
+   * sicher?" ist keine.
+   */
+  const entferne = async (was: string, pfad: string, ohne: () => typeof sortiment) => {
+    const { meter, planungen } = await metersAmEintrag(pfad, usePlanStore.getState().projekt);
+    const anhang =
+      meter > 0
+        ? `\n\nEs steht auf ${(meter / 100).toLocaleString('de-DE', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })} m in ${planungen === 1 ? 'einer Planung' : `${planungen} Planungen`}. ` +
+          'Die Meter bleiben im Plan stehen, gehören danach aber zu keinem Eintrag mehr.'
+        : '';
+    if (window.confirm(`${was}${anhang}`)) pflegen(ohne());
+  };
 
   /** Fragt nach einem Namen. Leer oder abgebrochen heißt: nichts tun. */
   const frage = (text: string, vorgabe = '') => {
@@ -174,9 +201,14 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
       }
     >
       <p className="hinweis" style={{ marginTop: 0 }}>
-        Umbenennen und Verschieben kommen im Plan an: Die Meter, die du gesetzt hast, ziehen mit,
-        ebenso die grünen Haken und die Auswertung. Nachträglich anzufassen ist nichts.
+        Umbenennen und Verschieben kommen im Plan an — in <strong>allen</strong> Planungen, denn die
+        Liste gilt für alle Märkte. Die Meter ziehen mit, ebenso die Beschriftung am Möbel, die
+        grünen Haken und die Auswertung. Nachträglich anzufassen ist nichts.
       </p>
+
+      {/* Was aus der Zeit vor dem Nachziehen stehen geblieben ist, steht
+          hier — siehe `Planabgleich`. Ist nichts offen, zeigt sich nichts. */}
+      <Planabgleich />
 
       <input
         type="text"
@@ -254,10 +286,13 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
               <button
                 className="wg-werkzeug gefahr"
                 title="Abteilung mit allem darin entfernen"
-                onClick={() => {
-                  if (window.confirm(`„${abteilung.name}" mit allen Warengruppen entfernen?`))
-                    pflegen(ohneAbteilung(sortiment, abteilung.name));
-                }}
+                onClick={() =>
+                  void entferne(
+                    `„${abteilung.name}" mit allen Warengruppen entfernen?`,
+                    pfadVon(abteilung.name),
+                    () => ohneAbteilung(sortiment, abteilung.name),
+                  )
+                }
               >
                 ×
               </button>
@@ -351,10 +386,13 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
                   <button
                     className="wg-werkzeug gefahr"
                     title="Warengruppe mit ihren Sortimenten entfernen"
-                    onClick={() => {
-                      if (window.confirm(`„${gruppe.name}" entfernen?`))
-                        pflegen(ohneWarengruppe(sortiment, abteilung.name, gruppe.name));
-                    }}
+                    onClick={() =>
+                      void entferne(
+                        `„${gruppe.name}" entfernen?`,
+                        pfadVon(abteilung.name, gruppe.name),
+                        () => ohneWarengruppe(sortiment, abteilung.name, gruppe.name),
+                      )
+                    }
                   >
                     ×
                   </button>
@@ -421,7 +459,11 @@ export function Listenpflege({ schliessen }: { schliessen: () => void }) {
                       className="wg-werkzeug gefahr"
                       title="Sortiment entfernen"
                       onClick={() =>
-                        pflegen(ohneSortiment(sortiment, abteilung.name, gruppe.name, name))
+                        void entferne(
+                          `„${name}" entfernen?`,
+                          pfadVon(abteilung.name, gruppe.name, name),
+                          () => ohneSortiment(sortiment, abteilung.name, gruppe.name, name),
+                        )
                       }
                     >
                       ×

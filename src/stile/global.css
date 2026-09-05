@@ -2613,6 +2613,51 @@ button.meterpfeil:hover {
   margin-bottom: 2px;
 }
 
+/* ------------------------------------------------------- Planabgleich
+   Der Kasten im Pflegefenster, der zeigt, wo Plan und Liste auseinander
+   sind. Er sitzt zwischen Einleitung und Suchfeld und soll auffallen,
+   ohne die Liste darunter zu verdrängen — deshalb die Höhenbremse. */
+.planabgleich {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border: 1px solid #e8cf9f;
+  border-radius: 6px;
+  background: #fdf7e8;
+}
+
+.abgleichliste {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 4px;
+}
+
+.abgleichzeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.abgleichzeile + .abgleichzeile {
+  border-top: 1px solid #f0e4c8;
+}
+
+.abgleichnamen {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.abgleichpfeil {
+  color: var(--text-schwach);
+  padding: 0 2px;
+}
+
+.abgleichzeile .knopf {
+  padding: 0 6px;
+  line-height: 1.4;
+}
+
 /* ------------------------------------------------------------ 3D-Ansicht */
 .dreid {
   position: relative;

@@ -1,3 +1,4 @@
+import { letzteStufe } from './sortiment';
 import type { PlanElement, Projekt, Punkt, Raum } from '../typen/modell';
 import { KATEGORIEN } from '../daten/kategorien';
 import { rahmen } from './polygon';
@@ -119,6 +120,16 @@ function felderVon(element: PlanElement): Feld[] {
     { name: 'Warengruppe', wert: element.warengruppe, gewicht: 4 },
     // Was auf den Feldern steht, ist das Sortiment – danach sucht man oft.
     ...abschnitte.map((a) => ({ name: 'Sortiment', wert: a.text, gewicht: 4 })),
+    // **Auch der Pfad.** Wer eine Warengruppe umbenannt hat, sucht nach dem
+    // neuen Namen – und der steht zuerst im Pfad. Ohne ihn fände die Suche
+    // eine Strecke nicht, die die Auswertung längst unter dem neuen Namen
+    // führt. Gesucht wird die letzte Stufe und nicht der ganze Pfad:
+    // „Molkerei" brächte sonst jedes Sortiment der Abteilung als Treffer.
+    ...abschnitte.map((a) => ({
+      name: 'Sortiment',
+      wert: a.pfad ? letzteStufe(a.pfad) : undefined,
+      gewicht: 5,
+    })),
     // Die Teilsortimente einer Strecke stehen nicht im Plan – umso mehr muss
     // die Suche sie finden, sonst weiß nur noch der Bescheid, der es
     // eingetippt hat.

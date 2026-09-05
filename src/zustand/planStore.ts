@@ -51,10 +51,15 @@ import {
 } from '../logik/warengruppenzuordnung';
 import { geordnet, mitVerschobenerKante } from '../logik/warengruppe';
 import { mitUmbenanntemPfad } from '../logik/pfadumbenennung';
+import { benenneInAllenPlanungenUm } from '../speicher/sortimentsabgleich';
 import { feldUnterPunkt } from '../logik/feldtreffer';
 import { warengruppeUnterPunkt } from '../logik/warengruppentreffer';
 import { pfadeImPlan } from '../logik/planstand';
-import { mitNachgezogenenPfaden } from '../logik/listenabgleich';
+import {
+  mitAngeglichenenBeschriftungen,
+  mitNachgezogenenPfaden,
+  type Beschriftungsentscheidung,
+} from '../logik/listenabgleich';
 import type {
   BibliothekEintrag,
   Einstellungen,
@@ -472,6 +477,29 @@ export interface PlanStore {
   vergangenheit: Projekt[];
   zukunft: Projekt[];
   /**
+   * Die Sortimentsliste zu jedem Schritt der Historie – im Gleichschritt.
+   *
+   * **Umbenennen ändert zwei Dinge auf einmal:** die Liste am Gerät und die
+   * Pfade in der Planung. Läge nur die Planung in der Historie, nähme ein
+   * Strg+Z sie zurück und ließe die Liste stehen – danach zeigten die Pfade
+   * auf Namen, die die Liste nicht mehr kennt, die grünen Haken wären weg,
+   * und im Plan stünde wieder der alte Name. Genau der Zustand, den das
+   * Umbenennen beseitigen soll.
+   *
+   * Deshalb liegt zu jedem Schritt auch die Liste, die damals galt. Kopiert
+   * wird sie nicht: Alle Änderungen an ihr geben neue Objekte zurück.
+   */
+  vergangenheitListe: Sortimentsliste[];
+  zukunftListe: Sortimentsliste[];
+  /**
+   * Die Umbenennung, die zum jüngsten Schritt der Historie gehört.
+   *
+   * Sie ist nicht nur in der offenen Planung angekommen, sondern in **allen**
+   * gespeicherten. Ein Strg+Z muss sie deshalb auch dort zurücknehmen – dazu
+   * braucht es die beiden Namen und die Richtung.
+   */
+  letzteUmbenennung: { alt: string; neu: string; auchOhnePfad: boolean } | null;
+  /**
    * Wie viele Klammern gerade offen sind (siehe `klammereZusammen`).
    *
    * Solange hier etwas steht, legt keine Änderung einen eigenen
@@ -533,6 +561,22 @@ export interface PlanStore {
    * steht. Zurück kommt, wie viele Pfade umgezogen sind.
    */
   ziehePfadeNach(umzug: Map<string, string>): number;
+  /**
+   * Gleicht die Beschriftungen der **offenen** Planung an die Liste an.
+   *
+   * Der Schlüssel jeder Entscheidung kommt aus `beschriftungsschluessel`.
+   * Zurück kommt, wie viele Zeilen erledigt sind.
+   */
+  gleicheBeschriftungenAn(entscheidungen: Map<string, Beschriftungsentscheidung>): number;
+  /**
+   * Wie viele **andere** Planungen ein Umbenennen zuletzt mitgenommen hat.
+   *
+   * Nur zum Anzeigen; das Nachziehen selbst läuft im Hintergrund. `0` heißt:
+   * nichts zu melden.
+   */
+  nachgezogenePlanungen: number;
+  /** Die Meldung wegräumen, wenn sie gelesen ist. */
+  vergissNachgezogene(): void;
   /** Übernimmt eine geänderte Sortimentsliste und schreibt sie ans Gerät. */
   pflegeSortiment(liste: Sortimentsliste): void;
 
@@ -864,6 +908,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   seitenverhaeltnisHalten: false,
   vergangenheit: [],
   zukunft: [],
+  vergangenheitListe: [],
+  zukunftListe: [],
+  letzteUmbenennung: null,
+  nachgezogenePlanungen: 0,
   klammertiefe: 0,
   klammerFrisch: true,
 
@@ -879,6 +927,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       werkzeug: 'auswahl',
       vergangenheit: [],
       zukunft: [],
+      vergangenheitListe: [],
+      zukunftListe: [],
+      letzteUmbenennung: null,
       geladen: alsGeladen,
     });
   },
@@ -950,8 +1001,13 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   setzeSortimentsliste(liste, speichern = false) {
-    set({ sortiment: liste });
-    if (speichern) void speichereSortiment(liste);
+    // Beim Start kommt die Liste aus der Datenbank – das ist keine Änderung
+    // und gehört nicht in die Historie. Erst was der Planer tut, zählt.
+    if (!speichern) {
+      set({ sortiment: liste });
+      return;
+    }
+    aendereListe(set, get, liste);
   },
 
   setzeAnsicht3d(an) {
@@ -1036,14 +1092,22 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     return umzug.size;
   },
 
+  gleicheBeschriftungenAn(entscheidungen) {
+    const ergebnis = mitAngeglichenenBeschriftungen(get().projekt, entscheidungen);
+    if (!ergebnis) return 0;
+    aendere(set, get, (p) => ({ ...p, elemente: ergebnis.elemente }));
+    return ergebnis.zahl;
+  },
+
+  vergissNachgezogene() {
+    if (get().nachgezogenePlanungen !== 0) set({ nachgezogenePlanungen: 0 });
+  },
+
   pflegeSortiment(liste) {
-    set({ sortiment: liste });
-    void speichereSortiment(liste);
+    aendereListe(set, get, liste);
   },
 
   benenneSortimentUm(liste, alt, neu) {
-    set({ sortiment: liste });
-    void speichereSortiment(liste);
     // Und die Pfade in der Planung mitziehen: Sie sind Zeichenketten und
     // zeigten sonst auf einen Namen, den es nicht mehr gibt – siehe
     // `logik/pfadumbenennung.ts`.
@@ -1055,7 +1119,31 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // weiter — weil er woanders noch einmal vorkommt —, bleibt die Strecke
     // unangetastet: Dann hieße Umbenennen raten.
     const altName = alt.split(' › ').pop() ?? alt;
-    aendere(set, get, (p) => mitUmbenanntemPfad(p, alt, neu, !kenntNamen(liste, altName)));
+    const auchOhnePfad = !kenntNamen(liste, altName);
+
+    // **Erst der Plan, dann die Liste.** `aendere` legt den Schritt für
+    // Strg+Z an und nimmt dabei die Liste mit, die gerade gilt – also noch
+    // die alte. Andersherum stünde im Schritt schon die neue, und ein Strg+Z
+    // brächte den alten Plan mit der neuen Liste zusammen.
+    aendere(set, get, (p) => mitUmbenanntemPfad(p, alt, neu, auchOhnePfad));
+    set({ sortiment: liste });
+    void speichereSortiment(liste);
+
+    // **Und alle anderen Planungen.** Die Liste gilt am Gerät und damit für
+    // jeden Markt. Bliebe es bei der offenen, trüge Zierenberg den neuen
+    // Namen und Baunatal weiter den alten – bis man es dort zufällig öffnet
+    // und sich fragt, warum die Meter in einer eigenen Zeile am Ende stehen.
+    void benenneInAllenPlanungenUm(alt, neu, auchOhnePfad, () => get().projekt.id).then(
+      (zahl) => {
+        if (zahl > 0) set({ nachgezogenePlanungen: zahl });
+      },
+    );
+
+    // **Der Rückweg fährt im Schritt mit.** Ein Strg+Z holt die offene
+    // Planung und die Liste zurück – die übrigen Planungen liegen aber schon
+    // in der Datenbank und trügen sonst weiter Pfade, die die
+    // zurückgenommene Liste nicht mehr kennt.
+    set({ letzteUmbenennung: { alt, neu, auchOhnePfad } });
   },
 
   setzeWarengruppenPinsel(pinsel) {
@@ -1708,6 +1796,8 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     set((s) => ({
       vergangenheit: [...s.vergangenheit, structuredClone(s.projekt)].slice(-HISTORIE_TIEFE),
       zukunft: [],
+      vergangenheitListe: [...s.vergangenheitListe, s.sortiment].slice(-HISTORIE_TIEFE),
+      zukunftListe: [],
       klammerFrisch: false,
     }));
   },
@@ -1735,28 +1825,47 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   rueckgaengig() {
-    const { vergangenheit, projekt, zukunft } = get();
+    const { vergangenheit, projekt, zukunft, sortiment } = get();
     if (vergangenheit.length === 0) return;
     const vorher = vergangenheit[vergangenheit.length - 1];
+    const listeVorher = get().vergangenheitListe[get().vergangenheitListe.length - 1] ?? sortiment;
     set({
       projekt: vorher,
       vergangenheit: vergangenheit.slice(0, -1),
       zukunft: [...zukunft, structuredClone(projekt)],
+      vergangenheitListe: get().vergangenheitListe.slice(0, -1),
+      zukunftListe: [...get().zukunftListe, sortiment],
       // Auswahl aufräumen: gelöschte Elemente dürfen nicht ausgewählt bleiben.
       auswahl: get().auswahl.filter((id) => vorher.elemente.some((e) => e.id === id)),
     });
+    nimmListeZurueck(set, sortiment, listeVorher);
+    // Und in allen übrigen Planungen denselben Weg zurück.
+    const zurueck = get().letzteUmbenennung;
+    if (zurueck && listeVorher !== sortiment) {
+      set({ letzteUmbenennung: null });
+      void benenneInAllenPlanungenUm(
+        zurueck.neu,
+        zurueck.alt,
+        zurueck.auchOhnePfad,
+        () => get().projekt.id,
+      );
+    }
   },
 
   wiederholen() {
-    const { vergangenheit, projekt, zukunft } = get();
+    const { vergangenheit, projekt, zukunft, sortiment } = get();
     if (zukunft.length === 0) return;
     const nachher = zukunft[zukunft.length - 1];
+    const listeNachher = get().zukunftListe[get().zukunftListe.length - 1] ?? sortiment;
     set({
       projekt: nachher,
       zukunft: zukunft.slice(0, -1),
       vergangenheit: [...vergangenheit, structuredClone(projekt)],
+      zukunftListe: get().zukunftListe.slice(0, -1),
+      vergangenheitListe: [...get().vergangenheitListe, sortiment],
       auswahl: get().auswahl.filter((id) => nachher.elemente.some((e) => e.id === id)),
     });
+    nimmListeZurueck(set, sortiment, listeNachher);
   },
 
   // =============================================================== Elemente
@@ -2494,12 +2603,56 @@ function aufBaubareLaenge(vorher: PlanElement, gezogen: PlanElement): PlanElemen
   };
 }
 
+/**
+ * Nimmt die Sortimentsliste mit zurück – aber nur, wenn sie sich unterscheidet.
+ *
+ * Bei fast jedem Schritt ist es dieselbe Liste; dann wäre ein Schreiben in die
+ * Datenbank reine Arbeit ohne Wirkung. Nur nach einem Umbenennen fallen die
+ * beiden auseinander, und dann muss die Liste denselben Weg gehen wie der Plan.
+ */
+function nimmListeZurueck(
+  set: (teil: Partial<PlanStore>) => void,
+  jetzt: Sortimentsliste,
+  zurueck: Sortimentsliste,
+): void {
+  if (zurueck === jetzt) return;
+  set({ sortiment: zurueck });
+  void speichereSortiment(zurueck);
+}
+
+/**
+ * Eine neue Sortimentsliste übernehmen – mit einem Schritt für Strg+Z.
+ *
+ * **Jede Änderung an der Liste muss in die Historie**, auch wenn die Planung
+ * dabei unangetastet bleibt. Sonst passten Plan und Liste nach einem Strg+Z
+ * nicht mehr zusammen: Der Schritt nähme den Plan auf einen älteren Stand
+ * zurück und brächte die Liste, die damals galt, gleich mit – und eine
+ * Löschung von eben wäre stillschweigend rückgängig gemacht.
+ */
+function aendereListe(
+  set: (teil: Partial<PlanStore>) => void,
+  get: () => PlanStore,
+  liste: Sortimentsliste,
+): void {
+  const { projekt, vergangenheit, vergangenheitListe, sortiment } = get();
+  if (liste === sortiment) return;
+  set({
+    vergangenheit: [...vergangenheit, structuredClone(projekt)].slice(-HISTORIE_TIEFE),
+    vergangenheitListe: [...vergangenheitListe, sortiment].slice(-HISTORIE_TIEFE),
+    zukunft: [],
+    zukunftListe: [],
+    sortiment: liste,
+  });
+  void speichereSortiment(liste);
+}
+
 function aendere(
   set: (teil: Partial<PlanStore>) => void,
   get: () => PlanStore,
   wandeln: (projekt: Projekt) => Projekt,
 ): void {
-  const { projekt, vergangenheit, klammertiefe, klammerFrisch } = get();
+  const { projekt, vergangenheit, vergangenheitListe, sortiment, klammertiefe, klammerFrisch } =
+    get();
   const naechstes = { ...wandeln(projekt), geaendertAm: Date.now() };
 
   // In einer angebrochenen Klammer nichts eintragen: Dort steht schon der
@@ -2514,6 +2667,8 @@ function aendere(
   set({
     vergangenheit: [...vergangenheit, structuredClone(projekt)].slice(-HISTORIE_TIEFE),
     zukunft: [],
+    vergangenheitListe: [...vergangenheitListe, sortiment].slice(-HISTORIE_TIEFE),
+    zukunftListe: [],
     projekt: naechstes,
     klammerFrisch: false,
   });
