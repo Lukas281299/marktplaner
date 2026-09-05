@@ -91,6 +91,28 @@ export function bandlaengeLieferbar(band: number): boolean {
 }
 
 /**
+ * Die Abschnittsgrenzen einer Kassenzeile, von links nach rechts.
+ *
+ * Bei einem sehr kurz gezogenen Element bleibt vom Band nichts übrig – dann
+ * rücken die Fugen zusammen, statt sich zu überholen.
+ *
+ * `gespiegelt` ist der Anschlag: Bei ITAB heißen die beiden Ausführungen LA
+ * und RA, und sie unterscheiden sich genau darin, von welcher Seite der Kunde
+ * seine Ware aufs Band legt. Über die Drehung ist das nicht zu ersetzen – 180
+ * Grad vertauschen zwar links und rechts, drehen aber auch vorn und hinten,
+ * und dann stünde die Bedienung auf der falschen Seite.
+ */
+export function kassenfugen(b: number, gespiegelt: boolean) {
+  const band = Math.max(b - KASSE_FEST, 0);
+  const x1 = Math.min(KASSE_KOPF, b);
+  const x2 = Math.min(x1 + band, b);
+  const x3 = Math.min(x2 + KASSE_PLATZ, b);
+  if (!gespiegelt) return { band, x1, x2, x3 };
+  // Gespiegelt läuft dieselbe Folge von rechts nach links.
+  return { band, x1: b - x3, x2: b - x2, x3: b - x1 };
+}
+
+/**
  * Das Füllstück zwischen zwei Kassenzeilen.
  *
  * Es gibt sie in Vielfachen von 295 mm – 295, 590, 885 und so fort bis 2065.

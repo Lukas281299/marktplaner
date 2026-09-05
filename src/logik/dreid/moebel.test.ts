@@ -262,8 +262,8 @@ describe('Zonen und Platzhalter', () => {
   });
 
   it('gibt allem anderen einen Klotz in Kategoriefarbe', () => {
-    const kasse = element({ kategorie: 'kassen', form: 'kasse', breite: 391, tiefe: 58, hoehe: 96 });
-    const teile = bauteileFuer(kasse);
+    const band = element({ kategorie: 'kassen', form: 'foerderband', breite: 300, tiefe: 60, hoehe: 96 });
+    const teile = bauteileFuer(band);
     expect(teile).toHaveLength(1);
     expect(teile[0].material).toBe('kategorie');
     expect(hoechstePunkt(teile)).toBe(96);
@@ -298,5 +298,86 @@ describe('Spiegeln', () => {
       { x: 10, y: 100 },
       { x: 0, y: 100 },
     ]);
+  });
+});
+
+describe('Die Kassenzone', () => {
+  const kasse = (teil: Partial<PlanElement> = {}) =>
+    element({ kategorie: 'kassen', form: 'kasse', breite: 391.3, tiefe: 58.4, hoehe: 96, ...teil });
+
+  it('baut die Kassenzeile aus ihren vier Abschnitten', () => {
+    const teile = bauteileFuer(kasse());
+    // Das Warenband ist die dunkle Platte auf Arbeitshöhe.
+    const band = teile.filter((t) => t.art === 'quader' && t.material === 'schwarz' && t.b > 100);
+    expect(band.length).toBeGreaterThan(0);
+    // Und die Packmulde liegt tiefer als die Arbeitsfläche.
+    expect(teile.some((t) => t.material === 'edelstahl' && t.z < 96 && t.z > 60)).toBe(true);
+  });
+
+  it('spiegelt den Anschlag, ohne das Möbel zu drehen', () => {
+    const links = bauteileFuer(kasse());
+    const rechts = bauteileFuer(kasse({ gespiegelt: true }));
+    const bandMitte = (teile: Bauteil[]) => {
+      const band = teile.find((t) => t.art === 'quader' && t.material === 'schwarz' && t.b > 100);
+      return band && band.art === 'quader' ? band.x + band.b / 2 : 0;
+    };
+    // Bei LA liegt das Band links, bei RA rechts – dieselbe Zeile, andere Seite.
+    expect(bandMitte(links)).toBeLessThan(391.3 / 2);
+    expect(bandMitte(rechts)).toBeGreaterThan(391.3 / 2);
+  });
+
+  it('gibt der Doppelkasse zwei Bahnen und eine Insel dazwischen', () => {
+    const einzeln = bauteileFuer(kasse());
+    const doppelt = bauteileFuer(kasse({ form: 'kasseDoppel', tiefe: 181.2 }));
+    expect(doppelt.length).toBeGreaterThan(einzeln.length * 1.8);
+    expect(imRahmen(doppelt, 391.3, 181.2, 30)).toBe(true);
+  });
+
+  it('setzt der Sitzkasse einen Stuhl daneben', () => {
+    const ohne = bauteileFuer(kasse());
+    const mit = bauteileFuer(kasse({ form: 'kasseSitz' }));
+    expect(mit.length).toBeGreaterThan(ohne.length);
+  });
+
+  it('hält die Kassengondel niedrig und bestückt sie beidseitig', () => {
+    const gondel = element({ kategorie: 'kassen', form: 'kassengondel', breite: 125, tiefe: 58.4, hoehe: 140 });
+    const teile = bauteileFuer(gondel);
+    expect(hoechstePunkt(teile)).toBeLessThanOrEqual(140);
+    const boeden = teile.filter((t) => t.art === 'quader' && t.material === 'hellgrau' && t.h <= 2.5);
+    // Vier bis fünf Böden je Seite.
+    expect(boeden.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('stellt der SB-Kasse den Bildschirm über die Ablage', () => {
+    const sb = element({ kategorie: 'kassen', form: 'sbKasse', breite: 90, tiefe: 80, hoehe: 150 });
+    const teile = bauteileFuer(sb);
+    expect(hoechstePunkt(teile)).toBeLessThanOrEqual(150);
+    expect(teile.some((t) => t.material === 'edelstahl')).toBe(true);
+  });
+
+  it('gibt dem Leergutautomaten seine Einwurföffnung', () => {
+    const automat = element({ kategorie: 'kassen', form: 'automat', breite: 120, tiefe: 100, hoehe: 200 });
+    const teile = bauteileFuer(automat);
+    // Die Öffnung ist ein liegender Zylinder in der Front.
+    expect(teile.some((t) => t.art === 'zylinder' && t.achse === 'y')).toBe(true);
+    expect(hoechstePunkt(teile)).toBeLessThanOrEqual(200);
+  });
+
+  it('bleibt überall in seinem Rahmen', () => {
+    for (const [form, b, t, h] of [
+      ['kasse', 391.3, 58.4, 96],
+      ['kasseExpress', 120, 58.4, 96],
+      ['packrutsche', 100, 58.4, 96],
+      ['kassengondel', 125, 58.4, 140],
+      ['sbKasse', 90, 80, 150],
+      ['automat', 120, 100, 200],
+      ['dpgBehaelter', 120, 80, 100],
+      ['kastenablage', 300, 90, 180],
+    ] as [PlanElement['form'], number, number, number][]) {
+      const teile = bauteileFuer(element({ kategorie: 'kassen', form, breite: b, tiefe: t, hoehe: h }));
+      expect(teile.length, form).toBeGreaterThan(0);
+      // Der Mast und der Stuhl stehen bewusst über – dafür die Luft.
+      expect(imRahmen(teile, b, t, 26), form).toBe(true);
+    }
   });
 });

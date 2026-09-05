@@ -10,6 +10,7 @@ import { blumenBauteile } from './bauformen/blumen';
 import { aktionBauteile } from './bauformen/aktion';
 import { ausstattungBauteile } from './bauformen/ausstattung';
 import { getraenkeBauteile } from './bauformen/getraenke';
+import { kassenBauteile } from './bauformen/kassen';
 import type { Grundform, PlanElement } from '../../typen/modell';
 
 /**
@@ -138,6 +139,19 @@ export function bauteileFuer(element: PlanElement): Bauteil[] {
       return blumenBauteile(element);
     case 'getraenkegestell':
       return getraenkeBauteile(element);
+    case 'kasse':
+    case 'kasseSitz':
+    case 'kasseDoppel':
+    case 'kasseExpress':
+    case 'packrutsche':
+    case 'kassengondel':
+    case 'sbKasse':
+    case 'automat':
+    case 'leergutRuecknahme':
+    case 'leergutEinweg':
+    case 'dpgBehaelter':
+    case 'kastenablage':
+      return kassenBauteile(element);
     case 'palette':
     case 'drehstaender':
     case 'abgerundet':

@@ -2,7 +2,7 @@ import { Shape, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import { modulsatzFuer } from '../../daten/module';
-import { KASSE_BAND, KASSE_FEST, KASSE_KOPF, KASSE_PLATZ } from '../../logik/kassen';
+import { KASSE_BAND, KASSE_PLATZ, kassenfugen } from '../../logik/kassen';
 import { achsmassZeichen } from '../../logik/achsmass';
 import { laeuftRueckwaerts, lesbar } from '../../logik/beschriftung';
 import { feldliste } from '../../logik/feldaufteilung';
@@ -2464,28 +2464,6 @@ export function zeichneForm(
  * quer dazu. Die Doppelkasse hat zwei Bänder an den Außenseiten und dazwischen
  * die Insel, auf der bedient wird.
  */
-/**
- * Die Abschnittsgrenzen einer Kassenzeile, von links nach rechts.
- *
- * Bei einem sehr kurz gezogenen Element bleibt vom Band nichts übrig – dann
- * rücken die Fugen zusammen, statt sich zu überholen.
- *
- * `gespiegelt` ist der Anschlag: Bei ITAB heißen die beiden Ausführungen LA
- * und RA, und sie unterscheiden sich genau darin, von welcher Seite der Kunde
- * seine Ware aufs Band legt. Über die Drehung ist das nicht zu ersetzen – 180
- * Grad vertauschen zwar links und rechts, drehen aber auch vorn und hinten,
- * und dann stünde die Bedienung auf der falschen Seite.
- */
-export function kassenfugen(b: number, gespiegelt: boolean) {
-  const band = Math.max(b - KASSE_FEST, 0);
-  const x1 = Math.min(KASSE_KOPF, b);
-  const x2 = Math.min(x1 + band, b);
-  const x3 = Math.min(x2 + KASSE_PLATZ, b);
-  if (!gespiegelt) return { band, x1, x2, x3 };
-  // Gespiegelt läuft dieselbe Folge von rechts nach links.
-  return { band, x1: b - x3, x2: b - x2, x3: b - x1 };
-}
-
 function zeichneKasse(ctx: Konva.Context, b: number, t: number, doppelt: boolean, gespiegelt = false) {
   ctx.rect(0, 0, b, t);
 
