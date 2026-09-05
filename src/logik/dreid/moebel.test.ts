@@ -256,6 +256,19 @@ describe('Zonen und Platzhalter', () => {
     expect(hoechstePunkt(teile)).toBeLessThan(3);
   });
 
+  it('lässt einer freien Fläche ihre Abteilungsfarbe', () => {
+    // Im Raum soll dieselbe Fläche liegen wie im Grundriss. Eine
+    // Molkereifläche ist blau, auch wenn sie dieselbe Form hat wie eine
+    // gelbe Aktionsfläche.
+    const flaeche = element({
+      kategorie: 'kuehlung',
+      form: 'aktionsflaeche',
+      hoehe: 0,
+      farbe: '#b9d7ea',
+    });
+    expect(bauteileFuer(flaeche)[0].farbe).toBe('#b9d7ea');
+  });
+
   it('lässt ein Fenster und ein Türblatt weg – die stecken in der Wand', () => {
     expect(bauteileFuer(element({ form: 'fenster' }))).toHaveLength(0);
     expect(bauteileFuer(element({ form: 'tuerBlatt' }))).toHaveLength(0);

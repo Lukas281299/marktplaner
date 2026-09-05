@@ -86,9 +86,16 @@ export function klotz(element: PlanElement): Bauteil[] {
   return [quader(0, 0, 0, element.breite, element.tiefe, hoeheVon(element), 'kategorie', { farbe })];
 }
 
-/** Eine flache Markierung – Aktionsfläche, Textfeld, Sperrfläche. */
+/**
+ * Eine flache Markierung – Aktionsfläche, freie Fläche, Textfeld, Sperrfläche.
+ *
+ * **Die Farbe ist die des Elements**, nicht die der Kategorie. Eine
+ * Aktionsfläche ist gelb, eine freie Fläche trägt die Farbe ihrer Abteilung,
+ * und wer eine davon umfärbt, meint es. Im Raum soll dieselbe Fläche liegen
+ * wie im Grundriss; zwei Farben für ein Rechteck wären eine Falle.
+ */
 function markierung(element: PlanElement): Bauteil[] {
-  const farbe = element.form === 'aktionsflaeche' ? '#e6d24a' : kategoriefarbe(element);
+  const farbe = element.farbe || kategoriefarbe(element);
   return [prisma(rechteck(element.breite, element.tiefe), 0.4, 0.8, 'markierung', farbe)];
 }
 
