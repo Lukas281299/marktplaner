@@ -155,3 +155,42 @@ describe('Höhe und Tiefe rechts im Feld', () => {
     expect(masszeilen(moebel({ hoehe: 180, tiefe: 3, beidseitig: true }))).toEqual(['H 1800']);
   });
 });
+
+describe('Die Kennzeichnung der Sonderausstattung', () => {
+  it('schreibt die Zahl der Körbe mit K', () => {
+    // Sechs Etagen, vier davon Körbe: „6" und darunter „4K".
+    expect(
+      feldzeilen({ boeden: 6, ausstattung: { koerbe: { anzahl: 4, lage: 'unten' } } }),
+    ).toEqual(['6', '4K']);
+  });
+
+  it('schreibt bei Hängeware BRW', () => {
+    expect(
+      feldzeilen({ boeden: 5, ausstattung: { haengeware: { anteil: 40, lage: 'oben' } } }),
+    ).toEqual(['5', 'BRW']);
+  });
+
+  it('bringt beides in einer Zeile unter', () => {
+    // Im Feld ist der Platz knapp — zwei Zeilen nähmen der Notiz ihre.
+    expect(
+      feldzeilen({
+        boeden: 6,
+        notiz: 'Aktion',
+        ausstattung: {
+          koerbe: { anzahl: 2, lage: 'mitte' },
+          haengeware: { anteil: 30, lage: 'oben' },
+        },
+      }),
+    ).toEqual(['6', '2K BRW', 'Aktion']);
+  });
+
+  it('lässt ohne Ausstattung alles wie bisher', () => {
+    expect(feldzeilen({ boeden: 5, notiz: '1K' })).toEqual(['5', '1K']);
+  });
+
+  it('schweigt bei null Körben', () => {
+    expect(feldzeilen({ boeden: 5, ausstattung: { koerbe: { anzahl: 0, lage: 'oben' } } })).toEqual([
+      '5',
+    ]);
+  });
+});

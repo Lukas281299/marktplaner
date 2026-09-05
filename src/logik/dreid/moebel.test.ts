@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bauteileFuer, hoeheVon } from './moebel';
 import { spiegele, type Bauteil, type Quader } from './bauteile';
-import type { PlanElement } from '../../typen/modell';
+import type { PlanElement, Regalfeld, Unterbauplatz } from '../../typen/modell';
 
 /**
  * Prüfungen für die Bauteile der 3D-Ansicht.
@@ -78,6 +78,19 @@ function imRahmen(teile: Bauteil[], breite: number, tiefe: number, luft = 12): b
 const quaderMit = (teile: Bauteil[], material: string): Quader[] =>
   teile.filter((t): t is Quader => t.art === 'quader' && t.material === material);
 
+/**
+ * Wie viele Ebenen ein Regal zeigt — Grundboden und Drahtetagen zusammen.
+ *
+ * Der Grundboden ist eine Platte in Regalfarbe, die über die volle
+ * Feldbreite geht; die Füße und Säulen sind schmal, die Sockelblende ist
+ * dünn. Danach lässt er sich zählen.
+ */
+function ebenen(teile: Bauteil[]): number {
+  const draht = quaderMit(teile, 'draht').length;
+  const grund = quaderMit(teile, 'regal').filter((t) => t.h <= 2.5 && t.b >= 50).length;
+  return draht + grund;
+}
+
 describe('Das Wandregal', () => {
   const regal = element({});
   const teile = bauteileFuer(regal);
@@ -87,8 +100,39 @@ describe('Das Wandregal', () => {
     expect(hoechstePunkt(teile)).toBeLessThanOrEqual(regal.hoehe! + 2);
   });
 
-  it('hat so viele Drahtetagen wie Böden eingetragen sind', () => {
-    expect(quaderMit(teile, 'draht')).toHaveLength(5);
+  it('zählt den Grundboden als erste Etage mit', () => {
+    // Wer sieben Böden einträgt, will sieben Ebenen sehen. Der Grundboden ist
+    // eine davon: fünf eingetragene Böden sind das Sockelblech und vier
+    // Drahtetagen darüber. Dieselbe Zählweise wie in der Rechnung.
+    expect(quaderMit(teile, 'draht')).toHaveLength(4);
+    expect(ebenen(teile)).toBe(5);
+  });
+
+  it('zeigt bei einem einzigen Boden genau eine Ebene', () => {
+    const eins = element({ felderUnten: [{ breite: 100, boeden: 1 }] });
+    const gebaut = bauteileFuer(eins);
+    expect(quaderMit(gebaut, 'draht')).toHaveLength(0);
+    expect(ebenen(gebaut)).toBe(1);
+  });
+
+  it('zeigt bei sieben Böden sieben Ebenen', () => {
+    const sieben = element({ hoehe: 220, felderUnten: [{ breite: 100, boeden: 7 }] });
+    expect(ebenen(bauteileFuer(sieben))).toBe(7);
+  });
+
+  it('lässt bei null Böden auch den Grundboden weg', () => {
+    // Null heißt „keine Böden" — etwa dort, wo nur eine Palette steht.
+    const ohne = element({ felderUnten: [{ breite: 100, boeden: 0 }] });
+    expect(ebenen(bauteileFuer(ohne))).toBe(0);
+  });
+
+  it('hängt die Etagen hinten an, nicht vorn', () => {
+    // Sie werden in die Säule eingehängt: Die hintere Kante steht fest, die
+    // vordere wandert mit der Tiefe. Andersherum sähen flachere Etagen aus,
+    // als schwebten sie vor der Rückwand.
+    const drahtboeden = quaderMit(teile, 'draht');
+    const hinten = new Set(drahtboeden.map((t) => Math.round(t.y * 10) / 10));
+    expect(hinten.size).toBe(1);
   });
 
   it('hat eine Säule mehr als Felder', () => {
@@ -103,9 +147,9 @@ describe('Das Wandregal', () => {
     expect(saeulen).toHaveLength(4);
   });
 
-  it('nimmt fünf Böden an, wenn keine eingetragen sind', () => {
+  it('nimmt fünf Ebenen an, wenn keine eingetragen sind', () => {
     const ohne = element({ felderUnten: [{ breite: 100 }] });
-    expect(quaderMit(bauteileFuer(ohne), 'draht')).toHaveLength(5);
+    expect(ebenen(bauteileFuer(ohne))).toBe(5);
   });
 
   it('zeigt das Führungsrohr nur, wenn es bestellt ist', () => {
@@ -125,8 +169,11 @@ describe('Die Gondel', () => {
   });
   const teile = bauteileFuer(gondel);
 
-  it('trägt die Böden beider Seiten', () => {
-    expect(quaderMit(teile, 'draht')).toHaveLength(11);
+  it('trägt die Ebenen beider Seiten', () => {
+    // Vorn fünf, hinten sechs — also vier plus fünf Drahtetagen über den
+    // beiden Grundböden.
+    expect(quaderMit(teile, 'draht')).toHaveLength(9);
+    expect(ebenen(teile)).toBe(11);
   });
 
   it('bleibt in ihrem Rahmen', () => {
@@ -143,8 +190,8 @@ describe('Die Gondel', () => {
     const alle = bauteileFuer(gleich);
     const vorn = alle.filter((t) => t.art === 'quader' && t.material === 'draht' && t.y > 37);
     const hinten = alle.filter((t) => t.art === 'quader' && t.material === 'draht' && t.y < 37);
-    expect(vorn).toHaveLength(5);
-    expect(hinten).toHaveLength(5);
+    expect(vorn).toHaveLength(4);
+    expect(hinten).toHaveLength(4);
   });
 });
 
@@ -392,5 +439,152 @@ describe('Die Kassenzone', () => {
       // Der Mast und der Stuhl stehen bewusst über – dafür die Luft.
       expect(imRahmen(teile, b, t, 26), form).toBe(true);
     }
+  });
+});
+
+describe('Was unter den Böden steht', () => {
+  const mitUnterbau = (unterbau: Unterbauplatz) =>
+    bauteileFuer(
+      element({ breite: 125, tiefe: 67, hoehe: 200, felderUnten: [{ breite: 125, boeden: 2, unterbau }] }),
+    );
+
+  it('stellt die Getränkekisten unter das Regal', () => {
+    const teile = mitUnterbau({ art: 'kiste' });
+    const kaesten = teile.filter((t) => t.material === 'kiste' || t.material === 'kisteRot');
+    expect(kaesten.length).toBeGreaterThan(0);
+    // Sie stehen auf dem Boden und nicht in der Luft.
+    expect(Math.min(...kaesten.map((t) => t.z))).toBe(0);
+  });
+
+  it('legt die Palette hin und stapelt Ware darauf', () => {
+    const teile = mitUnterbau({ art: 'euro' });
+    expect(teile.some((t) => t.material === 'palette')).toBe(true);
+    expect(teile.some((t) => t.material === 'ware')).toBe(true);
+  });
+
+  it('schiebt die Böden über den Unterbau', () => {
+    // Genau der Fall: ein Boden oben, darunter Platz für die Kisten.
+    const ohne = bauteileFuer(
+      element({ breite: 125, tiefe: 67, hoehe: 200, felderUnten: [{ breite: 125, boeden: 2 }] }),
+    );
+    const mit = mitUnterbau({ art: 'kiste' });
+    const tiefster = (teile: Bauteil[]) =>
+      Math.min(...quaderMit(teile, 'regal').filter((t) => t.h <= 2.5 && t.b >= 50).map((t) => t.z));
+    expect(tiefster(mit)).toBeGreaterThan(tiefster(ohne) + 40);
+  });
+
+  it('gibt dem Kühlmöbel eine Glasfront', () => {
+    expect(mitUnterbau({ art: 'kuehlmoebel' }).some((t) => t.material === 'glas')).toBe(true);
+  });
+
+  it('lässt die Kartoffelkiste aus Holz sein', () => {
+    const teile = mitUnterbau({ art: 'kartoffelkiste' });
+    expect(teile.some((t) => t.material === 'holzHell' || t.material === 'holzDunkel')).toBe(true);
+  });
+});
+
+/**
+ * Zwei Flächen, die genau aufeinanderliegen, kann die Grafikkarte nicht
+ * auseinanderhalten: Sie zeigt mal die eine, mal die andere, und beim Drehen
+ * flimmert es. Diese Prüfung sucht solche Paare, bevor sie jemand sieht.
+ *
+ * Geprüft werden nur **undurchsichtige** Quader: Glas liegt bewusst dicht an
+ * anderen Flächen, und weil es durchsichtig ist, fällt dort nichts auf.
+ */
+function deckungsgleicheDeckflaechen(teile: Bauteil[]): string[] {
+  const feste = teile.filter(
+    (t): t is Quader => t.art === 'quader' && t.material !== 'glas' && !t.neigung,
+  );
+  const treffer: string[] = [];
+  for (let i = 0; i < feste.length; i++) {
+    for (let j = i + 1; j < feste.length; j++) {
+      const a = feste[i];
+      const b = feste[j];
+      // Liegt die Oberkante des einen genau auf der des anderen?
+      if (Math.abs(a.z + a.h - (b.z + b.h)) > 0.001) continue;
+      // Und überlappen sie sich dort wirklich, statt nur nebeneinander zu liegen?
+      const x = Math.min(a.x + a.b, b.x + b.b) - Math.max(a.x, b.x);
+      const y = Math.min(a.y + a.t, b.y + b.t) - Math.max(a.y, b.y);
+      if (x > 1 && y > 1) treffer.push(`z=${a.z + a.h} · ${a.material}/${b.material}`);
+    }
+  }
+  return treffer;
+}
+
+describe('Nichts liegt genau aufeinander', () => {
+  const tk = (form: PlanElement['form'], teil: Partial<PlanElement> = {}) =>
+    bauteileFuer(
+      element({ kategorie: 'tiefkuehlung', form, breite: 250, tiefe: 112, hoehe: 99, ...teil }),
+    );
+
+  it('nicht in der Truhe', () => {
+    expect(deckungsgleicheDeckflaechen(tk('tkTruhe'))).toEqual([]);
+  });
+
+  it('nicht in der beidseitigen Truhe', () => {
+    expect(deckungsgleicheDeckflaechen(tk('tkTruhe', { beidseitig: true, tiefe: 212 }))).toEqual([]);
+  });
+
+  it('nicht im Schrank', () => {
+    expect(
+      deckungsgleicheDeckflaechen(tk('tkSchrank', { breite: 234, tiefe: 94, hoehe: 201 })),
+    ).toEqual([]);
+  });
+
+  it('nicht im Kombigerät', () => {
+    expect(
+      deckungsgleicheDeckflaechen(tk('tkKombi', { breite: 250, tiefe: 120, hoehe: 220 })),
+    ).toEqual([]);
+  });
+});
+
+describe('Körbe und Hängeware', () => {
+  const bau = (ausstattung: Regalfeld['ausstattung'], boeden = 6) =>
+    bauteileFuer(
+      element({ hoehe: 200, tiefe: 57, felderUnten: [{ breite: 100, boeden, ausstattung }] }),
+    );
+
+  it('macht aus Etagen Körbe', () => {
+    const ohne = bau(undefined);
+    const mit = bau({ koerbe: { anzahl: 3, lage: 'unten' } });
+    // Der Korb ist Gitter — das gibt es sonst nur als Rückwand, einmal.
+    const gitter = (teile: Bauteil[]) => teile.filter((t) => t.material === 'gitter').length;
+    expect(gitter(mit)).toBeGreaterThan(gitter(ohne) + 10);
+    // Die Zahl der Ebenen ändert sich dadurch nicht.
+    expect(ebenen(mit)).toBe(ebenen(ohne));
+  });
+
+  it('setzt die Körbe dorthin, wo sie stehen sollen', () => {
+    const hoehe = (teile: Bauteil[]) =>
+      Math.min(...teile.filter((t) => t.material === 'gitter' && t.art === 'quader' && t.h <= 1.2).map((t) => t.z));
+    const unten = hoehe(bau({ koerbe: { anzahl: 2, lage: 'unten' } }));
+    const oben = hoehe(bau({ koerbe: { anzahl: 2, lage: 'oben' } }));
+    expect(oben).toBeGreaterThan(unten + 40);
+  });
+
+  it('hängt statt Böden eine Lochwand mit Haken', () => {
+    const mit = bau({ haengeware: { anteil: 50, lage: 'oben' } });
+    expect(mit.some((t) => t.material === 'regalDunkel')).toBe(true);
+    // Haken aus Chrom, quer nach vorn.
+    expect(mit.some((t) => t.art === 'zylinder' && t.material === 'chrom' && t.achse === 'y')).toBe(true);
+  });
+
+  it('drängt die Böden aus der Zone der Hängeware', () => {
+    const ohne = bau(undefined);
+    const mit = bau({ haengeware: { anteil: 50, lage: 'oben' } });
+    const hoechster = (teile: Bauteil[]) =>
+      Math.max(...quaderMit(teile, 'draht').map((t) => t.z));
+    // Gleich viele Böden, aber alle unterhalb der Lochwand.
+    expect(quaderMit(mit, 'draht').length).toBe(quaderMit(ohne, 'draht').length);
+    expect(hoechster(mit)).toBeLessThan(hoechster(ohne) - 30);
+  });
+
+  it('verträgt beides zusammen', () => {
+    const teile = bau({
+      koerbe: { anzahl: 2, lage: 'unten' },
+      haengeware: { anteil: 40, lage: 'oben' },
+    });
+    expect(teile.some((t) => t.material === 'regalDunkel')).toBe(true);
+    expect(teile.filter((t) => t.material === 'gitter').length).toBeGreaterThan(10);
   });
 });

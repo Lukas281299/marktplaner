@@ -21,7 +21,25 @@ import type { PlanElement } from '../../../typen/modell';
  * **Das Kombimöbel:** eine Wanne vorn (91,8 hoch) mit Glasfenster in der
  * Front, dahinter und darüber der Schrankaufsatz (ca. 75 tief) mit Türen im
  * Modulraster 62,5.
+ *
+ * **Warum hier überall eine Fuge steckt.** Zwei Flächen, die auf denselben
+ * Zehntelmillimeter genau übereinanderliegen, kann die Grafikkarte nicht
+ * auseinanderhalten: Sie zeigt mal die eine, mal die andere, und das sieht
+ * beim Drehen wie Flimmern aus. Ein Wannenboden, der genau auf der
+ * Korpusoberkante endet, ein Rammschutz, der genau in der Front sitzt, eine
+ * Rückwand, die genau an der Seitenwand steht — jedes dieser Paare flackert.
+ *
+ * Deshalb greifen die Teile hier bewusst ineinander, um `FUGE` versetzt. Das
+ * sieht man nicht, und die Grafikkarte hat wieder eine klare Antwort.
  */
+
+/**
+ * Wie weit sich zwei Teile überlappen müssen, damit nichts flimmert, in cm.
+ *
+ * Sechs Millimeter: genug, dass die Tiefenauflösung sie noch bei fünfzehn
+ * Metern Entfernung trennt, und wenig genug, dass es kein Mensch sieht.
+ */
+const FUGE = 0.6;
 
 const MODUL = 62.5;
 const SOCKEL_H = 20.4;
@@ -57,16 +75,17 @@ function inselEinseitig(element: PlanElement): Bauteil[] {
   teile.push(quader(SOCKEL_EINZUG, SOCKEL_EINZUG, 0, b - 2 * SOCKEL_EINZUG, t - 2 * SOCKEL_EINZUG, SOCKEL_H, 'schwarz'));
   // Korpus bis unter den Glasstreifen, hinten bis zur höheren Rückkante.
   teile.push(quader(0, 0, SOCKEL_H, b, t, GLAS_VON - SOCKEL_H, 'anthrazit'));
-  teile.push(wandplatte(0, 0, GLAS_VON, b, HINTEN - GLAS_VON, 'anthrazit', 6));
-  teile.push(seitenplatte(0, 0, GLAS_VON, t, HINTEN - GLAS_VON, 'anthrazit', 3));
-  teile.push(seitenplatte(b - 3, 0, GLAS_VON, t, HINTEN - GLAS_VON, 'anthrazit', 3));
-  // Rammschutz.
-  teile.push(quader(0, t - 1.2, SOCKEL_H, b, 1.2, RAMMSCHUTZ_H, 'hellgrau'));
-  // Glasstreifen mit Pfosten.
-  teile.push(wandplatte(0, t - 1.5, GLAS_VON, b, GLAS_H, 'glas', 1));
-  pfosten(b, t - 2.5, GLAS_VON, GLAS_H, teile);
-  // Wanne: heller Boden, sichtbar durch Glas und Deckel.
-  teile.push(quader(3, 6, GLAS_VON - 1, b - 6, t - 9, 1, 'weiss'));
+  // Die Rückwand endet vor den Seitenwänden, sonst teilen sie sich eine Fläche.
+  teile.push(wandplatte(2, 0, GLAS_VON - FUGE, b - 4, HINTEN - GLAS_VON + FUGE, 'anthrazit', 6));
+  teile.push(seitenplatte(0, 0, GLAS_VON - FUGE, t, HINTEN - GLAS_VON + FUGE, 'anthrazit', 3));
+  teile.push(seitenplatte(b - 3, 0, GLAS_VON - FUGE, t, HINTEN - GLAS_VON + FUGE, 'anthrazit', 3));
+  // Rammschutz — er steht vor der Front, wie im Markt auch.
+  teile.push(quader(0, t - FUGE, SOCKEL_H, b, 1.2 + FUGE, RAMMSCHUTZ_H, 'hellgrau'));
+  // Glasstreifen mit Pfosten. Die Pfosten sitzen dahinter, nicht bündig.
+  teile.push(wandplatte(0, t - 1.5, GLAS_VON - FUGE, b, GLAS_H + FUGE, 'glas', 1));
+  pfosten(b, t - 3.4, GLAS_VON, GLAS_H - FUGE, teile);
+  // Wanne: heller Boden, eine Fuge über der Korpusoberkante.
+  teile.push(quader(3, 6, GLAS_VON - 1.4, b - 6, t - 9, 1 + FUGE, 'weiss'));
   // Handlauf vorn und Deckel.
   teile.push(quader(0, t - 4, VORN, b, 4, 2, 'anthrazit'));
   const deckelTiefe = t - 10;
@@ -92,22 +111,22 @@ function inselBeidseitig(element: PlanElement): Bauteil[] {
 
   teile.push(quader(SOCKEL_EINZUG, SOCKEL_EINZUG, 0, b - 2 * SOCKEL_EINZUG, t - 2 * SOCKEL_EINZUG, SOCKEL_H, 'schwarz'));
   teile.push(quader(0, 0, SOCKEL_H, b, t, 60 - SOCKEL_H, 'anthrazit'));
-  teile.push(seitenplatte(0, 0, 60, t, aussen - 60, 'anthrazit', 3));
-  teile.push(seitenplatte(b - 3, 0, 60, t, aussen - 60, 'anthrazit', 3));
+  teile.push(seitenplatte(0, 0, 60 - FUGE, t, aussen - 60 + FUGE, 'anthrazit', 3));
+  teile.push(seitenplatte(b - 3, 0, 60 - FUGE, t, aussen - 60 + FUGE, 'anthrazit', 3));
   // Mittelsteg.
-  teile.push(quader(0, mitte - 5, 60, b, 10, mitteHoehe - 60, 'anthrazit'));
+  teile.push(quader(0, mitte - 5, 60 - FUGE, b, 10, mitteHoehe - 60 + FUGE, 'anthrazit'));
   // Rammschutz und Glasstreifen an beiden Längsseiten.
   for (const [y, yGlas, yPfosten] of [
-    [t - 1.2, t - 1.5, t - 2.5],
-    [0, 0.5, 0.5],
+    [t - FUGE, t - 1.5, t - 3.4],
+    [-FUGE, 0.5, 1.4],
   ]) {
-    teile.push(quader(0, y, SOCKEL_H, b, 1.2, RAMMSCHUTZ_H, 'hellgrau'));
-    teile.push(wandplatte(0, yGlas, 60, b, GLAS_H, 'glas', 1));
-    pfosten(b, yPfosten, 60, GLAS_H, teile);
+    teile.push(quader(0, y, SOCKEL_H, b, 1.2 + FUGE, RAMMSCHUTZ_H, 'hellgrau'));
+    teile.push(wandplatte(0, yGlas, 60 - FUGE, b, GLAS_H + FUGE, 'glas', 1));
+    pfosten(b, yPfosten, 60, GLAS_H - FUGE, teile);
   }
-  // Wannenböden.
-  teile.push(quader(3, 6, 59, b - 6, mitte - 11, 1, 'weiss'));
-  teile.push(quader(3, mitte + 5, 59, b - 6, mitte - 11, 1, 'weiss'));
+  // Wannenböden, eine Fuge über der Korpusoberkante.
+  teile.push(quader(3, 6, 58.6, b - 6, mitte - 11, 1 + FUGE, 'weiss'));
+  teile.push(quader(3, mitte + 5, 58.6, b - 6, mitte - 11, 1 + FUGE, 'weiss'));
   // Handläufe außen.
   teile.push(quader(0, t - 4, aussen, b, 4, 2, 'anthrazit'));
   teile.push(quader(0, 0, aussen, b, 4, 2, 'anthrazit'));
@@ -134,13 +153,17 @@ function glastueren(breite: number, y: number, z: number, h: number, raster: num
   const schritt = breite / anzahl;
   for (let i = 0; i < anzahl; i++) {
     const x = i * schritt;
-    teile.push(wandplatte(x + 1.5, y, z, schritt - 3, h, 'glas', 1));
-    // Rahmen: senkrechte Stege zwischen den Türen.
-    teile.push(quader(x, y - 0.5, z, 1.5, 2, h, 'schwarz'));
+    // Die Scheibe greift in die Stege hinein, sonst stossen zwei Flaechen
+    // genau aufeinander und flimmern.
+    teile.push(wandplatte(x + 1, y, z, schritt - 2, h, 'glas', 1));
+    // Rahmen: senkrechte Stege zwischen den Türen. Sie reichen eine Fuge in
+    // die Kopfblende hinein, sonst enden sie auf derselben Höhe wie die
+    // Seitenwände.
+    teile.push(quader(x, y - 0.5, z, 1.5, 2, h + FUGE, 'schwarz'));
     // Griff: senkrechte Stange an der Öffnungskante.
     teile.push(zylinder(x + schritt - 6, y + 2.5, z + h * 0.25, 1, h * 0.5, 'z', 'schwarz'));
   }
-  teile.push(quader(breite - 1.5, y - 0.5, z, 1.5, 2, h, 'schwarz'));
+  teile.push(quader(breite - 1.5, y - 0.5, z, 1.5, 2, h + FUGE, 'schwarz'));
 }
 
 /** Der Schrank mit Glastüren. */
@@ -154,15 +177,29 @@ function schrank(element: PlanElement): Bauteil[] {
 
   // Sockel mit Rammschutz.
   teile.push(quader(0, 0, 0, b, t - 2, SCHRANK_SOCKEL, 'anthrazit'));
-  teile.push(quader(0, t - 3, 4, b, 1.2, RAMMSCHUTZ_H, 'hellgrau'));
-  // Rückwand, Seiten, Kopfblende, Technikkasten.
-  teile.push(wandplatte(0, 0, SCHRANK_SOCKEL, b, hoehe - SCHRANK_SOCKEL, 'anthrazit', 10));
-  teile.push(seitenplatte(0, 0, SCHRANK_SOCKEL, t - 2, hoehe - SCHRANK_SOCKEL, 'anthrazit', 5));
-  teile.push(seitenplatte(b - 5, 0, SCHRANK_SOCKEL, t - 2, hoehe - SCHRANK_SOCKEL, 'anthrazit', 5));
+  teile.push(quader(0, t - 2 - FUGE, 4, b, 1.2 + FUGE, RAMMSCHUTZ_H, 'hellgrau'));
+  // Rückwand, Seiten, Kopfblende, Technikkasten. Jedes greift eine Fuge in
+  // das Nachbarteil hinein, sonst teilen sie sich eine Fläche.
+  // Rückwand und Seiten enden unter der Kopfblende, die sie ohnehin verdeckt,
+  // und jede auf ihrer eigenen Höhe — sonst treffen sich drei Deckflächen.
+  const korpusH = tuerBis - SCHRANK_SOCKEL + 2 * FUGE;
+  teile.push(wandplatte(2, 0, SCHRANK_SOCKEL - FUGE, b - 4, korpusH, 'anthrazit', 10));
+  teile.push(seitenplatte(0, 0, SCHRANK_SOCKEL - FUGE, t - 2, korpusH - FUGE, 'anthrazit', 5));
+  teile.push(seitenplatte(b - 5, 0, SCHRANK_SOCKEL - FUGE, t - 2, korpusH - FUGE, 'anthrazit', 5));
   teile.push(quader(0, 0, tuerBis, b, t - 2, KOPFBLENDE, 'anthrazit'));
-  teile.push(quader(5, 5, hoehe, b - 10, t - 25, TECHNIK, 'schwarz'));
-  // Innenraum hell, mit Drahtböden.
-  teile.push(quader(5, 10, SCHRANK_SOCKEL, b - 10, t - 20, tuerBis - SCHRANK_SOCKEL, 'weiss'));
+  teile.push(quader(5, 5, hoehe - FUGE, b - 10, t - 25, TECHNIK + FUGE, 'schwarz'));
+  // Innenraum hell, mit Drahtböden. Er sitzt eine Fuge in jedem Nachbarn.
+  teile.push(
+    quader(
+      4,
+      9,
+      SCHRANK_SOCKEL - FUGE,
+      b - 8,
+      t - 18,
+      tuerBis - SCHRANK_SOCKEL + 2 * FUGE,
+      'weiss',
+    ),
+  );
   const boeden = hoehe > 215 ? 5 : 4;
   for (let i = 1; i <= boeden; i++) {
     const z = SCHRANK_SOCKEL + ((tuerBis - SCHRANK_SOCKEL) * i) / (boeden + 1);
@@ -187,13 +224,13 @@ function kombi(element: PlanElement): Bauteil[] {
   // Sockel und Wanne.
   teile.push(quader(SOCKEL_EINZUG, SOCKEL_EINZUG, 0, b - 2 * SOCKEL_EINZUG, t - 2 * SOCKEL_EINZUG, 13, 'schwarz'));
   teile.push(quader(0, 0, 13, b, t, 45 - 13, 'anthrazit'));
-  teile.push(wandplatte(0, t - 1.5, 45, b, 45, 'glas', 1));
-  pfosten(b, t - 2.5, 45, 45, teile);
-  teile.push(seitenplatte(0, 0, 45, t, wanneHoch - 45, 'anthrazit', 3));
-  teile.push(seitenplatte(b - 3, 0, 45, t, wanneHoch - 45, 'anthrazit', 3));
-  teile.push(quader(0, t - 1.2, 13, b, 1.2, RAMMSCHUTZ_H, 'hellgrau'));
-  teile.push(quader(3, aufsatzTiefe, 56, b - 6, t - aufsatzTiefe - 5, 1, 'weiss'));
-  teile.push(quader(0, t - 4, wanneHoch - 2, b, 4, 2, 'anthrazit'));
+  teile.push(wandplatte(0, t - 1.5, 45 - FUGE, b, 45 + FUGE, 'glas', 1));
+  pfosten(b, t - 3.4, 45, 45 - FUGE, teile);
+  teile.push(seitenplatte(0, 0, 45 - FUGE, t, wanneHoch - 45 + FUGE, 'anthrazit', 3));
+  teile.push(seitenplatte(b - 3, 0, 45 - FUGE, t, wanneHoch - 45 + FUGE, 'anthrazit', 3));
+  teile.push(quader(0, t - FUGE, 13, b, 1.2 + FUGE, RAMMSCHUTZ_H, 'hellgrau'));
+  teile.push(quader(3, aufsatzTiefe, 55.6, b - 6, t - aufsatzTiefe - 5, 1 + FUGE, 'weiss'));
+  teile.push(quader(0, t - 4, wanneHoch - 2, b, 4, 2 + FUGE, 'anthrazit'));
   // Deckel über der Wanne, fast waagerecht.
   const anzahl = Math.max(1, Math.round(b / MODUL));
   const schritt = b / anzahl;
@@ -202,12 +239,17 @@ function kombi(element: PlanElement): Bauteil[] {
   }
   // Der Aufsatz.
   teile.push(quader(0, 0, wanneHoch, b, aufsatzTiefe, tuerVon - wanneHoch, 'anthrazit'));
-  teile.push(wandplatte(0, 0, wanneHoch, b, hoehe - wanneHoch, 'anthrazit', 10));
-  teile.push(seitenplatte(0, 0, wanneHoch, aufsatzTiefe, hoehe - wanneHoch, 'anthrazit', 4));
-  teile.push(seitenplatte(b - 4, 0, wanneHoch, aufsatzTiefe, hoehe - wanneHoch, 'anthrazit', 4));
+  const aufsatzH = tuerBis - wanneHoch + FUGE;
+  teile.push(wandplatte(2, 0, wanneHoch, b - 4, aufsatzH, 'anthrazit', 10));
+  teile.push(seitenplatte(0, 0, wanneHoch, aufsatzTiefe, aufsatzH - FUGE, 'anthrazit', 4));
+  teile.push(seitenplatte(b - 4, 0, wanneHoch, aufsatzTiefe, aufsatzH - FUGE, 'anthrazit', 4));
   teile.push(quader(0, 0, tuerBis, b, aufsatzTiefe, KOPFBLENDE, 'anthrazit'));
-  teile.push(quader(5, 5, hoehe, b - 10, aufsatzTiefe - 20, TECHNIK, 'schwarz'));
-  teile.push(quader(4, 10, tuerVon, b - 8, aufsatzTiefe - 14, tuerBis - tuerVon, 'weiss'));
+  teile.push(quader(5, 5, hoehe - FUGE, b - 10, aufsatzTiefe - 20, TECHNIK + FUGE, 'schwarz'));
+  teile.push(
+    // Der Innenraum bleibt hinter den Türrahmen — sonst enden beide auf
+    // derselben Höhe und in derselben Ebene.
+    quader(3, 9, tuerVon - FUGE, b - 6, aufsatzTiefe - 14, tuerBis - tuerVon + 2 * FUGE, 'weiss'),
+  );
   for (let i = 1; i <= 3; i++) {
     const z = tuerVon + ((tuerBis - tuerVon) * i) / 4;
     teile.push(quader(6, aufsatzTiefe - 6 - 40, z, b - 12, 40, 1.5, 'hellgrau'));

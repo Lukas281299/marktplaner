@@ -1,10 +1,13 @@
 import { felderVon } from '../../regalseiten';
+import { KISTE } from '../../getraenkekisten';
+import { unterbauAnzahl, unterbaumass } from '../../unterbau';
 import {
   halbellipse,
   halbellipseInnen,
   platte,
   prisma,
   quader,
+  seitenplatte,
   spiegele,
   verteileHoehen,
   wandplatte,
@@ -12,7 +15,14 @@ import {
   type Bauteil,
 } from '../bauteile';
 import { hoeheVon } from '../moebel';
-import type { PlanElement, Regalfeld } from '../../../typen/modell';
+import type {
+  Ausstattungslage,
+  Feldausstattung,
+  PlanElement,
+  Regalfeld,
+  Unterbauart,
+  Unterbauplatz,
+} from '../../../typen/modell';
 
 /**
  * Regale – Wanzl wire tech 100, aus dem Workbook Version 77 (12/2025).
@@ -27,6 +37,17 @@ import type { PlanElement, Regalfeld } from '../../../typen/modell';
  * **Führungsrohr** (Ø 27 mm) ein paar Zentimeter vor der Front. Darüber die
  * **Drahtetagen** auf Konsolen, 5–6 Stück, nach oben flacher, jede vorn mit
  * einer transparenten Preisschiene (30–40 mm).
+ *
+ * **Der Grundboden ist die erste Etage.** Wer sieben Böden einträgt, bekommt
+ * sieben Ebenen: das Sockelblech und darüber sechs Drahtetagen. Das ist
+ * dieselbe Zählweise wie in der Rechnung (`logik/auslagen.ts`), und sie ist
+ * die des Marktes — dort zählt man, worauf Ware liegt, und auf dem
+ * Sockelblech liegt welche.
+ *
+ * **Die Etagen hängen hinten.** Sie werden in die Säule eingehängt, also ist
+ * die hintere Kante fest und die vordere wandert mit der Tiefe: Eine flachere
+ * Etage endet weiter vorn, sie beginnt nicht weiter hinten. Andersherum
+ * gebaut sähe sie aus, als schwebte sie vor der Rückwand.
  *
  * Maße, die der Katalog nicht hergibt und die hier geschätzt sind: die
  * Oberkante des Grundbodens (ca. 12 cm) und die Dicke einer Drahtetage
@@ -56,6 +77,232 @@ const ROHR_ABSTAND = 4;
 const ROHR_RADIUS = 1.35;
 /** Wie viele Böden ein Feld hat, wenn niemand etwas eingetragen hat. */
 const ERSATZ_BOEDEN = 5;
+
+/**
+ * Wie hoch der Unterbau baut, in cm — **geschätzt**.
+ *
+ * Der Katalog kennt die Grundfläche einer Palette, nicht die Höhe des
+ * Stapels darauf. Gezeichnet wird deshalb die Zone, die im Markt üblich ist:
+ * eine Palette mit Ware darauf reicht knapp einen Meter hoch, eine
+ * Kartoffelkiste steht hüfthoch, eine eingebaute Kühlvitrine gut 1,25 m.
+ *
+ * Über dieser Zone beginnen die Böden. Das ist der Fall, um den es geht:
+ * oben ein, zwei Böden für die Sichtware, darunter der Nachschub.
+ */
+const UNTERBAU_ZONE: Record<Unterbauart, number> = {
+  euro: 100,
+  chep: 100,
+  halb: 90,
+  viertel: 70,
+  kiste: 3 * KISTE.hoehe,
+  kartoffelkiste: 80,
+  kuehlmoebel: 125,
+};
+
+/**
+ * Bis wohin der Unterbau reicht — nie mehr als drei Fünftel des Möbels.
+ *
+ * Ein niedriges Regal von 1,40 m hat unter einer Europalette sonst keinen
+ * Platz mehr für einen einzigen Boden, und dann stimmt die Bodenzahl nicht
+ * mehr mit dem überein, was man sieht.
+ */
+function unterbauzone(platz: Unterbauplatz, hoehe: number): number {
+  return Math.min(UNTERBAU_ZONE[platz.art], hoehe * 0.6);
+}
+
+/** Eine Palette: Bodenbrett, drei Klötze, Decklage. */
+function palette(x: number, y: number, b: number, t: number): Bauteil[] {
+  const teile: Bauteil[] = [];
+  teile.push(platte(x, y, 0, b, t, 'palette', 2.2));
+  for (let i = 0; i < 3; i++) {
+    teile.push(quader(x + (i * (b - 10)) / 2, y, 2.2, 10, t, 10, 'palette'));
+  }
+  teile.push(platte(x, y, 12.2, b, t, 'palette', 2.2));
+  return teile;
+}
+
+/**
+ * Was unter den Böden steht, räumlich.
+ *
+ * Verteilt wie im Grundriss (siehe `unterbauflaechen` in `ElementSymbol`):
+ * an der Rückwand, gleichmäßig über die Feldbreite, und wenn es tiefer ist
+ * als das Möbel, steht es eben vorn über. Das ist im Markt so, und im Plan
+ * soll man es sehen.
+ */
+function unterbauTeile(
+  platz: Unterbauplatz,
+  x0: number,
+  feldbreite: number,
+  zone: number,
+): Bauteil[] {
+  const mass = unterbaumass(platz);
+  const anzahl = unterbauAnzahl(platz, feldbreite);
+  const gesamt = anzahl * mass.breite;
+  const luecke = anzahl > 1 ? Math.max(0, (feldbreite - gesamt) / (anzahl + 1)) : 0;
+  const start = anzahl > 1 ? luecke : Math.max(0, (feldbreite - mass.breite) / 2);
+
+  const teile: Bauteil[] = [];
+  for (let i = 0; i < anzahl; i++) {
+    const x = x0 + start + i * (mass.breite + luecke);
+    const b = mass.breite;
+    const t = mass.tiefe;
+
+    switch (platz.art) {
+      case 'kiste': {
+        // Getränkekisten, vor dem untersten Boden gestapelt.
+        const stapel = Math.max(1, Math.floor(zone / KISTE.hoehe));
+        for (let k = 0; k < stapel; k++) {
+          const material = k % 2 === 0 ? 'kisteRot' : 'kiste';
+          teile.push(quader(x + 1, 1, k * KISTE.hoehe, b - 2, t - 2, KISTE.hoehe - 1, material));
+        }
+        break;
+      }
+      case 'kartoffelkiste': {
+        // Ein Holzkasten mit offenem Oberteil, darin die Ware.
+        const wand = 2.5;
+        teile.push(quader(x, 0, 0, b, t, 10, 'holzDunkel'));
+        teile.push(wandplatte(x, 0, 10, b, zone - 10, 'holzHell', wand));
+        teile.push(wandplatte(x, t - wand, 10, b, zone - 10, 'holzHell', wand));
+        teile.push(seitenplatte(x, 0, 10, t, zone - 10, 'holzHell', wand));
+        teile.push(seitenplatte(x + b - wand, 0, 10, t, zone - 10, 'holzHell', wand));
+        teile.push(quader(x + wand, wand, 10, b - 2 * wand, t - 2 * wand, zone - 22, 'ware'));
+        break;
+      }
+      case 'kuehlmoebel': {
+        // Eine Vitrine in der Regalzeile: Korpus, Glasfront, Sockel.
+        teile.push(quader(x, 0, 0, b, t, 10, 'anthrazit'));
+        teile.push(quader(x, 0, 10, b, t, zone - 10, 'hellgrau'));
+        teile.push(wandplatte(x + 2, t - 1.2, 18, b - 4, zone - 30, 'glas', 1.2));
+        teile.push(platte(x + 2, 4, zone - 3, b - 4, t - 8, 'edelstahl'));
+        break;
+      }
+      default: {
+        // Die vier Paletten: Ladungsträger mit einem Warenblock darauf.
+        teile.push(...palette(x, 0, b, t));
+        const ware = Math.max(0, zone - 16);
+        if (ware > 2) teile.push(quader(x + 2, 2, 14.4, b - 4, t - 4, ware, 'ware'));
+        break;
+      }
+    }
+  }
+  return teile;
+}
+
+/** Wie hoch ein Drahtkorb hinten ist, in cm. */
+const KORB_H = 19;
+/** Und wie hoch vorn — dort greift man hinein. */
+const KORB_VORN = 12;
+
+/** Die Farbe des Drahts: schwarz, so wie die Körbe im Markt aussehen. */
+const KORB_FARBE = '#26282a';
+/** Wie breit ein Korb ungefähr ist, in cm — danach richtet sich, wie viele. */
+const KORB_BREITE = 50;
+
+/**
+ * Die Drahtkörbe auf einer Etage.
+ *
+ * Schwarzes Gitter, hinten hoch, vorn niedriger, oben offen: So stehen sie im
+ * Markt, und so erkennt man sie auf einen Blick von einem Boden. Auf einen
+ * Meter gehen zwei nebeneinander; auf einem breiteren Feld entsprechend mehr.
+ *
+ * Fünf Teile je Korb — Boden, Rückwand, zwei Seiten, niedrige Front —, damit
+ * ein Zug aus sechs Feldern nicht in tausend Drähten untergeht.
+ */
+function korb(x0: number, b: number, y: number, z: number, tiefe: number): Bauteil[] {
+  const anzahl = Math.max(1, Math.round(b / KORB_BREITE));
+  const breite = b / anzahl;
+  const rand = 1.2;
+  const teile: Bauteil[] = [];
+
+  for (let i = 0; i < anzahl; i++) {
+    const x = x0 + i * breite + rand;
+    const w = breite - 2 * rand;
+    const d = tiefe - 1;
+    teile.push(quader(x, y, z, w, d, 1, 'gitter', { farbe: KORB_FARBE }));
+    teile.push(quader(x, y, z, w, 0.8, KORB_H, 'gitter', { farbe: KORB_FARBE }));
+    teile.push(quader(x, y + d - 0.8, z, w, 0.8, KORB_VORN, 'gitter', { farbe: KORB_FARBE }));
+    teile.push(quader(x, y, z, 0.8, d, KORB_H, 'gitter', { farbe: KORB_FARBE }));
+    teile.push(quader(x + w - 0.8, y, z, 0.8, d, KORB_H, 'gitter', { farbe: KORB_FARBE }));
+  }
+  return teile;
+}
+
+/** Wie weit die Haken aus der Lochwand ragen, in cm. */
+const HAKEN = 22;
+/** Der senkrechte Abstand zweier Hakenreihen. */
+const HAKENREIHE = 26;
+
+/**
+ * Die Blisterrückwand: eine Lochwand, an der die Ware an Haken hängt.
+ *
+ * Dort gibt es **keine Böden**. Gezeichnet wird die dunkle Wand, und davor je
+ * Reihe ein Haken mit dem, was daran hängt — als durchgehende Lage und nicht
+ * als dreißig einzelne Packungen: Aus zwei Metern Entfernung sieht man ohnehin
+ * eine Wand voller Ware, und dreißig Klötze je Reihe brächten die Ansicht zum
+ * Stocken.
+ */
+function blisterwand(
+  x0: number,
+  b: number,
+  hinten: number,
+  von: number,
+  bis: number,
+): Bauteil[] {
+  const teile: Bauteil[] = [];
+  if (bis - von < 10) return teile;
+
+  // Die Lochwand selbst, dicht vor der Gitterrückwand.
+  teile.push(wandplatte(x0, hinten + 0.6, von, b, bis - von, 'regalDunkel', 1.2));
+
+  // Und davor die Reihen. Die oberste hängt eine Handbreit unter der
+  // Oberkante, damit die Ware nicht über die Wand hinausragt.
+  for (let z = bis - 6; z - HAKENREIHE > von; z -= HAKENREIHE) {
+    teile.push(zylinder(x0 + b * 0.25, hinten + 1.8, z, 0.4, HAKEN, 'y', 'chrom'));
+    teile.push(zylinder(x0 + b * 0.75, hinten + 1.8, z, 0.4, HAKEN, 'y', 'chrom'));
+    // Die Ware hängt daran herunter.
+    teile.push(quader(x0 + 1.5, hinten + 4, z - 19, b - 3, 1.6, 19, 'ware'));
+  }
+  return teile;
+}
+
+/**
+ * Welche Ebenen Körbe sind.
+ *
+ * `anzahl` zählt aus den Ebenen, die es gibt. Der Grundboden bleibt außen vor
+ * — er ist das Sockelblech. Übrig bleiben die Drahtetagen, und aus denen
+ * werden die Körbe genommen: unten die untersten, oben die obersten, in der
+ * Mitte die mittleren.
+ */
+function korbebenen(anzahl: number, lage: Ausstattungslage, etagen: number): Set<number> {
+  const wie_viele = Math.max(0, Math.min(anzahl, etagen));
+  if (wie_viele === 0) return new Set();
+  const erste =
+    lage === 'unten'
+      ? 0
+      : lage === 'oben'
+        ? etagen - wie_viele
+        : Math.floor((etagen - wie_viele) / 2);
+  const aus = new Set<number>();
+  for (let i = 0; i < wie_viele; i++) aus.add(erste + i);
+  return aus;
+}
+
+/**
+ * Die Höhe, über die sich die Böden verteilen, und die Zone der Hängeware.
+ *
+ * Wo die Lochwand hängt, gibt es keine Böden. Sie nimmt ihren Prozentsatz vom
+ * nutzbaren Bereich, oben oder unten, und die Böden teilen sich den Rest.
+ */
+function zonen(ausstattung: Feldausstattung | undefined, von: number, bis: number) {
+  const haenge = ausstattung?.haengeware;
+  const anteil = Math.max(0, Math.min(95, haenge?.anteil ?? 0)) / 100;
+  if (!haenge || anteil <= 0 || bis <= von) return { boden: { von, bis }, wand: undefined };
+
+  const hoehe = (bis - von) * anteil;
+  return haenge.lage === 'unten'
+    ? { boden: { von: von + hoehe, bis }, wand: { von, bis: von + hoehe } }
+    : { boden: { von, bis: bis - hoehe }, wand: { von: bis - hoehe, bis } };
+}
 
 /** Die Feldgrenzen als x-Werte, von 0 an. */
 function grenzen(felder: Regalfeld[]): number[] {
@@ -89,6 +336,10 @@ function regalseite(
 
   const T = Math.max(20, Math.min(grundbodenTiefe, tiefe - 2));
   const front = tiefe;
+  // **Die hintere Kante aller Auflagen.** Dort hängen sie in der Säule, und
+  // deshalb steht sie fest: Eine flachere Etage endet weiter vorn, sie
+  // beginnt nicht weiter hinten.
+  const hinten = Math.max(0, front - T);
 
   // Füße: an jeder Feldgrenze, von der Säule bis zur Front.
   for (const x of kanten) {
@@ -100,25 +351,49 @@ function regalseite(
     const x0 = kanten[i];
     const b = feld.breite;
 
-    // Grundboden und Sockelblende.
-    teile.push(platte(x0, front - T, SOCKEL - 2, b, T, 'regal', 2));
-    teile.push(quader(x0, front - 1.5, 1.5, b, 1, SOCKEL - 3, 'regal'));
+    // Was unter den Böden steht – Palette, Kisten, Kühlmöbel. Es bestimmt
+    // zugleich, ab welcher Höhe die Böden überhaupt anfangen können.
+    const zone = feld.unterbau ? unterbauzone(feld.unterbau, hoehe) : 0;
+    if (feld.unterbau) teile.push(...unterbauTeile(feld.unterbau, x0, b, zone));
 
-    // Etagen: nach oben flacher, die oberste bleibt eine gute Handbreit
-    // unter der Säulenoberkante.
     const n = feld.boeden ?? ERSATZ_BOEDEN;
     if (n <= 0) return;
-    const hoehen = verteileHoehen(SOCKEL, hoehe - 20, n);
+
+    // **Der Grundboden ist die erste Etage.** Steht etwas darunter, rückt er
+    // über den Unterbau; sonst liegt er auf den Füßen.
+    const unterkante = Math.max(SOCKEL, zone);
+    teile.push(platte(x0, hinten, unterkante - 2, b, T, 'regal', 2));
+    // Die Sockelblende gehört zum Fuß und entfällt, wo der Unterbau steht.
+    if (zone <= 0) teile.push(quader(x0, front - 1.5, 1.5, b, 1, SOCKEL - 3, 'regal'));
+
+    // Wo eine Blisterrückwand hängt, gibt es keine Böden. Sie nimmt ihren
+    // Anteil, die Böden teilen sich den Rest.
+    const { boden, wand } = zonen(feld.ausstattung, unterkante, hoehe - 20);
+    if (wand) teile.push(...blisterwand(x0, b, hinten, wand.von, wand.bis));
+
+    // Und darüber die übrigen n − 1: nach oben flacher, die oberste bleibt
+    // eine gute Handbreit unter der Säulenoberkante.
+    const hoehen = verteileHoehen(boden.von, boden.bis, n - 1);
+    const koerbe = feld.ausstattung?.koerbe;
+    const alsKorb = koerbe
+      ? korbebenen(koerbe.anzahl, koerbe.lage, hoehen.length)
+      : new Set<number>();
     const unten = Math.max(20, T - 10);
     const oben = Math.max(20, Math.min(30, unten));
     hoehen.forEach((z, k) => {
-      const anteil = n > 1 ? k / (n - 1) : 0;
+      const anteil = hoehen.length > 1 ? k / (hoehen.length - 1) : 0;
       const d = Math.round(unten - (unten - oben) * anteil);
-      teile.push(platte(x0, front - d, z, b, d, 'draht', ETAGE));
-      teile.push(quader(x0, front - 0.6, z, b, 0.6, PREISSCHIENE, 'preisschiene'));
+      teile.push(platte(x0, hinten, z, b, d, 'draht', ETAGE));
+      // Ein Korb steht auf der Etage; eine Preisschiene braucht er nicht,
+      // seine Vorderkante trägt sie selbst.
+      if (alsKorb.has(k)) {
+        teile.push(...korb(x0, b, hinten, z + ETAGE, d));
+      } else {
+        teile.push(quader(x0, hinten + d - 0.6, z, b, 0.6, PREISSCHIENE, 'preisschiene'));
+      }
       // Konsolen unter der Etage, keilförmig – hier ein kurzer Klotz an der Säule.
-      teile.push(quader(x0 + 0.5, front - d, z - 4, 2, Math.min(15, d), 4, 'regal'));
-      teile.push(quader(x0 + b - 2.5, front - d, z - 4, 2, Math.min(15, d), 4, 'regal'));
+      teile.push(quader(x0 + 0.5, hinten, z - 4, 2, Math.min(15, d), 4, 'regal'));
+      teile.push(quader(x0 + b - 2.5, hinten, z - 4, 2, Math.min(15, d), 4, 'regal'));
     });
   });
 
@@ -202,8 +477,9 @@ function kopfgondelRund(element: PlanElement): Bauteil[] {
   teile.push(prisma(halbellipseInnen(b, t, 1.5), 1.5, SOCKEL - 1.5, 'regal'));
   teile.push(prisma(halbellipse(b, t), SOCKEL - 2, 2, 'regal'));
 
+  // Auch hier ist das Sockelblech die erste Etage – siehe oben.
   const n = felderVon(element, 'unten')[0]?.boeden ?? 4;
-  const hoehen = verteileHoehen(SOCKEL, hoehe - 20, n);
+  const hoehen = verteileHoehen(SOCKEL, hoehe - 20, n - 1);
   hoehen.forEach((z, k) => {
     const rand = 6 + 7 * k;
     teile.push(prisma(halbellipseInnen(b, t, rand), z, ETAGE, 'draht'));

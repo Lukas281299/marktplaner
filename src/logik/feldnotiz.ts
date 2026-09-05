@@ -40,9 +40,29 @@ export function notizZeilen(text: string | undefined): string[] {
 }
 
 /**
+ * Das Kürzel für die Sonderausstattung eines Feldes – oder nichts.
+ *
+ * **Zwei Kürzel, wie sie im Markt gesprochen werden.** `4K` heißt: Von den
+ * Ebenen dieses Feldes sind vier Körbe. `BRW` heißt Blisterrückwand und sagt,
+ * dass dort keine gewöhnlichen Böden hängen, sondern eine Lochwand mit Haken.
+ *
+ * Beides zusammen steht in einer Zeile: Im Feld ist der Platz knapp, und zwei
+ * Zeilen dafür nähmen der Notiz ihren.
+ */
+export function ausstattungszeile(feld: Pick<Regalfeld, 'ausstattung'>): string | undefined {
+  const a = feld.ausstattung;
+  if (!a) return undefined;
+  const teile: string[] = [];
+  if (a.koerbe && a.koerbe.anzahl > 0) teile.push(`${Math.round(a.koerbe.anzahl)}K`);
+  if (a.haengeware && a.haengeware.anteil > 0) teile.push('BRW');
+  return teile.length > 0 ? teile.join(' ') : undefined;
+}
+
+/**
  * Die Zeilen, die links oben im Feld stehen.
  *
- * Erst die Bodenzahl, dann die eigenen Notizzeilen.
+ * Erst die Bodenzahl, darunter die Sonderausstattung, dann die eigenen
+ * Notizzeilen.
  *
  * **Ohne Pluszeichen.** In den Wanzl-Plänen steht dort „5+", und solange die
  * Zahl von Hand in die Notiz getippt wurde, stand sie auch hier so. Das Plus
@@ -53,10 +73,19 @@ export function notizZeilen(text: string | undefined): string[] {
  * dort noch ein von Hand getipptes „5+/6+", bleibt es genauso stehen: Das ist
  * eine eigene Notiz und keine Zahl, die dieses Feld gesetzt hätte.
  */
-export function feldzeilen(feld: Pick<Regalfeld, 'boeden' | 'notiz'>): string[] {
+export function feldzeilen(
+  feld: Pick<Regalfeld, 'boeden' | 'notiz' | 'ausstattung'>,
+): string[] {
   const eigene = notizZeilen(feld.notiz);
-  if (feld.boeden === undefined || feld.boeden <= 0) return eigene;
-  return [`${Math.round(feld.boeden)}`, ...eigene].slice(0, NOTIZ_ZEILEN);
+  const sonder = ausstattungszeile(feld);
+  // Die Ausstattung steht **unter** der Bodenzahl und **vor** der Notiz: Sie
+  // sagt etwas über die Ebenen darüber, und das gehört zusammen.
+  const kopf = [
+    feld.boeden !== undefined && feld.boeden > 0 ? `${Math.round(feld.boeden)}` : undefined,
+    sonder,
+  ].filter((z): z is string => Boolean(z));
+  if (kopf.length === 0) return eigene;
+  return [...kopf, ...eigene].slice(0, NOTIZ_ZEILEN);
 }
 
 /** Die Bodentiefen, die es im wire-tech-System gibt, in cm. */

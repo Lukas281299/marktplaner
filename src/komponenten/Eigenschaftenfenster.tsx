@@ -65,7 +65,9 @@ import type {
   Regalfeld,
   Verkaufsflaeche,
   Wand,
-  Warengruppenabschnitt, Teilsortiment, BibliothekEintrag } from '../typen/modell';
+  Warengruppenabschnitt, Teilsortiment, BibliothekEintrag,
+  Ausstattungslage,
+  Feldausstattung } from '../typen/modell';
 import { usePlanStore, type Ausrichtung } from '../zustand/planStore';
 import {
   Auswahlfeld,
@@ -2729,6 +2731,32 @@ function Feldeingaben({
             setze({ boeden: gueltig ? Math.min(99, zahl) : undefined });
           }}
         />
+        {/*
+          Zwischen Bodenzahl und Notiz: **was** die Ebenen sind.
+
+          Die Bodenzahl sagt, wie viele es sind, die Notiz ist alles, was das
+          Programm nichts angeht — dazwischen gehört die Ausstattung. Sie
+          ändert nichts an der Rechnung, sondern am Bild: im Plan das Kürzel,
+          im Raum Körbe und Lochwand.
+        */}
+        <select
+          style={{ width: mehrere ? undefined : 62, fontSize: 11 }}
+          disabled={Boolean(eintrag.leer)}
+          value={ausstattungsart(eintrag.ausstattung)}
+          title={
+            'Körbe oder Hängeware auf diesem Meter. Im Plan steht danach „4K" ' +
+            'oder „BRW" unter der Bodenzahl, und die 3D-Ansicht baut es nach.'
+          }
+          onChange={(e) => {
+            usePlanStore.getState().schnappschuss();
+            setze({ ausstattung: neueAusstattung(e.target.value, eintrag) });
+          }}
+        >
+          <option value="keine">Böden</option>
+          <option value="koerbe">Körbe</option>
+          <option value="haengeware">Hängeware</option>
+          <option value="beides">Körbe + Hängeware</option>
+        </select>
         <textarea
           // So hoch, wie die Notiz Zeilen hat – nicht höher. Ein Zug aus
           // sechs Feldern hatte sonst allein hier ein halbes Fenster.
@@ -2761,6 +2789,160 @@ function Feldeingaben({
 
       </div>
 
+      {eintrag.ausstattung && !eintrag.leer && (
+        <Ausstattungszeile
+          ausstattung={eintrag.ausstattung}
+          boeden={eintrag.boeden}
+          aendern={(werte) => {
+            usePlanStore.getState().schnappschuss();
+            setze({ ausstattung: { ...eintrag.ausstattung, ...werte } });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Welcher Eintrag der Auswahl zu dieser Ausstattung gehört. */
+function ausstattungsart(a: Feldausstattung | undefined): string {
+  if (!a) return 'keine';
+  if (a.koerbe && a.haengeware) return 'beides';
+  if (a.koerbe) return 'koerbe';
+  if (a.haengeware) return 'haengeware';
+  return 'keine';
+}
+
+/**
+ * Was die Auswahl aus dem bisherigen Stand macht.
+ *
+ * Vorhandene Zahlen bleiben stehen: Wer von „Körbe" auf „Körbe + Hängeware"
+ * schaltet, hat seine vier Körbe nicht vergessen.
+ */
+function neueAusstattung(art: string, feld: Regalfeld): Feldausstattung | undefined {
+  const alt = feld.ausstattung;
+  const koerbe = alt?.koerbe ?? {
+    // Ohne Angabe die Hälfte der Ebenen — das ist der Fall, den man sieht.
+    anzahl: Math.max(1, Math.floor((feld.boeden ?? 5) / 2)),
+    lage: 'unten' as const,
+  };
+  const haengeware = alt?.haengeware ?? { anteil: 40, lage: 'oben' as const };
+
+  switch (art) {
+    case 'koerbe':
+      return { koerbe };
+    case 'haengeware':
+      return { haengeware };
+    case 'beides':
+      return { koerbe, haengeware };
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Die Einstellungen zu Körben und Hängeware – eine Zeile unter dem Feld.
+ *
+ * Wie viele Körbe und wo, wie viel Prozent Lochwand und wo. Mehr braucht es
+ * nicht: Die 3D-Ansicht soll wissen, wo die Dinge sitzen und wie viel Platz
+ * sie nehmen, und der Plan braucht nur die Zahl fürs Kürzel.
+ */
+function Ausstattungszeile({
+  ausstattung,
+  boeden,
+  aendern,
+}: {
+  ausstattung: Feldausstattung;
+  boeden: number | undefined;
+  aendern: (werte: Partial<Feldausstattung>) => void;
+}) {
+  const ebenen = Math.max(0, (boeden ?? 5) - 1);
+  const lagen: { wert: Ausstattungslage; text: string }[] = [
+    { wert: 'unten', text: 'unten' },
+    { wert: 'mitte', text: 'Mitte' },
+    { wert: 'oben', text: 'oben' },
+  ];
+
+  return (
+    <div className="ausstattungszeile">
+      {ausstattung.koerbe && (
+        <div className="ausstattung-teil">
+          <span className="kategorie-anzahl">Körbe</span>
+          <input
+            type="number"
+            min={1}
+            max={Math.max(1, ebenen)}
+            step={1}
+            style={{ width: 44, fontSize: 11 }}
+            value={ausstattung.koerbe.anzahl}
+            title={`Wie viele der ${ebenen} Etagen über dem Grundboden Körbe sind`}
+            onChange={(e) =>
+              aendern({
+                koerbe: {
+                  ...ausstattung.koerbe!,
+                  anzahl: Math.max(0, Math.round(Number(e.target.value))),
+                },
+              })
+            }
+          />
+          <select
+            style={{ fontSize: 11 }}
+            value={ausstattung.koerbe.lage}
+            title="Wo die Körbe sitzen"
+            onChange={(e) =>
+              aendern({
+                koerbe: { ...ausstattung.koerbe!, lage: e.target.value as Ausstattungslage },
+              })
+            }
+          >
+            {lagen.map((l) => (
+              <option key={l.wert} value={l.wert}>
+                {l.text}
+              </option>
+            ))}
+          </select>
+          <span className="kategorie-anzahl">von {ebenen}</span>
+        </div>
+      )}
+
+      {ausstattung.haengeware && (
+        <div className="ausstattung-teil">
+          <span className="kategorie-anzahl">Hängeware</span>
+          <input
+            type="number"
+            min={5}
+            max={95}
+            step={5}
+            style={{ width: 48, fontSize: 11 }}
+            value={ausstattung.haengeware.anteil}
+            title="Wie viel der Regalfläche an Haken hängt — dort gibt es keine Böden"
+            onChange={(e) =>
+              aendern({
+                haengeware: {
+                  ...ausstattung.haengeware!,
+                  anteil: Math.max(0, Math.min(95, Math.round(Number(e.target.value)))),
+                },
+              })
+            }
+          />
+          <span className="kategorie-anzahl">%</span>
+          <select
+            style={{ fontSize: 11 }}
+            value={ausstattung.haengeware.lage}
+            title="Ob die Lochwand oben oder unten sitzt"
+            onChange={(e) =>
+              aendern({
+                haengeware: {
+                  ...ausstattung.haengeware!,
+                  lage: e.target.value === 'unten' ? 'unten' : 'oben',
+                },
+              })
+            }
+          >
+            <option value="oben">oben</option>
+            <option value="unten">unten</option>
+          </select>
+        </div>
+      )}
     </div>
   );
 }

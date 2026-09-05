@@ -1577,6 +1577,25 @@ details.erklaerung[open] > summary {
 }
 
 /*
+ * Körbe und Hängeware an einem Regalfeld.
+ *
+ * Eine Zeile unter dem Feld, eingerückt wie die Unterbauzeile: Sie gehört
+ * zum Feld darüber und ist keine eigene Angabe am Möbel.
+ */
+.ausstattungszeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--abstand-2);
+  padding: 3px 0 1px;
+}
+
+.ausstattung-teil {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/*
  * Wie sich mehrere Sortimente eine Strecke teilen.
  *
  * Steht nur da, wo mehr als ein Name auf der Strecke steht – dann aber offen

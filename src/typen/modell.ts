@@ -280,6 +280,16 @@ export interface Regalfeld {
    */
   boeden?: number;
 
+  /**
+   * Was auf diesem Meter statt gewöhnlicher Böden verbaut ist.
+   *
+   * Steht zwischen der Bodenzahl und der Notiz, und das ist kein Zufall: Die
+   * Bodenzahl sagt, **wie viele** Ebenen es sind, die Ausstattung sagt,
+   * **was** sie sind, und die Notiz ist alles, was das Programm nichts
+   * angeht. Siehe `Feldausstattung`.
+   */
+  ausstattung?: Feldausstattung;
+
   /** Bis zu drei Zeilen, die im Feld stehen – siehe `logik/feldnotiz.ts`. */
   notiz?: string;
 
@@ -296,6 +306,48 @@ export interface Regalfeld {
    * Feld ein, und das ist derselbe Handgriff wie beim Bödenschreiben.
    */
   unterbau?: Unterbauplatz;
+}
+
+/**
+ * Wo im Regal etwas sitzt: oben, in der Mitte oder unten.
+ *
+ * Grober kann man es nicht sagen, und genauer muss man es nicht: Wer im Markt
+ * vor einem Regal steht, sagt „die oberen vier sind Körbe" und nicht „Ebene
+ * drei bis sechs".
+ */
+export type Ausstattungslage = 'oben' | 'mitte' | 'unten';
+
+/**
+ * Körbe und Hängeware auf einem Regalmeter.
+ *
+ * Nicht jeder Meter im Trockensortiment trägt Drahtböden. Manche tragen
+ * **Körbe** – schwarze Drahtkörbe, in denen die Ware lose liegt –, und
+ * manche eine **Blisterrückwand**: eine Lochwand, an der die Ware an Haken
+ * hängt, ganz ohne Böden.
+ *
+ * **Beides ändert nichts an der Bodenzahl.** Sie steht weiter für sich und
+ * zählt weiter in den tatsächlichen Metern: Ein Korb ist eine Auslage wie ein
+ * Boden, und wie viel Fläche eine Blisterrückwand wert ist, entscheidet der
+ * Planer und nicht das Programm. Was sich ändert, ist das Bild — im Plan und
+ * im Raum.
+ */
+export interface Feldausstattung {
+  /**
+   * Wie viele der Ebenen Körbe sind, und wo sie sitzen.
+   *
+   * Gezählt aus den Ebenen, die es ohnehin gibt: Von sechs Ebenen können vier
+   * Körbe sein, nicht sieben. Der Grundboden bleibt ein Boden — er ist das
+   * Sockelblech und kein Korb.
+   */
+  koerbe?: { anzahl: number; lage: Ausstattungslage };
+
+  /**
+   * Wie viel der Regalfläche an Haken hängt, in Prozent, und wo.
+   *
+   * Dort gibt es keine Böden: Die Zone gehört der Lochwand. Die Böden
+   * verteilen sich über den Rest.
+   */
+  haengeware?: { anteil: number; lage: 'oben' | 'unten' };
 }
 
 /**
