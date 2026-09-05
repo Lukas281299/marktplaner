@@ -197,15 +197,27 @@ export function textZuPdf(t: Vektortext, schriftname = 'Helv'): string {
 
   // Waagerecht: links, mittig oder rechts vom Punkt.
   const dx = t.rechtsbuendig ? -breite : t.anker === 'anfang' ? 0 : -breite / 2;
-  // Senkrecht: PDF setzt auf die Grundlinie. Die Zeichnung meint je nach
+  // Senkrecht: PDF setzt auf die **Grundlinie**. Die Zeichnung meint je nach
   // Stelle die Oberkante der Zeile oder ihre Mitte – wer das gleichsetzt,
   // schiebt jede Feldbeschriftung um eine halbe Zeile.
+  //
+  // **Die Richtung ist die des Blattes, nicht die der Schrift.** Die Seite ist
+  // einmal gespiegelt, damit der Grundriss nicht auf dem Kopf steht; danach
+  // wächst `y` nach unten. Die Textmatrix hebt die Spiegelung für die Glyphen
+  // wieder auf – ihre Oberkante liegt deshalb bei `f − 0,72 · Größe`, also
+  // **über** der Grundlinie. Soll `t.y` die Oberkante sein, muss die
+  // Grundlinie darunter liegen: `f = t.y + 0,72 · Größe`.
+  //
+  // Vorher stand hier das Vorzeichen der ungespiegelten Seite. Jeder Text saß
+  // dadurch zu hoch – Raumnamen und Maßzahlen um 0,72 Zeilenhöhen, die
+  // Warengruppen mit ihrer Oberkante um 1,44. Bei 1:50 sind das rund 5 mm auf
+  // dem Papier, und im SVG desselben Blattes stand es richtig.
   const dy =
     t.grundlinie === 'top'
-      ? -t.groesse * 0.72
+      ? t.groesse * 0.72
       : t.grundlinie === 'alphabetic'
         ? 0
-        : -t.groesse * 0.36;
+        : t.groesse * 0.36;
 
   const [r, g, b] = pdfFarbe(t.farbe ?? '#26313d') ?? [0.15, 0.19, 0.24];
   // Die Matrix dreht **und** spiegelt y zurück: a b c d e f Tm.

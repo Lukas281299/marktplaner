@@ -795,3 +795,100 @@ describe('Körbe und Hängeware', () => {
     expect(korbwaende(teile).length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * Was in der 3D-Ansicht nicht passieren darf.
+ *
+ * Ein Möbel, das höher steht als eingetragen, oder Ware, die durch die eigene
+ * Decke stößt, beantwortet genau die Frage falsch, für die die Ansicht da ist:
+ * ob man über den Zug hinwegschaut und wie voll der Markt wirkt.
+ */
+describe('Nichts steht über und nichts steckt ineinander', () => {
+  it('hält die O&G-Auflagen unter der eingetragenen Höhe', () => {
+    // Der Katalogfall: H1600 mit T1200 unten und T600 darüber. Die zweite
+    // Stufe läge bei 159,8 – mit Kisten darauf bei 180,8, also 20,8 cm über
+    // dem Möbel.
+    const wand = element({
+      kategorie: 'obstgemuese',
+      form: 'vitable',
+      breite: 125,
+      tiefe: 131.7,
+      hoehe: 160,
+      stufen: [120, 60],
+      felderUnten: [{ breite: 125 }],
+    });
+    expect(hoechstePunkt(bauteileFuer(wand))).toBeLessThanOrEqual(160);
+  });
+
+  it('lässt am geraden O&G-Abschluss keine Kiste über die Kante ragen', () => {
+    const abschluss = element({
+      kategorie: 'obstgemuese',
+      form: 'vitableAbschluss',
+      breite: 95.5,
+      tiefe: 95.5,
+      hoehe: 180,
+      stufen: [80, 60, 40],
+      felderUnten: [{ breite: 95.5 }],
+    });
+    for (const t of quaderMit(bauteileFuer(abschluss), 'kiste')) {
+      expect(t.x).toBeGreaterThanOrEqual(-0.5);
+      expect(t.x + t.b).toBeLessThanOrEqual(96);
+      expect(t.y + t.t).toBeLessThanOrEqual(96);
+    }
+  });
+
+  it('lässt die Ware im Kühlregal unter der Innendecke', () => {
+    const kuehl = element({
+      kategorie: 'kuehlung',
+      form: 'kuehlOffen',
+      breite: 375,
+      tiefe: 80.4,
+      hoehe: 209,
+      felderUnten: [{ breite: 375, boeden: 5 }],
+    });
+    const teile = bauteileFuer(kuehl);
+    const ware = quaderMit(teile, 'ware');
+    expect(ware.length).toBeGreaterThan(0);
+    // Die Haube beginnt oben; die Ware darf nicht hineinragen.
+    expect(Math.max(...ware.map((t) => t.z + t.h))).toBeLessThanOrEqual(209);
+  });
+
+  it('gibt der Gondel Säulen auch für die längere Rückseite', () => {
+    // Vorn ein Feld, hinten zwei: Ohne die zusammengelegten Kanten hingen die
+    // Böden der Rückseite ab 100 cm frei in der Luft.
+    const gondel = element({
+      kategorie: 'regale',
+      form: 'wt100',
+      breite: 200,
+      tiefe: 140,
+      hoehe: 200,
+      beidseitig: true,
+      felderUnten: [{ breite: 100, boeden: 5 }],
+      felderOben: [
+        { breite: 100, boeden: 5 },
+        { breite: 100, boeden: 5 },
+      ],
+    });
+    const saeulen = quaderMit(bauteileFuer(gondel), 'regal').filter((t) => t.h >= 190);
+    const stellen = [...new Set(saeulen.map((t) => Math.round(t.x)))].sort((a, b) => a - b);
+    expect(stellen).toContain(199);
+  });
+
+  it('lässt die Böden an der Säule, auch bei flachem Grundboden', () => {
+    // „Unterster Boden 30" auf einem 57 cm tiefen Regal: Vorher rutschte die
+    // Hinterkante aller Böden auf 27 und ließ 19 cm Luft zur Säule.
+    const regal = element({
+      kategorie: 'regale',
+      form: 'wt100',
+      breite: 100,
+      tiefe: 57,
+      hoehe: 180,
+      grundboden: 30,
+      felderUnten: [{ breite: 100, boeden: 5 }],
+    });
+    const boeden = quaderMit(bauteileFuer(regal), 'draht');
+    expect(boeden.length).toBeGreaterThan(0);
+    // Sie beginnen an der Säule (0…8), nicht davor.
+    expect(Math.max(...boeden.map((t) => t.y))).toBeLessThanOrEqual(10);
+  });
+});

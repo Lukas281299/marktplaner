@@ -10,7 +10,7 @@ import {
   type Bauteil,
 } from '../bauteile';
 import { hoeheVon } from '../moebel';
-import type { PlanElement } from '../../../typen/modell';
+import type { PlanElement, Regalfeld } from '../../../typen/modell';
 
 /**
  * Kühlung und Theken – WSL Orion/Titan (Hochkühlregal), Cloud (Stufenmöbel)
@@ -39,16 +39,19 @@ const STOSSLEISTE = 3;
 const PREISSCHIENE = 3;
 
 /**
- * Wie viele Ebenen dieses Möbel zeigt.
+ * Wie viele Ebenen ein **Feld** zeigt.
  *
  * **Dieselbe Zählweise wie beim Regal:** Was am Feld steht, ist die Zahl der
  * Ebenen einschließlich des Grundbodens. Steht dort nichts, gilt die
  * Katalogvorgabe — vier Fachböden, bei hohen Möbeln fünf, jeweils über dem
  * Grundboden.
+ *
+ * Gefragt wird **je Feld**. Vorher zählte allein das erste und die Zahl galt
+ * über die ganze Möbelbreite: Wer im ersten Feld vier und im zweiten sechs
+ * Böden eintrug, sah überall vier und las damit eine falsche Zahl ab.
  */
-function ebenenzahl(element: PlanElement, hoehe: number): number {
-  const eingetragen = felderVon(element, 'unten')[0]?.boeden;
-  if (eingetragen !== undefined && eingetragen > 0) return eingetragen;
+function ebenenzahl(feld: Regalfeld | undefined, hoehe: number): number {
+  if (feld?.boeden !== undefined && feld.boeden > 0) return feld.boeden;
   return hoehe > 215 ? 6 : 5;
 }
 
@@ -72,15 +75,17 @@ function innenraum(
   ebenen: number,
   bodentiefe: number,
   teile: Bauteil[],
+  /** Wo das Feld beginnt – bei einem Möbel aus mehreren Feldern. */
+  x0 = 0,
 ) {
   const hinten = 10;
   const innen = Math.max(20, Math.min(bodentiefe, t - 16));
 
   // Die Schale: Rückwand, Seiten, Decke.
-  teile.push(wandplatte(4, hinten, von, b - 8, bis - von, 'weiss', 2));
-  teile.push(seitenplatte(4, hinten, von, t - 14, bis - von, 'weiss', 2));
-  teile.push(seitenplatte(b - 6, hinten, von, t - 14, bis - von, 'weiss', 2));
-  teile.push(platte(4, hinten, bis - 2, b - 8, t - 14, 'weiss'));
+  teile.push(wandplatte(x0 + 4, hinten, von, b - 8, bis - von, 'weiss', 2));
+  teile.push(seitenplatte(x0 + 4, hinten, von, t - 14, bis - von, 'weiss', 2));
+  teile.push(seitenplatte(x0 + b - 6, hinten, von, t - 14, bis - von, 'weiss', 2));
+  teile.push(platte(x0 + 4, hinten, bis - 2, b - 8, t - 14, 'weiss'));
 
   // Der Grundboden ist die erste Ebene; darüber hängen die übrigen.
   const hoehen = verteileHoehen(von, bis - 12, Math.max(0, ebenen - 1));
@@ -88,9 +93,18 @@ function innenraum(
     // Nach unten tiefer: der unterste Fachboden reicht am weitesten vor.
     const anteil = hoehen.length > 1 ? k / (hoehen.length - 1) : 0;
     const d = Math.round(innen - (innen - Math.max(20, innen - 14)) * anteil);
-    teile.push(quader(5, hinten + 1, z, b - 10, d, 1.5, 'hellgrau'));
-    teile.push(quader(7, hinten + 5, z + 1.5, b - 14, d - 8, 16, 'ware'));
-    teile.push(quader(5, hinten + d - 0.8, z, b - 10, 0.8, PREISSCHIENE, 'preisschiene'));
+    teile.push(quader(x0 + 5, hinten + 1, z, b - 10, d, 1.5, 'hellgrau'));
+
+    // **Die Ware bleibt in ihrem Fach.** Über dem obersten Boden sind es bis
+    // zur Innendecke nur zehn Zentimeter; ein fester Warenblock von sechzehn
+    // durchstieß sie und steckte in der Haube. Durch die offene Front oder die
+    // Glastür sah man das sofort – beim häufigsten Möbel im Markt.
+    const darueber = (k + 1 < hoehen.length ? hoehen[k + 1] : bis - 2) - z - 1.5;
+    const warenhoehe = Math.min(16, darueber - 1);
+    if (warenhoehe > 2) {
+      teile.push(quader(x0 + 7, hinten + 5, z + 1.5, b - 14, d - 8, warenhoehe, 'ware'));
+    }
+    teile.push(quader(x0 + 5, hinten + d - 0.8, z, b - 10, 0.8, PREISSCHIENE, 'preisschiene'));
   });
 }
 
@@ -124,7 +138,18 @@ function hochkuehlregal(element: PlanElement, tueren: boolean): Bauteil[] {
   // Grundboden und Innenraum. Der Grundboden ist die erste Ebene.
   teile.push(quader(3, 10, sockel, b - 6, t - 16, 1.5, 'hellgrau'));
   teile.push(quader(3, t - 7.3, sockel, b - 6, 0.8, PREISSCHIENE, 'preisschiene'));
-  innenraum(b, t, sockel + 1.5, hoehe - haube, ebenenzahl(element, hoehe), 55, teile);
+  // **Je Feld sein eigener Innenraum.** Ein 3,75-m-Regal aus drei Feldern mit
+  // verschiedenen Bodenzahlen ist im Markt genau das – drei Abschnitte, und
+  // jeder trägt, was an ihm steht.
+  const felder = felderVon(element, 'unten');
+  const grundboden = element.grundboden && element.grundboden > 0 ? element.grundboden : 55;
+  let x = 0;
+  for (const feld of felder.length > 0 ? felder : [{ breite: b }]) {
+    const fb = Math.min(feld.breite, b - x);
+    if (fb <= 0) break;
+    innenraum(fb, t, sockel + 1.5, hoehe - haube, ebenenzahl(feld, hoehe), grundboden, teile, x);
+    x += feld.breite;
+  }
   if (tueren) glastueren(b, t - 5, sockel, hoehe - haube - sockel, teile);
   return teile;
 }

@@ -1219,6 +1219,20 @@ export interface Projekt {
    * Haken sagt, was in **diesem** Markt daraus geworden ist. Ein zweiter
    * Markt fängt wieder bei null an.
    */
+  /**
+   * Wann die Planung zuletzt einsortiert wurde.
+   *
+   * **Der Ordner hängt bewusst nicht an `geaendertAm`.** Wohin eine Planung
+   * einsortiert ist, ist keine Änderung an der Planung – sonst stünde sie nach
+   * dem Aufräumen ganz oben in der Liste, als hätte jemand daran gearbeitet.
+   *
+   * Genau deshalb braucht der Abgleich eine zweite Zahl: Er entscheidet allein
+   * am Änderungsdatum, ob eine Planung neu ist, und ein Ordnerwechsel war für
+   * ihn damit unsichtbar. Am zweiten Rechner blieb alles unsortiert, und die
+   * beiden Verzeichnisse schrieben ihre Fassung endlos gegeneinander.
+   */
+  ordnerAm?: number;
+
   sortimentsstand?: Record<string, 'gruen' | 'grau'>;
 
   /**

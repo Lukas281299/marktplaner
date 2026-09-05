@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { buehneSteuerung } from './buehne';
 import { speichereProjekt } from '../speicher/projektArchiv';
 import { usePlanStore } from '../zustand/planStore';
+import { zeichnetZug } from './werkzeug';
 
 /**
  * Alle Tastenkombinationen an einer Stelle.
@@ -99,12 +100,11 @@ export function useTastatur(): void {
           e.preventDefault();
           // Beim Zeichnen gehört Rückschritt zur Zeichnung: Dort nimmt er die
           // letzte gesetzte Ecke zurück (siehe `Zeichenflaeche`). Ohne diese
-          // Ausnahme liefe beides gleichzeitig – und weil eine gerade fertig
-          // gezeichnete Verkaufsfläche ausgewählt bleibt, würde das Zurück-
-          // nehmen einer Ecke die Fläche davor löschen.
-          if (store.werkzeug === 'grundrissZeichnen' || store.werkzeug === 'verkaufsflaeche') {
-            return;
-          }
+          // Ausnahme liefe beides gleichzeitig – und weil ein gerade fertig
+          // gezeichneter Raum ausgewählt bleibt, würde das Zurücknehmen einer
+          // Ecke den Raum davor löschen. Es gilt für **alle sechs**
+          // Zugwerkzeuge, nicht nur für zwei – siehe `logik/werkzeug.ts`.
+          if (zeichnetZug(store.werkzeug)) return;
           // Sind Meter markiert, nimmt Entf ihre Warengruppe weg statt ein
           // Möbel zu löschen. Wer sich vergriffen hat, wird die Beschriftung
           // so wieder los, ohne sich in die Gondelübersicht hineinzuklicken.

@@ -3,6 +3,7 @@ import { paketBauen, planeAbgleich, type SyncPaket, type Verzeichniseintrag } fr
 import { entschluesseln, kontoKennung, verschluesseln } from './krypto';
 import {
   entferneProjektStill,
+  verschiebeProjekt,
   holeAbgleichStand,
   holeGeraeteName,
   holeZuletztGeoeffnet,
@@ -319,6 +320,12 @@ export async function abgleichen(zugang: SyncZugang): Promise<SyncErgebnis> {
     // --------------------------------- 5. lokal übernehmen und aufräumen
     for (const projekt of zuSpeichern.values()) await uebernehmeProjekt(projekt);
     for (const id of plan.loeschenLokal) await entferneProjektStill(id);
+    // Was anderswo einsortiert wurde: nur das Feld setzen, nicht die ganze
+    // Planung holen. Der Zeitpunkt kommt mit, damit beide Rechner dieselbe
+    // Zahl führen und nicht abwechselnd gewinnen.
+    for (const { id, ordner, ordnerAm } of plan.ordnerUebernehmen) {
+      await verschiebeProjekt(id, ordner, ordnerAm);
+    }
     for (const id of plan.loeschenFern) await projektEntfernen(zugang, konto, id);
     for (const vorlage of plan.eigeneVorlagen) await speichereVorlage(vorlage);
     await setzeGraeber(paket.graeber, beginn);

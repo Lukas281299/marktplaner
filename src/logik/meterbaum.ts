@@ -199,6 +199,68 @@ export function meterbaum(
   return oben.map(runde);
 }
 
+/**
+ * In welche Zeilen eine Strecke zählt – und mit welchem Anteil.
+ *
+ * Erst, wohin ihre Namen für sich gehören (`zieleDerStrecke` wägt Text und
+ * Pfad gegeneinander ab). Dann entscheidet die Strecke selbst:
+ *
+ *  - **Ohne Aufteilung** bleibt alles wie bisher: Zwei Namen auf einem Meter
+ *    bilden **eine** Zeile mit beiden Namen (der Bund). Das ist der Normalfall
+ *    und soll es bleiben.
+ *  - **Mit Aufteilung** bekommt jeder Name seine eigene Zeile und seinen
+ *    Anteil in Prozent – von den laufenden wie von den tatsächlichen Metern.
+ *    Siehe `Streckenaufteilung`.
+ *
+ * **Sie steht für sich, weil zwei fragen.** Die Auswertung baut den Baum
+ * daraus, und die Kennzahlleiste der Obstabteilung muss dieselbe Antwort
+ * bekommen. Rechnete sie ein zweites Mal auf eigene Faust, zeigte sie mehr
+ * laufende Meter als der Baum darunter – und keine der beiden Zahlen sähe
+ * falsch aus.
+ */
+function zieleAnteilig(
+  liste: Sortimentsliste,
+  bund: ReturnType<typeof buende>,
+  strecke: Streckenmeter,
+): Meterziel[] {
+  const ziele = zieleDerStrecke(liste, strecke);
+  const teilung = strecke.aufteilung;
+
+  // **Eine Sonderplatzierung zählt unter ihrer Warengruppe, aber getrennt.**
+  // Auf dem Meter liegt Werbeware und kein reguläres Sortiment; er ist
+  // trotzdem Fläche dieser Warengruppe, laufend wie tatsächlich.
+  if (strecke.aktion) {
+    const pfad = strecke.pfad ?? eindeutigerPfad(liste, strecke.name);
+    return [
+      {
+        name: AKTIONSZEILE,
+        // **Höchstens Abteilung › Warengruppe.** Hängte die Zeile unter einem
+        // Sortiment, trüge dessen Zeile die Werbemeter still mit – „Milch
+        // 2,00 m" bei einem Meter regulärer Fläche –, und weil die Einrückung
+        // an der Stufe hängt, sähe sie zugleich aus wie eine Geschwisterzeile,
+        // deren Meter man noch dazuzählen müsste.
+        pfad: pfad ? pfadVon(...pfad.split(' › ').slice(0, 2), AKTIONSZEILE) : undefined,
+        anteil: 1,
+        aktion: true,
+      },
+    ];
+  }
+
+  const gebuendelt = (): Meterziel[] => {
+    const erste = ziele[0] ?? { name: strecke.name, pfad: strecke.pfad };
+    const treffer = bundFuer(bund, liste, erste.name);
+    const ziel = treffer ? { name: treffer.beschriftung, pfad: treffer.pfad } : erste;
+    return [{ ...ziel, anteil: 1 }];
+  };
+
+  if (!teilung || ziele.length < 2 || teilung.werte.length !== ziele.length) return gebuendelt();
+  const werte = teilung.werte.map((w) => Math.max(0, w));
+  const summe = werte.reduce((s, w) => s + w, 0);
+  if (!(summe > 0)) return gebuendelt();
+
+  return ziele.map((ziel, i) => ({ ...ziel, anteil: werte[i] / summe }));
+}
+
 /** Baut den Baum und die Kopfzahlen in einem Zug. */
 export function meterauswertung(
   projekt: Projekt,
@@ -208,62 +270,8 @@ export function meterauswertung(
   // gemeinsam beschriftet oder einander zugeordnet sind.
   const bund = buende(projekt, liste);
 
-  /**
-   * In welche Zeilen eine Strecke zählt – und mit welchem Anteil.
-   *
-   * Erst, wohin ihre Namen für sich gehören (`zieleDerStrecke` wägt Text und
-   * Pfad gegeneinander ab). Dann entscheidet die Strecke selbst:
-   *
-   *  - **Ohne Aufteilung** bleibt alles wie bisher: Zwei Namen auf einem
-   *    Meter bilden **eine** Zeile mit beiden Namen (der Bund). Das ist der
-   *    Normalfall und soll es bleiben.
-   *  - **Mit Aufteilung** bekommt jeder Name seine eigene Zeile und seinen
-   *    Anteil in Prozent – von den laufenden wie von den tatsächlichen
-   *    Metern. Siehe `Streckenaufteilung`.
-   */
-  const zieleMitAnteil = (strecke: Streckenmeter): Meterziel[] => {
-    const ziele = zieleDerStrecke(liste, strecke);
-    const teilung = strecke.aufteilung;
-
-    // **Eine Sonderplatzierung zählt unter ihrer Warengruppe, aber getrennt.**
-    // Auf dem Meter liegt Werbeware und kein reguläres Sortiment; er ist
-    // trotzdem Fläche dieser Warengruppe, laufend wie tatsächlich. Deshalb
-    // hängt er als eigene Zeile unter dem Pfad, den er trägt – ohne dass
-    // dafür in jedem Sortiment eine Warengruppe „Aktion" angelegt werden
-    // müsste.
-    if (strecke.aktion) {
-      const pfad = strecke.pfad ?? eindeutigerPfad(liste, strecke.name);
-      return [
-        {
-          name: AKTIONSZEILE,
-          // **Höchstens Abteilung › Warengruppe.** Hängte die Zeile unter
-          // einem Sortiment, trüge dessen Zeile die Werbemeter still mit –
-          // „Milch 2,00 m" bei einem Meter regulärer Fläche –, und weil die
-          // Einrückung an der Stufe hängt, sähe sie zugleich aus wie eine
-          // Geschwisterzeile, deren Meter man noch dazuzählen müsste. Beide
-          // Lesarten führen zu einer zu großen Bestellung.
-          pfad: pfad ? pfadVon(...pfad.split(' › ').slice(0, 2), AKTIONSZEILE) : undefined,
-          anteil: 1,
-          aktion: true,
-        },
-      ];
-    }
-
-    const gebuendelt = (): Meterziel[] => {
-      const erste = ziele[0] ?? { name: strecke.name, pfad: strecke.pfad };
-      const treffer = bundFuer(bund, liste, erste.name);
-      const ziel = treffer ? { name: treffer.beschriftung, pfad: treffer.pfad } : erste;
-      return [{ ...ziel, anteil: 1 }];
-    };
-
-    if (!teilung || ziele.length < 2 || teilung.werte.length !== ziele.length) return gebuendelt();
-    const werte = teilung.werte.map((w) => Math.max(0, w));
-    const summe = werte.reduce((s, w) => s + w, 0);
-    if (!(summe > 0)) return gebuendelt();
-
-    return ziele.map((ziel, i) => ({ ...ziel, anteil: werte[i] / summe }));
-  };
-
+  const zieleMitAnteil = (strecke: Streckenmeter): Meterziel[] =>
+    zieleAnteilig(liste, bund, strecke);
   const zeilen = warengruppenmeter(projekt, {
     auslagen: auslagenAnteil,
     zieleFuer: zieleMitAnteil,
@@ -338,21 +346,29 @@ export function obstgemuesezahlen(projekt: Projekt, liste: Sortimentsliste): Obs
   let kuehlungTatsaechlich = 0;
   let vorhanden = false;
 
+  // **Dieselbe Aufteilung wie im Baum.** Eine Strecke „Salat, Dressing" 50/50
+  // gehört zur Hälfte ins Obst und zur Hälfte in die Lebensmittel; sie ganz
+  // hierher zu zählen ergäbe eine Kennzahl, die über ihrer eigenen Tabelle
+  // steht.
+  const bund = buende(projekt, liste);
+
   for (const strecke of strecken(projekt)) {
-    const name = strecke.pfad ? letzteStufe(strecke.pfad) : strecke.name;
-    const abteilung = strecke.pfad ? ersteStufe(strecke.pfad) : abteilungVon(liste, name);
-    if (!abteilung || !OG_ERKENNUNG.test(abteilung)) continue;
+    for (const ziel of zieleAnteilig(liste, bund, strecke)) {
+      const name = ziel.pfad ? letzteStufe(ziel.pfad) : ziel.name;
+      const abteilung = ziel.pfad ? ersteStufe(ziel.pfad) : abteilungVon(liste, name);
+      if (!abteilung || !OG_ERKENNUNG.test(abteilung)) continue;
 
-    vorhanden = true;
-    laufend += strecke.laenge;
-    kisten += kistenAnteil(strecke);
+      vorhanden = true;
+      laufend += strecke.laenge * ziel.anteil;
+      kisten += kistenAnteil(strecke) * ziel.anteil;
 
-    // Was in dieser Abteilung ein Kühlmöbel ist, sagt die Kategorie des
-    // Möbels – dort ist sie die richtige Frage, denn es geht um die Bauart
-    // und nicht um das Sortiment darauf.
-    if (strecke.element.kategorie === 'kuehlung' || strecke.element.kategorie === 'tiefkuehlung') {
-      kuehlungLaufend += strecke.laenge;
-      kuehlungTatsaechlich += auslagenAnteil(strecke).tatsaechlich;
+      // Was in dieser Abteilung ein Kühlmöbel ist, sagt die Kategorie des
+      // Möbels – dort ist sie die richtige Frage, denn es geht um die Bauart
+      // und nicht um das Sortiment darauf.
+      if (strecke.element.kategorie === 'kuehlung' || strecke.element.kategorie === 'tiefkuehlung') {
+        kuehlungLaufend += strecke.laenge * ziel.anteil;
+        kuehlungTatsaechlich += auslagenAnteil(strecke).tatsaechlich * ziel.anteil;
+      }
     }
   }
 

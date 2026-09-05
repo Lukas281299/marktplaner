@@ -295,3 +295,62 @@ describe('graeberAufraeumen', () => {
     expect(graeberAufraeumen([alt, frisch], jetzt)).toEqual([frisch]);
   });
 });
+
+/**
+ * Ordner reisen mit.
+ *
+ * **Einsortieren ist keine Änderung an der Planung** – deshalb rührt es
+ * `geaendertAm` nicht an, und deshalb war es für den Abgleich unsichtbar. Wer
+ * am PC aufräumte, fand am Laptop alles unsortiert; schlimmer noch, beide
+ * Verzeichnisse schrieben ihre Fassung endlos gegeneinander.
+ *
+ * Der eigene Zeitpunkt `ordnerAm` löst das: Bei gleichem Änderungsdatum gewinnt
+ * der jüngere Ordner, und die Planung selbst bleibt liegen, wo sie ist.
+ */
+describe('Der Ordner geht mit', () => {
+  const mitOrdner = (ordner: string | undefined, ordnerAm?: number) => ({
+    ...eintrag('markt', MITTE),
+    ordner,
+    ordnerAm,
+  });
+
+  it('übernimmt den jüngeren Ordner vom Server', () => {
+    const plan = planeAbgleich(
+      lokal({ verzeichnis: [mitOrdner(undefined, FRUEH)], abgeglichen: { markt: MITTE } }),
+      fern({ verzeichnis: [mitOrdner('2025', SPAET)] }),
+    );
+    expect(plan.ordnerUebernehmen).toEqual([{ id: 'markt', ordner: '2025', ordnerAm: SPAET }]);
+    expect(plan.verzeichnis[0].ordner).toBe('2025');
+    // Die Planung selbst wird nicht angefasst.
+    expect(plan.holen).toEqual([]);
+    expect(plan.schicken).toEqual([]);
+  });
+
+  it('behält den eigenen, wenn er der jüngere ist', () => {
+    const plan = planeAbgleich(
+      lokal({ verzeichnis: [mitOrdner('2025', SPAET)], abgeglichen: { markt: MITTE } }),
+      fern({ verzeichnis: [mitOrdner(undefined, FRUEH)] }),
+    );
+    expect(plan.ordnerUebernehmen).toEqual([]);
+    expect(plan.verzeichnis[0].ordner).toBe('2025');
+  });
+
+  it('lässt alles wie bisher, wenn keine Seite einen Zeitpunkt hat', () => {
+    // Eine Planung von einem Rechner mit älterer Fassung bringt keinen mit.
+    // Dann gilt weiter der lokale Stand.
+    const plan = planeAbgleich(
+      lokal({ verzeichnis: [mitOrdner('hier')], abgeglichen: { markt: MITTE } }),
+      fern({ verzeichnis: [mitOrdner('dort')] }),
+    );
+    expect(plan.ordnerUebernehmen).toEqual([]);
+    expect(plan.verzeichnis[0].ordner).toBe('hier');
+  });
+
+  it('meldet nichts, wenn beide denselben Ordner führen', () => {
+    const plan = planeAbgleich(
+      lokal({ verzeichnis: [mitOrdner('2025', FRUEH)], abgeglichen: { markt: MITTE } }),
+      fern({ verzeichnis: [mitOrdner('2025', SPAET)] }),
+    );
+    expect(plan.ordnerUebernehmen).toEqual([]);
+  });
+});

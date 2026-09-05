@@ -1,5 +1,11 @@
 import { KATEGORIEN } from '../daten/kategorien';
-import { planAlsVektor, type Planvektor, type Vektorform, type Vektortext } from './planvektor';
+import {
+  planAlsVektor,
+  zoomFuerMassstab,
+  type Planvektor,
+  type Vektorform,
+  type Vektortext,
+} from './planvektor';
 import {
   deckkraftstufen,
   formZuPdf,
@@ -222,7 +228,9 @@ function textZuSvg(t: Vektortext): string {
 export function baueSvgBlatt(auftrag: Blattauftrag): string {
   const { projekt, blatt, massstab, schriftfeld } = auftrag;
   const mitLegende = auftrag.mitLegende !== false;
-  const vektor = planAlsVektor(projekt);
+  // Maßstäblich ausgeben heißt: Der Plan entscheidet an der Papiergröße,
+  // was noch lesbar ist – nicht an einer festen Zahl.
+  const vektor = planAlsVektor(projekt, { ersatzzoom: zoomFuerMassstab(massstab) });
   const platz = zeichenflaecheMm(blatt, mitLegende);
   const faktor = mmJeCm(massstab);
 
@@ -376,7 +384,9 @@ export function pdfInhalt(auftrag: Blattauftrag): {
 } {
   const { projekt, blatt, massstab, schriftfeld } = auftrag;
   const mitLegende = auftrag.mitLegende !== false;
-  const vektor = planAlsVektor(projekt);
+  // Maßstäblich ausgeben heißt: Der Plan entscheidet an der Papiergröße,
+  // was noch lesbar ist – nicht an einer festen Zahl.
+  const vektor = planAlsVektor(projekt, { ersatzzoom: zoomFuerMassstab(massstab) });
   const platz = zeichenflaecheMm(blatt, mitLegende);
   const faktor = mmJeCm(massstab);
 
@@ -485,6 +495,11 @@ function pdfBeiwerk(
       groesse,
       farbe,
       anker: 'anfang',
+      // **Wie im SVG.** Dort steht an diesen Texten kein `dominant-baseline`,
+      // sie sitzen also auf ihrer Grundlinie. Ohne diese Angabe griffe hier
+      // die Mitte, und Schriftfeld, Legende und Maßstabsbalken stünden im PDF
+      // um ein bis zwei Millimeter anders als im SVG desselben Blattes.
+      grundlinie: 'alphabetic',
     });
 
   zeilen.push(schrift(feld.markt, blatt.randMm + 4, y + 9, 6, 'anfang'));

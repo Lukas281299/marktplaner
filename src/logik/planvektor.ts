@@ -188,7 +188,8 @@ export interface Vektoroptionen {
    * Der Ersatzzoom für die Möbelzeichnung – siehe `moebelschritte`.
    *
    * Er entscheidet, welche Beschriftungen mitkommen. Der Vorgabewert
-   * entspricht ungefähr 1:100 auf Papier.
+   * entspricht 1:100 auf Papier; wer maßstäblich ausgibt, rechnet ihn besser
+   * aus dem gewählten Maßstab – siehe `zoomFuerMassstab`.
    */
   ersatzzoom?: number;
   /** Ob die Maße an den Gebäudekanten mitgeschrieben werden. */
@@ -204,6 +205,28 @@ export interface Vektoroptionen {
  * Wände, dann die Möbel, zuletzt die Maßlinien. Wer sie ändert, ändert, was
  * was verdeckt.
  */
+/**
+ * Der Ersatzzoom, der zu einem Papiermaßstab gehört.
+ *
+ * **Bildschirm und Papier fragen dasselbe, nur in anderen Einheiten.** Am
+ * Bildschirm heißt lesbar `Höhe in cm × Zoom ≥ 5` (Bildpunkte). Auf Papier
+ * heißt es `Höhe in cm × 10 / Maßstab ≥ 1,5` (Millimeter). Setzt man beide
+ * gleich, ergibt sich der Zoom, der zu einem Maßstab passt:
+ *
+ * ```
+ * zoom = (10 / massstab) × (5 / 1,5) = 33,3 / massstab
+ * ```
+ *
+ * Bei 1:100 kommt genau der alte feste Wert 0,33 heraus – nur galt der bisher
+ * **in jedem** Maßstab. Bei 1:50 fielen dadurch Feldnotizen (11 cm) und die
+ * rote Meterzahl unter der Warengruppe aus dem Plan, obwohl sie dort mit 2,2
+ * bzw. 2,7 mm gut über der Druckgrenze lägen und der Ausgabedialog sie
+ * ausdrücklich verspricht.
+ */
+export function zoomFuerMassstab(massstab: number): number {
+  return massstab > 0 ? 33.3 / massstab : 0.33;
+}
+
 export function planAlsVektor(projekt: Projekt, optionen: Vektoroptionen = {}): Planvektor {
   const einheit = optionen.einheit ?? projekt.einstellungen?.anzeigeEinheit ?? 'm';
   const ersatzzoom = optionen.ersatzzoom ?? 0.33;

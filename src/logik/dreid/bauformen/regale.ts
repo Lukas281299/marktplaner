@@ -410,7 +410,14 @@ function regalseite(
   // **Die hintere Kante aller Auflagen.** Dort hängen sie in der Säule, und
   // deshalb steht sie fest: Eine flachere Etage endet weiter vorn, sie
   // beginnt nicht weiter hinten.
-  const hinten = Math.max(0, front - T);
+  //
+  // Sie darf deshalb **nie hinter der Säule liegen**. Vorher stand hier
+  // schlicht `front − T`: Wer unter „Unterster Boden" 30 cm eintrug, schob
+  // damit die Hinterkante aller Böden auf 27 – die Säule steht aber bei 0…8,
+  // und zwischen beiden klaffte eine Lücke von 19 cm. Grundboden, Etagen und
+  // Konsolen hingen frei vor dem Regal, und je kleiner der eingetragene Wert,
+  // desto größer die Lücke.
+  const hinten = Math.max(0, Math.min(SAEULE_T, front - T));
 
   // Füße: an jeder Feldgrenze, von der Säule bis zur Front.
   for (const x of kanten) {
@@ -479,10 +486,27 @@ function regalseite(
   return teile;
 }
 
+/**
+ * Die Feldgrenzen **beider** Seiten, zusammengelegt.
+ *
+ * Eine Gondel darf vorn und hinten verschieden eingeteilt sein – und ist dann
+ * oft auch verschieden lang. Stünden die Säulen nur nach der Vorderseite,
+ * hinge alles, was die längere Seite darüber hinaus trägt, frei in der Luft:
+ * keine Säule, keine Rückwand dahinter. Genau der Fall, für den es die
+ * getrennte Einteilung gibt.
+ */
+function beideKanten(vorn: Regalfeld[], hinten: Regalfeld[]): number[] {
+  const alle = [...grenzen(vorn), ...grenzen(hinten)].map((x) => Math.round(x * 10) / 10);
+  return [...new Set(alle)].sort((a, b) => a - b);
+}
+
 /** Säulen und Gitter-Rückwand an einer Linie `y`. */
 function saeulenreihe(felder: Regalfeld[], y: number, hoehe: number): Bauteil[] {
+  return saeulenreiheAn(grenzen(felder), y, hoehe);
+}
+
+function saeulenreiheAn(kanten: number[], y: number, hoehe: number): Bauteil[] {
   const teile: Bauteil[] = [];
-  const kanten = grenzen(felder);
   const gesamt = kanten[kanten.length - 1];
   for (const x of kanten) {
     teile.push(quader(x - SAEULE_B / 2, y, 0, SAEULE_B, SAEULE_T, hoehe, 'regal'));
@@ -531,7 +555,11 @@ function gondel(element: PlanElement): Bauteil[] {
     ),
     element.tiefe,
   );
-  return [...saeulenreihe(vorn, mitte - SAEULE_T / 2, hoehe), ...vorderseite, ...rueckseite];
+  return [
+    ...saeulenreiheAn(beideKanten(vorn, hinten), mitte - SAEULE_T / 2, hoehe),
+    ...vorderseite,
+    ...rueckseite,
+  ];
 }
 
 function verschiebeY(teil: Bauteil, dy: number): Bauteil {

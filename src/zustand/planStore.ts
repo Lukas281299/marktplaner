@@ -735,7 +735,7 @@ export interface PlanStore {
    */
   tauscheVorlage(vorlage: BibliothekEintrag): void;
   /** Ersetzt den Umriss des Gebäudes. */
-  setzeUmriss(umriss: Punkt[]): void;
+  setzeUmriss(umriss: Punkt[], mitHistorie?: boolean): void;
   /** Legt die Wandkörper aus einem eingelesenen Plan ab. */
   setzeWandkoerper(koerper: Punkt[][] | undefined): void;
 
@@ -942,6 +942,9 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       // Beim Öffnen einer anderen Planung wieder ins normale Arbeiten
       // zurückfallen – ein noch aktives Zeichenwerkzeug wäre eine Falle.
       werkzeug: 'auswahl',
+      // Was zum vorigen Markt gehörte, gehört nicht zu diesem.
+      warengruppenMarkierung: [],
+      warengruppenPinsel: null,
       // Die Meldung des vorigen Marktes gehört nicht zu diesem.
       nachgezogenePlanungen: 0,
       vergangenheit: [],
@@ -1035,6 +1038,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   },
 
   setzeLinkenReiter(reiter) {
+    // **Die Markierung gehört zum Zuordnen.** Bleibt sie beim Wechsel auf die
+    // Möbelliste stehen, löscht das nächste Entf nicht das ausgewählte Möbel,
+    // sondern die Warengruppen der noch markierten Meter.
+    if (get().warengruppenMarkierung.length > 0) set({ warengruppenMarkierung: [] });
     // Beim Wegschalten den Pinsel weglegen: Ein Klick auf ein Regal soll
     // nicht Wochen später noch eine Warengruppe schreiben.
     set(reiter === 'warengruppen' ? { linkerReiter: reiter } : { linkerReiter: reiter, warengruppenPinsel: null });
@@ -1457,8 +1464,14 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
           name: 'Förderband',
           kategorie: 'kassen' as const,
           form: 'foerderband' as const,
-          x: links,
-          y: oben,
+          // **Die Mitte, nicht die Ecke.** Überall im Programm ist `x`/`y`
+          // der Mittelpunkt eines Elements – so rechnen Auswahlrahmen,
+          // Ausrichten und Einrasten. Der `verlauf` unten liegt schon relativ
+          // zur Mitte; stand hier die linke obere Ecke, sprang das Band beim
+          // Einsetzen um die halbe Kastengröße weg. Bei einem acht Meter
+          // langen Band waren das gut vier Meter.
+          x: mitte.x,
+          y: mitte.y,
           breite,
           tiefe,
           hoehe: 25,
@@ -1486,12 +1499,19 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     }));
   },
 
-  setzeUmriss(umriss) {
+  setzeUmriss(umriss, mitHistorie = true) {
     if (umriss.length < 3) return;
-    aendere(set, get, (p) => ({
+    const wandeln = (p: Projekt): Projekt => ({
       ...p,
       grundflaeche: { ...p.grundflaeche, umriss: imUhrzeigersinn(umriss) },
-    }));
+    });
+    // Beim Ziehen einer Ecke steht der Schritt schon: Der Anfasser legt ihn
+    // beim Anfassen an, gezogen wird ohne Historie. Ein zweiter beim
+    // Loslassen wäre ein Strg+Z, der sichtbar nichts tut – und er frisst
+    // einen der sechzig Plätze, sodass ältere echte Schritte früher hinten
+    // herausfallen.
+    if (mitHistorie) aendere(set, get, wandeln);
+    else set({ projekt: { ...wandeln(get().projekt), geaendertAm: Date.now() } });
   },
 
   // ============================== Räume, Wände und Öffnungen
@@ -1874,6 +1894,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       zukunftUmbenennung: [...get().zukunftUmbenennung, umbenennung ?? null],
       // Auswahl aufräumen: gelöschte Elemente dürfen nicht ausgewählt bleiben.
       auswahl: get().auswahl.filter((id) => vorher.elemente.some((e) => e.id === id)),
+      // Dasselbe für Räume, Wände und Öffnungen: Eine Wand, die durch das
+      // Zurücknehmen verschwunden ist, blieb sonst als Sonderauswahl stehen.
+      // Das nächste Entf lief dann ins Leere, verbrauchte aber einen
+      // Historienplatz – und der nächste Strg+Z tat sichtbar nichts.
+      sonderauswahl: nochDa(get().sonderauswahl, vorher),
     });
     nimmListeZurueck(set, sortiment, listeVorher);
     // Und in allen übrigen Planungen denselben Weg zurück – aber nur, wenn an
@@ -1905,6 +1930,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
       zukunftUmbenennung: get().zukunftUmbenennung.slice(0, -1),
       vergangenheitUmbenennung: [...get().vergangenheitUmbenennung, umbenennung ?? null],
       auswahl: get().auswahl.filter((id) => nachher.elemente.some((e) => e.id === id)),
+      sonderauswahl: nochDa(get().sonderauswahl, nachher),
     });
     nimmListeZurueck(set, sortiment, listeNachher);
     // Vorwärts denselben Weg: Strg+Y benennt in allen Planungen wieder um.
@@ -2706,6 +2732,18 @@ function nimmListeZurueck(
  * zurück und brächte die Liste, die damals galt, gleich mit – und eine
  * Löschung von eben wäre stillschweigend rückgängig gemacht.
  */
+/** Gibt es das, worauf die Sonderauswahl zeigt, in dieser Planung noch? */
+function nochDa(auswahl: PlanStore['sonderauswahl'], projekt: Projekt): PlanStore['sonderauswahl'] {
+  if (!auswahl) return null;
+  const liste =
+    auswahl.art === 'raum'
+      ? projekt.raeume
+      : auswahl.art === 'wand'
+        ? projekt.waende
+        : projekt.oeffnungen;
+  return liste?.some((x) => x.id === auswahl.id) ? auswahl : null;
+}
+
 function aendereListe(
   set: (teil: Partial<PlanStore>) => void,
   get: () => PlanStore,

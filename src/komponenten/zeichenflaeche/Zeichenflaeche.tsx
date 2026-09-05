@@ -35,6 +35,7 @@ import {
 } from '../../logik/wandfang';
 import type { Punkt } from '../../typen/modell';
 import { usePlanStore, type Werkzeug } from '../../zustand/planStore';
+import { zeichnetZug } from '../../logik/werkzeug';
 import { useStatusStore } from '../../zustand/statusStore';
 import { ElementBeschriftung, ElementSymbol } from './ElementSymbol';
 import { Warengruppenmarkierung } from './Warengruppenmarkierung';
@@ -71,25 +72,6 @@ const ANFASSER_TREFFER = 17;
 /** Grenzen für den Zoom: 1 Bildpunkt pro 50 cm bis 4 Bildpunkte pro cm. */
 const ZOOM_MIN = 0.02;
 const ZOOM_MAX = 4;
-
-/**
- * Werkzeuge, die einen freien Polygonzug zeichnen.
- *
- * Grundriss und Verkaufsfläche werden auf genau dieselbe Weise gezeichnet –
- * Ecken setzen, ziehen ergibt einen Bogen, Klick auf den Anfang schließt.
- * Nur was am Ende daraus wird, unterscheidet sich; das entscheidet
- * `schliesseZug`.
- */
-function zeichnetZug(werkzeug: Werkzeug): boolean {
-  return (
-    werkzeug === 'grundrissZeichnen' ||
-    werkzeug === 'verkaufsflaeche' ||
-    werkzeug === 'raumZeichnen' ||
-    werkzeug === 'foerderband' ||
-    werkzeug === 'wandZeichnen' ||
-    werkzeug === 'elementZeichnen'
-  );
-}
 
 /**
  * Die Planungsfläche.
@@ -1163,12 +1145,19 @@ export function Zeichenflaeche() {
     );
     const treffer = findeWand({ x: oeffnung.x, y: oeffnung.y }, achsen, fangbereich(store.ansicht.zoom));
     if (!treffer) return;
-    store.aendereOeffnung(id, {
-      x: treffer.punkt.x,
-      y: treffer.punkt.y,
-      drehung: treffer.winkel,
-      tiefe: treffer.staerke,
-    });
+    // Ohne Historie: Der Schnappschuss steht seit dem Anfassen. Ein zweiter
+    // Schritt hier hieße, dass der erste Strg+Z die Tür auf die frei gezogene
+    // Zwischenlage neben der Wandachse setzt statt an ihren alten Platz.
+    store.aendereOeffnung(
+      id,
+      {
+        x: treffer.punkt.x,
+        y: treffer.punkt.y,
+        drehung: treffer.winkel,
+        tiefe: treffer.staerke,
+      },
+      false,
+    );
   };
 
   // ------------------------------------------------------ Element ausgewählt
@@ -1198,10 +1187,28 @@ export function Zeichenflaeche() {
       return;
     }
 
+    // **Eine gesperrte Ebene ist gesperrt, auch für den Klick.** „Alles
+    // auswählen" und die Rahmenauswahl filtern sie längst heraus; hier fehlte
+    // die Prüfung. Ein festgestellter Kassentisch oder eine importierte
+    // Bestandsschicht kam so doch in die Auswahl und verrutschte beim
+    // Verschieben der Nachbarn — unbemerkt, und im gedruckten Plan falsch.
+    const offen = new Set(
+      store.projekt.ebenen.filter((eb) => eb.sichtbar && !eb.gesperrt).map((eb) => eb.id),
+    );
+    const geklickt = store.projekt.elemente.find((el) => el.id === id);
+    if (geklickt && geklickt.ebeneId && !offen.has(geklickt.ebeneId)) {
+      melde('Diese Ebene ist gesperrt');
+      return;
+    }
+
     const ids = auswahlFuerKlick(store.projekt.elemente, id, {
       alt: e.evt.altKey,
       zuordnen: false,
+    }).filter((k) => {
+      const el = store.projekt.elemente.find((x) => x.id === k);
+      return !el?.ebeneId || offen.has(el.ebeneId);
     });
+    if (ids.length === 0) return;
 
     if (e.evt.shiftKey || e.evt.ctrlKey) {
       store.waehleAus(ids, 'umschalten');
@@ -1850,7 +1857,7 @@ export function Zeichenflaeche() {
               einrasten={aufRaster}
               beiZiehStart={() => usePlanStore.getState().schnappschuss()}
               beiPunktZiehen={punktZiehen}
-              beiZiehEnde={() => usePlanStore.getState().setzeUmriss(umriss)}
+              beiZiehEnde={() => usePlanStore.getState().setzeUmriss(umriss, false)}
               beiPunktEinfuegen={eckeEinfuegen}
               beiPunktEntfernen={eckeEntfernen}
             />

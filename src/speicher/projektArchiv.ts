@@ -56,6 +56,7 @@ export async function listeProjekte(): Promise<ProjektInfo[]> {
       id: p.id,
       name: p.name,
       ordner: p.ordner,
+      ordnerAm: p.ordnerAm,
       erstelltAm: p.erstelltAm,
       geaendertAm: p.geaendertAm,
       anzahlElemente: p.elemente.length,
@@ -113,12 +114,17 @@ export async function benenneProjektUm(id: string, name: string): Promise<Projek
 export async function verschiebeProjekt(
   id: string,
   ordner: string | undefined,
+  /** Wann – für den Abgleich. Vorgabe: jetzt. */
+  wann = Date.now(),
 ): Promise<Projekt | undefined> {
   const datenbank = await db();
   const projekt = await datenbank.get('projekte', id);
   if (!projekt) return undefined;
   const sauber = ordner?.trim();
-  const neu = { ...projekt, ordner: sauber ? sauber : undefined };
+  // `geaendertAm` bleibt, `ordnerAm` bekommt den Zeitpunkt: Nur so sieht der
+  // Abgleich, dass hier etwas passiert ist, ohne dass die Planung als
+  // bearbeitet gilt.
+  const neu = { ...projekt, ordner: sauber ? sauber : undefined, ordnerAm: wann };
   await datenbank.put('projekte', neu);
   return neu;
 }

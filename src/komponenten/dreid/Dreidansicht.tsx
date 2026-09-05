@@ -134,10 +134,25 @@ function gruppeAus(koerper: Koerper, vorrat: Materialvorrat): THREE.Group {
   return aussen;
 }
 
-/** Räumt eine Gruppe samt Geometrien ab – die Materialien gehören dem Vorrat. */
+/**
+ * Räumt eine Gruppe samt Geometrien ab – die Materialien gehören dem Vorrat.
+ *
+ * **Auch das, was keine Fläche ist.** Der Auswahlrahmen ist ein `BoxHelper`
+ * und damit `LineSegments`, kein `Mesh`; er fiel durch die Prüfung und ließ
+ * bei jedem Klick eine Geometrie und ein Material im Grafikspeicher zurück.
+ * Wer sich durch hundert Möbel klickt, sammelt hundert davon an.
+ */
 function entsorge(objekt: THREE.Object3D) {
   objekt.traverse((kind) => {
-    if (kind instanceof THREE.Mesh) kind.geometry.dispose();
+    const teil = kind as THREE.Mesh | THREE.LineSegments;
+    if (teil.geometry) teil.geometry.dispose();
+    // Der Vorrat hält die Möbelmaterialien; ein Helfer bringt sein eigenes mit
+    // und muss es deshalb selbst wieder hergeben.
+    if (kind instanceof THREE.LineSegments) {
+      const stoff = kind.material;
+      if (Array.isArray(stoff)) stoff.forEach((m) => m.dispose());
+      else stoff?.dispose();
+    }
   });
   objekt.removeFromParent();
 }
@@ -355,7 +370,7 @@ export default function Dreidansicht() {
   useEffect(() => {
     const b = buehne.current;
     if (!b) return;
-    for (const kind of [...b.auswahl.children]) kind.removeFromParent();
+    for (const kind of [...b.auswahl.children]) entsorge(kind);
     for (const id of auswahl) {
       const gruppe = b.markt.children.find((k) => k.userData.elementId === id);
       if (!gruppe) continue;

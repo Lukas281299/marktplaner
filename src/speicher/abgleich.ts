@@ -25,6 +25,8 @@ export interface Verzeichniseintrag {
   name: string;
   /** In welchem Ordner sie liegt – siehe `Projekt.ordner`. */
   ordner?: string;
+  /** Wann er zuletzt gesetzt wurde – siehe `Projekt.ordnerAm`. */
+  ordnerAm?: number;
   erstelltAm: number;
   geaendertAm: number;
   anzahlElemente: number;
@@ -95,12 +97,32 @@ export interface Abgleichplan {
   /** Diese Planungen auf dem Server wegräumen. */
   loeschenFern: string[];
   gabelungen: Gabelung[];
+  /**
+   * Diese Planungen hier einsortieren – anderswo wurden sie verschoben.
+   *
+   * Getrennt von `holen`: Der Ordner steht im Verzeichnis, nicht in der
+   * Planung selbst. Ihn zu übernehmen heißt, ein Feld zu setzen – nicht, die
+   * ganze Planung vom Server zu holen.
+   */
+  ordnerUebernehmen: { id: string; ordner?: string; ordnerAm: number }[];
   /** Das Verzeichnis, das nach getaner Arbeit geschrieben wird. */
   verzeichnis: Verzeichniseintrag[];
   graeber: Grabstein[];
   eigeneVorlagen: BibliothekEintrag[];
   zuletztGeoeffnet?: string;
   zuletztGeoeffnetAm?: number;
+}
+
+/**
+ * Welcher der beiden Einträge die jüngere Ordnerablage trägt.
+ *
+ * Fehlt der Zeitpunkt auf beiden Seiten – etwa weil eine Planung von einem
+ * Rechner mit älterer Fassung kommt –, bleibt es beim bisherigen Verhalten
+ * und die lokale Fassung gilt. Nur wer einen Zeitpunkt mitbringt, kann den
+ * anderen überstimmen.
+ */
+function ordnerSieger(hier: Verzeichniseintrag, dort: Verzeichniseintrag): Verzeichniseintrag {
+  return (dort.ordnerAm ?? 0) > (hier.ordnerAm ?? 0) ? dort : hier;
 }
 
 /**
@@ -135,6 +157,7 @@ export function planeAbgleich(lokal: LokalerStand, fern: SyncPaket | undefined):
   const loeschenLokal: string[] = [];
   const loeschenFern: string[] = [];
   const gabelungen: Gabelung[] = [];
+  const ordnerUebernehmen: Abgleichplan['ordnerUebernehmen'] = [];
   const verzeichnis: Verzeichniseintrag[] = [];
   const bleibendeGraeber: Grabstein[] = [];
 
@@ -172,8 +195,15 @@ export function planeAbgleich(lokal: LokalerStand, fern: SyncPaket | undefined):
 
     // ---------------------------------------------------- auf beiden Seiten
     if (hier.geaendertAm === dort.geaendertAm) {
-      // Gleicher Stand – nichts zu tun.
-      verzeichnis.push(hier);
+      // **Gleicher Stand – bis auf den Ordner.** Einsortieren ändert die
+      // Planung nicht und rührt `geaendertAm` deshalb nicht an. Ohne diesen
+      // Blick bliebe der Ordner am jeweiligen Rechner hängen, und die beiden
+      // Verzeichnisse schrieben ihre Fassung endlos gegeneinander.
+      const neuer = ordnerSieger(hier, dort);
+      verzeichnis.push(neuer);
+      if (neuer === dort && dort.ordner !== hier.ordner) {
+        ordnerUebernehmen.push({ id, ordner: dort.ordner, ordnerAm: dort.ordnerAm ?? 0 });
+      }
       continue;
     }
 
@@ -248,6 +278,7 @@ export function planeAbgleich(lokal: LokalerStand, fern: SyncPaket | undefined):
     loeschenLokal,
     loeschenFern,
     gabelungen,
+    ordnerUebernehmen,
     verzeichnis,
     graeber: bleibendeGraeber,
     eigeneVorlagen: [...vorlagen.values()],

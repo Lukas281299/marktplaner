@@ -160,12 +160,22 @@ function vitableSeite(
     teile.push(wandplatte(0, SAEULE_T / 2 + 0.8, obersteKante, gesamt, hoehe - obersteKante - 4, 'holzHell', 1.2));
   }
 
+  // **Keine Auflage über der eingetragenen Höhe.** Der Kopf prüft das längst;
+  // im geraden Zug fehlte es. Sechzehn Einträge der Bibliothek standen dadurch
+  // 4 bis 21 cm höher, als am Möbel steht – und genau dafür ist die 3D-Ansicht
+  // da: um zu sehen, ob man über das Möbel hinwegschaut.
+  //
+  // Gemessen wird bis zur Oberkante der Kisten: Die stehen auf der Auflage und
+  // sind das, was am Ende oben herausragt.
+  const passt = (z: number) => z + AUFLAGE + KISTE_H <= hoehe + 1;
+
   felder.forEach((feld, i) => {
     if (feld.leer) return;
     const x0 = kanten[i];
     const b = feld.breite;
     stufen.forEach((d, s) => {
       const z = hinterkanten[s];
+      if (!passt(z)) return;
       const yHinten = SAEULE_T;
       teile.push(quader(x0, yHinten, z, b, d, AUFLAGE, 'edelstahl', { neigung: NEIGUNG }));
       // Frontgitter an der Vorderkante der Auflage.
@@ -384,9 +394,26 @@ function kistenAuf(umriss: Punkt[], z: number, hoechstens = 14): Bauteil[] {
   const y0 = Math.min(...ys);
   const teile: Bauteil[] = [];
 
+  /** Liegt die ganze Kiste auf der Auflage – nicht nur ihre Mitte? */
+  const liegtDrauf = (x: number, y: number) => {
+    const hx = IFKO.lang / 2;
+    const hy = IFKO.kurz / 2;
+    // Die vier Ecken und die Mitte. Bei einem Umriss mit schrägen Kanten
+    // reicht die Mitte nicht: Vorher hingen an einem geraden Abschluss zwei
+    // Kisten je Auflage 25,6 cm über die Möbelkante und schwebten über dem
+    // Gang – im Raum stand ein anderes Möbel als im Grundriss.
+    return (
+      drin(umriss, x, y) &&
+      drin(umriss, x - hx + 1, y - hy + 1) &&
+      drin(umriss, x + hx - 1, y - hy + 1) &&
+      drin(umriss, x - hx + 1, y + hy - 1) &&
+      drin(umriss, x + hx - 1, y + hy - 1)
+    );
+  };
+
   for (let y = y0 + IFKO.kurz / 2; y < Math.max(...ys); y += IFKO.kurz) {
     for (let x = x0 + IFKO.lang / 2; x < Math.max(...xs); x += IFKO.lang) {
-      if (!drin(umriss, x, y)) continue;
+      if (!liegtDrauf(x, y)) continue;
       teile.push(
         quader(x - IFKO.lang / 2 + 1, y - IFKO.kurz / 2 + 1, z, IFKO.lang - 2, IFKO.kurz - 2, KISTE_H, 'kiste'),
       );
