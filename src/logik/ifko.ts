@@ -142,12 +142,48 @@ export function ifkoJeStufe(feldbreite: number, stufentiefe: number): number {
 }
 
 /**
- * Der Vorschlag für ein ganzes Möbel – oder `undefined`.
+ * Wie viel von einem Feld wirklich Kisten trägt – als Anteil seiner Breite.
  *
- * Zwei Wege, je nachdem, was das Möbel über sich sagt:
+ * Bei einem rechteckigen Möbel ist das alles, der Anteil ist 1. Ein **Trapez
+ * oder ein Eckstück** aber ist vorn schmaler als hinten, und seine Breite im
+ * Plan ist die der breitesten Stelle. Wer damit rechnet, legt Kisten in die
+ * Luft.
+ *
+ * Gerechnet wird deshalb mit der **mittleren** Breite: Fläche des Umrisses
+ * geteilt durch die Fläche seines Rechtecks. Für ein Trapez von 2,00 m hinten
+ * und 1,20 m vorn sind das 1,60 m – vorn passt weniger, hinten mehr, und über
+ * die Tiefe gleicht es sich aus. Dieselbe Zahl setzt ein Planer im Kopf an,
+ * wenn er eine Ecke abschätzt.
+ */
+export function umrissanteil(element: Pick<PlanElement, 'polygon'>): number {
+  const punkte = element.polygon;
+  if (!punkte || punkte.length < 3) return 1;
+
+  // Gaußsche Trapezformel – die Fläche des Umrisses.
+  let doppelt = 0;
+  for (let i = 0; i < punkte.length; i++) {
+    const a = punkte[i];
+    const b = punkte[(i + 1) % punkte.length];
+    doppelt += a.x * b.y - b.x * a.y;
+  }
+  const flaeche = Math.abs(doppelt) / 2;
+
+  const xs = punkte.map((p) => p.x);
+  const ys = punkte.map((p) => p.y);
+  const rahmen = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys));
+  if (!(rahmen > 0) || !(flaeche > 0)) return 1;
+  return Math.min(1, flaeche / rahmen);
+}
+
+/**
+ * Kisten auf **einem Feld einer Seite** – oder `undefined`.
+ *
+ * Die eigentliche Rechnung; alles andere zählt sie zusammen. Zwei Wege, je
+ * nachdem, was das Möbel über sich sagt:
  *
  *  - Ein **gestuftes** Möbel (Vitable) nennt seine Auflagen samt Tiefen. Dann
- *    zählt jede Stufe einzeln.
+ *    zählt jede Stufe einzeln, jede mit ihrer eigenen Lage: 400er quer, 600er
+ *    längs, 800er quer hintereinander, 1200er längs hintereinander.
  *  - Ein **Regal oder Kühlmöbel**, das in der Obstabteilung steht – das
  *    Kartoffelregal, die Kühlwanne für Salate –, hat Böden gleicher Tiefe.
  *    Dann zählt die Bodenzahl mal die Kisten je Boden. Damit ist beantwortet,
@@ -155,39 +191,62 @@ export function ifkoJeStufe(feldbreite: number, stufentiefe: number): number {
  *    wie alles andere dort** und nicht in umgerechneten Metern.
  *
  * `undefined` heißt: Dieses Möbel sagt nichts, woraus sich etwas ableiten
- * ließe, und dann wäre jede Zahl geraten. Eingetragen wird der Vorschlag nie
- * von selbst; er steht da, und übernehmen tut ihn der Planer.
+ * ließe, und dann wäre jede Zahl geraten.
  */
-export function ifkoVorschlag(element: PlanElement): number | undefined {
-  if (!(element.breite > 0)) return undefined;
-  const seiten = element.beidseitig ? 2 : 1;
-
-  // **Feld für Feld**, nicht über die ganze Breite: Jedes Feld hat seine
-  // eigene Grifflücke. Ein Möbel aus vier 1,25-m-Einheiten trägt Kisten auf
-  // 4 × 1,20 m und nicht auf 5,00 m.
-  const felder = felderVon(element, 'unten');
+export function ifkoJeFeld(element: PlanElement, feldbreite: number): number | undefined {
+  const breite = feldbreite * umrissanteil(element);
+  if (!(breite > 0)) return undefined;
 
   const stufen = element.stufen;
   if (stufen && stufen.length > 0) {
-    const eineSeite = felder.reduce(
-      (summe, feld) =>
-        summe + stufen.reduce((teil, tiefe) => teil + ifkoJeStufe(feld.breite, tiefe), 0),
-      0,
-    );
-    return Math.round(eineSeite * seiten);
+    return stufen.reduce((summe, tiefe) => summe + ifkoJeStufe(breite, tiefe), 0);
   }
 
   // Sonst über die Böden: Sie liegen alle gleich tief, und wie tief, weiß das
   // Möbel selbst – `bodentiefeMm` zieht die tote Zone hinter der Ware ab.
-  const tiefe = bodentiefeMm(element) / 10;
   const boeden = boedenSchnitt(element);
   if (boeden === undefined) return undefined;
-  const eineSeite = felder.reduce(
-    (summe, feld) => summe + ifkoJeStufe(feld.breite, tiefe) * boeden,
+  const wert = ifkoJeStufe(breite, bodentiefeMm(element) / 10) * boeden;
+  return wert > 0 ? wert : undefined;
+}
+
+/**
+ * Was jedes einzelne Feld trägt, Seite für Seite – ungerundet.
+ *
+ * **Feld für Feld**, nicht über die ganze Breite: Jedes Feld hat seine eigene
+ * Grifflücke. Ein Möbel aus vier 1,25-m-Einheiten trägt Kisten auf 4 × 1,20 m
+ * und nicht auf 5,00 m.
+ *
+ * Eine Gondel steht zweimal darin – vorn und hinten wird getrennt bestückt,
+ * und jede Seite bekommt ihre eigene Feldkette. Genau diese Ketten zeichnet
+ * auch das Symbol, deshalb steht am Ende in jedem Feld die Zahl, die zu ihm
+ * gehört.
+ */
+export function ifkoGewichte(element: PlanElement): { seite: Seite; werte: number[] }[] {
+  const seiten: Seite[] = element.beidseitig ? ['unten', 'oben'] : ['unten'];
+  return seiten.map((seite) => ({
+    seite,
+    werte: felderVon(element, seite).map((feld) =>
+      feld.leer ? 0 : (ifkoJeFeld(element, feld.breite) ?? 0),
+    ),
+  }));
+}
+
+/**
+ * Der Vorschlag für ein ganzes Möbel – oder `undefined`.
+ *
+ * Die Summe über alle Felder aller Seiten. Eingetragen wird der Vorschlag nie
+ * von selbst; er steht da, und übernehmen tut ihn der Planer.
+ */
+export function ifkoVorschlag(element: PlanElement): number | undefined {
+  if (!(element.breite > 0)) return undefined;
+  if (ifkoJeFeld(element, element.breite) === undefined) return undefined;
+
+  const summe = ifkoGewichte(element).reduce(
+    (gesamt, { werte }) => gesamt + werte.reduce((s, w) => s + w, 0),
     0,
   );
-  if (eineSeite <= 0) return undefined;
-  return Math.round(eineSeite * seiten);
+  return summe > 0 ? Math.round(summe) : undefined;
 }
 
 /**

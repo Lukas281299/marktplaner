@@ -1,6 +1,6 @@
-import { felderVon, seitenbreite } from './regalseiten';
+import { felderVon, seitenbreite, type Seite } from './regalseiten';
 import { KISTE, kistenseiten } from './getraenkekisten';
-import { ifkoVorschlag } from './ifko';
+import { ifkoGewichte, ifkoVorschlag } from './ifko';
 import { ersteStufe } from './sortiment';
 import type { Auslagenanteil, Streckenmeter } from './warengruppenmeter';
 import type { PlanElement, Regalfeld } from '../typen/modell';
@@ -206,6 +206,73 @@ export function kistenzahl(element: PlanElement): number {
   if (element.ifkoKisten !== undefined) return element.ifkoKisten;
   if (element.kategorie !== 'obstgemuese') return 0;
   return ifkoVorschlag(element) ?? 0;
+}
+
+/**
+ * Die Kisten eines Möbels, aufgeteilt auf seine Felder.
+ *
+ * Damit steht in jedem Feld **seine eigene** Zahl und nicht die des ganzen
+ * Möbels: Ein Zug aus vier Einheiten zeigt viermal die Kisten einer Einheit,
+ * und wer nachzählt, findet die Zahl aus der Auswertung wieder.
+ *
+ * Aufgeteilt wird nach dem, was jedes Feld tragen kann (`ifkoGewichte`) –
+ * ein schmales Eckfeld bekommt weniger als ein volles. Trägt kein Feld etwas
+ * Berechenbares, entscheidet die Breite; das ist der Fall, wenn die Zahl von
+ * Hand am Möbel steht.
+ *
+ * **Gerundet wird auf die Summe hin.** Die einzelnen Zahlen sind Bruchteile –
+ * ein 1,00-m-Feld trägt auf einer 400er Auflage 1⅔ Kisten, weil die dritte
+ * über die Fuge ins nächste Feld reicht. Wer jede für sich rundete, käme auf
+ * eine andere Summe als die Auswertung. Deshalb bekommt jedes Feld erst
+ * seinen ganzen Teil, und die übrigen Kisten gehen an die Felder mit dem
+ * größten Rest.
+ */
+export function kistenJeFeld(element: PlanElement): { seite: Seite; werte: number[] }[] {
+  const gesamt = kistenzahl(element);
+  const gewichte = ifkoGewichte(element);
+  const flach = gewichte.flatMap((g) => g.werte);
+  const summe = flach.reduce((s, w) => s + w, 0);
+
+  // Ohne berechenbare Gewichte nach Breite verteilen – sonst bekäme das
+  // erste Feld alles.
+  const breiten = gewichte.flatMap((g) =>
+    felderVon(element, g.seite).map((feld) => (feld.leer ? 0 : feld.breite)),
+  );
+  const breitensumme = breiten.reduce((s, b) => s + b, 0);
+  const roh =
+    summe > 0
+      ? flach.map((w) => (w / summe) * gesamt)
+      : breitensumme > 0
+        ? breiten.map((b) => (b / breitensumme) * gesamt)
+        : flach.map(() => 0);
+
+  const verteilt = groessteReste(roh, Math.round(gesamt));
+  let gelesen = 0;
+  return gewichte.map((g) => {
+    const werte = verteilt.slice(gelesen, gelesen + g.werte.length);
+    gelesen += g.werte.length;
+    return { seite: g.seite, werte };
+  });
+}
+
+/**
+ * Ganze Zahlen, die zusammen genau die Summe ergeben.
+ *
+ * Jedem seinen ganzen Teil, den Rest an die mit dem größten Bruchteil. So
+ * verschwindet keine Kiste zwischen den Feldern und es taucht keine auf.
+ */
+function groessteReste(werte: number[], summe: number): number[] {
+  const ganz = werte.map((w) => Math.floor(w));
+  let fehlt = summe - ganz.reduce((s, g) => s + g, 0);
+  const reihenfolge = werte
+    .map((w, i) => ({ i, rest: w - Math.floor(w) }))
+    .sort((a, b) => b.rest - a.rest);
+  for (const { i } of reihenfolge) {
+    if (fehlt <= 0) break;
+    ganz[i]++;
+    fehlt--;
+  }
+  return ganz;
 }
 
 /**

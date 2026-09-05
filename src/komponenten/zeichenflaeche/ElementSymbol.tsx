@@ -7,7 +7,7 @@ import { achsmassZeichen } from '../../logik/achsmass';
 import { laeuftRueckwaerts, lesbar } from '../../logik/beschriftung';
 import { feldliste } from '../../logik/feldaufteilung';
 import { feldzeilen, masszeilen } from '../../logik/feldnotiz';
-import { kistenzahl } from '../../logik/auslagen';
+import { kistenJeFeld } from '../../logik/auslagen';
 import { formatiereFlaeche } from '../../logik/masse';
 import {
   felderVon,
@@ -15,6 +15,7 @@ import {
   ohneLuecke,
   seitenbreite,
   vollStuecke,
+  type Seite,
 } from '../../logik/regalseiten';
 import {
   GRUPPE_GROESSEN,
@@ -301,10 +302,16 @@ function lesbarerBlock(
  * Klecks.
  */
 /**
- * Die beiden Kennzahlen eines Obst- und Gemüsemöbels, als Zeilen.
+ * Die beiden Kennzahlen eines Obst- und Gemüsemöbels – **Feld für Feld**.
  *
  * Oben die Auslagen wie bei den Regalen die Böden, darunter die grünen
  * Kisten mit ihrem Kürzel, damit die beiden Zahlen nicht zu verwechseln sind.
+ *
+ * **Beide gelten für das Feld, in dem sie stehen**, und nicht für das ganze
+ * Möbel. Das ist der Unterschied, an dem sich das Nachzählen entscheidet: Ein
+ * Zug aus vier Einheiten zeigt viermal die Kisten *einer* Einheit. Wer die
+ * vier Zahlen zusammenzählt, kommt auf die Zahl aus der Auswertung. Bei einer
+ * Gondel gilt dasselbe je Seite – vorn und hinten wird getrennt bestückt.
  *
  * **Beide rechnen sich von selbst.** Ein Vitable-Tisch nennt seine Auflagen
  * samt Tiefen; daraus folgt, wie viele Stufen er hat und wie viele Kisten
@@ -314,16 +321,32 @@ function lesbarerBlock(
  *
  * `undefined` heißt: Dieses Möbel führt keine Kennzahlen, es gilt die Notiz.
  */
-function ogKennzahlen(element: PlanElement): string[] | undefined {
+function ogKennzahlen(
+  element: PlanElement,
+): { seite: Seite; zeilen: string[][] }[] | undefined {
   if (element.kategorie !== 'obstgemuese') return undefined;
-  const seiten = element.beidseitig ? 2 : 1;
-  const auslagen = element.auslagen ?? (element.stufen?.length ?? 0) * seiten;
-  const kisten = kistenzahl(element);
 
-  const zeilen: string[] = [];
-  if (auslagen) zeilen.push(`${auslagen}`);
-  if (kisten) zeilen.push(`${kisten} iK`);
-  return zeilen.length > 0 ? zeilen : undefined;
+  // Die Auslagen **einer** Seite: was in diesem Feld übereinanderliegt. Am
+  // Möbel steht die Zahl für beide Seiten zusammen, im Feld steht sie für das
+  // Feld – sonst zeigte eine Gondel zweimal die Zahl für zwei Seiten.
+  const seiten = element.beidseitig ? 2 : 1;
+  const jeSeite = element.auslagen
+    ? Math.round((element.auslagen / seiten) * 10) / 10
+    : (element.stufen?.length ?? 0);
+  const auslagen = jeSeite ? String(jeSeite).replace('.', ',') : '';
+
+  const kisten = kistenJeFeld(element);
+  if (!auslagen && !kisten.some((k) => k.werte.some((w) => w > 0))) return undefined;
+
+  return kisten.map(({ seite, werte }) => ({
+    seite,
+    zeilen: werte.map((wert) => {
+      const zeilen: string[] = [];
+      if (auslagen) zeilen.push(auslagen);
+      if (wert) zeilen.push(`${wert} iK`);
+      return zeilen;
+    }),
+  }));
 }
 
 export function zeichneFeldnotizen(
@@ -341,27 +364,29 @@ export function zeichneFeldnotizen(
   const masse = masszeilen(element);
 
   const hoehe = element.beidseitig ? t / 2 : t;
-  const baender = element.beidseitig
+  const baender: { felder: Regalfeld[]; von: number; seite: Seite }[] = element.beidseitig
     ? [
-        { felder: oben, von: 0 },
-        { felder: unten, von: t / 2 },
+        { felder: oben, von: 0, seite: 'oben' },
+        { felder: unten, von: t / 2, seite: 'unten' },
       ]
-    : [{ felder: unten, von: 0 }];
+    : [{ felder: unten, von: 0, seite: 'unten' }];
 
   const rand = Math.min(NOTIZ_HOEHE * 0.35, b * 0.02);
   const kopf = laeuftRueckwaerts(element.drehung);
-  // Obst und Gemüse trägt statt der Notiz seine beiden Kennzahlen. Sie
-  // stehen am Möbel und nicht am Feld: Ein Vitable-Tisch ist ein Möbel mit
-  // einer Zahl Auslagen, nicht sechs Felder mit je einer.
+  // Obst und Gemüse trägt statt der Notiz seine beiden Kennzahlen – für
+  // jedes Feld die seinen, damit man sie im Möbel nachzählen kann.
   const kennzahlen = ogKennzahlen(element);
   ctx.setAttr('textBaseline', 'top');
 
   for (const band of baender) {
+    const felderKennzahlen = kennzahlen?.find((k) => k.seite === band.seite)?.zeilen;
+    let nummer = -1;
     for (const platz of feldplaetze(band.felder, faktor)) {
+      nummer++;
       // Wo kein Regal steht, steht auch keine Notiz.
       if (platz.feld.leer) continue;
 
-      const zeilenLinks = kennzahlen ?? feldzeilen(platz.feld);
+      const zeilenLinks = felderKennzahlen?.[nummer] ?? feldzeilen(platz.feld);
 
       // Gewendet wird um die Mitte des Felds: Die Notiz bleibt dadurch in
       // ihrem Feld und steht auf dem Bildschirm wieder links oben.

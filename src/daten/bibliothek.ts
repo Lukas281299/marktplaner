@@ -757,6 +757,10 @@ function vitableEintraege(): BibliothekEintrag[] {
         name: `O&G ${art}${(breite / 100).toFixed(2).replace('.', ',')} m · H${variante.hoehe * 10} · ${stufenText(variante.stufen)}${zusatz}`,
         kategorie: 'obstgemuese',
         breite,
+        // Das Achsmaß ist die Einheit, aus der das Möbel besteht. Wer einen
+        // 1,25-m-Tisch auf 5,00 m zieht, will vier Einheiten und nicht
+        // 2,00 + 2,00 + 1,00 – und mit ihnen vier Grifflücken.
+        achsmass: breite,
         tiefe,
         korpustiefe,
         hoehe: variante.hoehe,
@@ -1205,6 +1209,10 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   // brauchbarer Anfang – die vier Ecken zieht man auf dem Plan zurecht.
   {
     id: 'vt-trapez-1200',
+    // Stufen wie beim geraden Abschluss derselben Tiefe: Ein Trapez ist ein
+    // zurechtgeschnittenes Möbel und keine leere Fläche. Ohne diese Zeile
+    // trüge es null Kisten – und in der Ecke steht der Bananentisch.
+    stufen: [120, 60],
     name: 'O&G Trapez frei · T1200',
     kategorie: 'obstgemuese',
     breite: 200,
@@ -1224,6 +1232,7 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
   },
   {
     id: 'vt-trapez-800',
+    stufen: [80, 60, 40],
     name: 'O&G Trapez frei · T800',
     kategorie: 'obstgemuese',
     breite: 150,
@@ -1242,9 +1251,9 @@ export const BIBLIOTHEK: BibliothekEintrag[] = [
     gruppe: 'Ecken und Abschlüsse',
   },
   { id: 'vt-eck-innen-800', name: 'O&G Eck 45° · T800', kategorie: 'obstgemuese', breite: 95.5 * ECK_ANTEIL, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
-  { id: 'vt-eck-frei', name: 'O&G Eckstück frei', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'umriss', farbe: OG_GRUEN, polygon: [{ x: -47.75, y: -47.75 }, { x: 47.75, y: -47.75 }, { x: 47.75, y: 47.75 }, { x: -12, y: 47.75 }], hinweis: 'Trapez mit vier Ecken · Ziehen setzt es hin, Doppelklick zeichnet den Umriss selbst – für jeden Winkel, nicht nur 45°', gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-eck-frei', name: 'O&G Eckstück frei', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'umriss', farbe: OG_GRUEN, stufen: [80, 60, 40], polygon: [{ x: -47.75, y: -47.75 }, { x: 47.75, y: -47.75 }, { x: 47.75, y: 47.75 }, { x: -12, y: 47.75 }], hinweis: 'Trapez mit vier Ecken · Ziehen setzt es hin, Doppelklick zeichnet den Umriss selbst – für jeden Winkel, nicht nur 45°', gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-eck-innen-1200', name: 'O&G Eck 45° · T1200', kategorie: 'obstgemuese', breite: 131.7 * ECK_ANTEIL, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableEckInnen', farbe: OG_GRUEN, stufen: [120, 60], hinweis: ECK_HINWEIS, gruppe: 'Ecken und Abschlüsse' },
-  { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN, gruppe: 'Ecken und Abschlüsse' },
+  { id: 'vt-eck-aussen', name: 'O&G Außeneck 90°', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableEckAussen', farbe: OG_GRUEN, stufen: [80, 60, 40], gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-abschluss-800', name: 'O&G Abschluss gerade · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 95.5, korpustiefe: 72.6, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [80, 60, 40], hinweis: 'Abschluss 90° – gerader Kopf am Ende eines Zuges', gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-abschluss-1200', name: 'O&G Abschluss gerade · T1200', kategorie: 'obstgemuese', breite: 131.7, tiefe: 131.7, korpustiefe: 90.8, hoehe: 180, form: 'vitableAbschluss', farbe: OG_GRUEN, stufen: [120, 60], gruppe: 'Ecken und Abschlüsse' },
   { id: 'vt-kopf-rund-800', name: 'O&G Kopfgondel rund · T800', kategorie: 'obstgemuese', breite: 95.5, tiefe: 182.9, korpustiefe: 137.2, hoehe: 180, form: 'vitableAbschlussRund', farbe: OG_GRUEN, stufen: [80, 60, 40], beidseitig: true, hinweis: 'Abschluss 180° – runder Kopf einer freistehenden Gondel', gruppe: 'Ecken und Abschlüsse' },

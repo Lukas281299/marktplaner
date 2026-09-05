@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { auflageFuer, ifkoJeStufe, ifkoVorschlag, nutzbreite } from './ifko';
+import { auflageFuer, ifkoJeFeld, ifkoJeStufe, ifkoVorschlag, nutzbreite, umrissanteil } from './ifko';
+import { BIBLIOTHEK } from '../daten/bibliothek';
 import type { PlanElement } from '../typen/modell';
 
 /**
@@ -112,5 +113,62 @@ describe('Vorschlag für ein Möbel', () => {
     expect(ifkoVorschlag(moebel({ stufen: undefined }))).toBeUndefined();
     expect(ifkoVorschlag(moebel({ stufen: [] }))).toBeUndefined();
     expect(ifkoVorschlag(moebel({ breite: 0, stufen: [60] }))).toBeUndefined();
+  });
+});
+
+describe('Ein Feld allein', () => {
+  it('trägt die gemessene Tabelle', () => {
+    // Dieselben acht Zahlen wie oben, aber vom Feld aus gefragt: Das ist die
+    // Zahl, die am Ende im Möbel steht.
+    const auf = (tiefe: number, feld: number) =>
+      ifkoJeFeld(moebel({ stufen: [tiefe] }), feld);
+    expect(auf(40, 125)).toBe(2);
+    expect(auf(60, 125)).toBe(3);
+    expect(auf(80, 125)).toBe(4);
+    expect(auf(120, 125)).toBe(6);
+    expect(auf(40, 100)).toBeCloseTo(5 / 3, 6);
+    expect(auf(60, 100)).toBe(2.5);
+    expect(auf(80, 100)).toBeCloseTo(10 / 3, 6);
+    expect(auf(120, 100)).toBe(5);
+  });
+
+  it('legt die Stufen eines Feldes zusammen', () => {
+    expect(ifkoJeFeld(moebel({ stufen: [80, 60, 40] }), 125)).toBe(9);
+  });
+});
+
+describe('Trapeze und Ecken', () => {
+  it('rechnet mit der mittleren Breite, nicht mit der breitesten Stelle', () => {
+    // Ein Trapez, hinten 200 und vorn 120 breit: im Mittel 160.
+    const trapez = moebel({
+      breite: 200,
+      polygon: [
+        { x: -100, y: -60 },
+        { x: 100, y: -60 },
+        { x: 60, y: 60 },
+        { x: -60, y: 60 },
+      ],
+    });
+    expect(umrissanteil(trapez)).toBeCloseTo(0.8, 6);
+    // 160 cm Nutzbreite auf einer 1200er Auflage: 160 / 40 × 2 = 8.
+    expect(ifkoJeFeld({ ...trapez, stufen: [120] }, 200)).toBe(8);
+  });
+
+  it('lässt ein Rechteck in Ruhe', () => {
+    expect(umrissanteil(moebel({}))).toBe(1);
+    expect(umrissanteil(moebel({ polygon: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }))).toBe(1);
+  });
+
+  it('zählt an jedem Obstmöbel der Bibliothek Kisten', () => {
+    // Der Fehler, um den es hier geht: Trapeze und freie Eckstücke trugen
+    // keine Stufen und damit **null** Kisten – ein Bananentisch in der Ecke
+    // fehlte in der Bestellung vollständig.
+    const ohne = BIBLIOTHEK.filter(
+      (e) =>
+        e.kategorie === 'obstgemuese' &&
+        (e.hoehe ?? 0) > 0 &&
+        !ifkoVorschlag({ ...e, beidseitig: e.beidseitig ?? false } as PlanElement),
+    );
+    expect(ohne.map((e) => e.name)).toEqual([]);
   });
 });

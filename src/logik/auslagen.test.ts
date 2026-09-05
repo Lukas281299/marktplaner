@@ -4,6 +4,7 @@ import {
   feldauslagen,
   frontfaktor,
   kistenAnteil,
+  kistenJeFeld,
   kistenzahl,
   moebelauslagen,
   TK_FACH,
@@ -516,5 +517,69 @@ describe('Die Kistenzahl rechnet sich selbst', () => {
       bis: 125,
     });
     expect(anteil).toBeCloseTo(9, 6);
+  });
+});
+
+describe('Die Kisten stehen im Feld, nicht am Möbel', () => {
+  const zug = (breite: number, felder: number[]) =>
+    element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite,
+      stufen: [80],
+      felderUnten: felder.map((b) => ({ breite: b })),
+    });
+
+  it('gibt jedem Feld seine eigene Zahl', () => {
+    // Vier Einheiten à 1,25 m mit einer 800er Auflage: je 4 Kisten, nicht
+    // 16 in jedem Feld. Vorher stand die Zahl des ganzen Möbels in jedem
+    // Feld – wer nachzählte, kam auf das Vierfache.
+    const felder = kistenJeFeld(zug(500, [125, 125, 125, 125]));
+    expect(felder).toHaveLength(1);
+    expect(felder[0].werte).toEqual([4, 4, 4, 4]);
+  });
+
+  it('trifft in der Summe genau die Zahl der Auswertung', () => {
+    // Bruchteile: Ein 1,00-m-Feld trägt auf einer 800er Auflage 3 1/3 Kisten,
+    // weil die vierte über die Fuge ins nächste Feld reicht. Gerundet wird
+    // deshalb auf die Summe hin und nicht Feld für Feld.
+    const moebel = zug(300, [100, 100, 100]);
+    const felder = kistenJeFeld(moebel);
+    const summe = felder.flatMap((f) => f.werte).reduce((s, w) => s + w, 0);
+    expect(summe).toBe(kistenzahl(moebel));
+    expect(summe).toBe(10);
+  });
+
+  it('führt beide Seiten einer Gondel einzeln', () => {
+    const gondel = element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite: 250,
+      beidseitig: true,
+      stufen: [120],
+      felderUnten: [{ breite: 125 }, { breite: 125 }],
+      felderOben: [{ breite: 125 }, { breite: 125 }],
+    });
+    const felder = kistenJeFeld(gondel);
+    expect(felder.map((f) => f.seite)).toEqual(['unten', 'oben']);
+    expect(felder[0].werte).toEqual([6, 6]);
+    expect(felder[1].werte).toEqual([6, 6]);
+  });
+
+  it('verteilt auch eine von Hand eingetragene Zahl', () => {
+    // Der Planer trägt 12 ein: dann stehen in vier gleichen Feldern je 3.
+    const moebel = { ...zug(500, [125, 125, 125, 125]), ifkoKisten: 12 };
+    expect(kistenJeFeld(moebel).flatMap((f) => f.werte)).toEqual([3, 3, 3, 3]);
+  });
+
+  it('lässt ein leeres Feld leer', () => {
+    const moebel = element({
+      form: 'vitable',
+      kategorie: 'obstgemuese',
+      breite: 250,
+      stufen: [80],
+      felderUnten: [{ breite: 125 }, { breite: 125, leer: true }],
+    });
+    expect(kistenJeFeld(moebel)[0].werte).toEqual([4, 0]);
   });
 });

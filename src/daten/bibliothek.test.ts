@@ -261,3 +261,25 @@ describe('Obst und Gemüse: die Tiefen stimmen', () => {
     }
   });
 });
+
+describe('Die Obst- und Gemüsemöbel', () => {
+  const OG = BIBLIOTHEK.filter((e) => e.kategorie === 'obstgemuese');
+
+  it('gibt jedem geraden Tisch sein Achsmaß', () => {
+    // Wer einen 1,25-m-Tisch auf 5,00 m zieht, meint vier Einheiten – und
+    // nicht 2,00 + 2,00 + 1,00, wie die Modulzerlegung ohne Achsmaß teilt.
+    // An der Einteilung hängt die Grifffläche und damit die Kistenzahl.
+    const gerade = OG.filter((e) => /^O&G (Gondel )?1,\d\d m/.test(e.name));
+    expect(gerade.length).toBeGreaterThan(0);
+    for (const eintrag of gerade) {
+      expect(eintrag.achsmass).toBe(eintrag.breite);
+    }
+  });
+
+  it('lässt kein Obstmöbel ohne Auflagen stehen', () => {
+    // Trapeze und freie Eckstücke hatten keine – und trugen damit null
+    // Kisten. Ein Bananentisch in der Ecke fehlte in der Bestellung ganz.
+    const ohne = OG.filter((e) => (e.hoehe ?? 0) > 0 && !(e as { stufen?: number[] }).stufen);
+    expect(ohne.map((e) => e.name)).toEqual([]);
+  });
+});
