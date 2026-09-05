@@ -145,15 +145,41 @@ describe('Ein Sortiment umbenennen', () => {
     expect(p.elemente[0].warengruppenUnten?.[0].text).toBe('Frischmilch, H-Milch');
   });
 
-  it('rührt eine Strecke ohne Pfad nicht an', () => {
-    // Ein frei getippter Name kann überall herkommen. Ihn mitzubenennen
-    // hieße raten.
+  it('rührt eine Strecke ohne Pfad nicht an, solange es den Namen noch gibt', () => {
+    // Ein frei getippter Name kann überall herkommen. Solange die Liste ihn
+    // weiter führt, hieße Umbenennen raten.
     const p = mitUmbenanntemPfad(
       projekt([element({ warengruppenUnten: [{ von: 0, bis: 100, text: 'Vollmilch' }] })]),
       alt,
       neu,
     );
     expect(p.elemente[0].warengruppenUnten?.[0].text).toBe('Vollmilch');
+  });
+
+  it('nimmt eine Strecke ohne Pfad mit, wenn es den alten Namen nicht mehr gibt', () => {
+    // Wer den Namen von Hand auf einen Meter geschrieben hat, hat keinen
+    // Pfad daran. Führt die Liste ihn nach dem Umbenennen nirgends mehr,
+    // kann nur dieser eine gemeint gewesen sein — und der Plan muss mit.
+    const p = mitUmbenanntemPfad(
+      projekt([element({ warengruppenUnten: [{ von: 0, bis: 100, text: 'Vollmilch' }] })]),
+      alt,
+      neu,
+      true,
+    );
+    const strecke = p.elemente[0].warengruppenUnten?.[0];
+    expect(strecke?.text).toBe('Frischmilch');
+    // Und sie bekommt den Pfad gleich mit — ab jetzt hängt sie fest.
+    expect(strecke?.pfad).toBe(neu);
+  });
+
+  it('nimmt auch eine getippte Warengruppe mit', () => {
+    const p = mitUmbenanntemPfad(
+      projekt([element({ warengruppenUnten: [{ von: 0, bis: 100, text: 'Milch' }] })]),
+      'Molkerei › Milch',
+      'Molkerei › Weiße Linie',
+      true,
+    );
+    expect(p.elemente[0].warengruppenUnten?.[0].text).toBe('Weiße Linie');
   });
 });
 

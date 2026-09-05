@@ -80,6 +80,7 @@ function mitPfaden(
   abschnitte: Warengruppenabschnitt[] | undefined,
   alt: string,
   neu: string,
+  auchOhnePfad: boolean,
 ): Warengruppenabschnitt[] | undefined {
   if (!abschnitte) return abschnitte;
   const altName = alt.split(' › ').pop() ?? alt;
@@ -87,12 +88,24 @@ function mitPfaden(
 
   let geaendert = false;
   const gezogen = abschnitte.map((a) => {
-    if (!a.pfad || !betroffen(a.pfad, alt)) return a;
-    geaendert = true;
-    // **Nur an Strecken, deren Pfad betroffen ist.** Ein „Kuchen" ohne Pfad
-    // kann der aus den Backwaren sein oder der aus den Feinbackwaren; ihn
-    // mit umzubenennen hieße raten.
-    return { ...a, pfad: ersetzt(a.pfad, alt, neu), text: mitText(a.text, altName, neuName) };
+    if (a.pfad && betroffen(a.pfad, alt)) {
+      geaendert = true;
+      return { ...a, pfad: ersetzt(a.pfad, alt, neu), text: mitText(a.text, altName, neuName) };
+    }
+
+    // **Ohne Pfad nur, wenn es den alten Namen nicht mehr gibt.** Ein
+    // „Kuchen" ohne Pfad kann der aus den Backwaren sein oder der aus den
+    // Feinbackwaren – solange beide in der Liste stehen, hieße Umbenennen
+    // raten. Führt die Liste den alten Namen aber nirgends mehr, kann nur
+    // der gemeint gewesen sein, der gerade umbenannt wurde.
+    if (!a.pfad && auchOhnePfad) {
+      const text = mitText(a.text, altName, neuName);
+      if (text !== a.text) {
+        geaendert = true;
+        return { ...a, text, pfad: neu };
+      }
+    }
+    return a;
   });
   return geaendert ? gezogen : abschnitte;
 }
@@ -108,13 +121,25 @@ function mitPfaden(
  * Gibt dieselbe Planung zurück, wenn es nichts zu tun gab: So legt der
  * Datenspeicher keinen Schritt für Rückgängig an, bei dem sich nichts ändert.
  */
-export function mitUmbenanntemPfad(projekt: Projekt, alt: string, neu: string): Projekt {
+export function mitUmbenanntemPfad(
+  projekt: Projekt,
+  alt: string,
+  neu: string,
+  /**
+   * Auch Strecken **ohne** Pfad mitnehmen?
+   *
+   * Nur wahr, wenn die Liste den alten Namen nirgends mehr führt — dann ist
+   * er eindeutig, und ein frei getippter Name kann nichts anderes gemeint
+   * haben. Der Aufrufer entscheidet das, weil nur er die Liste kennt.
+   */
+  auchOhnePfad = false,
+): Projekt {
   if (!alt || !neu || alt === neu) return projekt;
 
   let geaendert = false;
   const elemente = (projekt.elemente ?? []).map((el): PlanElement => {
-    const unten = mitPfaden(el.warengruppenUnten, alt, neu);
-    const oben = mitPfaden(el.warengruppenOben, alt, neu);
+    const unten = mitPfaden(el.warengruppenUnten, alt, neu, auchOhnePfad);
+    const oben = mitPfaden(el.warengruppenOben, alt, neu, auchOhnePfad);
     if (unten === el.warengruppenUnten && oben === el.warengruppenOben) return el;
     geaendert = true;
     return { ...el, warengruppenUnten: unten, warengruppenOben: oben };

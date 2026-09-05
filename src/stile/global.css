@@ -1293,6 +1293,51 @@ p .wg-punkt {
   padding: var(--abstand-3);
 }
 
+/*
+ * Ein klappbarer Block der Projektübersicht.
+ *
+ * Zugeklappt ist er eine Zeile mit seiner wichtigsten Zahl. Die Übersicht war
+ * zwei Bildschirme lang; wer eine Zahl suchte, scrollte an fünf Blöcken
+ * vorbei, die er gerade nicht brauchte.
+ */
+.klappgruppe {
+  padding: 0;
+}
+
+.klappgruppe-kopf {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 7px var(--abstand-3);
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.klappgruppe-kopf:hover {
+  background: var(--flaeche-2);
+}
+
+.klappgruppe-inhalt {
+  padding: 0 var(--abstand-3) var(--abstand-3);
+}
+
+/*
+ * Und darin enger als sonst: Die Übersicht ist eine Tabelle von Zahlen und
+ * kein Formular. Drei Pixel je Zeile mal vierzig Zeilen sind ein halber
+ * Bildschirm.
+ */
+.klappgruppe-inhalt .kennzahl {
+  padding: 1.5px 0;
+}
+
+.klappgruppe-inhalt .gruppe-titel {
+  margin-top: var(--abstand-2);
+  margin-bottom: 3px;
+}
+
 .gruppe-titel {
   font-size: 11px;
   font-weight: 700;

@@ -3542,6 +3542,59 @@ function ElementEigenschaften({ ausgewaehlte }: { ausgewaehlte: PlanElement[] })
   );
 }
 
+/**
+ * Ein Block der Projektübersicht, der sich zuklappen lässt.
+ *
+ * **Warum überhaupt.** Die Übersicht war zwei Bildschirme lang: Grundfläche,
+ * Raster, Beschriftungen, Ebenen, Flächen, Meter. Wer eine Zahl suchte,
+ * scrollte an fünf Blöcken vorbei, die er gerade nicht brauchte.
+ *
+ * Zugeklappt trägt jeder Block seine **wichtigste Zahl in der Kopfzeile** —
+ * die Verkaufsfläche, das Außenmaß, wie viele Ebenen sichtbar sind. Damit ist
+ * die Übersicht auch zugeklappt eine Übersicht und nicht nur eine Liste von
+ * Überschriften.
+ *
+ * Was offen steht, merkt sich der Datenspeicher: Sonst stünde nach jedem
+ * Klick im Plan wieder alles zu.
+ */
+function Klappgruppe({
+  name,
+  titel,
+  wert,
+  vorgabe = false,
+  children,
+}: {
+  name: string;
+  titel: string;
+  /** Die Zahl, die auch zugeklappt dasteht. */
+  wert?: string;
+  /** Steht dieser Block beim ersten Öffnen offen? */
+  vorgabe?: boolean;
+  children: React.ReactNode;
+}) {
+  const offeneBloecke = usePlanStore((s) => s.offeneBloecke);
+  // Die Vorgabe gilt, solange niemand geklickt hat — danach entscheidet die
+  // Liste. Deshalb steht sie beim Start schon darin.
+  const offen = offeneBloecke.includes(name) || (vorgabe && offeneBloecke.length === 0);
+
+  return (
+    <div className={`gruppe klappgruppe${offen ? '' : ' zu'}`}>
+      <button
+        className="klappgruppe-kopf"
+        onClick={() => usePlanStore.getState().schalteBlock(name)}
+        title={offen ? 'Zuklappen' : 'Aufklappen'}
+      >
+        <span className="wg-pfeil">{offen ? '▾' : '▸'}</span>
+        <span className="gruppe-titel" style={{ margin: 0, flex: 1 }}>
+          {titel}
+        </span>
+        {wert && <span className="kennzahl-wert">{wert}</span>}
+      </button>
+      {offen && <div className="klappgruppe-inhalt">{children}</div>}
+    </div>
+  );
+}
+
 // ===========================================================================
 //  Projekteigenschaften (wenn nichts ausgewählt ist)
 // ===========================================================================
@@ -3593,7 +3646,7 @@ function ProjektEigenschaften() {
   return (
     <>
       {/* ------------------------------------------------- Neue Wände */}
-      {(werkzeug === 'wand' || werkzeug === 'raum' || werkzeug === 'raumZeichnen') && (
+{(werkzeug === 'wand' || werkzeug === 'raum' || werkzeug === 'raumZeichnen') && (
         <div className="gruppe">
           <div className="gruppe-titel">Neue Wände</div>
           <div className="feld-zeile">
@@ -3629,7 +3682,7 @@ function ProjektEigenschaften() {
         </div>
       )}
 
-      {/* ------------------------------------------------- Neue Öffnung */}
+      {/* ----------------------------------------------- Neue Öffnung */}
       {werkzeug === 'oeffnung' && (
         <div className="gruppe">
           <div className="gruppe-titel">Neue Öffnung</div>
@@ -3692,236 +3745,140 @@ function ProjektEigenschaften() {
         </div>
       )}
 
-      {/* ------------------------------------------------------ Grundfläche */}
-      <div className="gruppe">
-        <div className="gruppe-titel">Grundfläche des Marktes</div>
+      {/*
+        **Die Reihenfolge ist die des Planens.** Oben steht, was man beim
+        Einrichten dauernd braucht — wie viel Platz welches Sortiment bekommt.
+        Darunter die Flächen, und ganz unten das Gebäude mit Raster und
+        Grundriss: Das stellt man einmal ein und sieht es danach selten wieder.
 
-        {/* Solange der Grundriss ein Rechteck ist, lassen sich Breite und
-            Länge einfach eintippen. Bei einer zusammengesetzten Form ergäben
-            zwei Zahlen keinen Sinn mehr – dann steht dort die Umgrenzung. */}
-        {rechteckig ? (
-          <div className="feld-zeile">
-            <Massfeld
-              label="Breite"
-              cm={masse.breite}
-              einheit={einheit}
-              min={100}
-              beiStart={beiStart}
-              aendern={(breite) => setzeUmrissGroesse(breite, masse.laenge)}
-            />
-            <Massfeld
-              label="Länge"
-              cm={masse.laenge}
-              einheit={einheit}
-              min={100}
-              beiStart={beiStart}
-              aendern={(laenge) => setzeUmrissGroesse(masse.breite, laenge)}
-            />
-          </div>
-        ) : (
+        **Und alles klappt zu.** Die Übersicht war zwei Bildschirme lang;
+        zugeklappt trägt jeder Block seine wichtigste Zahl in der Kopfzeile,
+        und man scrollt nur noch, wenn man wirklich etwas sucht.
+      */}
+      <Klappgruppe name="meter" titel="Meter, Kisten und Paletten" vorgabe={true}>
+
+        {/* Wie viel Platz bekommt welches Sortiment? Zugeklappt eine Zeile. */}
+        <Warengruppenmeter projekt={projekt} />
+
+        {/* Und woraus der Markt besteht – die Stückliste. */}
+        <Moebeluebersicht projekt={projekt} />
+
+        {/*
+          Obst und Gemüse besteht aus zweierlei: Die Tische zählen in grünen
+          Kisten, die Kühlmöbel für Salate, Beeren und Pilze in Metern. Beides
+          lässt sich nicht in eine Zahl bringen – es gibt keinen einzelnen
+          Umrechnungskurs zwischen Kisten und Metern, er hängt an der Lage der
+          Kiste und an der Tiefe der Auflage. Also stehen sie nebeneinander.
+
+          Zugeordnet wird über die **Warengruppe**, nicht über die
+          Möbelkategorie: Ein Kartoffelregal gehört hierher, ein Kühlregal an
+          der Molkerei nicht.
+        */}
+        {obstgemuese.vorhanden && (
           <>
             <div className="kennzahl">
-              <span>Umgrenzung</span>
+              <span>
+                <strong>Obst &amp; Gemüse</strong>
+              </span>
               <span className="kennzahl-wert">
-                {formatiereLaenge(masse.breite, einheit)} × {formatiereLaenge(masse.laenge, einheit)}
+                {obstgemuese.laufend.toLocaleString('de-DE', { minimumFractionDigits: 2 })} lfm
               </span>
             </div>
             <div className="kennzahl">
-              <span>Ecken</span>
-              <span className="kennzahl-wert">{projekt.grundflaeche.umriss.length}</span>
+              <span>Davon grüne Kisten</span>
+              <span className="kennzahl-wert">{obstgemuese.kisten} iK</span>
             </div>
-            <p className="hinweis" style={{ marginTop: 6 }}>
-              Zusammengesetzte Form. Zum Ändern oben in der Werkzeugleiste unter
-              <strong> Grundriss</strong> ein Werkzeug wählen.
+            {obstgemuese.kuehlungLaufend > 0 && (
+              <div className="kennzahl">
+                <span>Davon Kühlung</span>
+                <span className="kennzahl-wert">
+                  {obstgemuese.kuehlungLaufend.toLocaleString('de-DE', {
+                    minimumFractionDigits: 2,
+                  })}{' '}
+                  lfm ·{' '}
+                  {obstgemuese.kuehlungTatsaechlich.toLocaleString('de-DE', {
+                    minimumFractionDigits: 2,
+                  })}{' '}
+                  tm
+                </span>
+              </div>
+            )}
+            <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+              Die Kisten und die Kühlmeter lassen sich nicht zusammenzählen — wie viele Kisten
+              einem Meter entsprechen, hängt daran, wie sie liegen und wie tief die Auflage ist.
+              Deshalb stehen sie nebeneinander.
             </p>
           </>
         )}
 
-        <div className="feld-zeile">
-          <Massfeld
-            label="Wandstärke"
-            cm={projekt.grundflaeche.wandstaerke}
-            einheit={einheit}
-            min={2}
-            beiStart={beiStart}
-            aendern={(wandstaerke) => setzeGrundflaeche({ wandstaerke })}
-          />
-          <Auswahlfeld<'m' | 'cm'>
-            label="Maßeinheit"
-            wert={einheit}
-            moeglichkeiten={[
-              { wert: 'm', text: 'Meter' },
-              { wert: 'cm', text: 'Zentimeter' },
-            ]}
-            aendern={(anzeigeEinheit) => setzeEinstellung({ anzeigeEinheit })}
-          />
-        </div>
-      </div>
+        {/* Die Getränke zählen in Kistenfacings – die vorderste Reihe, also
+            wie breit das Sortiment ist. Mit der Tiefe wird daraus das
+            Volumen: alle Kisten vor den Gestellen. */}
+        {getraenke.gestelle > 0 && (
+          <>
+            <div className="kennzahl">
+              <span>
+                Kistenfacings
+                <span className="kategorie-anzahl">
+                  {' '}
+                  · {getraenke.gestelle} {getraenke.gestelle === 1 ? 'Gestell' : 'Gestelle'}
+                </span>
+              </span>
+              <span className="kennzahl-wert">{getraenke.facings}</span>
+            </div>
+            <div className="kennzahl">
+              <span>
+                Kisten insgesamt (Facings × Tiefe)
+                <span className="kategorie-anzahl">
+                  {' '}
+                  ·{' '}
+                  {getraenke.reihenMindestens === getraenke.reihenHoechstens
+                    ? `${getraenke.reihenHoechstens} Reihen`
+                    : `${getraenke.reihenMindestens}–${getraenke.reihenHoechstens} Reihen`}
+                </span>
+              </span>
+              <span className="kennzahl-wert">{getraenke.kisten}</span>
+            </div>
+          </>
+        )}
 
-      {/* ------------------------------------------------------- Planvorlage */}
-      {projekt.hintergrund && (
-        <div className="gruppe">
-          <div className="gruppe-titel">Eingelesener Plan</div>
-          <div className="kennzahl">
-            <span
-              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-              title={projekt.hintergrund.quelle}
-            >
-              {projekt.hintergrund.quelle}
-            </span>
-            <span className="kennzahl-wert">1:{projekt.hintergrund.massstab}</span>
-          </div>
-
-          <Schalter
-            label="Vorlage anzeigen"
-            wert={projekt.hintergrund.sichtbar}
-            aendern={(sichtbar) => aendereHintergrund({ sichtbar })}
-          />
-
-          <FeldRahmen
-            label="Deckkraft"
-            titel="Blasser stellen, um die eigene Zeichnung besser zu sehen – ganz ausblenden erst, wenn nichts mehr nachzutragen ist."
-          >
-            <input
-              type="range"
-              min={5}
-              max={100}
-              step={5}
-              value={Math.round(projekt.hintergrund.deckkraft * 100)}
-              onChange={(e) => aendereHintergrund({ deckkraft: Number(e.target.value) / 100 })}
-              style={{ width: '100%' }}
-            />
-          </FeldRahmen>
-
-          <div className="feld-zeile">
-            <Massfeld
-              label="Versatz X"
-              cm={projekt.hintergrund.x}
-              einheit={einheit}
-              beiStart={beiStart}
-              aendern={(x) => aendereHintergrund({ x })}
-            />
-            <Massfeld
-              label="Versatz Y"
-              cm={projekt.hintergrund.y}
-              einheit={einheit}
-              beiStart={beiStart}
-              aendern={(y) => aendereHintergrund({ y })}
-            />
-          </div>
-
-          <button
-            className="knopf"
-            style={{ width: '100%', marginTop: 6 }}
-            onClick={() => setzeHintergrund(undefined)}
-            title="Die Vorlage entfernen. Mit Strg+Z kommt sie zurück."
-          >
-            Vorlage entfernen
-          </button>
-        </div>
-      )}
-
-      {/* ------------------------------------------------------------ Raster */}
-      <div className="gruppe">
-        <div className="gruppe-titel">Raster &amp; Einrasten</div>
-        <div className="feld-zeile">
-          <Massfeld
-            label="Rasterweite"
-            cm={projekt.einstellungen.rasterWeite}
-            einheit={einheit}
-            min={1}
-            aendern={(rasterWeite) => setzeEinstellung({ rasterWeite })}
-          />
-          <div className="feld">
-            <label>&nbsp;</label>
-            <Schalter
-              label="Raster anzeigen"
-              wert={projekt.einstellungen.rasterSichtbar}
-              aendern={(rasterSichtbar) => setzeEinstellung({ rasterSichtbar })}
-            />
-          </div>
-        </div>
-        <Schalter
-          label="Am Raster einrasten"
-          wert={projekt.einstellungen.amRasterEinrasten}
-          aendern={(amRasterEinrasten) => setzeEinstellung({ amRasterEinrasten })}
-        />
-        <Schalter
-          label="Hilfslinien an Wänden und Nachbarn"
-          wert={projekt.einstellungen.hilfslinienAktiv}
-          aendern={(hilfslinienAktiv) => setzeEinstellung({ hilfslinienAktiv })}
-        />
-        <Schalter
-          label="Abstände beim Verschieben anzeigen"
-          wert={projekt.einstellungen.masseAnzeigen}
-          aendern={(masseAnzeigen) => setzeEinstellung({ masseAnzeigen })}
-        />
-      </div>
-
-      {/* ------------------------------------------------- Beschriftungen */}
-      <div className="gruppe">
-        <div className="gruppe-titel">Beschriftungen</div>
-        <Auswahlfeld
-          label="Namen auf dem Plan"
-          wert={projekt.einstellungen.beschriftungen ?? 'nachElement'}
-          moeglichkeiten={[
-            { wert: 'aus', text: 'Aus – nichts beschriften' },
-            { wert: 'nachElement', text: 'Je Element – wie einzeln eingestellt' },
-            { wert: 'alle', text: 'Alle – auch einzeln abgeschaltete' },
-          ]}
-          aendern={(beschriftungen) => setzeEinstellung({ beschriftungen })}
-        />
-        <p className="hinweis" style={{ marginTop: 6 }}>
-          Ein eingelesener Plan bringt Dutzende Namen mit, die einzeln
-          abgeschaltet sind, damit der Plan lesbar bleibt. Mit „Alle" holt man
-          sie alle hervor, ohne die Einstellung an jedem Möbel anfassen zu
-          müssen.
-        </p>
-      </div>
-
-      {/* ------------------------------------------------------------ Ebenen */}
-      <div className="gruppe">
-        <div className="gruppe-titel">Ebenen</div>
-        {projekt.ebenen.map((ebene) => {
-          // Auf der Verkaufsflächen-Ebene liegen keine Möbel, sondern die
-          // eingezeichneten Teilflächen. Stünde dort stur die Zahl der
-          // Elemente, zeigte die Ebene immer eine Null – und sähe leer aus,
-          // obwohl etwas darauf liegt.
-          const anzahl =
-            ebene.id === 'verkaufsflaeche'
-              ? projekt.verkaufsflaechen.length
-              : projekt.elemente.filter((el) => el.ebeneId === ebene.id).length;
-          return (
-            <div
-              key={ebene.id}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}
-            >
-              <button
-                className="knopf knopf-nur-symbol"
-                title={ebene.sichtbar ? 'Ebene ausblenden' : 'Ebene einblenden'}
-                onClick={() => setzeEbene(ebene.id, { sichtbar: !ebene.sichtbar })}
-              >
-                {ebene.sichtbar ? <SymbolAuge /> : <SymbolAugeAus />}
-              </button>
-              <button
-                className={`knopf knopf-nur-symbol${ebene.gesperrt ? ' aktiv' : ''}`}
-                title={ebene.gesperrt ? 'Ebene entsperren' : 'Ebene sperren'}
-                onClick={() => setzeEbene(ebene.id, { gesperrt: !ebene.gesperrt })}
-              >
-                <SymbolSchloss />
-              </button>
-              <span style={{ opacity: ebene.sichtbar ? 1 : 0.5 }}>{ebene.name}</span>
-              <span className="kategorie-anzahl" style={{ marginLeft: 'auto' }}>
-                {anzahl}
+        {/* Aktionsflächen in Paletten. Zwei Zahlen: was rechnerisch
+            hineinginge und was ein gerader Aufbau wirklich hergibt. */}
+        {aktion.anzahl > 0 && (
+          <>
+            <div className="kennzahl">
+              <span>
+                Aktionsfläche
+                <span className="kategorie-anzahl">
+                  {' '}
+                  · {aktion.anzahl} {aktion.anzahl === 1 ? 'Fläche' : 'Flächen'}
+                </span>
+              </span>
+              <span className="kennzahl-wert">
+                {aktion.qm.toLocaleString('de-DE', { maximumFractionDigits: 1 })} m²
               </span>
             </div>
-          );
-        })}
-      </div>
+            <div className="kennzahl">
+              <span>Entspricht CHEP / ½ / ¼</span>
+              <span className="kennzahl-wert">
+                {aktion.umrechnung.ganz} / {aktion.umrechnung.halb} / {aktion.umrechnung.viertel}
+              </span>
+            </div>
+            <div className="kennzahl">
+              <span>Davon aufgebaut möglich</span>
+              <span className="kennzahl-wert">
+                {aktion.packung.ganz} / {aktion.packung.halb} / {aktion.packung.viertel}
+              </span>
+            </div>
+            <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
+              Oben die Umrechnung der Fläche, unten was ein gerader Aufbau je Fläche wirklich
+              hergibt. Der Unterschied ist der Verschnitt der Zuschnitte.
+            </p>
+          </>
+        )}
+      </Klappgruppe>
 
-      {/* ---------------------------------------------------------- Flächen */}
-      <div className="gruppe">
-        <div className="gruppe-titel">Flächenübersicht</div>
+      <Klappgruppe name="flaechen" titel="Flächenübersicht" wert={formatiereFlaeche(flaechen.verkaufsflaeche)} vorgabe={false}>
         {/*
           Der Rahmen ist nicht immer das Gebäude.
           
@@ -4058,136 +4015,224 @@ function ProjektEigenschaften() {
             ))}
           </div>
         )}
-      </div>
+      </Klappgruppe>
 
-      {/*
-        Meter, Kisten und Paletten – bewusst neben der Flächenübersicht und
-        nicht darin. Die misst Quadratmeter; hier stehen Längen und Stückzahlen.
-        Beides in einem Block zu zeigen hieße, zwei Fragen zu vermengen.
-      */}
-      <div className="gruppe">
-        <div className="gruppe-titel">Meter, Kisten und Paletten</div>
+      <Klappgruppe name="ebenen" titel="Ebenen" wert={`${projekt.ebenen.filter((e) => e.sichtbar).length}/${projekt.ebenen.length}`} vorgabe={false}>
+        {projekt.ebenen.map((ebene) => {
+          // Auf der Verkaufsflächen-Ebene liegen keine Möbel, sondern die
+          // eingezeichneten Teilflächen. Stünde dort stur die Zahl der
+          // Elemente, zeigte die Ebene immer eine Null – und sähe leer aus,
+          // obwohl etwas darauf liegt.
+          const anzahl =
+            ebene.id === 'verkaufsflaeche'
+              ? projekt.verkaufsflaechen.length
+              : projekt.elemente.filter((el) => el.ebeneId === ebene.id).length;
+          return (
+            <div
+              key={ebene.id}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}
+            >
+              <button
+                className="knopf knopf-nur-symbol"
+                title={ebene.sichtbar ? 'Ebene ausblenden' : 'Ebene einblenden'}
+                onClick={() => setzeEbene(ebene.id, { sichtbar: !ebene.sichtbar })}
+              >
+                {ebene.sichtbar ? <SymbolAuge /> : <SymbolAugeAus />}
+              </button>
+              <button
+                className={`knopf knopf-nur-symbol${ebene.gesperrt ? ' aktiv' : ''}`}
+                title={ebene.gesperrt ? 'Ebene entsperren' : 'Ebene sperren'}
+                onClick={() => setzeEbene(ebene.id, { gesperrt: !ebene.gesperrt })}
+              >
+                <SymbolSchloss />
+              </button>
+              <span style={{ opacity: ebene.sichtbar ? 1 : 0.5 }}>{ebene.name}</span>
+              <span className="kategorie-anzahl" style={{ marginLeft: 'auto' }}>
+                {anzahl}
+              </span>
+            </div>
+          );
+        })}
+      </Klappgruppe>
 
-        {/* Wie viel Platz bekommt welches Sortiment? Zugeklappt eine Zeile. */}
-        <Warengruppenmeter projekt={projekt} />
+      <Klappgruppe name="beschriftung" titel="Beschriftungen" vorgabe={false}>
+        <Auswahlfeld
+          label="Namen auf dem Plan"
+          wert={projekt.einstellungen.beschriftungen ?? 'nachElement'}
+          moeglichkeiten={[
+            { wert: 'aus', text: 'Aus – nichts beschriften' },
+            { wert: 'nachElement', text: 'Je Element – wie einzeln eingestellt' },
+            { wert: 'alle', text: 'Alle – auch einzeln abgeschaltete' },
+          ]}
+          aendern={(beschriftungen) => setzeEinstellung({ beschriftungen })}
+        />
+        <p className="hinweis" style={{ marginTop: 6 }}>
+          Ein eingelesener Plan bringt Dutzende Namen mit, die einzeln
+          abgeschaltet sind, damit der Plan lesbar bleibt. Mit „Alle" holt man
+          sie alle hervor, ohne die Einstellung an jedem Möbel anfassen zu
+          müssen.
+        </p>
+      </Klappgruppe>
 
-        {/* Und woraus der Markt besteht – die Stückliste. */}
-        <Moebeluebersicht projekt={projekt} />
+      <Klappgruppe name="raster" titel="Raster &amp; Einrasten" wert={formatiereLaenge(projekt.einstellungen.rasterWeite, einheit)} vorgabe={false}>
+        <div className="feld-zeile">
+          <Massfeld
+            label="Rasterweite"
+            cm={projekt.einstellungen.rasterWeite}
+            einheit={einheit}
+            min={1}
+            aendern={(rasterWeite) => setzeEinstellung({ rasterWeite })}
+          />
+          <div className="feld">
+            <label>&nbsp;</label>
+            <Schalter
+              label="Raster anzeigen"
+              wert={projekt.einstellungen.rasterSichtbar}
+              aendern={(rasterSichtbar) => setzeEinstellung({ rasterSichtbar })}
+            />
+          </div>
+        </div>
+        <Schalter
+          label="Am Raster einrasten"
+          wert={projekt.einstellungen.amRasterEinrasten}
+          aendern={(amRasterEinrasten) => setzeEinstellung({ amRasterEinrasten })}
+        />
+        <Schalter
+          label="Hilfslinien an Wänden und Nachbarn"
+          wert={projekt.einstellungen.hilfslinienAktiv}
+          aendern={(hilfslinienAktiv) => setzeEinstellung({ hilfslinienAktiv })}
+        />
+        <Schalter
+          label="Abstände beim Verschieben anzeigen"
+          wert={projekt.einstellungen.masseAnzeigen}
+          aendern={(masseAnzeigen) => setzeEinstellung({ masseAnzeigen })}
+        />
+      </Klappgruppe>
 
-        {/*
-          Obst und Gemüse besteht aus zweierlei: Die Tische zählen in grünen
-          Kisten, die Kühlmöbel für Salate, Beeren und Pilze in Metern. Beides
-          lässt sich nicht in eine Zahl bringen – es gibt keinen einzelnen
-          Umrechnungskurs zwischen Kisten und Metern, er hängt an der Lage der
-          Kiste und an der Tiefe der Auflage. Also stehen sie nebeneinander.
+      <Klappgruppe name="grundflaeche" titel="Grundfläche des Marktes" wert={`${formatiereLaenge(masse.breite, einheit)} × ${formatiereLaenge(masse.laenge, einheit)}`} vorgabe={false}>
 
-          Zugeordnet wird über die **Warengruppe**, nicht über die
-          Möbelkategorie: Ein Kartoffelregal gehört hierher, ein Kühlregal an
-          der Molkerei nicht.
-        */}
-        {obstgemuese.vorhanden && (
+        {/* Solange der Grundriss ein Rechteck ist, lassen sich Breite und
+            Länge einfach eintippen. Bei einer zusammengesetzten Form ergäben
+            zwei Zahlen keinen Sinn mehr – dann steht dort die Umgrenzung. */}
+        {rechteckig ? (
+          <div className="feld-zeile">
+            <Massfeld
+              label="Breite"
+              cm={masse.breite}
+              einheit={einheit}
+              min={100}
+              beiStart={beiStart}
+              aendern={(breite) => setzeUmrissGroesse(breite, masse.laenge)}
+            />
+            <Massfeld
+              label="Länge"
+              cm={masse.laenge}
+              einheit={einheit}
+              min={100}
+              beiStart={beiStart}
+              aendern={(laenge) => setzeUmrissGroesse(masse.breite, laenge)}
+            />
+          </div>
+        ) : (
           <>
             <div className="kennzahl">
-              <span>
-                <strong>Obst &amp; Gemüse</strong>
-              </span>
+              <span>Umgrenzung</span>
               <span className="kennzahl-wert">
-                {obstgemuese.laufend.toLocaleString('de-DE', { minimumFractionDigits: 2 })} lfm
+                {formatiereLaenge(masse.breite, einheit)} × {formatiereLaenge(masse.laenge, einheit)}
               </span>
             </div>
             <div className="kennzahl">
-              <span>Davon grüne Kisten</span>
-              <span className="kennzahl-wert">{obstgemuese.kisten} iK</span>
+              <span>Ecken</span>
+              <span className="kennzahl-wert">{projekt.grundflaeche.umriss.length}</span>
             </div>
-            {obstgemuese.kuehlungLaufend > 0 && (
-              <div className="kennzahl">
-                <span>Davon Kühlung</span>
-                <span className="kennzahl-wert">
-                  {obstgemuese.kuehlungLaufend.toLocaleString('de-DE', {
-                    minimumFractionDigits: 2,
-                  })}{' '}
-                  lfm ·{' '}
-                  {obstgemuese.kuehlungTatsaechlich.toLocaleString('de-DE', {
-                    minimumFractionDigits: 2,
-                  })}{' '}
-                  tm
-                </span>
-              </div>
-            )}
-            <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
-              Die Kisten und die Kühlmeter lassen sich nicht zusammenzählen — wie viele Kisten
-              einem Meter entsprechen, hängt daran, wie sie liegen und wie tief die Auflage ist.
-              Deshalb stehen sie nebeneinander.
+            <p className="hinweis" style={{ marginTop: 6 }}>
+              Zusammengesetzte Form. Zum Ändern oben in der Werkzeugleiste unter
+              <strong> Grundriss</strong> ein Werkzeug wählen.
             </p>
           </>
         )}
 
-        {/* Die Getränke zählen in Kistenfacings – die vorderste Reihe, also
-            wie breit das Sortiment ist. Mit der Tiefe wird daraus das
-            Volumen: alle Kisten vor den Gestellen. */}
-        {getraenke.gestelle > 0 && (
-          <>
-            <div className="kennzahl">
-              <span>
-                Kistenfacings
-                <span className="kategorie-anzahl">
-                  {' '}
-                  · {getraenke.gestelle} {getraenke.gestelle === 1 ? 'Gestell' : 'Gestelle'}
-                </span>
-              </span>
-              <span className="kennzahl-wert">{getraenke.facings}</span>
-            </div>
-            <div className="kennzahl">
-              <span>
-                Kisten insgesamt (Facings × Tiefe)
-                <span className="kategorie-anzahl">
-                  {' '}
-                  ·{' '}
-                  {getraenke.reihenMindestens === getraenke.reihenHoechstens
-                    ? `${getraenke.reihenHoechstens} Reihen`
-                    : `${getraenke.reihenMindestens}–${getraenke.reihenHoechstens} Reihen`}
-                </span>
-              </span>
-              <span className="kennzahl-wert">{getraenke.kisten}</span>
-            </div>
-          </>
-        )}
+        <div className="feld-zeile">
+          <Massfeld
+            label="Wandstärke"
+            cm={projekt.grundflaeche.wandstaerke}
+            einheit={einheit}
+            min={2}
+            beiStart={beiStart}
+            aendern={(wandstaerke) => setzeGrundflaeche({ wandstaerke })}
+          />
+          <Auswahlfeld<'m' | 'cm'>
+            label="Maßeinheit"
+            wert={einheit}
+            moeglichkeiten={[
+              { wert: 'm', text: 'Meter' },
+              { wert: 'cm', text: 'Zentimeter' },
+            ]}
+            aendern={(anzeigeEinheit) => setzeEinstellung({ anzeigeEinheit })}
+          />
+        </div>
+      </Klappgruppe>
 
-        {/* Aktionsflächen in Paletten. Zwei Zahlen: was rechnerisch
-            hineinginge und was ein gerader Aufbau wirklich hergibt. */}
-        {aktion.anzahl > 0 && (
-          <>
-            <div className="kennzahl">
-              <span>
-                Aktionsfläche
-                <span className="kategorie-anzahl">
-                  {' '}
-                  · {aktion.anzahl} {aktion.anzahl === 1 ? 'Fläche' : 'Flächen'}
-                </span>
-              </span>
-              <span className="kennzahl-wert">
-                {aktion.qm.toLocaleString('de-DE', { maximumFractionDigits: 1 })} m²
-              </span>
-            </div>
-            <div className="kennzahl">
-              <span>Entspricht CHEP / ½ / ¼</span>
-              <span className="kennzahl-wert">
-                {aktion.umrechnung.ganz} / {aktion.umrechnung.halb} / {aktion.umrechnung.viertel}
-              </span>
-            </div>
-            <div className="kennzahl">
-              <span>Davon aufgebaut möglich</span>
-              <span className="kennzahl-wert">
-                {aktion.packung.ganz} / {aktion.packung.halb} / {aktion.packung.viertel}
-              </span>
-            </div>
-            <p className="hinweis" style={{ marginTop: 2, marginBottom: 0 }}>
-              Oben die Umrechnung der Fläche, unten was ein gerader Aufbau je Fläche wirklich
-              hergibt. Der Unterschied ist der Verschnitt der Zuschnitte.
-            </p>
-          </>
-        )}
-      </div>
+      {projekt.hintergrund && (
+      <Klappgruppe name="hintergrund" titel="Eingelesener Plan" vorgabe={false}>
+          <div className="kennzahl">
+            <span
+              style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              title={projekt.hintergrund.quelle}
+            >
+              {projekt.hintergrund.quelle}
+            </span>
+            <span className="kennzahl-wert">1:{projekt.hintergrund.massstab}</span>
+          </div>
+
+          <Schalter
+            label="Vorlage anzeigen"
+            wert={projekt.hintergrund.sichtbar}
+            aendern={(sichtbar) => aendereHintergrund({ sichtbar })}
+          />
+
+          <FeldRahmen
+            label="Deckkraft"
+            titel="Blasser stellen, um die eigene Zeichnung besser zu sehen – ganz ausblenden erst, wenn nichts mehr nachzutragen ist."
+          >
+            <input
+              type="range"
+              min={5}
+              max={100}
+              step={5}
+              value={Math.round(projekt.hintergrund.deckkraft * 100)}
+              onChange={(e) => aendereHintergrund({ deckkraft: Number(e.target.value) / 100 })}
+              style={{ width: '100%' }}
+            />
+          </FeldRahmen>
+
+          <div className="feld-zeile">
+            <Massfeld
+              label="Versatz X"
+              cm={projekt.hintergrund.x}
+              einheit={einheit}
+              beiStart={beiStart}
+              aendern={(x) => aendereHintergrund({ x })}
+            />
+            <Massfeld
+              label="Versatz Y"
+              cm={projekt.hintergrund.y}
+              einheit={einheit}
+              beiStart={beiStart}
+              aendern={(y) => aendereHintergrund({ y })}
+            />
+          </div>
+
+          <button
+            className="knopf"
+            style={{ width: '100%', marginTop: 6 }}
+            onClick={() => setzeHintergrund(undefined)}
+            title="Die Vorlage entfernen. Mit Strg+Z kommt sie zurück."
+          >
+            Vorlage entfernen
+          </button>
+        </Klappgruppe>
+      )}
 
       <div className="gruppe">
         <p className="hinweis">
@@ -4198,6 +4243,7 @@ function ProjektEigenschaften() {
       </div>
     </>
   );
+
 }
 
 

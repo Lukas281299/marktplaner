@@ -35,6 +35,7 @@ import {
 } from '../speicher/projektArchiv';
 import { STANDARD_SORTIMENT, type Sortimentsliste } from '../daten/warengruppen';
 import {
+  kenntNamen,
   mitAufgenommenem,
   mitStand,
   pfadeUnter,
@@ -443,6 +444,16 @@ export interface PlanStore {
    * wenn er die Abteilung zwischendurch zumacht.
    */
   zugeklappteGruppen: string[];
+  /**
+   * Welche Blöcke der Projektübersicht **offen** stehen.
+   *
+   * Andersherum als bei den Warengruppen, und mit Absicht: Die Übersicht ist
+   * lang, und wer sie öffnet, sucht meistens eine Zahl und nicht alle. Offen
+   * ist deshalb nur, was man beim Planen dauernd braucht — die Meter je
+   * Warengruppe. Der Rest steht zugeklappt da, mit seiner wichtigsten Zahl in
+   * der Kopfzeile, und geht auf, wenn man ihn braucht.
+   */
+  offeneBloecke: string[];
   ansicht: Ansicht;
   /** Erst `true`, wenn aus der Datenbank geladen wurde. */
   geladen: boolean;
@@ -495,6 +506,8 @@ export interface PlanStore {
   schalteAbteilung(name: string): void;
   /** Eine Warengruppe auf- oder zuklappen – über ihren Pfad. */
   schalteWarengruppe(pfad: string): void;
+  /** Einen Block der Projektübersicht auf- oder zuklappen. */
+  schalteBlock(name: string): void;
   /** Beginnt das Zuordnen – `null` bricht ab. */
   starteZuordnung(name: string | null): void;
   /**
@@ -844,6 +857,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   zeichenvorlage: null,
   offeneAbteilungen: [],
   zugeklappteGruppen: [],
+  offeneBloecke: ['meter'],
   ansicht: { x: 60, y: 60, zoom: 0.25 },
   geladen: false,
   geladenerStand: null,
@@ -970,6 +984,13 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     });
   },
 
+  schalteBlock(name) {
+    const offen = get().offeneBloecke;
+    set({
+      offeneBloecke: offen.includes(name) ? offen.filter((n) => n !== name) : [...offen, name],
+    });
+  },
+
   starteZuordnung(name) {
     // Das Aufnehmen und das Zuordnen schließen sich aus: Beide warten auf
     // einen Klick, und zwei Erwartungen an denselben Klick sind eine zu viel.
@@ -1026,7 +1047,15 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
     // Und die Pfade in der Planung mitziehen: Sie sind Zeichenketten und
     // zeigten sonst auf einen Namen, den es nicht mehr gibt – siehe
     // `logik/pfadumbenennung.ts`.
-    aendere(set, get, (p) => mitUmbenanntemPfad(p, alt, neu));
+    //
+    // **Frei getippte Namen kommen mit, wenn es den alten nicht mehr gibt.**
+    // Wer „Molkerei SB" von Hand auf einen Meter geschrieben hat, hat keinen
+    // Pfad daran; steht der Name nach dem Umbenennen nirgends mehr in der
+    // Liste, kann nur dieser eine gemeint gewesen sein. Führt die Liste ihn
+    // weiter — weil er woanders noch einmal vorkommt —, bleibt die Strecke
+    // unangetastet: Dann hieße Umbenennen raten.
+    const altName = alt.split(' › ').pop() ?? alt;
+    aendere(set, get, (p) => mitUmbenanntemPfad(p, alt, neu, !kenntNamen(liste, altName)));
   },
 
   setzeWarengruppenPinsel(pinsel) {
