@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Assistentenfenster } from './komponenten/Assistentenfenster';
 import { Eigenschaftenfenster } from './komponenten/Eigenschaftenfenster';
 import { Elementbibliothek } from './komponenten/Elementbibliothek';
@@ -7,6 +7,15 @@ import { Spaltengriff, Spaltenstreifen } from './komponenten/Spaltengriffe';
 import { Statusleiste } from './komponenten/Statusleiste';
 import { Werkzeugleiste } from './komponenten/Werkzeugleiste';
 import { Zeichenflaeche } from './komponenten/zeichenflaeche/Zeichenflaeche';
+
+/**
+ * Die 3D-Ansicht wird erst geladen, wenn jemand sie aufruft.
+ *
+ * three.js wiegt so viel wie der Rest der Anwendung zusammen. Wer nur plant,
+ * soll das nicht mitladen – deshalb ein eigenes Paket, das erst beim ersten
+ * Klick auf „3D" nachkommt.
+ */
+const Dreidansicht = lazy(() => import('./komponenten/dreid/Dreidansicht'));
 import { neuesProjekt } from './daten/standardProjekt';
 import { useAbgleich } from './logik/abgleichSteuerung';
 import { useTastatur } from './logik/tastatur';
@@ -137,6 +146,8 @@ export default function App() {
   }, [breitenJetzt, linksOffenJetzt, rechtsOffenJetzt, geladen]);
 
   const linkerReiter = usePlanStore((s) => s.linkerReiter);
+
+  const ansicht3d = usePlanStore((s) => s.ansicht3d);
   const linksOffen = usePlanStore((s) => s.linkeSpalteOffen);
   const rechtsOffen = usePlanStore((s) => s.rechteSpalteOffen);
   const spaltenbreite = usePlanStore((s) => s.spaltenbreite);
@@ -167,7 +178,13 @@ export default function App() {
         ) : (
           <Spaltenstreifen seite="links" />
         )}
-        <Zeichenflaeche />
+        {ansicht3d ? (
+          <Suspense fallback={<div className="dreid dreid-laden">3D-Ansicht wird geladen …</div>}>
+            <Dreidansicht />
+          </Suspense>
+        ) : (
+          <Zeichenflaeche />
+        )}
         <Eigenschaftenfenster />
         {assistentOffen && <Assistentenfenster />}
         {linksOffen && <Spaltengriff seite="links" />}

@@ -209,7 +209,7 @@ export function strecken(projekt: Projekt): Streckenmeter[] {
  * meint „die gehören gerade nicht dazu", und dann gehören sie auch nicht in
  * die Auswertung.
  */
-function sichtbareEbenen(projekt: Projekt): Set<string> {
+export function sichtbareEbenen(projekt: Projekt): Set<string> {
   return new Set((projekt.ebenen ?? []).filter((e) => e.sichtbar !== false).map((e) => e.id));
 }
 

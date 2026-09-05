@@ -71,6 +71,7 @@ export function Werkzeugleiste() {
   const syncZustand = useSyncStore((s) => s.zustand);
   const werkzeug = usePlanStore((s) => s.werkzeug);
   const linkerReiter = usePlanStore((s) => s.linkerReiter);
+  const ansicht3d = usePlanStore((s) => s.ansicht3d);
   const sucheOffen = usePlanStore((s) => s.sucheOffen);
   /** Steckt in der Auswahl mindestens ein Regal, das zu einer Gruppe gehört? */
   const auswahlHatGruppe = usePlanStore((s) =>
@@ -441,6 +442,14 @@ export function Werkzeugleiste() {
 
           <span className="trenner" />
           <AssistentKnopf />
+
+          <button
+            className={`knopf${ansicht3d ? ' aktiv' : ''}`}
+            onClick={() => store().setzeAnsicht3d(!ansicht3d)}
+            title="Den Markt räumlich ansehen – zum Schauen, geplant wird im Grundriss"
+          >
+            3D
+          </button>
 
           <span className="trenner" />
           <span className="leisten-titel">Grundriss</span>

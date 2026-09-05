@@ -377,6 +377,13 @@ export interface PlanStore {
    */
   linkerReiter: 'bibliothek' | 'warengruppen';
   /**
+   * Zeigt die Mitte den Markt räumlich statt als Grundriss?
+   *
+   * Zum Schauen, nicht zum Planen: Die 3D-Ansicht baut aus denselben Daten
+   * ein Bild mit Höhen. Gehört zur Sitzung, nicht zur Planung.
+   */
+  ansicht3d: boolean;
+  /**
    * Ist die Suche über der Zeichenfläche offen?
    *
    * Gehört nicht zur Planung, sondern zur Sitzung: Nach dem Neuladen fängt
@@ -471,6 +478,8 @@ export interface PlanStore {
   setzeWarengruppenPinsel(pinsel: { name: string; pfad: string } | null): void;
   /** Schaltet die linke Spalte zwischen Möbeln und Warengruppen um. */
   setzeLinkenReiter(reiter: 'bibliothek' | 'warengruppen'): void;
+  /** Schaltet zwischen Grundriss und 3D-Ansicht um. */
+  setzeAnsicht3d(an: boolean): void;
   /** Öffnet oder schließt die Suche über der Zeichenfläche. */
   setzeSucheOffen(offen: boolean): void;
   /** Klappt eine Abteilung im Warengruppen-Reiter auf oder zu. */
@@ -815,6 +824,7 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   zuordnungslauf: null,
   warengruppenMarkierung: [],
   linkerReiter: 'bibliothek',
+  ansicht3d: false,
   sucheOffen: false,
   linkeSpalteOffen: true,
   rechteSpalteOffen: true,
@@ -916,6 +926,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
   setzeSortimentsliste(liste, speichern = false) {
     set({ sortiment: liste });
     if (speichern) void speichereSortiment(liste);
+  },
+
+  setzeAnsicht3d(an) {
+    set({ ansicht3d: an });
   },
 
   setzeLinkenReiter(reiter) {
